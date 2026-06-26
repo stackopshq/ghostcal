@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+/* GhostCal design system — dark-mode-native.
+   Palette: deep night base, electric-cyan accent, smoked-glass surfaces. */
+:root {
+  --color-base: #0b0f19; /* page background */
+  --color-surface: #1e293b; /* cards / components */
+  --color-surface-2: #161e2e; /* nested surfaces */
+  --color-foreground: #e2e8f0; /* primary text */
+  --color-muted: #94a3b8; /* secondary text */
+  --color-accent: #00f0ff; /* electric cyan — actions, selected slots */
+  --color-accent-ink: #021016; /* text on top of accent */
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-border-strong: rgba(255, 255, 255, 0.12);
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+}
+
+/* Expose the tokens to Tailwind utilities (bg-base, text-accent, border-border, …). */
+@theme inline {
+  --color-base: var(--color-base);
+  --color-surface: var(--color-surface);
+  --color-surface-2: var(--color-surface-2);
+  --color-foreground: var(--color-foreground);
+  --color-muted: var(--color-muted);
+  --color-accent: var(--color-accent);
+  --color-accent-ink: var(--color-accent-ink);
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+  --font-sans: var(--font-sans);
+}
+
+body {
+  background-color: var(--color-base);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  /* Subtle cyan aurora bleeding from the top — the "ghost" glow. */
+  background-image: radial-gradient(
+    60rem 40rem at 80% -10%,
+    rgba(0, 240, 255, 0.08),
+    transparent 60%
+  );
+  background-attachment: fixed;
+}
+
+/* Smoked-glass card. */
+.glass {
+  background: color-mix(in srgb, var(--color-surface) 65%, transparent);
+  border: 1px solid var(--color-border);
+  backdrop-filter: blur(12px);
+}

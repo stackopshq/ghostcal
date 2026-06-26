@@ -30,3 +30,7 @@ htmlcov/
 .vscode/
 *.swp
 .DS_Store
+
+# Claude / agent local config — never versioned
+CLAUDE.md
+.claude/
