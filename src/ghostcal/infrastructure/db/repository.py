@@ -41,7 +41,7 @@ class SqlSchedulingRepository:
                 select(models.User.name).where(models.User.id == event_row.owner_id)
             )
         ).scalar_one()
-        schedule = await self._load_schedule(event_row.owner_id)
+        schedule = await self._load_schedule(event_row.schedule_id, event_row.owner_id)
         event = EventType(
             duration=timedelta(minutes=event_row.duration_min),
             slot_interval=timedelta(minutes=event_row.slot_interval_min),
@@ -61,15 +61,20 @@ class SqlSchedulingRepository:
             schedule=schedule,
         )
 
-    async def _load_schedule(self, owner_id: uuid.UUID) -> Schedule:
-        schedule_row = (
-            await self._session.execute(
+    async def _load_schedule(self, schedule_id: uuid.UUID | None, owner_id: uuid.UUID) -> Schedule:
+        if schedule_id is not None:
+            stmt = select(models.AvailabilitySchedule).where(
+                models.AvailabilitySchedule.id == schedule_id
+            )
+        else:
+            # Fallback: the owner's first schedule (single-schedule setups).
+            stmt = (
                 select(models.AvailabilitySchedule)
                 .where(models.AvailabilitySchedule.owner_id == owner_id)
                 .order_by(models.AvailabilitySchedule.created_at)
                 .limit(1)
             )
-        ).scalar_one_or_none()
+        schedule_row = (await self._session.execute(stmt)).scalar_one_or_none()
         # No schedule configured yet → no availability (engine yields no slots).
         if schedule_row is None:
             return Schedule(timezone="UTC", rules=())

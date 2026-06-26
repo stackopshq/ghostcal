@@ -141,6 +141,11 @@ class EventType(TimestampMixin, Base):
         ForeignKey("organizations.id", ondelete="CASCADE")
     )
     owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    # The availability schedule this event type uses. Null falls back to the owner's first
+    # schedule (kept for backwards compatibility and simple single-schedule setups).
+    schedule_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("availability_schedules.id", ondelete="SET NULL")
+    )
     slug: Mapped[str] = mapped_column(String(100))
     title: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text)

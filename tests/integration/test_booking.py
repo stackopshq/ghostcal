@@ -59,6 +59,7 @@ async def bookable(admin_engine: AsyncEngine) -> AsyncIterator[dict[str, uuid.UU
         event = models.EventType(
             organization_id=org.id,
             owner_id=host.id,
+            schedule_id=schedule.id,
             slug=f"intro-{suffix}",
             title="Intro",
             duration_min=30,

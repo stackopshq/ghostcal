@@ -58,6 +58,7 @@ async def main() -> None:
             event = models.EventType(
                 organization_id=org.id,
                 owner_id=host.id,
+                schedule_id=schedule.id,
                 slug=EVENT_SLUG,
                 title="Intro call",
                 duration_min=30,
