@@ -37,6 +37,7 @@ class EventContext:
 
     event_type_id: uuid.UUID
     host_id: uuid.UUID
+    host_name: str
     title: str
     location_type: str
     date_window_days: int
@@ -79,6 +80,13 @@ class SchedulingRepository(Protocol):
     ) -> uuid.UUID:
         """Insert a confirmed booking. Raise ``SlotUnavailable`` on overlap (race)."""
         ...
+
+
+async def get_event_type(repo: SchedulingRepository, *, event_type_id: uuid.UUID) -> EventContext:
+    context = await repo.get_event_context(event_type_id)
+    if context is None:
+        raise EventTypeNotFound(str(event_type_id))
+    return context
 
 
 async def get_availability(

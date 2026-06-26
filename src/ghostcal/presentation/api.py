@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from ghostcal import __version__
+from ghostcal.config import get_settings
 from ghostcal.presentation.routes import router as scheduling_router
 
 
@@ -13,6 +15,13 @@ def create_app() -> FastAPI:
         title="GhostCal",
         version=__version__,
         description="Fast, correct scheduling.",
+    )
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=get_settings().cors_allow_origins,
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type"],
     )
 
     @app.get("/health", tags=["meta"])

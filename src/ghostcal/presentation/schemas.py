@@ -8,6 +8,14 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 
+class EventTypeOut(BaseModel):
+    id: uuid.UUID
+    title: str
+    duration_min: int
+    location_type: str
+    host_name: str
+
+
 class SlotOut(BaseModel):
     start: datetime
     end: datetime

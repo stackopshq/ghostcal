@@ -18,6 +18,7 @@ from ghostcal.application.scheduling import (
     SlotUnavailable,
     create_booking,
     get_availability,
+    get_event_type,
 )
 from ghostcal.infrastructure.db.repository import SqlSchedulingRepository
 from ghostcal.infrastructure.db.session import org_session
@@ -25,11 +26,32 @@ from ghostcal.presentation.schemas import (
     AvailabilityOut,
     BookingIn,
     BookingOut,
+    EventTypeOut,
     SlotOut,
 )
 
 router = APIRouter(prefix="/v1/orgs/{organization_id}", tags=["scheduling"])
 _clock = SystemClock()
+
+
+@router.get("/event-types/{event_type_id}", response_model=EventTypeOut)
+async def read_event_type(
+    organization_id: uuid.UUID,
+    event_type_id: uuid.UUID,
+) -> EventTypeOut:
+    async with org_session(organization_id) as session:
+        repo = SqlSchedulingRepository(session, organization_id)
+        try:
+            context = await get_event_type(repo, event_type_id=event_type_id)
+        except EventTypeNotFound as exc:
+            raise HTTPException(status_code=404, detail="event type not found") from exc
+    return EventTypeOut(
+        id=context.event_type_id,
+        title=context.title,
+        duration_min=int(context.event.duration.total_seconds() // 60),
+        location_type=context.location_type,
+        host_name=context.host_name,
+    )
 
 
 @router.get(

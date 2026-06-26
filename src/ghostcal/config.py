@@ -24,6 +24,9 @@ class Settings(BaseSettings):
 
     environment: Literal["development", "staging", "production"] = "development"
 
+    # Browser origins allowed to call the API (the Next.js frontend in dev).
+    cors_allow_origins: list[str] = ["http://localhost:3000"]
+
     # Core infrastructure.
     # database_url: the *application* connection — a NON-superuser, NON-BYPASSRLS role, so
     #   Row-Level Security policies always apply.
