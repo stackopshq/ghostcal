@@ -26,8 +26,11 @@ public booking pages fast (<200 ms) and integrate with Google / Microsoft calend
   Trade-off: Celery workers are synchronous, so async calendar clients are called via
   `async_to_sync` inside tasks.
 - **Multi-tenant from day one.** Organizations + memberships; every business object carries
-  `organization_id`. A solo user is a one-member organization. Tenant scoping enforced in the
-  repository layer (Postgres RLS deferred to Phase 4).
+  `organization_id`. A solo user is a one-member organization. Tenant isolation enforced by
+  **Postgres RLS from the start** (per-request `SET LOCAL app.current_org_id`; app role is
+  non-`BYPASSRLS`), with repository-layer scoping as defence in depth.
+- **License: GNU AGPL-3.0-or-later.** Network use counts as distribution, so SaaS modifications
+  must offer their source — matching the open-alternative positioning (as Cal.com does).
 - **Auth owned in-house, four methods at launch:** email/password (Argon2), Google, Microsoft,
   generic OIDC SSO — all converging on one `users` row via an `identities` table. Login identity
   is kept separate from calendar OAuth grants.
@@ -40,5 +43,9 @@ public booking pages fast (<200 ms) and integrate with Google / Microsoft calend
   deterministic time tests.
 - Postgres exclusion constraints make double-booking a database invariant, independent of
   application code paths.
-- Organization-scoping every query is a standing discipline; a missing `organization_id` filter
-  is a tenant-isolation bug. Repository base classes enforce it.
+- Organization-scoping every query is a standing discipline, but RLS is the backstop: a missing
+  `organization_id` filter degrades to a wrong-result bug, not a cross-tenant data leak.
+- Every request and background task must bind `app.current_org_id` before touching the DB;
+  schema migrations and the session/transaction layer own this from Phase 1.
+- AGPL obliges us (and any operator of a modified GhostCal) to offer source on network use;
+  third-party dependencies must stay license-compatible (no proprietary/Apache-incompatible-only).

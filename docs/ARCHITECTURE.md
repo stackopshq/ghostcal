@@ -76,8 +76,20 @@ explicit IANA timezone on the owning schedule.
 **Multi-tenant from day one.** A tenant is an **organization**. Every business object
 (`event_types`, `availability_schedules`, `bookings`, `calendar_connections`, teams) carries an
 `organization_id`. A user can belong to several organizations via `memberships`. A solo user is
-just a one-member organization — no special case. All queries are organization-scoped at the
-repository layer (enforced in code; Postgres RLS is a Phase 4 hardening option).
+just a one-member organization — no special case.
+
+Isolation is enforced at **two** layers from day one:
+
+1. **Postgres Row-Level Security (RLS)** on every tenant-scoped table — the real boundary. Each
+   request opens its transaction with `SET LOCAL app.current_org_id = '<uuid>'`; table policies
+   (`USING (organization_id = current_setting('app.current_org_id')::uuid)`) make cross-tenant
+   rows invisible even if application code forgets a `WHERE`. The app connects as a non-superuser,
+   non-`BYPASSRLS` role so policies always apply. Public booking reads run under the host
+   organization's id; background jobs set the id explicitly per task.
+2. **Repository-layer scoping** — defence in depth and clearer queries, but no longer the sole
+   guarantee.
+
+A dedicated migration enables RLS and defines policies alongside each table's creation.
 
 Tenancy & identity:
 
@@ -194,6 +206,8 @@ bookings respect gaps symmetrically.
 - **Input validation** at the boundary (Pydantic). Public booking endpoints rate-limited.
 - **Webhooks**: verify signatures / channel tokens; treat payloads as untrusted (only a trigger
   to pull authoritative state).
+- **Tenant isolation**: Postgres RLS on every tenant-scoped table (see §4); the app connects as a
+  non-superuser, non-`BYPASSRLS` role so a forgotten `WHERE` cannot leak across organizations.
 - **Payments**: Stripe Checkout/Elements — card data never touches our servers.
 
 ## 8. Frontend (Next.js)
@@ -207,9 +221,10 @@ bookings respect gaps symmetrically.
 
 ## 9. Delivery plan (maps to the product roadmap)
 
-**Phase 1 — Core engine (de-risk first).** DB schema + Alembic; availability engine with full
-property + DST test suite; public booking read API; booking write path with exclusion constraint
-+ advisory lock; minimal Next.js booking page + design tokens.
+**Phase 1 — Core engine (de-risk first).** DB schema + Alembic with **RLS policies and a
+non-`BYPASSRLS` app role**; per-request `app.current_org_id` transaction binding; availability
+engine with full property + DST test suite; public booking read API; booking write path with
+exclusion constraint + advisory lock; minimal Next.js booking page + design tokens.
 
 **Phase 2 — Sync & integrations.** Google + Microsoft OAuth/connect; webhook + delta sync +
 reconciliation job; confirmation emails; auto meeting links (Meet/Teams/Zoom).
@@ -229,8 +244,6 @@ errors).
 3. **SMS: deferred.** Phase 3 reminders ship email-only first; SMS provider chosen later.
 4. **Multi-tenant from day one.** Organizations + memberships; every business object is
    organization-scoped. A solo user is a one-member organization.
-
-Still open:
-
-- Postgres **Row-Level Security** for tenant isolation — deferred to Phase 4 (code-level scoping
-  first). Flag if you want RLS from the start.
+5. **Tenant isolation via Postgres RLS from the start**, backed by repository-layer scoping as
+   defence in depth (see §4). The app role is non-`BYPASSRLS`.
+6. **License: GNU AGPL-3.0-or-later** — network use triggers the source-disclosure obligation.

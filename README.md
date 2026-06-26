@@ -59,4 +59,5 @@ clock — "now" is injected — so availability is deterministic and property-te
 
 ## License
 
-TBD — see open question at the end of setup.
+[GNU AGPL-3.0-or-later](LICENSE). Network use is distribution: anyone interacting with a modified
+GhostCal over a network must be offered the corresponding source.

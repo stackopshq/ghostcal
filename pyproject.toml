@@ -3,6 +3,8 @@ name = "ghostcal"
 version = "0.1.0"
 description = "GhostCal — fast, correct scheduling. Calendly/Cal.com alternative."
 readme = "README.md"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
 authors = [
     { name = "Kevin Allioli", email = "kevin@stackops.ch" }
 ]
