@@ -193,6 +193,8 @@ class AvailabilityOverride(Base):
     start_time: Mapped[time | None] = mapped_column(Time)
     end_time: Mapped[time | None] = mapped_column(Time)
 
+    schedule: Mapped[AvailabilitySchedule] = relationship(back_populates="overrides")
+
 
 class Booking(TimestampMixin, Base):
     __tablename__ = "bookings"

@@ -14,34 +14,11 @@ import pytest
 import pytest_asyncio
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, ProgrammingError
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine
 
-from ghostcal.config import get_settings
 from ghostcal.infrastructure.db.session import org_session
 
 pytestmark = pytest.mark.integration
-
-
-@pytest_asyncio.fixture
-async def admin_engine() -> AsyncIterator[AsyncEngine]:
-    try:
-        settings = get_settings()
-    except Exception as exc:  # missing config => no DB available
-        pytest.skip(f"settings unavailable: {exc}")
-    if settings.database_admin_url is None:
-        pytest.skip("GHOSTCAL_DATABASE_ADMIN_URL not configured")
-
-    engine = create_async_engine(str(settings.database_admin_url))
-    try:
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-    except Exception as exc:  # database down
-        await engine.dispose()
-        pytest.skip(f"database unreachable: {exc}")
-    try:
-        yield engine
-    finally:
-        await engine.dispose()
 
 
 @pytest_asyncio.fixture
