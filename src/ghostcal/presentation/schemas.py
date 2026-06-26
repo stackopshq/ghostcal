@@ -5,7 +5,44 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
+
+
+class RegisterIn(BaseModel):
+    email: EmailStr
+    name: str = Field(min_length=1, max_length=200)
+    password: str = Field(min_length=8, max_length=200)
+
+
+class VerifyEmailIn(BaseModel):
+    token: str = Field(min_length=1)
+
+
+class LoginIn(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=1, max_length=200)
+
+
+class RefreshIn(BaseModel):
+    refresh_token: str = Field(min_length=1)
+
+
+class TokenOut(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str
+    expires_in: int
+
+
+class UserOut(BaseModel):
+    id: uuid.UUID
+    email: str
+    name: str
+    email_verified: bool
+
+
+class RegisteredOut(BaseModel):
+    user_id: uuid.UUID
 
 
 class EventTypeOut(BaseModel):

@@ -40,9 +40,17 @@ class Settings(BaseSettings):
     secret_key: SecretStr = Field(min_length=32)
     access_token_ttl_seconds: int = 900  # 15 min
     refresh_token_ttl_seconds: int = 60 * 60 * 24 * 30  # 30 days
+    email_verification_ttl_seconds: int = 60 * 60 * 24  # 24 h
 
     # Encryption key for calendar tokens at rest (envelope key, base64)
     token_encryption_key: SecretStr = Field(min_length=32)
+
+    # Where the frontend lives — used to build links sent by email.
+    frontend_base_url: str = "http://localhost:3001"
+
+    # Transactional email (Resend). When the API key is unset, emails are logged instead of sent.
+    resend_api_key: SecretStr | None = None
+    email_from: str = "GhostCal <onboarding@resend.dev>"
 
     @property
     def is_production(self) -> bool:

@@ -1,7 +1,20 @@
 // Typed client for the GhostCal API.
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "http://localhost:8000";
+// Resolve the API base URL:
+// 1. NEXT_PUBLIC_API_URL if set (explicit override);
+// 2. in the browser, the same host that served the page, on port 8000 (works when accessed
+//    from another machine — "localhost" would wrongly mean the visitor's own machine);
+// 3. localhost:8000 on the server (SSR) and as a last resort.
+function resolveBaseUrl(): string {
+  const override = process.env.NEXT_PUBLIC_API_URL;
+  if (override) return override.replace(/\/$/, "");
+  if (typeof window !== "undefined") {
+    return `${window.location.protocol}//${window.location.hostname}:8000`;
+  }
+  return "http://localhost:8000";
+}
+
+const BASE_URL = resolveBaseUrl();
 
 export type EventType = {
   id: string;

@@ -44,6 +44,18 @@ def get_sessionmaker() -> async_sessionmaker[AsyncSession]:
 
 
 @asynccontextmanager
+async def db_session() -> AsyncIterator[AsyncSession]:
+    """Open a transactional session WITHOUT tenant binding.
+
+    For operations on global (non-RLS) tables — authentication, account provisioning — that run
+    before or outside an organization context. Commits on clean exit, rolls back on exception.
+    """
+    sessionmaker = get_sessionmaker()
+    async with sessionmaker() as session, session.begin():
+        yield session
+
+
+@asynccontextmanager
 async def org_session(organization_id: uuid.UUID) -> AsyncIterator[AsyncSession]:
     """Open a transactional session bound to ``organization_id``.
 

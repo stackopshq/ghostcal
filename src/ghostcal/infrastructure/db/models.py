@@ -89,6 +89,30 @@ class Identity(TimestampMixin, Base):
     subject: Mapped[str] = mapped_column(String(255))
 
 
+class EmailVerificationToken(TimestampMixin, Base):
+    """Single-use email-verification token. Only the hash is stored."""
+
+    __tablename__ = "email_verification_tokens"
+
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    token_hash: Mapped[str] = mapped_column(String(128), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class RefreshToken(TimestampMixin, Base):
+    """Rotating refresh token. Only the hash is stored; rotation revokes the previous one."""
+
+    __tablename__ = "refresh_tokens"
+
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    token_hash: Mapped[str] = mapped_column(String(128), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class Membership(TimestampMixin, Base):
     __tablename__ = "memberships"
     __table_args__ = (
