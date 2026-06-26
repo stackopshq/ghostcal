@@ -24,8 +24,13 @@ class Settings(BaseSettings):
 
     environment: Literal["development", "staging", "production"] = "development"
 
-    # Core infrastructure
+    # Core infrastructure.
+    # database_url: the *application* connection — a NON-superuser, NON-BYPASSRLS role, so
+    #   Row-Level Security policies always apply.
+    # database_admin_url: a privileged role used only by Alembic migrations and role bootstrap
+    #   (owns the schema, creates policies). Never used to serve requests.
     database_url: PostgresDsn
+    database_admin_url: PostgresDsn | None = None
     redis_url: RedisDsn
 
     # Auth / crypto

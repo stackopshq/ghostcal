@@ -64,7 +64,14 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+# One event loop for the whole session: the cached async engine stays bound to a live loop
+# across tests (otherwise reuse hits "Event loop is closed").
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
 addopts = "--cov=ghostcal --cov-report=term-missing --strict-markers"
+markers = [
+    "integration: requires a live PostgreSQL (skipped when unreachable)",
+]
 
 [tool.coverage.run]
 source = ["ghostcal"]
