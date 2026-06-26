@@ -1,0 +1,35 @@
+# Local development infrastructure. Run with: podman-compose up -d
+# Postgres and Redis only; run the app/worker from the host via `uv run` for fast reloads.
+
+services:
+  postgres:
+    image: docker.io/library/postgres:16-alpine
+    environment:
+      POSTGRES_USER: ghostcal
+      POSTGRES_PASSWORD: ghostcal
+      POSTGRES_DB: ghostcal
+    ports:
+      - "5432:5432"
+    volumes:
+      - ghostcal-pgdata:/var/lib/postgresql/data:Z
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ghostcal"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: docker.io/library/redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - ghostcal-redisdata:/data:Z
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  ghostcal-pgdata:
+  ghostcal-redisdata:

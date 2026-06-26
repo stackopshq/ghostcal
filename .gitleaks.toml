@@ -1,0 +1,10 @@
+# Gitleaks configuration. Extends the default ruleset.
+[extend]
+useDefault = true
+
+# Non-secret placeholders used only to instantiate config in tests. These never authenticate
+# against any real system. Scoped narrowly to the test fixture file.
+[[allowlists]]
+description = "Test placeholder credentials in conftest"
+paths = ['''tests/conftest\.py''']
+regexes = ['''test-(secret|encryption)-key-at-least-32''']
