@@ -5,7 +5,7 @@
 // 2. in the browser, the same host that served the page, on port 8000 (works when accessed
 //    from another machine — "localhost" would wrongly mean the visitor's own machine);
 // 3. localhost:8000 on the server (SSR) and as a last resort.
-function resolveBaseUrl(): string {
+export function resolveBaseUrl(): string {
   const override = process.env.NEXT_PUBLIC_API_URL;
   if (override) return override.replace(/\/$/, "");
   if (typeof window !== "undefined") {
