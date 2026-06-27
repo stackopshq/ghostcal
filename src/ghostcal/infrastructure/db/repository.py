@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timedelta
 
-from sqlalchemy import insert, select, text
+from sqlalchemy import insert, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -224,3 +224,12 @@ class SqlSchedulingRepository:
         except IntegrityError as exc:
             raise SlotUnavailable(start_at.isoformat()) from exc
         return result.scalar_one()
+
+    async def set_external_event(
+        self, booking_id: uuid.UUID, uid: str | None, url: str | None
+    ) -> None:
+        await self._session.execute(
+            update(models.Booking)
+            .where(models.Booking.id == booking_id)
+            .values(external_event_uid=uid, external_event_url=url)
+        )

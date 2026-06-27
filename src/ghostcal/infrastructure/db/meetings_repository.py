@@ -48,6 +48,7 @@ class SqlMeetingsRepository(MeetingsRepository):
                 status=booking.status,
                 location=booking.location,
                 meeting_url=booking.meeting_url,
+                external_event_uid=booking.external_event_uid,
             )
             for booking, title in rows
         ]
@@ -79,4 +80,5 @@ class SqlMeetingsRepository(MeetingsRepository):
             status="cancelled",
             location=booking.location,
             meeting_url=booking.meeting_url,
+            external_event_uid=booking.external_event_uid,
         )

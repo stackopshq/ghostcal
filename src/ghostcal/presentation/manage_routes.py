@@ -15,17 +15,21 @@ from ghostcal.application.manage import (
     get_booking,
     reschedule_booking,
 )
+from ghostcal.application.mirror import mirror_booking, unmirror_booking
 from ghostcal.application.notifications import (
     send_booking_cancellation,
     send_booking_confirmation,
 )
 from ghostcal.application.ports.clock import SystemClock
-from ghostcal.application.scheduling import SlotUnavailable
+from ghostcal.application.scheduling import BookingConfirmation, SlotUnavailable
 from ghostcal.config import get_settings
+from ghostcal.infrastructure.calendars import CaldavCalendarClient
+from ghostcal.infrastructure.db.caldav_repository import SqlCaldavConnectionRepository
 from ghostcal.infrastructure.db.manage_repository import SqlBookingManageRepository
 from ghostcal.infrastructure.db.repository import SqlSchedulingRepository
 from ghostcal.infrastructure.db.session import org_session
 from ghostcal.infrastructure.email import build_email_sender
+from ghostcal.infrastructure.security.encryption import SecretBox
 from ghostcal.infrastructure.security.tokens import BookingManagementCodec
 from ghostcal.presentation.schemas import BookingOut, ManageBookingOut, RescheduleIn
 
@@ -34,9 +38,47 @@ router = APIRouter(prefix="/v1/bookings/manage", tags=["manage"])
 _clock = SystemClock()
 _mailer = build_email_sender(_settings)
 _codec = BookingManagementCodec(_settings.secret_key.get_secret_value())
+_cipher = SecretBox(_settings.token_encryption_key.get_secret_value())
+_calendar_client = CaldavCalendarClient()
 _logger = logging.getLogger("ghostcal.manage")
 
 _NOT_FOUND = "booking not found"
+_LOCATION_LABELS = {
+    "google_meet": "Google Meet",
+    "ms_teams": "Microsoft Teams",
+    "zoom": "Zoom",
+    "in_person": "In person",
+    "phone": "Phone",
+    "custom": "Custom",
+}
+
+
+async def _unmirror(org_id: uuid.UUID, host_id: uuid.UUID, external_event_uid: str | None) -> None:
+    async with org_session(org_id) as session:
+        await unmirror_booking(
+            SqlCaldavConnectionRepository(session, org_id),
+            _cipher,
+            _calendar_client,
+            host_id=host_id,
+            external_event_uid=external_event_uid,
+        )
+
+
+async def _mirror(org_id: uuid.UUID, conf: BookingConfirmation) -> None:
+    async with org_session(org_id) as session:
+        await mirror_booking(
+            SqlCaldavConnectionRepository(session, org_id),
+            SqlSchedulingRepository(session, org_id),
+            _cipher,
+            _calendar_client,
+            host_id=conf.host_id,
+            booking_id=conf.booking_id,
+            summary=f"{conf.event_title} with {conf.invitee_name}",
+            description=f"Booked via GhostCal — {conf.invitee_email}",
+            location=_LOCATION_LABELS.get(conf.location_type, conf.location_type),
+            start=conf.start_at,
+            end=conf.end_at,
+        )
 
 
 def _decode(token: str) -> tuple[uuid.UUID, uuid.UUID]:
@@ -111,6 +153,10 @@ async def cancel(token: str) -> None:
         await _notify_cancellation(detail)
     except Exception:
         _logger.exception("failed to send cancellation for booking %s", detail.booking_id)
+    try:
+        await _unmirror(org_id, detail.host_id, detail.external_event_uid)
+    except Exception:
+        _logger.exception("failed to unmirror booking %s from calendar", detail.booking_id)
 
 
 @router.post("/{token}/reschedule", response_model=BookingOut)
@@ -120,7 +166,7 @@ async def reschedule(token: str, payload: RescheduleIn) -> BookingOut:
         manage_repo = SqlBookingManageRepository(session, org_id)
         scheduling_repo = SqlSchedulingRepository(session, org_id)
         try:
-            _, confirmation = await reschedule_booking(
+            old_detail, confirmation = await reschedule_booking(
                 manage_repo,
                 scheduling_repo,
                 _clock,
@@ -140,6 +186,12 @@ async def reschedule(token: str, payload: RescheduleIn) -> BookingOut:
         )
     except Exception:
         _logger.exception("failed to send reschedule confirmation for %s", confirmation.booking_id)
+    # Move the mirrored event: remove the old, create the new.
+    try:
+        await _unmirror(org_id, old_detail.host_id, old_detail.external_event_uid)
+        await _mirror(org_id, confirmation)
+    except Exception:
+        _logger.exception("failed to move mirrored event for %s", confirmation.booking_id)
 
     return BookingOut(
         id=confirmation.booking_id, start_at=confirmation.start_at, end_at=confirmation.end_at

@@ -16,9 +16,11 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ghostcal.application.mirror import mirror_booking
 from ghostcal.application.notifications import send_booking_confirmation
 from ghostcal.application.ports.clock import SystemClock
 from ghostcal.application.scheduling import (
+    BookingConfirmation,
     BookingRequest,
     EventTypeNotFound,
     OrganizationNotFound,
@@ -29,10 +31,13 @@ from ghostcal.application.scheduling import (
     get_event_type,
 )
 from ghostcal.config import get_settings
+from ghostcal.infrastructure.calendars import CaldavCalendarClient
+from ghostcal.infrastructure.db.caldav_repository import SqlCaldavConnectionRepository
 from ghostcal.infrastructure.db.membership import organization_id_by_slug
 from ghostcal.infrastructure.db.repository import SqlSchedulingRepository
 from ghostcal.infrastructure.db.session import db_session, org_session
 from ghostcal.infrastructure.email import build_email_sender
+from ghostcal.infrastructure.security.encryption import SecretBox
 from ghostcal.infrastructure.security.tokens import BookingManagementCodec
 from ghostcal.presentation.schemas import (
     AvailabilityOut,
@@ -49,12 +54,41 @@ router = APIRouter(prefix="/v1/orgs/{org_slug}", tags=["scheduling"])
 _clock = SystemClock()
 _mailer = build_email_sender(_settings)
 _manage_codec = BookingManagementCodec(_settings.secret_key.get_secret_value())
+_cipher = SecretBox(_settings.token_encryption_key.get_secret_value())
+_calendar_client = CaldavCalendarClient()
 _logger = logging.getLogger("ghostcal.booking")
+
+_LOCATION_LABELS = {
+    "google_meet": "Google Meet",
+    "ms_teams": "Microsoft Teams",
+    "zoom": "Zoom",
+    "in_person": "In person",
+    "phone": "Phone",
+    "custom": "Custom",
+}
 
 
 def _manage_url(booking_id: uuid.UUID, organization_id: uuid.UUID) -> str:
     token = _manage_codec.encode(booking_id, organization_id)
     return f"{_settings.frontend_base_url}/manage/{token}"
+
+
+async def _mirror_to_calendar(org_id: uuid.UUID, confirmation: BookingConfirmation) -> None:
+    """Best-effort: create the booking on the host's external calendar (post-commit)."""
+    async with org_session(org_id) as session:
+        await mirror_booking(
+            SqlCaldavConnectionRepository(session, org_id),
+            SqlSchedulingRepository(session, org_id),
+            _cipher,
+            _calendar_client,
+            host_id=confirmation.host_id,
+            booking_id=confirmation.booking_id,
+            summary=f"{confirmation.event_title} with {confirmation.invitee_name}",
+            description=f"Booked via GhostCal — {confirmation.invitee_email}",
+            location=_LOCATION_LABELS.get(confirmation.location_type, confirmation.location_type),
+            start=confirmation.start_at,
+            end=confirmation.end_at,
+        )
 
 
 async def resolve_org(org_slug: str) -> uuid.UUID:
@@ -151,13 +185,17 @@ async def create_booking_endpoint(org_id: OrgId, event_slug: str, payload: Booki
         except SlotUnavailable as exc:
             raise HTTPException(status_code=409, detail="slot is no longer available") from exc
 
-    # Best-effort, after commit: an email failure must not undo a confirmed booking.
+    # Best-effort, after commit: neither emailing nor calendar write-back may undo a booking.
     try:
         await send_booking_confirmation(
             _mailer, confirmation, manage_url=_manage_url(confirmation.booking_id, org_id)
         )
     except Exception:
         _logger.exception("failed to send confirmation for booking %s", confirmation.booking_id)
+    try:
+        await _mirror_to_calendar(org_id, confirmation)
+    except Exception:
+        _logger.exception("failed to mirror booking %s to calendar", confirmation.booking_id)
 
     return BookingOut(
         id=confirmation.booking_id,

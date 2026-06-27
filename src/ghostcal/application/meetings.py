@@ -23,6 +23,7 @@ class BookingSummary:
     status: str
     location: str | None
     meeting_url: str | None
+    external_event_uid: str | None = None
 
 
 class MeetingsRepository:

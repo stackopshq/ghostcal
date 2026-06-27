@@ -79,6 +79,7 @@ class BookingRequest:
 @dataclass(frozen=True, slots=True)
 class BookingConfirmation:
     booking_id: uuid.UUID
+    host_id: uuid.UUID
     event_title: str
     host_name: str
     host_email: str
@@ -116,6 +117,10 @@ class SchedulingRepository(Protocol):
     ) -> uuid.UUID:
         """Insert a confirmed booking. Raise ``SlotUnavailable`` on overlap (race)."""
         ...
+
+    async def set_external_event(
+        self, booking_id: uuid.UUID, uid: str | None, url: str | None
+    ) -> None: ...
 
 
 async def get_event_type(repo: SchedulingRepository, *, event_type_id: uuid.UUID) -> EventContext:
@@ -196,6 +201,7 @@ async def create_booking(
     )
     return BookingConfirmation(
         booking_id=booking_id,
+        host_id=context.host_id,
         event_title=context.title,
         host_name=context.host_name,
         host_email=context.host_email,

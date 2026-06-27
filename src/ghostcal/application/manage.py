@@ -31,6 +31,8 @@ class BookingNotActive(ManageError):
 class BookingDetail:
     booking_id: uuid.UUID
     event_type_id: uuid.UUID
+    host_id: uuid.UUID
+    external_event_uid: str | None
     event_title: str
     host_name: str
     host_email: str

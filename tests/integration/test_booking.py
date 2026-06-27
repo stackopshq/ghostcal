@@ -183,7 +183,5 @@ async def test_external_busy_blocks_availability(
 
     async with org_session(org) as session:
         repo = SqlSchedulingRepository(session, org)
-        slots = await get_availability(
-            repo, CLOCK, event_type_id=event, from_date=DAY, to_date=DAY
-        )
+        slots = await get_availability(repo, CLOCK, event_type_id=event, from_date=DAY, to_date=DAY)
     assert FIRST_SLOT not in {slot.start for slot in slots}

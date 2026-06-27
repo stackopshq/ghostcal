@@ -46,6 +46,8 @@ class SqlBookingManageRepository(ManageRepository):
         return BookingDetail(
             booking_id=booking.id,
             event_type_id=booking.event_type_id,
+            host_id=booking.host_id,
+            external_event_uid=booking.external_event_uid,
             event_title=title,
             host_name=name,
             host_email=email,

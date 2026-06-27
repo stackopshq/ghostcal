@@ -18,6 +18,7 @@ from ghostcal.application.scheduling import BookingConfirmation
 BOOKING_ID = uuid.uuid4()
 CONF = BookingConfirmation(
     booking_id=BOOKING_ID,
+    host_id=uuid.uuid4(),
     event_title="Intro call",
     host_name="Kevin",
     host_email="kevin@example.com",

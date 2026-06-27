@@ -34,6 +34,7 @@ from ghostcal.application.event_types import (
     update_event_type,
 )
 from ghostcal.application.meetings import MeetingNotFound, cancel_meeting, list_meetings
+from ghostcal.application.mirror import unmirror_booking
 from ghostcal.application.notifications import send_booking_cancellation
 from ghostcal.application.organization import (
     HandleTaken,
@@ -341,6 +342,19 @@ async def cancel_my_meeting(
         )
     except Exception:
         _logger.exception("failed to send cancellation for booking %s", booking_id)
+
+    # Best-effort: remove the mirrored event from the host's external calendar.
+    try:
+        async with org_session(member.organization_id) as session:
+            await unmirror_booking(
+                SqlCaldavConnectionRepository(session, member.organization_id),
+                _cipher,
+                _calendar_client,
+                host_id=member.user.id,
+                external_event_uid=cancelled.external_event_uid,
+            )
+    except Exception:
+        _logger.exception("failed to unmirror booking %s from calendar", booking_id)
 
 
 # --- Organization profile (handle) -----------------------------------------------------------
