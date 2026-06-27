@@ -12,6 +12,7 @@ const ICONS: Record<string, string> = {
   meetings: "M8 3v3M16 3v3M4 8h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z",
   settings: "M4 21v-7M4 10V3M12 21v-9M12 5V3M20 21v-5M20 11V3M1 14h6M9 5h6M17 16h6",
   team: "M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75",
+  polls: "M18 20V10M12 20V4M6 20v-6",
   plus: "M12 5v14M5 12h14",
   logout: "M16 17l5-5-5-5M21 12H9M13 21H5a2 2 0 01-2-2V5a2 2 0 012-2h8",
 };
@@ -35,6 +36,7 @@ function Glyph({ d, className = "h-4 w-4" }: { d: string; className?: string }) 
 const NAV = [
   { href: "/dashboard/event-types", label: "Event types", icon: ICONS.events },
   { href: "/dashboard/meetings", label: "Meetings", icon: ICONS.meetings },
+  { href: "/dashboard/polls", label: "Polls", icon: ICONS.polls },
   { href: "/dashboard/availability", label: "Availability", icon: ICONS.availability },
   { href: "/dashboard/team", label: "Team", icon: ICONS.team },
   { href: "/dashboard/settings", label: "Settings", icon: ICONS.settings },

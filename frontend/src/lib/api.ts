@@ -120,6 +120,33 @@ export function getAvailability(
   return request(`/v1/orgs/${org}/event-types/${event}/availability?${qs}`);
 }
 
+export type PollOption = { id: string; start_at: string; end_at: string; votes: number };
+
+export type PublicPoll = {
+  slug: string;
+  title: string;
+  duration_min: number;
+  location_type: string;
+  status: string;
+  owner_name: string;
+  finalized_option_id: string | null;
+  options: PollOption[];
+};
+
+export function getPublicPoll(slug: string): Promise<PublicPoll> {
+  return request<PublicPoll>(`/v1/polls/${slug}`);
+}
+
+export function votePoll(
+  slug: string,
+  body: { voter_name: string; voter_email: string; option_ids: string[] },
+): Promise<void> {
+  return request<void>(`/v1/polls/${slug}/votes`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export function createBooking(
   org: string,
   event: string,
