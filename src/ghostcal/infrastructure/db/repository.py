@@ -84,6 +84,7 @@ class SqlSchedulingRepository:
             hosts=tuple(hosts),
             questions=_to_questions(event_row.booking_questions),
             capacity=event_row.capacity,
+            redirect_url=event_row.redirect_url,
         )
 
     async def _host_ref(self, user_id: uuid.UUID, schedule_id: uuid.UUID | None = None) -> HostRef:

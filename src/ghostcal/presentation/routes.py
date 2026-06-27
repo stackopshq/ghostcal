@@ -160,6 +160,7 @@ async def read_event_type(org_id: OrgId, event_slug: str) -> EventTypeOut:
         location_type=context.location_type,
         host_name=context.host_name,
         questions=[asdict(q) for q in context.questions],
+        redirect_url=context.redirect_url,
     )
 
 

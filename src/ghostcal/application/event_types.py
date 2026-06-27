@@ -102,6 +102,7 @@ class EventTypeInput:
     kind: str = "solo"
     host_ids: tuple[uuid.UUID, ...] = ()
     capacity: int = 1
+    redirect_url: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,6 +126,7 @@ class EventTypeData:
     kind: str = "solo"
     host_ids: tuple[uuid.UUID, ...] = ()
     capacity: int = 1
+    redirect_url: str | None = None
 
 
 class EventTypesRepository:
@@ -173,6 +175,8 @@ def _validate(data: EventTypeInput) -> None:
         raise InvalidEventType("capacity must be at least 1")
     if data.kind == "group" and data.capacity < 2:
         raise InvalidEventType("a group event needs a capacity of at least 2")
+    if data.redirect_url and not data.redirect_url.startswith(("http://", "https://")):
+        raise InvalidEventType("redirect URL must be an absolute http(s) URL")
     _validate_questions(data.questions)
 
 

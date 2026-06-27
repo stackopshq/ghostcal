@@ -30,6 +30,7 @@ export type EventType = {
   kind: string;
   host_ids: string[];
   capacity: number;
+  redirect_url: string | null;
 };
 
 export type EventTypeInput = {
@@ -47,6 +48,7 @@ export type EventTypeInput = {
   kind: string;
   host_ids: string[];
   capacity: number;
+  redirect_url: string | null;
 };
 
 export const LOCATION_LABELS: Record<string, string> = {

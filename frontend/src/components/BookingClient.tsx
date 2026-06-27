@@ -137,6 +137,10 @@ export default function BookingClient({
         guest_emails: parseEmails(guests),
         answers,
       });
+      if (eventType.redirect_url) {
+        window.location.href = eventType.redirect_url;
+        return;
+      }
       setConfirmation(booking);
     } catch (e) {
       setBookingError(

@@ -314,6 +314,7 @@ class EventTypeIn(BaseModel):
     kind: Literal["solo", "round_robin", "collective", "group"] = "solo"
     host_ids: list[uuid.UUID] = Field(default_factory=list, max_length=50)
     capacity: int = Field(default=1, ge=1, le=1000)
+    redirect_url: str | None = Field(default=None, max_length=2048)
 
 
 class EventTypeDetailOut(BaseModel):
@@ -336,6 +337,7 @@ class EventTypeDetailOut(BaseModel):
     kind: str = "solo"
     host_ids: list[uuid.UUID] = Field(default_factory=list)
     capacity: int = 1
+    redirect_url: str | None = None
 
 
 class EventTypeOut(BaseModel):
@@ -345,6 +347,7 @@ class EventTypeOut(BaseModel):
     location_type: str
     host_name: str
     questions: list[BookingQuestionSchema] = Field(default_factory=list)
+    redirect_url: str | None = None
 
 
 class PublicEventTypeOut(BaseModel):

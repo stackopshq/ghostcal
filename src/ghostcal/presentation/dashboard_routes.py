@@ -252,6 +252,7 @@ def _event_type_in(payload: EventTypeIn) -> EventTypeInput:
         kind=payload.kind,
         host_ids=tuple(payload.host_ids),
         capacity=payload.capacity,
+        redirect_url=payload.redirect_url,
     )
 
 

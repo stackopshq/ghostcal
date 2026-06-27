@@ -188,6 +188,7 @@ def _values(data: EventTypeInput) -> dict[str, object]:
         "active": data.active,
         "kind": data.kind,
         "capacity": data.capacity,
+        "redirect_url": data.redirect_url,
         "booking_questions": questions_to_json(data.questions),
     }
 
@@ -217,4 +218,5 @@ def _to_data(
         kind=row.kind,
         host_ids=host_ids,
         capacity=row.capacity,
+        redirect_url=row.redirect_url,
     )

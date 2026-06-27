@@ -93,6 +93,7 @@ class EventContext:
     hosts: tuple[HostRef, ...] = ()
     questions: tuple[BookingQuestion, ...] = ()
     capacity: int = 1
+    redirect_url: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

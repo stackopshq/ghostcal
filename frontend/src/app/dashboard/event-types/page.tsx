@@ -38,6 +38,7 @@ const BLANK: FormState = {
   kind: "solo",
   host_ids: [],
   capacity: 1,
+  redirect_url: null,
 };
 
 const KINDS: { value: string; label: string }[] = [
@@ -65,6 +66,7 @@ function toInput(x: EventTypeInput): EventTypeInput {
     kind: x.kind,
     host_ids: x.host_ids,
     capacity: x.capacity,
+    redirect_url: x.redirect_url,
   };
 }
 
@@ -294,6 +296,16 @@ export default function EventTypesPage() {
                   max_per_day: e.target.value === "" ? null : Number(e.target.value),
                 })
               }
+              className={inputClass}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-muted">
+            Redirect after booking (optional URL)
+            <input
+              type="url"
+              placeholder="https://example.com/thank-you"
+              value={form.redirect_url ?? ""}
+              onChange={(e) => setForm({ ...form, redirect_url: e.target.value || null })}
               className={inputClass}
             />
           </label>

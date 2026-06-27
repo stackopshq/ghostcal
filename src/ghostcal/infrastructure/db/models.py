@@ -196,6 +196,8 @@ class EventType(TimestampMixin, Base):
     kind: Mapped[str] = mapped_column(String(20), default="solo", server_default="solo")
     # Max invitees per slot (group event types). 1 for everything else.
     capacity: Mapped[int] = mapped_column(SmallInteger, default=1, server_default="1")
+    # Optional URL to send the invitee to after a successful booking.
+    redirect_url: Mapped[str | None] = mapped_column(String(2048))
     price_cents: Mapped[int | None]
     currency: Mapped[str | None] = mapped_column(String(3))
     active: Mapped[bool] = mapped_column(default=True)

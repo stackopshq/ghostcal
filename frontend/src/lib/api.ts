@@ -26,6 +26,7 @@ export type EventType = {
   location_type: string;
   host_name: string;
   questions: BookingQuestion[];
+  redirect_url: string | null;
 };
 
 export type Slot = { start: string; end: string };
