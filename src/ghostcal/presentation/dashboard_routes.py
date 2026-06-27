@@ -7,11 +7,23 @@ org-scoped session (RLS) filtered by owner.
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from ghostcal.application.auth import AuthenticatedUser
+from ghostcal.application.event_types import (
+    EventTypeData,
+    EventTypeInput,
+    EventTypeInUse,
+    EventTypeNotFound,
+    InvalidEventType,
+    create_event_type,
+    delete_event_type,
+    get_event_type,
+    list_event_types,
+    update_event_type,
+)
 from ghostcal.application.schedules import (
     InvalidSchedule,
     OverrideData,
@@ -24,12 +36,15 @@ from ghostcal.application.schedules import (
     list_schedules,
     update_schedule,
 )
+from ghostcal.infrastructure.db.event_types_repository import SqlEventTypesRepository
 from ghostcal.infrastructure.db.membership import primary_organization
 from ghostcal.infrastructure.db.schedules_repository import SqlSchedulesRepository
 from ghostcal.infrastructure.db.session import db_session, org_session
 from ghostcal.presentation.auth_routes import current_user
 from ghostcal.presentation.schemas import (
     CreatedOut,
+    EventTypeDetailOut,
+    EventTypeIn,
     OverrideSchema,
     RuleSchema,
     ScheduleIn,
@@ -152,3 +167,96 @@ async def delete_my_schedule(
             await delete_schedule(repo, schedule_id, member.user.id)
         except ScheduleNotFound as exc:
             raise HTTPException(status_code=404, detail="schedule not found") from exc
+
+
+# --- Event types -----------------------------------------------------------------------------
+
+_EVENT_TYPE_NOT_FOUND = "event type not found"
+
+
+def _event_type_out(event_type: EventTypeData) -> EventTypeDetailOut:
+    return EventTypeDetailOut(**asdict(event_type))
+
+
+def _event_type_in(payload: EventTypeIn) -> EventTypeInput:
+    return EventTypeInput(
+        title=payload.title,
+        description=payload.description,
+        duration_min=payload.duration_min,
+        slot_interval_min=payload.slot_interval_min,
+        buffer_before_min=payload.buffer_before_min,
+        buffer_after_min=payload.buffer_after_min,
+        min_notice_min=payload.min_notice_min,
+        date_window_days=payload.date_window_days,
+        max_per_day=payload.max_per_day,
+        location_type=payload.location_type,
+        active=payload.active,
+    )
+
+
+@router.get("/event-types", response_model=list[EventTypeDetailOut])
+async def list_my_event_types(
+    member: Member = Depends(current_member),
+) -> list[EventTypeDetailOut]:
+    async with org_session(member.organization_id) as session:
+        repo = SqlEventTypesRepository(session, member.organization_id)
+        items = await list_event_types(repo, member.user.id)
+    return [_event_type_out(e) for e in items]
+
+
+@router.post("/event-types", response_model=CreatedOut, status_code=201)
+async def create_my_event_type(
+    payload: EventTypeIn, member: Member = Depends(current_member)
+) -> CreatedOut:
+    async with org_session(member.organization_id) as session:
+        repo = SqlEventTypesRepository(session, member.organization_id)
+        try:
+            event_type_id = await create_event_type(repo, member.user.id, _event_type_in(payload))
+        except InvalidEventType as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return CreatedOut(id=event_type_id)
+
+
+@router.get("/event-types/{event_type_id}", response_model=EventTypeDetailOut)
+async def get_my_event_type(
+    event_type_id: uuid.UUID, member: Member = Depends(current_member)
+) -> EventTypeDetailOut:
+    async with org_session(member.organization_id) as session:
+        repo = SqlEventTypesRepository(session, member.organization_id)
+        try:
+            event_type = await get_event_type(repo, event_type_id, member.user.id)
+        except EventTypeNotFound as exc:
+            raise HTTPException(status_code=404, detail=_EVENT_TYPE_NOT_FOUND) from exc
+    return _event_type_out(event_type)
+
+
+@router.put("/event-types/{event_type_id}", response_model=EventTypeDetailOut)
+async def update_my_event_type(
+    event_type_id: uuid.UUID, payload: EventTypeIn, member: Member = Depends(current_member)
+) -> EventTypeDetailOut:
+    async with org_session(member.organization_id) as session:
+        repo = SqlEventTypesRepository(session, member.organization_id)
+        try:
+            await update_event_type(repo, event_type_id, member.user.id, _event_type_in(payload))
+            event_type = await get_event_type(repo, event_type_id, member.user.id)
+        except EventTypeNotFound as exc:
+            raise HTTPException(status_code=404, detail=_EVENT_TYPE_NOT_FOUND) from exc
+        except InvalidEventType as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return _event_type_out(event_type)
+
+
+@router.delete("/event-types/{event_type_id}", status_code=204)
+async def delete_my_event_type(
+    event_type_id: uuid.UUID, member: Member = Depends(current_member)
+) -> None:
+    async with org_session(member.organization_id) as session:
+        repo = SqlEventTypesRepository(session, member.organization_id)
+        try:
+            await delete_event_type(repo, event_type_id, member.user.id)
+        except EventTypeNotFound as exc:
+            raise HTTPException(status_code=404, detail=_EVENT_TYPE_NOT_FOUND) from exc
+        except EventTypeInUse as exc:
+            raise HTTPException(
+                status_code=409, detail="event type has bookings and cannot be deleted"
+            ) from exc

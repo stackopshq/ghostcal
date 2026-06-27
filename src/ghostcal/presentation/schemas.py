@@ -77,6 +77,37 @@ class CreatedOut(BaseModel):
     id: uuid.UUID
 
 
+class EventTypeIn(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    duration_min: int = Field(gt=0, le=1440)
+    slot_interval_min: int = Field(default=15, gt=0, le=1440)
+    buffer_before_min: int = Field(default=0, ge=0, le=1440)
+    buffer_after_min: int = Field(default=0, ge=0, le=1440)
+    min_notice_min: int = Field(default=0, ge=0)
+    date_window_days: int = Field(default=60, gt=0, le=365)
+    max_per_day: int | None = Field(default=None, gt=0)
+    location_type: str = "google_meet"
+    active: bool = True
+
+
+class EventTypeDetailOut(BaseModel):
+    id: uuid.UUID
+    organization_id: uuid.UUID
+    slug: str
+    title: str
+    description: str | None
+    duration_min: int
+    slot_interval_min: int
+    buffer_before_min: int
+    buffer_after_min: int
+    min_notice_min: int
+    date_window_days: int
+    max_per_day: int | None
+    location_type: str
+    active: bool
+
+
 class EventTypeOut(BaseModel):
     id: uuid.UUID
     title: str

@@ -37,7 +37,6 @@ from ghostcal.infrastructure.db.base import Base, TimestampMixin
 # Allowed string-enum values.
 MEMBERSHIP_ROLES = ("owner", "admin", "member")
 IDENTITY_PROVIDERS = ("google", "microsoft", "oidc")
-LOCATION_TYPES = ("google_meet", "ms_teams", "zoom", "in_person", "phone", "custom")
 BOOKING_STATUSES = ("confirmed", "cancelled", "rescheduled")
 
 
