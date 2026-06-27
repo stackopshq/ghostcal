@@ -182,6 +182,25 @@ class WebhookCreatedOut(BaseModel):
     secret: str
 
 
+class EventTypeCountOut(BaseModel):
+    title: str
+    count: int
+
+
+class DayCountOut(BaseModel):
+    day: str
+    count: int
+
+
+class AnalyticsOut(BaseModel):
+    total_bookings: int
+    upcoming_bookings: int
+    bookings_last_30_days: int
+    cancellations_last_30_days: int
+    by_event_type: list[EventTypeCountOut]
+    daily: list[DayCountOut]
+
+
 class RegisteredOut(BaseModel):
     user_id: uuid.UUID
 

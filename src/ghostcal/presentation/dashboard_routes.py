@@ -13,6 +13,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from ghostcal.application.analytics import get_analytics
 from ghostcal.application.auth import AuthenticatedUser
 from ghostcal.application.calendars import (
     NotConnected,
@@ -60,6 +61,7 @@ from ghostcal.application.schedules import (
 )
 from ghostcal.config import get_settings
 from ghostcal.infrastructure.calendars import CaldavCalendarClient
+from ghostcal.infrastructure.db.analytics_repository import SqlAnalyticsRepository
 from ghostcal.infrastructure.db.caldav_repository import SqlCaldavConnectionRepository
 from ghostcal.infrastructure.db.event_types_repository import SqlEventTypesRepository
 from ghostcal.infrastructure.db.meetings_repository import SqlMeetingsRepository
@@ -71,6 +73,7 @@ from ghostcal.infrastructure.email import build_email_sender
 from ghostcal.infrastructure.security.encryption import SecretBox
 from ghostcal.presentation.auth_routes import current_user
 from ghostcal.presentation.schemas import (
+    AnalyticsOut,
     CalendarConnectIn,
     CalendarCredentialsIn,
     CalendarInfoOut,
@@ -508,3 +511,11 @@ async def disconnect_calendar_endpoint(member: Member = Depends(current_member))
     async with org_session(member.organization_id) as session:
         repo = SqlCaldavConnectionRepository(session, member.organization_id)
         await disconnect_calendar(repo, member.user.id)
+
+
+@router.get("/analytics", response_model=AnalyticsOut)
+async def my_analytics(member: Member = Depends(current_member)) -> AnalyticsOut:
+    async with org_session(member.organization_id) as session:
+        repo = SqlAnalyticsRepository(session, member.organization_id)
+        summary = await get_analytics(repo, _clock.now())
+    return AnalyticsOut(**asdict(summary))
