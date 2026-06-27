@@ -10,6 +10,7 @@ import {
   type BookingQuestion,
   createEventType,
   deleteEventType,
+  embedSnippet,
   type EventType,
   type EventTypeInput,
   listEventTypes,
@@ -384,6 +385,18 @@ export default function EventTypesPage() {
                         className="block w-full px-4 py-2 text-left text-sm text-foreground transition hover:bg-surface-2"
                       >
                         Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setOpenMenu(null);
+                          await navigator.clipboard.writeText(embedSnippet(item));
+                          setCopied(item.id);
+                          setTimeout(() => setCopied(null), 1500);
+                        }}
+                        className="block w-full px-4 py-2 text-left text-sm text-foreground transition hover:bg-surface-2"
+                      >
+                        Copy embed code
                       </button>
                       <button
                         type="button"

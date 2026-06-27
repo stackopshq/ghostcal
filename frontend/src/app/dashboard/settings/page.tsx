@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { inputClass, primaryButtonClass } from "@/components/AuthCard";
 import CalendarSettings from "@/components/CalendarSettings";
 import ProfileSettings from "@/components/ProfileSettings";
+import WebhookSettings from "@/components/WebhookSettings";
 import { ApiError } from "@/lib/api";
 import { isAuthenticated } from "@/lib/auth";
 import { getOrganization, updateOrganization } from "@/lib/organization";
@@ -121,6 +122,10 @@ export default function SettingsPage() {
 
       <section className="glass rounded-2xl p-6 sm:p-8">
         <CalendarSettings />
+      </section>
+
+      <section className="glass rounded-2xl p-6 sm:p-8">
+        <WebhookSettings />
       </section>
     </main>
   );

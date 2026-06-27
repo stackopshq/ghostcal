@@ -80,3 +80,10 @@ export function publicLink(eventType: EventType): string {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   return `${origin}/${eventType.organization_slug}/${eventType.slug}`;
 }
+
+/** An <iframe> snippet that embeds the booking widget on any website. */
+export function embedSnippet(eventType: EventType): string {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const src = `${origin}/embed/${eventType.organization_slug}/${eventType.slug}`;
+  return `<iframe src="${src}" width="100%" height="720" frameborder="0" style="border:0"></iframe>`;
+}
