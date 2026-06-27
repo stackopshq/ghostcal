@@ -1,27 +1,39 @@
-# Local development infrastructure. Run with: podman-compose up -d
-# Postgres and Redis only; run the app/worker from the host via `uv run` for fast reloads.
+# Full GhostCal backend stack with Podman: Postgres, Redis, and the app, Celery worker and
+# Celery beat in SEPARATE containers (sharing one image). Run with: podman-compose up -d --build
+#
+# Secrets come from a local .env (compose reads it automatically); see .env.example. The frontend
+# (Next.js) runs separately.
+
+x-ghostcal-env: &ghostcal-env
+  GHOSTCAL_ENVIRONMENT: ${GHOSTCAL_ENVIRONMENT:-development}
+  GHOSTCAL_DATABASE_URL: postgresql+asyncpg://ghostcal_app:${GHOSTCAL_APP_DB_PASSWORD}@postgres:5432/ghostcal
+  GHOSTCAL_DATABASE_ADMIN_URL: postgresql+asyncpg://ghostcal:${POSTGRES_PASSWORD:-ghostcal}@postgres:5432/ghostcal
+  GHOSTCAL_REDIS_URL: redis://redis:6379/0
+  GHOSTCAL_SECRET_KEY: ${GHOSTCAL_SECRET_KEY}
+  GHOSTCAL_TOKEN_ENCRYPTION_KEY: ${GHOSTCAL_TOKEN_ENCRYPTION_KEY}
+  GHOSTCAL_FRONTEND_BASE_URL: ${GHOSTCAL_FRONTEND_BASE_URL:-http://localhost:3001}
+  GHOSTCAL_RESEND_API_KEY: ${GHOSTCAL_RESEND_API_KEY:-}
+  GHOSTCAL_EMAIL_FROM: ${GHOSTCAL_EMAIL_FROM:-GhostCal <onboarding@resend.dev>}
 
 services:
   postgres:
     image: docker.io/library/postgres:16-alpine
     environment:
       POSTGRES_USER: ghostcal
-      POSTGRES_PASSWORD: ghostcal
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ghostcal}
       POSTGRES_DB: ghostcal
-    ports:
-      - "5432:5432"
+      GHOSTCAL_APP_DB_PASSWORD: ${GHOSTCAL_APP_DB_PASSWORD}
     volumes:
       - ghostcal-pgdata:/var/lib/postgresql/data:Z
+      - ./scripts/init:/docker-entrypoint-initdb.d:ro,Z
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ghostcal"]
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 10
 
   redis:
     image: docker.io/library/redis:7-alpine
-    ports:
-      - "6379:6379"
     volumes:
       - ghostcal-redisdata:/data:Z
     healthcheck:
@@ -29,6 +41,54 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+
+  # One-shot: create/upgrade the schema (runs as the admin role) before the app starts.
+  migrate:
+    build: &build
+      context: .
+      dockerfile: Containerfile
+    image: ghostcal:local
+    command: ["alembic", "upgrade", "head"]
+    environment: *ghostcal-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  app:
+    build: *build
+    image: ghostcal:local
+    command:
+      ["uvicorn", "ghostcal.presentation.api:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment: *ghostcal-env
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: *build
+    image: ghostcal:local
+    command: ["celery", "-A", "ghostcal.celery_app:celery_app", "worker", "-l", "info"]
+    environment: *ghostcal-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  beat:
+    build: *build
+    image: ghostcal:local
+    command: ["celery", "-A", "ghostcal.celery_app:celery_app", "beat", "-l", "info"]
+    environment: *ghostcal-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
 
 volumes:
   ghostcal-pgdata:

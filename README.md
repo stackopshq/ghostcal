@@ -30,11 +30,27 @@ uv run uvicorn ghostcal.presentation.api:app --reload
 # → http://127.0.0.1:8000/health  and  /docs
 ```
 
-Run the Celery worker (background jobs):
+Run the Celery worker and the beat scheduler (background jobs incl. periodic CalDAV sync):
 
 ```bash
 uv run celery -A ghostcal.celery_app:celery_app worker -l info
+uv run celery -A ghostcal.celery_app:celery_app beat -l info
 ```
+
+### Full stack in containers
+
+The whole backend runs as separate Podman containers — Postgres, Redis, the API, the Celery
+worker and the Celery beat scheduler (app and Celery are independent containers sharing one
+image). Set the secrets in `.env` (see `.env.example`, including `GHOSTCAL_APP_DB_PASSWORD`),
+then:
+
+```bash
+podman-compose up -d --build
+# postgres provisions the non-privileged app role; the one-shot `migrate` service runs
+# `alembic upgrade head`; then app (:8000), worker and beat start.
+```
+
+To send real emails, set `GHOSTCAL_RESEND_API_KEY` (otherwise emails are logged).
 
 ## Test
 
