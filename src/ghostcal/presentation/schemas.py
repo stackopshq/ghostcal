@@ -88,6 +88,35 @@ class OrganizationIn(BaseModel):
     slug: str = Field(min_length=3, max_length=100)
 
 
+class CalendarCredentialsIn(BaseModel):
+    server_url: str = Field(min_length=1, max_length=2048)
+    username: str = Field(min_length=1, max_length=320)
+    password: str = Field(min_length=1, max_length=512)
+
+
+class CalendarInfoOut(BaseModel):
+    name: str
+    url: str
+
+
+class CalendarConnectIn(CalendarCredentialsIn):
+    calendar_url: str = Field(min_length=1, max_length=2048)
+    calendar_name: str | None = Field(default=None, max_length=255)
+
+
+class CalendarStatusOut(BaseModel):
+    connected: bool
+    server_url: str | None = None
+    username: str | None = None
+    calendar_name: str | None = None
+    status: str | None = None
+    last_synced_at: datetime | None = None
+
+
+class SyncResultOut(BaseModel):
+    synced: int
+
+
 class MeetingOut(BaseModel):
     id: uuid.UUID
     event_title: str

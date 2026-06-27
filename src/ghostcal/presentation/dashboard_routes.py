@@ -14,6 +14,13 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ghostcal.application.auth import AuthenticatedUser
+from ghostcal.application.calendars import (
+    NotConnected,
+    connect_calendar,
+    disconnect_calendar,
+    list_available_calendars,
+    sync_calendar,
+)
 from ghostcal.application.event_types import (
     EventTypeData,
     EventTypeInput,
@@ -35,6 +42,7 @@ from ghostcal.application.organization import (
     get_organization,
     update_organization,
 )
+from ghostcal.application.ports.calendar import CalendarAuthError, CalendarError
 from ghostcal.application.ports.clock import SystemClock
 from ghostcal.application.schedules import (
     InvalidSchedule,
@@ -49,6 +57,8 @@ from ghostcal.application.schedules import (
     update_schedule,
 )
 from ghostcal.config import get_settings
+from ghostcal.infrastructure.calendars import CaldavCalendarClient
+from ghostcal.infrastructure.db.caldav_repository import SqlCaldavConnectionRepository
 from ghostcal.infrastructure.db.event_types_repository import SqlEventTypesRepository
 from ghostcal.infrastructure.db.meetings_repository import SqlMeetingsRepository
 from ghostcal.infrastructure.db.membership import primary_organization
@@ -56,8 +66,13 @@ from ghostcal.infrastructure.db.organization_repository import SqlOrganizationRe
 from ghostcal.infrastructure.db.schedules_repository import SqlSchedulesRepository
 from ghostcal.infrastructure.db.session import db_session, org_session
 from ghostcal.infrastructure.email import build_email_sender
+from ghostcal.infrastructure.security.encryption import SecretBox
 from ghostcal.presentation.auth_routes import current_user
 from ghostcal.presentation.schemas import (
+    CalendarConnectIn,
+    CalendarCredentialsIn,
+    CalendarInfoOut,
+    CalendarStatusOut,
     CreatedOut,
     EventTypeDetailOut,
     EventTypeIn,
@@ -68,11 +83,15 @@ from ghostcal.presentation.schemas import (
     RuleSchema,
     ScheduleIn,
     ScheduleOut,
+    SyncResultOut,
 )
 
+_settings = get_settings()
 router = APIRouter(prefix="/v1/me", tags=["dashboard"])
 _clock = SystemClock()
-_mailer = build_email_sender(get_settings())
+_mailer = build_email_sender(_settings)
+_cipher = SecretBox(_settings.token_encryption_key.get_secret_value())
+_calendar_client = CaldavCalendarClient()
 _logger = logging.getLogger("ghostcal.dashboard")
 
 
@@ -352,3 +371,101 @@ async def update_my_organization(
         except HandleTaken as exc:
             raise HTTPException(status_code=409, detail="handle already taken") from exc
     return _organization_out(org)
+
+
+# --- CalDAV calendar connection --------------------------------------------------------------
+
+
+def _calendar_status(record: object) -> CalendarStatusOut:
+    if record is None:
+        return CalendarStatusOut(connected=False)
+    return CalendarStatusOut(
+        connected=True,
+        server_url=record.server_url,  # type: ignore[attr-defined]
+        username=record.username,  # type: ignore[attr-defined]
+        calendar_name=record.calendar_name,  # type: ignore[attr-defined]
+        status=record.status,  # type: ignore[attr-defined]
+        last_synced_at=record.last_synced_at,  # type: ignore[attr-defined]
+    )
+
+
+@router.get("/calendar", response_model=CalendarStatusOut)
+async def get_calendar(member: Member = Depends(current_member)) -> CalendarStatusOut:
+    async with org_session(member.organization_id) as session:
+        repo = SqlCaldavConnectionRepository(session, member.organization_id)
+        record = await repo.get(member.user.id)
+    return _calendar_status(record)
+
+
+@router.post("/calendar/calendars", response_model=list[CalendarInfoOut])
+async def list_caldav_calendars(
+    payload: CalendarCredentialsIn, member: Member = Depends(current_member)
+) -> list[CalendarInfoOut]:
+    try:
+        calendars = await list_available_calendars(
+            _calendar_client,
+            server_url=payload.server_url,
+            username=payload.username,
+            password=payload.password,
+        )
+    except CalendarAuthError as exc:
+        raise HTTPException(status_code=401, detail="invalid calendar credentials") from exc
+    except CalendarError as exc:
+        raise HTTPException(status_code=502, detail="could not reach the calendar server") from exc
+    return [CalendarInfoOut(name=c.name, url=c.url) for c in calendars]
+
+
+@router.post("/calendar", response_model=CalendarStatusOut)
+async def connect_calendar_endpoint(
+    payload: CalendarConnectIn, member: Member = Depends(current_member)
+) -> CalendarStatusOut:
+    async with org_session(member.organization_id) as session:
+        repo = SqlCaldavConnectionRepository(session, member.organization_id)
+        try:
+            await connect_calendar(
+                repo,
+                _cipher,
+                user_id=member.user.id,
+                server_url=payload.server_url,
+                username=payload.username,
+                password=payload.password,
+                calendar_url=payload.calendar_url,
+                calendar_name=payload.calendar_name,
+            )
+            await sync_calendar(repo, _cipher, _calendar_client, _clock, user_id=member.user.id)
+            record = await repo.get(member.user.id)
+        except CalendarAuthError as exc:
+            raise HTTPException(status_code=401, detail="invalid calendar credentials") from exc
+        except CalendarError as exc:
+            raise HTTPException(
+                status_code=502, detail="could not reach the calendar server"
+            ) from exc
+    return _calendar_status(record)
+
+
+@router.post("/calendar/sync", response_model=SyncResultOut)
+async def sync_calendar_endpoint(
+    member: Member = Depends(current_member),
+) -> SyncResultOut:
+    async with org_session(member.organization_id) as session:
+        repo = SqlCaldavConnectionRepository(session, member.organization_id)
+        try:
+            count = await sync_calendar(
+                repo, _cipher, _calendar_client, _clock, user_id=member.user.id
+            )
+        except NotConnected as exc:
+            raise HTTPException(status_code=404, detail="no calendar connected") from exc
+        except CalendarAuthError as exc:
+            raise HTTPException(status_code=401, detail="calendar needs re-authentication") from exc
+        except CalendarError as exc:
+            raise HTTPException(
+                status_code=502, detail="could not reach the calendar server"
+            ) from exc
+    return SyncResultOut(synced=count)
+
+
+@router.delete("/calendar", status_code=204)
+async def disconnect_calendar_endpoint(member: Member = Depends(current_member)) -> None:
+    async with org_session(member.organization_id) as session:
+        repo = SqlCaldavConnectionRepository(session, member.organization_id)
+        await disconnect_calendar(repo, member.user.id)

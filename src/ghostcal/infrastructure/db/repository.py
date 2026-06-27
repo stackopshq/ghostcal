@@ -164,6 +164,7 @@ class SqlSchedulingRepository:
         )
 
     async def get_busy(self, host_id: uuid.UUID, start: datetime, end: datetime) -> list[TimeRange]:
+        # Confirmed bookings...
         rows = (
             await self._session.execute(
                 select(models.Booking.start_at, models.Booking.end_at).where(
@@ -174,7 +175,17 @@ class SqlSchedulingRepository:
                 )
             )
         ).all()
-        return [TimeRange(row.start_at, row.end_at) for row in rows]
+        # ...plus busy time synced from the host's external (CalDAV) calendar.
+        external = (
+            await self._session.execute(
+                select(models.ExternalBusy.start_at, models.ExternalBusy.end_at).where(
+                    models.ExternalBusy.host_id == host_id,
+                    models.ExternalBusy.start_at < end,
+                    models.ExternalBusy.end_at > start,
+                )
+            )
+        ).all()
+        return [TimeRange(row.start_at, row.end_at) for row in (*rows, *external)]
 
     async def insert_booking(
         self,

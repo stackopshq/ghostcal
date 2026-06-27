@@ -150,3 +150,40 @@ async def test_double_booking_rejected_by_constraint(bookable: dict[str, uuid.UU
                 invitee_email="second@example.test",
                 invitee_timezone="UTC",
             )
+
+
+async def test_external_busy_blocks_availability(
+    bookable: dict[str, uuid.UUID], admin_engine: AsyncEngine
+) -> None:
+    org, host, event = bookable["org"], bookable["host"], bookable["event"]
+
+    # Seed a CalDAV connection + an external busy block over the first slot.
+    async with async_sessionmaker(admin_engine)() as s:
+        conn = models.CaldavConnection(
+            organization_id=org,
+            user_id=host,
+            server_url="http://caldav.test/",
+            username="u",
+            password_encrypted="enc",
+            calendar_url="http://caldav.test/c/",
+            status="active",
+        )
+        s.add(conn)
+        await s.flush()
+        s.add(
+            models.ExternalBusy(
+                organization_id=org,
+                connection_id=conn.id,
+                host_id=host,
+                start_at=FIRST_SLOT,
+                end_at=FIRST_SLOT + timedelta(minutes=30),
+            )
+        )
+        await s.commit()
+
+    async with org_session(org) as session:
+        repo = SqlSchedulingRepository(session, org)
+        slots = await get_availability(
+            repo, CLOCK, event_type_id=event, from_date=DAY, to_date=DAY
+        )
+    assert FIRST_SLOT not in {slot.start for slot in slots}
