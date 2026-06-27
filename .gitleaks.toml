@@ -8,3 +8,8 @@ useDefault = true
 description = "Test placeholder credentials in conftest"
 paths = ['''tests/conftest\.py''']
 regexes = ['''test-(secret|encryption)-key-at-least-32''']
+
+# Fake passwords/tokens hard-coded in the test suite (fixtures, not real credentials).
+[[allowlists]]
+description = "Test placeholder credentials under tests/"
+paths = ['''tests/.*\.py''']

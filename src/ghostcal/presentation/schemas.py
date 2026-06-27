@@ -41,6 +41,24 @@ class UserOut(BaseModel):
     email_verified: bool
 
 
+class ProfileOut(BaseModel):
+    id: uuid.UUID
+    email: str
+    name: str
+    timezone: str
+    email_verified: bool
+
+
+class ProfileUpdateIn(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    timezone: str = Field(min_length=1, max_length=64)
+
+
+class PasswordChangeIn(BaseModel):
+    current_password: str = Field(min_length=1, max_length=200)
+    new_password: str = Field(min_length=8, max_length=200)
+
+
 class RegisteredOut(BaseModel):
     user_id: uuid.UUID
 

@@ -14,6 +14,7 @@ from ghostcal.infrastructure.db.session import get_engine
 from ghostcal.presentation.auth_routes import router as auth_router
 from ghostcal.presentation.dashboard_routes import router as dashboard_router
 from ghostcal.presentation.manage_routes import router as manage_router
+from ghostcal.presentation.profile_routes import router as profile_router
 from ghostcal.presentation.routes import router as scheduling_router
 
 
@@ -47,6 +48,7 @@ def create_app() -> FastAPI:
         )
 
     app.include_router(auth_router)
+    app.include_router(profile_router)
     app.include_router(dashboard_router)
     app.include_router(scheduling_router)
     app.include_router(manage_router)

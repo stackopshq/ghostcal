@@ -48,6 +48,7 @@ class AuthUserRecord:
     id: uuid.UUID
     email: str
     name: str
+    timezone: str
     email_verified: bool
     password_hash: str | None
 
@@ -88,6 +89,12 @@ class AuthRepository:
         raise NotImplementedError
 
     async def get_by_id(self, user_id: uuid.UUID) -> AuthUserRecord | None:
+        raise NotImplementedError
+
+    async def update_profile(self, user_id: uuid.UUID, *, name: str, timezone: str) -> None:
+        raise NotImplementedError
+
+    async def set_password_hash(self, user_id: uuid.UUID, password_hash: str) -> None:
         raise NotImplementedError
 
     async def add_email_verification(
