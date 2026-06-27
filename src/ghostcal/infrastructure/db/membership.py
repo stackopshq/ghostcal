@@ -20,3 +20,13 @@ async def organization_id_by_slug(session: AsyncSession, slug: str) -> uuid.UUID
         text("SELECT organization_id_by_slug(:slug) AS org"), {"slug": slug}
     )
     return result.scalar_one()  # type: ignore[no-any-return]
+
+
+async def active_caldav_connections(
+    session: AsyncSession,
+) -> list[tuple[uuid.UUID, uuid.UUID]]:
+    """All active connections as (organization_id, user_id) across tenants (for the worker)."""
+    result = await session.execute(
+        text("SELECT organization_id, user_id FROM caldav_active_connections()")
+    )
+    return [(row.organization_id, row.user_id) for row in result.all()]

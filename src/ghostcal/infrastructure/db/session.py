@@ -43,6 +43,17 @@ def get_sessionmaker() -> async_sessionmaker[AsyncSession]:
     return async_sessionmaker(get_engine(), expire_on_commit=False)
 
 
+async def reset_engine() -> None:
+    """Dispose the cached engine and clear the caches.
+
+    Each Celery task runs under a fresh ``asyncio.run`` event loop; the cached engine would stay
+    bound to the previous (closed) loop. Calling this at the end of a task keeps the next run clean.
+    """
+    await get_engine().dispose()
+    get_engine.cache_clear()
+    get_sessionmaker.cache_clear()
+
+
 @asynccontextmanager
 async def db_session() -> AsyncIterator[AsyncSession]:
     """Open a transactional session WITHOUT tenant binding.

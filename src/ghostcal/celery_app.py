@@ -21,6 +21,12 @@ def create_celery() -> Celery:
         task_reject_on_worker_lost=True,
         timezone="UTC",
         enable_utc=True,
+        beat_schedule={
+            "caldav-busy-sync": {
+                "task": "ghostcal.sync_all_calendars",
+                "schedule": float(settings.caldav_sync_interval_seconds),
+            },
+        },
     )
     app.autodiscover_tasks(["ghostcal.infrastructure"])
     return app
