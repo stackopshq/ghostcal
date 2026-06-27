@@ -246,6 +246,8 @@ def _event_type_in(payload: EventTypeIn) -> EventTypeInput:
             )
             for q in payload.questions
         ),
+        kind=payload.kind,
+        host_ids=tuple(payload.host_ids),
     )
 
 
@@ -265,11 +267,21 @@ async def create_my_event_type(
 ) -> CreatedOut:
     async with org_session(member.organization_id) as session:
         repo = SqlEventTypesRepository(session, member.organization_id)
+        await _check_round_robin_hosts(repo, payload)
         try:
             event_type_id = await create_event_type(repo, member.user.id, _event_type_in(payload))
         except InvalidEventType as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
     return CreatedOut(id=event_type_id)
+
+
+async def _check_round_robin_hosts(repo: SqlEventTypesRepository, payload: EventTypeIn) -> None:
+    if payload.kind != "round_robin":
+        return
+    if await repo.non_member_hosts(tuple(payload.host_ids)):
+        raise HTTPException(
+            status_code=422, detail="all round-robin hosts must be organization members"
+        )
 
 
 @router.get("/event-types/{event_type_id}", response_model=EventTypeDetailOut)
@@ -291,6 +303,7 @@ async def update_my_event_type(
 ) -> EventTypeDetailOut:
     async with org_session(member.organization_id) as session:
         repo = SqlEventTypesRepository(session, member.organization_id)
+        await _check_round_robin_hosts(repo, payload)
         try:
             await update_event_type(repo, event_type_id, member.user.id, _event_type_in(payload))
             event_type = await get_event_type(repo, event_type_id, member.user.id)

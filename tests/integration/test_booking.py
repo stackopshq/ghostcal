@@ -129,6 +129,7 @@ async def test_double_booking_rejected_by_constraint(bookable: dict[str, uuid.UU
         assert context is not None
         await repo.insert_booking(
             context=context,
+            host_id=context.host_id,
             start_at=FIRST_SLOT,
             end_at=end,
             invitee_name="First",
@@ -144,6 +145,7 @@ async def test_double_booking_rejected_by_constraint(bookable: dict[str, uuid.UU
             assert context is not None
             await repo.insert_booking(
                 context=context,
+                host_id=context.host_id,
                 start_at=FIRST_SLOT,
                 end_at=end,
                 invitee_name="Second",

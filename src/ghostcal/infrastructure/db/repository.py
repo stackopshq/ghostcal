@@ -9,12 +9,17 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timedelta
 
-from sqlalchemy import insert, select, text, update
+from sqlalchemy import func, insert, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ghostcal.application.event_types import questions_from_json as _to_questions
-from ghostcal.application.scheduling import EventContext, PublicEventType, SlotUnavailable
+from ghostcal.application.scheduling import (
+    EventContext,
+    HostRef,
+    PublicEventType,
+    SlotUnavailable,
+)
 from ghostcal.domain.availability import DateOverride, EventType, Schedule, WeeklyRule
 from ghostcal.domain.time import TimeRange
 from ghostcal.infrastructure.db import models
@@ -37,14 +42,25 @@ class SqlSchedulingRepository:
         if event_row is None:
             return None
 
-        host = (
-            await self._session.execute(
-                select(models.User.name, models.User.email, models.User.timezone).where(
-                    models.User.id == event_row.owner_id
+        # Owner uses the event type's configured schedule; round-robin pool members each use their
+        # own first schedule. The pool is the owner for solo event types.
+        owner = await self._host_ref(event_row.owner_id, event_row.schedule_id)
+        if event_row.kind == "round_robin":
+            pool_ids = (
+                (
+                    await self._session.execute(
+                        select(models.EventTypeHost.user_id)
+                        .where(models.EventTypeHost.event_type_id == event_row.id)
+                        .order_by(models.EventTypeHost.created_at)
+                    )
                 )
+                .scalars()
+                .all()
             )
-        ).one()
-        schedule = await self._load_schedule(event_row.schedule_id, event_row.owner_id)
+            hosts = [await self._host_ref(uid) for uid in pool_ids] or [owner]
+        else:
+            hosts = [owner]
+        primary = hosts[0]
         event = EventType(
             duration=timedelta(minutes=event_row.duration_min),
             slot_interval=timedelta(minutes=event_row.slot_interval_min),
@@ -55,16 +71,35 @@ class SqlSchedulingRepository:
         )
         return EventContext(
             event_type_id=event_row.id,
-            host_id=event_row.owner_id,
-            host_name=host.name,
-            host_email=host.email,
-            host_timezone=host.timezone,
+            host_id=primary.host_id,
+            host_name=primary.name,
+            host_email=primary.email,
+            host_timezone=primary.timezone,
             title=event_row.title,
             location_type=event_row.location_type,
             date_window_days=event_row.date_window_days,
             event=event,
-            schedule=schedule,
+            schedule=primary.schedule,
+            kind=event_row.kind,
+            hosts=tuple(hosts),
             questions=_to_questions(event_row.booking_questions),
+        )
+
+    async def _host_ref(self, user_id: uuid.UUID, schedule_id: uuid.UUID | None = None) -> HostRef:
+        user = (
+            await self._session.execute(
+                select(models.User.name, models.User.email, models.User.timezone).where(
+                    models.User.id == user_id
+                )
+            )
+        ).one()
+        schedule = await self._load_schedule(schedule_id, user_id)
+        return HostRef(
+            host_id=user_id,
+            name=user.name,
+            email=user.email,
+            timezone=user.timezone,
+            schedule=schedule,
         )
 
     async def get_event_type_id_by_slug(self, slug: str) -> uuid.UUID | None:
@@ -190,10 +225,29 @@ class SqlSchedulingRepository:
         ).all()
         return [TimeRange(row.start_at, row.end_at) for row in (*rows, *external)]
 
+    async def host_loads(self, host_ids: tuple[uuid.UUID, ...]) -> dict[uuid.UUID, int]:
+        if not host_ids:
+            return {}
+        rows = (
+            await self._session.execute(
+                select(models.Booking.host_id, func.count())
+                .where(
+                    models.Booking.host_id.in_(host_ids),
+                    models.Booking.status == "confirmed",
+                )
+                .group_by(models.Booking.host_id)
+            )
+        ).all()
+        loads = dict.fromkeys(host_ids, 0)
+        for host_id, count in rows:
+            loads[host_id] = count
+        return loads
+
     async def insert_booking(
         self,
         *,
         context: EventContext,
+        host_id: uuid.UUID,
         start_at: datetime,
         end_at: datetime,
         invitee_name: str,
@@ -205,7 +259,7 @@ class SqlSchedulingRepository:
         # Serialize concurrent attempts on the same (host, slot) so the loser gets a clean
         # SlotUnavailable instead of racing on the constraint. The EXCLUDE constraint remains the
         # ultimate guarantee against overlapping confirmed bookings.
-        lock_key = f"{context.host_id}:{start_at.isoformat()}"
+        lock_key = f"{host_id}:{start_at.isoformat()}"
         await self._session.execute(
             text("SELECT pg_advisory_xact_lock(hashtextextended(:k, 0))"),
             {"k": lock_key},
@@ -216,7 +270,7 @@ class SqlSchedulingRepository:
                 .values(
                     organization_id=self._org_id,
                     event_type_id=context.event_type_id,
-                    host_id=context.host_id,
+                    host_id=host_id,
                     invitee_name=invitee_name,
                     invitee_email=invitee_email,
                     invitee_timezone=invitee_timezone,

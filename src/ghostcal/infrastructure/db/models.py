@@ -38,6 +38,9 @@ from ghostcal.infrastructure.db.base import Base, TimestampMixin
 MEMBERSHIP_ROLES = ("owner", "admin", "member")
 IDENTITY_PROVIDERS = ("google", "microsoft", "oidc")
 BOOKING_STATUSES = ("confirmed", "cancelled", "rescheduled")
+# How an event type assigns hosts. "solo": the owner. "round_robin": one host picked from a pool.
+# "collective"/"group" are reserved for a later slice.
+EVENT_KINDS = ("solo", "round_robin", "collective", "group")
 
 
 def _pk() -> Mapped[uuid.UUID]:
@@ -188,6 +191,8 @@ class EventType(TimestampMixin, Base):
     date_window_days: Mapped[int] = mapped_column(SmallInteger, default=60)
     max_per_day: Mapped[int | None] = mapped_column(SmallInteger)
     location_type: Mapped[str] = mapped_column(String(20), default="google_meet")
+    # Host-assignment strategy. "solo" uses the owner; "round_robin" picks from event_type_hosts.
+    kind: Mapped[str] = mapped_column(String(20), default="solo", server_default="solo")
     price_cents: Mapped[int | None]
     currency: Mapped[str | None] = mapped_column(String(3))
     active: Mapped[bool] = mapped_column(default=True)
@@ -195,6 +200,22 @@ class EventType(TimestampMixin, Base):
     booking_questions: Mapped[list[dict[str, object]]] = mapped_column(
         JSONB, nullable=False, server_default=text("'[]'::jsonb")
     )
+
+
+class EventTypeHost(TimestampMixin, Base):
+    """A host in a round-robin (or future collective) event type's pool."""
+
+    __tablename__ = "event_type_hosts"
+    __table_args__ = (UniqueConstraint("event_type_id", "user_id"),)
+
+    id: Mapped[uuid.UUID] = _pk()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    event_type_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("event_types.id", ondelete="CASCADE")
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
 
 
 class AvailabilitySchedule(TimestampMixin, Base):
@@ -376,6 +397,7 @@ RLS_TABLES: dict[str, str] = {
     "memberships": "organization_id",
     "organization_invitations": "organization_id",
     "event_types": "organization_id",
+    "event_type_hosts": "organization_id",
     "availability_schedules": "organization_id",
     "availability_rules": "organization_id",
     "availability_overrides": "organization_id",

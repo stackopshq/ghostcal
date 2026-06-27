@@ -60,8 +60,24 @@ class BookingPage:
 
 
 @dataclass(frozen=True, slots=True)
+class HostRef:
+    """One potential host of an event type, with their schedule."""
+
+    host_id: uuid.UUID
+    name: str
+    email: str
+    timezone: str
+    schedule: Schedule
+
+
+@dataclass(frozen=True, slots=True)
 class EventContext:
-    """Everything the engine needs about an event type, plus who hosts it."""
+    """Everything the engine needs about an event type, plus who can host it.
+
+    ``hosts`` is the candidate pool: one entry for a solo event type (the owner), several for a
+    round-robin one. The singular ``host_*``/``schedule`` fields mirror the primary host
+    (``hosts[0]``) and keep the solo path simple.
+    """
 
     event_type_id: uuid.UUID
     host_id: uuid.UUID
@@ -73,6 +89,8 @@ class EventContext:
     date_window_days: int
     event: EventType
     schedule: Schedule
+    kind: str = "solo"
+    hosts: tuple[HostRef, ...] = ()
     questions: tuple[BookingQuestion, ...] = ()
 
 
@@ -117,10 +135,15 @@ class SchedulingRepository(Protocol):
         self, host_id: uuid.UUID, start: datetime, end: datetime
     ) -> list[TimeRange]: ...
 
+    async def host_loads(self, host_ids: tuple[uuid.UUID, ...]) -> dict[uuid.UUID, int]:
+        """Confirmed-booking counts per host (for round-robin load balancing)."""
+        ...
+
     async def insert_booking(
         self,
         *,
         context: EventContext,
+        host_id: uuid.UUID,
         start_at: datetime,
         end_at: datetime,
         invitee_name: str,
@@ -151,6 +174,25 @@ async def get_booking_page(repo: SchedulingRepository) -> BookingPage:
     return BookingPage(organization_name=name, event_types=await repo.list_active_event_types())
 
 
+async def _host_day_slots(
+    repo: SchedulingRepository,
+    host: HostRef,
+    event: EventType,
+    now: datetime,
+    from_date: date,
+    to_date: date,
+) -> list[TimeRange]:
+    busy = await repo.get_busy(host.host_id, *_busy_bounds(from_date, to_date))
+    return compute_slots(
+        schedule=host.schedule,
+        event=event,
+        busy=busy,
+        now=now,
+        from_date=from_date,
+        to_date=to_date,
+    )
+
+
 async def get_availability(
     repo: SchedulingRepository,
     clock: Clock,
@@ -165,15 +207,21 @@ async def get_availability(
 
     now = clock.now()
     capped_to = _cap_window(from_date, to_date, context.date_window_days)
-    busy = await repo.get_busy(context.host_id, *_busy_bounds(from_date, capped_to))
-    return compute_slots(
-        schedule=context.schedule,
-        event=context.event,
-        busy=busy,
-        now=now,
-        from_date=from_date,
-        to_date=capped_to,
-    )
+    # A slot is offered if ANY candidate host is free for it (union across the pool). For a solo
+    # event type the pool is just the owner, so this reduces to the single-host case.
+    by_start: dict[datetime, TimeRange] = {}
+    for host in context.hosts:
+        for slot in await _host_day_slots(repo, host, context.event, now, from_date, capped_to):
+            by_start.setdefault(slot.start, slot)
+    return sorted(by_start.values(), key=lambda slot: slot.start)
+
+
+async def _choose_host(repo: SchedulingRepository, candidates: list[HostRef]) -> HostRef:
+    """Round-robin: pick the least-loaded host, breaking ties by pool order (stable)."""
+    if len(candidates) == 1:
+        return candidates[0]
+    loads = await repo.host_loads(tuple(h.host_id for h in candidates))
+    return min(enumerate(candidates), key=lambda pair: (loads.get(pair[1].host_id, 0), pair[0]))[1]
 
 
 async def create_booking(
@@ -192,24 +240,22 @@ async def create_booking(
     guests = _clean_guests(request.guest_emails)
 
     now = clock.now()
-    # Re-validate against freshly computed availability for that local day: the slot must still
-    # be offered. The DB exclusion constraint is the final guard against races.
-    day = request.start_at.astimezone(ZoneInfo(context.schedule.timezone)).date()
-    busy = await repo.get_busy(context.host_id, *_busy_bounds(day, day))
-    slots = compute_slots(
-        schedule=context.schedule,
-        event=context.event,
-        busy=busy,
-        now=now,
-        from_date=day,
-        to_date=day,
-    )
-    if not any(slot.start == request.start_at for slot in slots):
+    # Re-validate against freshly computed availability: the slot must still be offered by at least
+    # one host. The DB exclusion constraint is the final guard against races.
+    candidates: list[HostRef] = []
+    for host in context.hosts:
+        day = request.start_at.astimezone(ZoneInfo(host.schedule.timezone)).date()
+        slots = await _host_day_slots(repo, host, context.event, now, day, day)
+        if any(slot.start == request.start_at for slot in slots):
+            candidates.append(host)
+    if not candidates:
         raise SlotUnavailable(request.start_at.isoformat())
 
+    chosen = await _choose_host(repo, candidates)
     end_at = request.start_at + context.event.duration
     booking_id = await repo.insert_booking(
         context=context,
+        host_id=chosen.host_id,
         start_at=request.start_at,
         end_at=end_at,
         invitee_name=request.invitee_name,
@@ -220,11 +266,11 @@ async def create_booking(
     )
     return BookingConfirmation(
         booking_id=booking_id,
-        host_id=context.host_id,
+        host_id=chosen.host_id,
         event_title=context.title,
-        host_name=context.host_name,
-        host_email=context.host_email,
-        host_timezone=context.host_timezone,
+        host_name=chosen.name,
+        host_email=chosen.email,
+        host_timezone=chosen.timezone,
         invitee_name=request.invitee_name,
         invitee_email=request.invitee_email,
         invitee_timezone=request.invitee_timezone,

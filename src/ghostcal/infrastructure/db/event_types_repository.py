@@ -37,7 +37,8 @@ class SqlEventTypesRepository(EventTypesRepository):
             .all()
         )
         org_slug = await self._org_slug()
-        return [_to_data(r, org_slug) for r in rows]
+        pools = await self._pools([r.id for r in rows])
+        return [_to_data(r, org_slug, pools.get(r.id, ())) for r in rows]
 
     async def get(self, event_type_id: uuid.UUID, owner_id: uuid.UUID) -> EventTypeData | None:
         row = (
@@ -50,7 +51,59 @@ class SqlEventTypesRepository(EventTypesRepository):
         ).scalar_one_or_none()
         if row is None:
             return None
-        return _to_data(row, await self._org_slug())
+        pools = await self._pools([row.id])
+        return _to_data(row, await self._org_slug(), pools.get(row.id, ()))
+
+    async def _pools(
+        self, event_type_ids: list[uuid.UUID]
+    ) -> dict[uuid.UUID, tuple[uuid.UUID, ...]]:
+        """Host pools for several event types, in stable (insertion) order."""
+        if not event_type_ids:
+            return {}
+        rows = (
+            await self._session.execute(
+                select(models.EventTypeHost.event_type_id, models.EventTypeHost.user_id)
+                .where(models.EventTypeHost.event_type_id.in_(event_type_ids))
+                .order_by(models.EventTypeHost.created_at)
+            )
+        ).all()
+        pools: dict[uuid.UUID, tuple[uuid.UUID, ...]] = {}
+        for event_type_id, user_id in rows:
+            pools[event_type_id] = (*pools.get(event_type_id, ()), user_id)
+        return pools
+
+    async def _replace_pool(
+        self, event_type_id: uuid.UUID, host_ids: tuple[uuid.UUID, ...]
+    ) -> None:
+        await self._session.execute(
+            delete(models.EventTypeHost).where(models.EventTypeHost.event_type_id == event_type_id)
+        )
+        for user_id in dict.fromkeys(host_ids):  # de-dupe, keep order
+            await self._session.execute(
+                insert(models.EventTypeHost).values(
+                    organization_id=self._org_id,
+                    event_type_id=event_type_id,
+                    user_id=user_id,
+                )
+            )
+
+    async def non_member_hosts(self, host_ids: tuple[uuid.UUID, ...]) -> set[uuid.UUID]:
+        """host_ids that are NOT members of this organization (round-robin pool validation)."""
+        if not host_ids:
+            return set()
+        members = (
+            (
+                await self._session.execute(
+                    select(models.Membership.user_id).where(
+                        models.Membership.organization_id == self._org_id,
+                        models.Membership.user_id.in_(host_ids),
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        return set(host_ids) - set(members)
 
     async def _org_slug(self) -> str:
         return (
@@ -60,7 +113,7 @@ class SqlEventTypesRepository(EventTypesRepository):
         ).scalar_one()
 
     async def create(self, owner_id: uuid.UUID, slug: str, data: EventTypeInput) -> uuid.UUID:
-        return (
+        event_type_id = (
             await self._session.execute(
                 insert(models.EventType)
                 .values(
@@ -73,6 +126,9 @@ class SqlEventTypesRepository(EventTypesRepository):
                 .returning(models.EventType.id)
             )
         ).scalar_one()
+        if data.kind == "round_robin":
+            await self._replace_pool(event_type_id, data.host_ids)
+        return event_type_id
 
     async def update(
         self, event_type_id: uuid.UUID, owner_id: uuid.UUID, data: EventTypeInput
@@ -82,6 +138,9 @@ class SqlEventTypesRepository(EventTypesRepository):
             return False
         for field, value in _values(data).items():
             setattr(row, field, value)
+        await self._session.flush()
+        # Keep the pool in sync with the kind: round-robin owns a pool, others have none.
+        await self._replace_pool(event_type_id, data.host_ids if data.kind == "round_robin" else ())
         return True
 
     async def delete(self, event_type_id: uuid.UUID, owner_id: uuid.UUID) -> bool:
@@ -126,11 +185,16 @@ def _values(data: EventTypeInput) -> dict[str, object]:
         "max_per_day": data.max_per_day,
         "location_type": data.location_type,
         "active": data.active,
+        "kind": data.kind,
         "booking_questions": questions_to_json(data.questions),
     }
 
 
-def _to_data(row: models.EventType, organization_slug: str) -> EventTypeData:
+def _to_data(
+    row: models.EventType,
+    organization_slug: str,
+    host_ids: tuple[uuid.UUID, ...] = (),
+) -> EventTypeData:
     return EventTypeData(
         id=row.id,
         organization_id=row.organization_id,
@@ -148,4 +212,6 @@ def _to_data(row: models.EventType, organization_slug: str) -> EventTypeData:
         location_type=row.location_type,
         active=row.active,
         questions=questions_from_json(row.booking_questions),
+        kind=row.kind,
+        host_ids=host_ids,
     )
