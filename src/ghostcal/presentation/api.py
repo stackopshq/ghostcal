@@ -2,15 +2,21 @@
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+import logging
+import time
+import uuid
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from redis.asyncio import from_url as redis_from_url
 from sqlalchemy import text
+from starlette.responses import Response
 
 from ghostcal import __version__
 from ghostcal.config import get_settings
 from ghostcal.infrastructure.db.session import get_engine
+from ghostcal.infrastructure.logging import configure_logging, request_id_var
 from ghostcal.presentation.auth_routes import router as auth_router
 from ghostcal.presentation.dashboard_routes import router as dashboard_router
 from ghostcal.presentation.invitations_routes import router as invitations_router
@@ -24,11 +30,35 @@ from ghostcal.presentation.webhook_routes import router as webhook_router
 
 
 def create_app() -> FastAPI:
+    settings = get_settings()
+    configure_logging(settings.log_level)
+    access_logger = logging.getLogger("ghostcal.access")
+
     app = FastAPI(
         title="GhostCal",
         version=__version__,
         description="Fast, correct scheduling.",
     )
+
+    @app.middleware("http")
+    async def request_context(request: Request, call_next: object) -> Response:
+        rid = request.headers.get("x-request-id") or uuid.uuid4().hex
+        token = request_id_var.set(rid)
+        start = time.perf_counter()
+        try:
+            response: Response = await call_next(request)  # type: ignore[operator]
+            elapsed_ms = round((time.perf_counter() - start) * 1000, 1)
+            access_logger.info(
+                "%s %s -> %s (%sms)",
+                request.method,
+                request.url.path,
+                response.status_code,
+                elapsed_ms,
+            )
+            response.headers["X-Request-ID"] = rid
+            return response
+        finally:
+            request_id_var.reset(token)
 
     app.add_middleware(
         CORSMiddleware,

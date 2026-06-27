@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     )
 
     environment: Literal["development", "staging", "production"] = "development"
+    log_level: str = "INFO"
 
     # Browser origins allowed to call the API (the Next.js frontend in dev).
     cors_allow_origins: list[str] = ["http://localhost:3000"]
