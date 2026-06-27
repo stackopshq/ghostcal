@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime, time
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -43,6 +43,38 @@ class UserOut(BaseModel):
 
 class RegisteredOut(BaseModel):
     user_id: uuid.UUID
+
+
+class RuleSchema(BaseModel):
+    weekday: int = Field(ge=0, le=6)  # 0 = Monday
+    start: time
+    end: time
+
+
+class OverrideSchema(BaseModel):
+    day: date
+    is_available: bool = True
+    start: time | None = None
+    end: time | None = None
+
+
+class ScheduleIn(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    timezone: str = Field(min_length=1, max_length=64)
+    rules: list[RuleSchema] = Field(default_factory=list)
+    overrides: list[OverrideSchema] = Field(default_factory=list)
+
+
+class ScheduleOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    timezone: str
+    rules: list[RuleSchema]
+    overrides: list[OverrideSchema]
+
+
+class CreatedOut(BaseModel):
+    id: uuid.UUID
 
 
 class EventTypeOut(BaseModel):
