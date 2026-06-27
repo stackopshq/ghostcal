@@ -6,6 +6,7 @@ org-scoped session (RLS) filtered by owner.
 
 from __future__ import annotations
 
+import logging
 import uuid
 from dataclasses import asdict, dataclass
 from typing import Literal
@@ -26,6 +27,7 @@ from ghostcal.application.event_types import (
     update_event_type,
 )
 from ghostcal.application.meetings import MeetingNotFound, cancel_meeting, list_meetings
+from ghostcal.application.notifications import send_booking_cancellation
 from ghostcal.application.ports.clock import SystemClock
 from ghostcal.application.schedules import (
     InvalidSchedule,
@@ -39,11 +41,13 @@ from ghostcal.application.schedules import (
     list_schedules,
     update_schedule,
 )
+from ghostcal.config import get_settings
 from ghostcal.infrastructure.db.event_types_repository import SqlEventTypesRepository
 from ghostcal.infrastructure.db.meetings_repository import SqlMeetingsRepository
 from ghostcal.infrastructure.db.membership import primary_organization
 from ghostcal.infrastructure.db.schedules_repository import SqlSchedulesRepository
 from ghostcal.infrastructure.db.session import db_session, org_session
+from ghostcal.infrastructure.email import build_email_sender
 from ghostcal.presentation.auth_routes import current_user
 from ghostcal.presentation.schemas import (
     CreatedOut,
@@ -58,6 +62,8 @@ from ghostcal.presentation.schemas import (
 
 router = APIRouter(prefix="/v1/me", tags=["dashboard"])
 _clock = SystemClock()
+_mailer = build_email_sender(get_settings())
+_logger = logging.getLogger("ghostcal.dashboard")
 
 
 @dataclass(frozen=True, slots=True)
@@ -290,6 +296,19 @@ async def cancel_my_meeting(
     async with org_session(member.organization_id) as session:
         repo = SqlMeetingsRepository(session, member.organization_id)
         try:
-            await cancel_meeting(repo, booking_id, member.user.id)
+            cancelled = await cancel_meeting(repo, booking_id, member.user.id)
         except MeetingNotFound as exc:
             raise HTTPException(status_code=404, detail="meeting not found") from exc
+
+    # Best-effort, after commit: notify the invitee that their meeting was cancelled.
+    try:
+        await send_booking_cancellation(
+            _mailer,
+            invitee_email=cancelled.invitee_email,
+            invitee_timezone=cancelled.invitee_timezone,
+            event_title=cancelled.event_title,
+            host_name=member.user.name,
+            start_at=cancelled.start_at,
+        )
+    except Exception:
+        _logger.exception("failed to send cancellation for booking %s", booking_id)

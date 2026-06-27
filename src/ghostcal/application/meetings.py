@@ -33,8 +33,9 @@ class MeetingsRepository:
         chronologically (ascending for upcoming, most-recent-first for past)."""
         raise NotImplementedError
 
-    async def cancel(self, booking_id: uuid.UUID, host_id: uuid.UUID) -> bool:
-        """Mark the host's confirmed booking cancelled (freeing the slot). False if not found."""
+    async def cancel(self, booking_id: uuid.UUID, host_id: uuid.UUID) -> BookingSummary | None:
+        """Mark the host's confirmed booking cancelled (freeing the slot). Return the cancelled
+        booking, or None if not found."""
         raise NotImplementedError
 
 
@@ -46,6 +47,8 @@ async def list_meetings(
 
 async def cancel_meeting(
     repo: MeetingsRepository, booking_id: uuid.UUID, host_id: uuid.UUID
-) -> None:
-    if not await repo.cancel(booking_id, host_id):
+) -> BookingSummary:
+    cancelled = await repo.cancel(booking_id, host_id)
+    if cancelled is None:
         raise MeetingNotFound(str(booking_id))
+    return cancelled

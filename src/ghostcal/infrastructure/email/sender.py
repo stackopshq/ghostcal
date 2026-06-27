@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import base64
 import logging
+from collections.abc import Sequence
 
 import httpx
 
-from ghostcal.application.ports.email import EmailSender
+from ghostcal.application.ports.email import Attachment, EmailSender
 from ghostcal.config import Settings
 
 logger = logging.getLogger("ghostcal.email")
@@ -19,12 +21,34 @@ class ResendEmailSender:
         self._api_key = api_key
         self._sender = sender
 
-    async def send(self, *, to: str, subject: str, html: str) -> None:
+    async def send(
+        self,
+        *,
+        to: str,
+        subject: str,
+        html: str,
+        attachments: Sequence[Attachment] | None = None,
+    ) -> None:
+        payload: dict[str, object] = {
+            "from": self._sender,
+            "to": [to],
+            "subject": subject,
+            "html": html,
+        }
+        if attachments:
+            payload["attachments"] = [
+                {
+                    "filename": a.filename,
+                    "content": base64.b64encode(a.content).decode("ascii"),
+                    "content_type": a.content_type,
+                }
+                for a in attachments
+            ]
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(
                 _RESEND_ENDPOINT,
                 headers={"Authorization": f"Bearer {self._api_key}"},
-                json={"from": self._sender, "to": [to], "subject": subject, "html": html},
+                json=payload,
             )
             response.raise_for_status()
 
@@ -32,8 +56,22 @@ class ResendEmailSender:
 class LogEmailSender:
     """Dev fallback: log the message instead of sending it (no provider configured)."""
 
-    async def send(self, *, to: str, subject: str, html: str) -> None:
-        logger.warning("Email NOT sent (no RESEND key). to=%s subject=%s\n%s", to, subject, html)
+    async def send(
+        self,
+        *,
+        to: str,
+        subject: str,
+        html: str,
+        attachments: Sequence[Attachment] | None = None,
+    ) -> None:
+        names = ", ".join(a.filename for a in attachments) if attachments else "none"
+        logger.warning(
+            "Email NOT sent (no RESEND key). to=%s subject=%s attachments=[%s]\n%s",
+            to,
+            subject,
+            names,
+            html,
+        )
 
 
 def build_email_sender(settings: Settings) -> EmailSender:

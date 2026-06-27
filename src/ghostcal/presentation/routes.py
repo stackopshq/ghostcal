@@ -6,12 +6,14 @@ use case. Domain errors are translated to HTTP status codes.
 
 from __future__ import annotations
 
+import logging
 import uuid
 from dataclasses import asdict
 from datetime import date
 
 from fastapi import APIRouter, HTTPException, Query
 
+from ghostcal.application.notifications import send_booking_confirmation
 from ghostcal.application.ports.clock import SystemClock
 from ghostcal.application.scheduling import (
     BookingRequest,
@@ -23,8 +25,10 @@ from ghostcal.application.scheduling import (
     get_booking_page,
     get_event_type,
 )
+from ghostcal.config import get_settings
 from ghostcal.infrastructure.db.repository import SqlSchedulingRepository
 from ghostcal.infrastructure.db.session import org_session
+from ghostcal.infrastructure.email import build_email_sender
 from ghostcal.presentation.schemas import (
     AvailabilityOut,
     BookingIn,
@@ -37,6 +41,8 @@ from ghostcal.presentation.schemas import (
 
 router = APIRouter(prefix="/v1/orgs/{organization_id}", tags=["scheduling"])
 _clock = SystemClock()
+_mailer = build_email_sender(get_settings())
+_logger = logging.getLogger("ghostcal.booking")
 
 
 @router.get("/event-types", response_model=BookingPageOut)
@@ -126,6 +132,13 @@ async def create_booking_endpoint(
             raise HTTPException(status_code=404, detail="event type not found") from exc
         except SlotUnavailable as exc:
             raise HTTPException(status_code=409, detail="slot is no longer available") from exc
+
+    # Best-effort, after commit: an email failure must not undo a confirmed booking.
+    try:
+        await send_booking_confirmation(_mailer, confirmation)
+    except Exception:
+        _logger.exception("failed to send confirmation for booking %s", confirmation.booking_id)
+
     return BookingOut(
         id=confirmation.booking_id,
         start_at=confirmation.start_at,

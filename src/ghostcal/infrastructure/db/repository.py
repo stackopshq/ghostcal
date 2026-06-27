@@ -36,11 +36,13 @@ class SqlSchedulingRepository:
         if event_row is None:
             return None
 
-        host_name = (
+        host = (
             await self._session.execute(
-                select(models.User.name).where(models.User.id == event_row.owner_id)
+                select(models.User.name, models.User.email, models.User.timezone).where(
+                    models.User.id == event_row.owner_id
+                )
             )
-        ).scalar_one()
+        ).one()
         schedule = await self._load_schedule(event_row.schedule_id, event_row.owner_id)
         event = EventType(
             duration=timedelta(minutes=event_row.duration_min),
@@ -53,7 +55,9 @@ class SqlSchedulingRepository:
         return EventContext(
             event_type_id=event_row.id,
             host_id=event_row.owner_id,
-            host_name=host_name,
+            host_name=host.name,
+            host_email=host.email,
+            host_timezone=host.timezone,
             title=event_row.title,
             location_type=event_row.location_type,
             date_window_days=event_row.date_window_days,

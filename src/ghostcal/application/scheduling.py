@@ -58,6 +58,8 @@ class EventContext:
     event_type_id: uuid.UUID
     host_id: uuid.UUID
     host_name: str
+    host_email: str
+    host_timezone: str
     title: str
     location_type: str
     date_window_days: int
@@ -77,6 +79,14 @@ class BookingRequest:
 @dataclass(frozen=True, slots=True)
 class BookingConfirmation:
     booking_id: uuid.UUID
+    event_title: str
+    host_name: str
+    host_email: str
+    host_timezone: str
+    invitee_name: str
+    invitee_email: str
+    invitee_timezone: str
+    location_type: str
     start_at: datetime
     end_at: datetime
 
@@ -182,7 +192,19 @@ async def create_booking(
         invitee_email=request.invitee_email,
         invitee_timezone=request.invitee_timezone,
     )
-    return BookingConfirmation(booking_id=booking_id, start_at=request.start_at, end_at=end_at)
+    return BookingConfirmation(
+        booking_id=booking_id,
+        event_title=context.title,
+        host_name=context.host_name,
+        host_email=context.host_email,
+        host_timezone=context.host_timezone,
+        invitee_name=request.invitee_name,
+        invitee_email=request.invitee_email,
+        invitee_timezone=request.invitee_timezone,
+        location_type=context.location_type,
+        start_at=request.start_at,
+        end_at=end_at,
+    )
 
 
 def _cap_window(from_date: date, to_date: date, window_days: int) -> date:
