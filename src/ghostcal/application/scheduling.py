@@ -92,6 +92,7 @@ class EventContext:
     kind: str = "solo"
     hosts: tuple[HostRef, ...] = ()
     questions: tuple[BookingQuestion, ...] = ()
+    capacity: int = 1
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,6 +142,10 @@ class SchedulingRepository(Protocol):
         """Confirmed-booking counts per host (for round-robin load balancing)."""
         ...
 
+    async def slot_booking_counts(self, event_type_id: uuid.UUID) -> dict[datetime, int]:
+        """Confirmed-booking counts per start time for an event type (group capacity)."""
+        ...
+
     async def insert_booking(
         self,
         *,
@@ -153,8 +158,11 @@ class SchedulingRepository(Protocol):
         invitee_timezone: str,
         guest_emails: tuple[str, ...] = (),
         answers: dict[str, str] | None = None,
+        blocks_host: bool = True,
+        max_at_slot: int | None = None,
     ) -> uuid.UUID:
-        """Insert a confirmed booking. Raise ``SlotUnavailable`` on overlap (race)."""
+        """Insert a confirmed booking. Raise ``SlotUnavailable`` on overlap (race), or when
+        ``max_at_slot`` is set and the slot already holds that many bookings (group capacity)."""
         ...
 
     async def insert_collective_booking(
@@ -239,6 +247,12 @@ async def get_availability(
     if context.kind == "collective":
         needed = len(context.hosts)
         offered = [slot for start, slot in by_start.items() if counts[start] == needed]
+    elif context.kind == "group":
+        # The host's free slots, minus those already at capacity.
+        booked = await repo.slot_booking_counts(event_type_id)
+        offered = [
+            slot for start, slot in by_start.items() if booked.get(start, 0) < context.capacity
+        ]
     else:
         offered = list(by_start.values())
     return sorted(offered, key=lambda slot: slot.start)
@@ -301,6 +315,7 @@ async def create_booking(
         if not candidates:
             raise SlotUnavailable(request.start_at.isoformat())
         primary = await _choose_host(repo, candidates)
+        is_group = context.kind == "group"
         booking_id = await repo.insert_booking(
             context=context,
             host_id=primary.host_id,
@@ -311,6 +326,8 @@ async def create_booking(
             invitee_timezone=request.invitee_timezone,
             guest_emails=guests,
             answers=answers,
+            blocks_host=not is_group,
+            max_at_slot=context.capacity if is_group else None,
         )
         additional = ()
 

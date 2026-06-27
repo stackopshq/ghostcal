@@ -24,8 +24,7 @@ LOCATION_TYPES: tuple[str, ...] = (
 # Supported custom-question input types (collected from the invitee at booking time).
 QUESTION_TYPES: tuple[str, ...] = ("text", "textarea", "phone", "select", "checkbox")
 
-# Host-assignment kinds. "group" (capacity > 1 per slot) is added in a later slice.
-SUPPORTED_KINDS: tuple[str, ...] = ("solo", "round_robin", "collective")
+SUPPORTED_KINDS: tuple[str, ...] = ("solo", "round_robin", "collective", "group")
 # Kinds that draw their hosts from the event_type_hosts pool.
 POOLED_KINDS: tuple[str, ...] = ("round_robin", "collective")
 
@@ -102,6 +101,7 @@ class EventTypeInput:
     questions: tuple[BookingQuestion, ...] = ()
     kind: str = "solo"
     host_ids: tuple[uuid.UUID, ...] = ()
+    capacity: int = 1
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,6 +124,7 @@ class EventTypeData:
     questions: tuple[BookingQuestion, ...] = ()
     kind: str = "solo"
     host_ids: tuple[uuid.UUID, ...] = ()
+    capacity: int = 1
 
 
 class EventTypesRepository:
@@ -168,6 +169,10 @@ def _validate(data: EventTypeInput) -> None:
         raise InvalidEventType(f"unsupported event kind: {data.kind}")
     if data.kind in POOLED_KINDS and not data.host_ids:
         raise InvalidEventType(f"{data.kind} needs at least one host")
+    if data.capacity < 1:
+        raise InvalidEventType("capacity must be at least 1")
+    if data.kind == "group" and data.capacity < 2:
+        raise InvalidEventType("a group event needs a capacity of at least 2")
     _validate_questions(data.questions)
 
 

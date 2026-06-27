@@ -193,6 +193,8 @@ class EventType(TimestampMixin, Base):
     location_type: Mapped[str] = mapped_column(String(20), default="google_meet")
     # Host-assignment strategy. "solo" uses the owner; "round_robin" picks from event_type_hosts.
     kind: Mapped[str] = mapped_column(String(20), default="solo", server_default="solo")
+    # Max invitees per slot (group event types). 1 for everything else.
+    capacity: Mapped[int] = mapped_column(SmallInteger, default=1, server_default="1")
     price_cents: Mapped[int | None]
     currency: Mapped[str | None] = mapped_column(String(3))
     active: Mapped[bool] = mapped_column(default=True)
@@ -286,12 +288,13 @@ class Booking(TimestampMixin, Base):
     __table_args__ = (
         CheckConstraint(f"status IN {BOOKING_STATUSES}", name="status_allowed"),
         CheckConstraint("start_at < end_at", name="booking_time_order"),
-        # No two confirmed bookings for the same host may overlap. The real guarantee.
+        # No two confirmed *blocking* bookings for the same host may overlap. The real guarantee.
+        # Group bookings set blocks_host=false so many invitees can share one slot (capacity).
         ExcludeConstraint(
             ("host_id", "="),
             ("period", "&&"),
             using="gist",
-            where=text("status = 'confirmed'"),
+            where=text("status = 'confirmed' AND blocks_host"),
             name="no_overlap_per_host",
         ),
         Index("ix_bookings_org_period", "organization_id", "period", postgresql_using="gist"),
@@ -320,6 +323,9 @@ class Booking(TimestampMixin, Base):
     # Collective bookings insert one row per required host, all sharing this id (so cancel/manage
     # act on the whole meeting). NULL for solo/round-robin/group bookings.
     collective_group_id: Mapped[uuid.UUID | None] = mapped_column(index=True)
+    # Whether this booking occupies the host exclusively (the no-overlap guarantee). Group bookings
+    # set this false so a slot can hold up to the event type's capacity.
+    blocks_host: Mapped[bool] = mapped_column(default=True, server_default=text("true"))
     # Additional guest emails and the invitee's answers to the event type's custom questions.
     guest_emails: Mapped[list[str]] = mapped_column(
         JSONB, nullable=False, server_default=text("'[]'::jsonb")

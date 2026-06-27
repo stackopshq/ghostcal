@@ -83,6 +83,7 @@ class SqlSchedulingRepository:
             kind=event_row.kind,
             hosts=tuple(hosts),
             questions=_to_questions(event_row.booking_questions),
+            capacity=event_row.capacity,
         )
 
     async def _host_ref(self, user_id: uuid.UUID, schedule_id: uuid.UUID | None = None) -> HostRef:
@@ -202,12 +203,13 @@ class SqlSchedulingRepository:
         )
 
     async def get_busy(self, host_id: uuid.UUID, start: datetime, end: datetime) -> list[TimeRange]:
-        # Confirmed bookings...
+        # Confirmed bookings that occupy the host (group bookings don't — they share a slot)...
         rows = (
             await self._session.execute(
                 select(models.Booking.start_at, models.Booking.end_at).where(
                     models.Booking.host_id == host_id,
                     models.Booking.status == "confirmed",
+                    models.Booking.blocks_host.is_(True),
                     models.Booking.start_at < end,
                     models.Booking.end_at > start,
                 )
@@ -243,6 +245,19 @@ class SqlSchedulingRepository:
             loads[host_id] = count
         return loads
 
+    async def slot_booking_counts(self, event_type_id: uuid.UUID) -> dict[datetime, int]:
+        rows = (
+            await self._session.execute(
+                select(models.Booking.start_at, func.count())
+                .where(
+                    models.Booking.event_type_id == event_type_id,
+                    models.Booking.status == "confirmed",
+                )
+                .group_by(models.Booking.start_at)
+            )
+        ).all()
+        return dict(rows)  # type: ignore[arg-type]
+
     async def insert_booking(
         self,
         *,
@@ -255,15 +270,32 @@ class SqlSchedulingRepository:
         invitee_timezone: str,
         guest_emails: tuple[str, ...] = (),
         answers: dict[str, str] | None = None,
+        blocks_host: bool = True,
+        max_at_slot: int | None = None,
     ) -> uuid.UUID:
         # Serialize concurrent attempts on the same (host, slot) so the loser gets a clean
         # SlotUnavailable instead of racing on the constraint. The EXCLUDE constraint remains the
-        # ultimate guarantee against overlapping confirmed bookings.
+        # ultimate guarantee against overlapping confirmed bookings; for group events (which don't
+        # block the host) the capacity check below, run under this lock, is the guard.
         lock_key = f"{host_id}:{start_at.isoformat()}"
         await self._session.execute(
             text("SELECT pg_advisory_xact_lock(hashtextextended(:k, 0))"),
             {"k": lock_key},
         )
+        if max_at_slot is not None:
+            taken = (
+                await self._session.execute(
+                    select(func.count())
+                    .select_from(models.Booking)
+                    .where(
+                        models.Booking.event_type_id == context.event_type_id,
+                        models.Booking.start_at == start_at,
+                        models.Booking.status == "confirmed",
+                    )
+                )
+            ).scalar_one()
+            if taken >= max_at_slot:
+                raise SlotUnavailable(start_at.isoformat())
         try:
             result = await self._session.execute(
                 insert(models.Booking)
@@ -279,6 +311,7 @@ class SqlSchedulingRepository:
                     status="confirmed",
                     guest_emails=list(guest_emails),
                     answers=answers or {},
+                    blocks_host=blocks_host,
                 )
                 .returning(models.Booking.id)
             )

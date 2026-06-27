@@ -187,6 +187,7 @@ def _values(data: EventTypeInput) -> dict[str, object]:
         "location_type": data.location_type,
         "active": data.active,
         "kind": data.kind,
+        "capacity": data.capacity,
         "booking_questions": questions_to_json(data.questions),
     }
 
@@ -215,4 +216,5 @@ def _to_data(
         questions=questions_from_json(row.booking_questions),
         kind=row.kind,
         host_ids=host_ids,
+        capacity=row.capacity,
     )
