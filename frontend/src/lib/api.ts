@@ -11,12 +11,21 @@ export function resolveBaseUrl(): string {
 
 const BASE_URL = resolveBaseUrl();
 
+export type BookingQuestion = {
+  id: string;
+  label: string;
+  type: "text" | "textarea" | "phone" | "select" | "checkbox";
+  required: boolean;
+  options: string[];
+};
+
 export type EventType = {
   id: string;
   title: string;
   duration_min: number;
   location_type: string;
   host_name: string;
+  questions: BookingQuestion[];
 };
 
 export type Slot = { start: string; end: string };
@@ -119,6 +128,8 @@ export function createBooking(
     invitee_name: string;
     invitee_email: string;
     invitee_timezone: string;
+    guest_emails?: string[];
+    answers?: Record<string, string>;
   },
 ): Promise<Booking> {
   return request<Booking>(`/v1/orgs/${org}/event-types/${event}/bookings`, {

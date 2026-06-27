@@ -6,6 +6,7 @@ import {
   createBooking,
   getAvailability,
   type Booking,
+  type BookingQuestion,
   type EventType,
   type Slot,
 } from "@/lib/api";
@@ -51,6 +52,22 @@ function addDays(days: number): Date {
   return d;
 }
 
+function listTimezones(fallback: string): string[] {
+  const fn = (Intl as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf;
+  try {
+    return fn ? fn("timeZone") : [fallback];
+  } catch {
+    return [fallback];
+  }
+}
+
+function parseEmails(raw: string): string[] {
+  return raw
+    .split(/[\s,;]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 export default function BookingClient({
   org,
   event,
@@ -60,7 +77,9 @@ export default function BookingClient({
   event: string;
   eventType: EventType;
 }) {
-  const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
+  const detectedTz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
+  const timezones = useMemo(() => listTimezones(detectedTz), [detectedTz]);
+  const [tz, setTz] = useState(detectedTz);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -69,6 +88,8 @@ export default function BookingClient({
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [guests, setGuests] = useState("");
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<Booking | null>(null);
@@ -81,6 +102,14 @@ export default function BookingClient({
       .catch((e) => setLoadError(e instanceof Error ? e.message : "Failed to load"))
       .finally(() => setLoading(false));
   }, [org, event, tz]);
+
+  function setAnswer(id: string, value: string) {
+    setAnswers((prev) => ({ ...prev, [id]: value }));
+  }
+
+  function missingRequired(): boolean {
+    return eventType.questions.some((q) => q.required && !(answers[q.id] ?? "").trim());
+  }
 
   const byDay = useMemo(() => {
     const map = new Map<string, Slot[]>();
@@ -105,6 +134,8 @@ export default function BookingClient({
         invitee_name: name,
         invitee_email: email,
         invitee_timezone: tz,
+        guest_emails: parseEmails(guests),
+        answers,
       });
       setConfirmation(booking);
     } catch (e) {
@@ -131,8 +162,25 @@ export default function BookingClient({
         <ul className="flex flex-col gap-3 text-sm text-muted">
           <li>{eventType.duration_min} min</li>
           <li>{location}</li>
-          <li className="text-xs text-muted/70">Times shown in {tz}</li>
         </ul>
+        <label className="flex flex-col gap-1 text-xs text-muted/70">
+          Time zone
+          <select
+            value={tz}
+            onChange={(e) => {
+              setTz(e.target.value);
+              setSelectedDay(null);
+              setSelectedSlot(null);
+            }}
+            className="rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+          >
+            {timezones.map((zone) => (
+              <option key={zone} value={zone}>
+                {zone}
+              </option>
+            ))}
+          </select>
+        </label>
       </aside>
 
       {/* Right side */}
@@ -229,10 +277,24 @@ export default function BookingClient({
                   onChange={(e) => setEmail(e.target.value)}
                   className="rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
                 />
+                <input
+                  placeholder="Add guests (emails, comma-separated)"
+                  value={guests}
+                  onChange={(e) => setGuests(e.target.value)}
+                  className="rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
+                />
+                {eventType.questions.map((q) => (
+                  <QuestionField
+                    key={q.id}
+                    question={q}
+                    value={answers[q.id] ?? ""}
+                    onChange={(v) => setAnswer(q.id, v)}
+                  />
+                ))}
                 {bookingError && <p className="text-sm text-red-400">{bookingError}</p>}
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || missingRequired()}
                   className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.45)] transition hover:brightness-110 disabled:opacity-60"
                 >
                   {submitting ? "Confirming…" : "Confirm booking"}
@@ -243,6 +305,75 @@ export default function BookingClient({
         )}
       </section>
     </div>
+  );
+}
+
+function QuestionField({
+  question,
+  value,
+  onChange,
+}: {
+  question: BookingQuestion;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const inputClass =
+    "rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent";
+  const label = (
+    <span className="text-xs text-muted/80">
+      {question.label}
+      {question.required && <span className="text-accent"> *</span>}
+    </span>
+  );
+
+  if (question.type === "checkbox") {
+    return (
+      <label className="flex items-center gap-2 text-sm text-foreground">
+        <input
+          type="checkbox"
+          checked={value === "true"}
+          onChange={(e) => onChange(e.target.checked ? "true" : "false")}
+        />
+        {question.label}
+      </label>
+    );
+  }
+
+  return (
+    <label className="flex flex-col gap-1">
+      {label}
+      {question.type === "textarea" ? (
+        <textarea
+          required={question.required}
+          rows={3}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={inputClass}
+        />
+      ) : question.type === "select" ? (
+        <select
+          required={question.required}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={inputClass}
+        >
+          <option value="">Choose…</option>
+          {question.options.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          required={question.required}
+          type={question.type === "phone" ? "tel" : "text"}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={inputClass}
+        />
+      )}
+    </label>
   );
 }
 
