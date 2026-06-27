@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { inputClass, primaryButtonClass } from "@/components/AuthCard";
@@ -157,15 +156,13 @@ export default function AvailabilityPage() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 p-6 sm:p-10">
-      <header className="flex items-center justify-between">
-        <Link href="/dashboard" className="text-sm text-muted hover:text-accent">
-          ← Dashboard
-        </Link>
-        <span className="text-sm font-medium tracking-wide text-muted">
-          <span className="text-accent">●</span> Availability
-        </span>
-      </header>
+    <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6 sm:p-10">
+      <div>
+        <h1 className="text-2xl font-semibold text-foreground">Availability</h1>
+        <p className="mt-1 text-sm text-muted">
+          Set the weekly hours you can be booked. Times are in the schedule&apos;s timezone.
+        </p>
+      </div>
 
       <section className="glass flex flex-col gap-6 rounded-2xl p-6 sm:p-8">
         <div className="grid gap-4 sm:grid-cols-2">

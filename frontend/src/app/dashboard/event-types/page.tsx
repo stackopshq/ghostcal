@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { inputClass, primaryButtonClass } from "@/components/AuthCard";
+import { useDashboardUser } from "@/components/dashboard-context";
 import { ApiError } from "@/lib/api";
 import { isAuthenticated } from "@/lib/auth";
 import {
@@ -28,6 +28,15 @@ const BLANK: EventTypeInput & { id: string | null } = {
 
 export default function EventTypesPage() {
   const router = useRouter();
+  const host = useDashboardUser();
+  const hostInitials = host
+    ? host.name
+        .split(" ")
+        .map((p) => p[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
+    : "";
   const [items, setItems] = useState<EventType[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<(EventTypeInput & { id: string | null }) | null>(null);
@@ -106,24 +115,29 @@ export default function EventTypesPage() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 p-6 sm:p-10">
-      <header className="flex items-center justify-between">
-        <Link href="/dashboard" className="text-sm text-muted hover:text-accent">
-          ← Dashboard
-        </Link>
-        <span className="text-sm font-medium tracking-wide text-muted">
-          <span className="text-accent">●</span> Event types
-        </span>
-      </header>
-
+    <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6 sm:p-10">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-foreground">Your event types</h1>
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Event types</h1>
+          <p className="mt-1 text-sm text-muted">
+            Create bookable meeting types and share their link.
+          </p>
+        </div>
         {!form && (
           <button type="button" onClick={() => setForm({ ...BLANK })} className={primaryButtonClass}>
-            New event type
+            + New event type
           </button>
         )}
       </div>
+
+      {host && (
+        <div className="flex items-center gap-3 border-b border-border pb-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-accent/30 to-accent/5 text-xs font-semibold text-accent ring-1 ring-border-strong">
+            {hostInitials}
+          </div>
+          <span className="text-sm font-medium text-foreground">{host.name}</span>
+        </div>
+      )}
 
       {form && (
         <section className="glass flex flex-col gap-4 rounded-2xl p-6">
@@ -209,7 +223,7 @@ export default function EventTypesPage() {
         {items.map((item) => (
           <div
             key={item.id}
-            className="glass flex flex-col gap-3 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between"
+            className="glass flex flex-col gap-3 rounded-2xl border-l-[3px] border-l-accent p-5 sm:flex-row sm:items-center sm:justify-between"
           >
             <div>
               <p className="font-medium text-foreground">
@@ -221,6 +235,14 @@ export default function EventTypesPage() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <a
+                href={publicLink(item)}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-lg border border-border-strong px-3 py-2 text-sm text-foreground transition hover:border-accent hover:text-accent"
+              >
+                Open ↗
+              </a>
               <button
                 type="button"
                 onClick={() => copy(item)}
