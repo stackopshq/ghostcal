@@ -77,6 +77,19 @@ class CreatedOut(BaseModel):
     id: uuid.UUID
 
 
+class MeetingOut(BaseModel):
+    id: uuid.UUID
+    event_title: str
+    invitee_name: str
+    invitee_email: str
+    invitee_timezone: str
+    start_at: datetime
+    end_at: datetime
+    status: str
+    location: str | None
+    meeting_url: str | None
+
+
 class EventTypeIn(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2000)

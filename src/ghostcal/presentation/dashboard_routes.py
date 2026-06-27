@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import asdict, dataclass
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ghostcal.application.auth import AuthenticatedUser
 from ghostcal.application.event_types import (
@@ -24,6 +25,8 @@ from ghostcal.application.event_types import (
     list_event_types,
     update_event_type,
 )
+from ghostcal.application.meetings import list_meetings
+from ghostcal.application.ports.clock import SystemClock
 from ghostcal.application.schedules import (
     InvalidSchedule,
     OverrideData,
@@ -37,6 +40,7 @@ from ghostcal.application.schedules import (
     update_schedule,
 )
 from ghostcal.infrastructure.db.event_types_repository import SqlEventTypesRepository
+from ghostcal.infrastructure.db.meetings_repository import SqlMeetingsRepository
 from ghostcal.infrastructure.db.membership import primary_organization
 from ghostcal.infrastructure.db.schedules_repository import SqlSchedulesRepository
 from ghostcal.infrastructure.db.session import db_session, org_session
@@ -45,6 +49,7 @@ from ghostcal.presentation.schemas import (
     CreatedOut,
     EventTypeDetailOut,
     EventTypeIn,
+    MeetingOut,
     OverrideSchema,
     RuleSchema,
     ScheduleIn,
@@ -52,6 +57,7 @@ from ghostcal.presentation.schemas import (
 )
 
 router = APIRouter(prefix="/v1/me", tags=["dashboard"])
+_clock = SystemClock()
 
 
 @dataclass(frozen=True, slots=True)
@@ -260,3 +266,18 @@ async def delete_my_event_type(
             raise HTTPException(
                 status_code=409, detail="event type has bookings and cannot be deleted"
             ) from exc
+
+
+# --- Meetings (bookings) ---------------------------------------------------------------------
+
+
+@router.get("/meetings", response_model=list[MeetingOut])
+async def list_my_meetings(
+    scope: Literal["upcoming", "past"] = Query("upcoming"),
+    member: Member = Depends(current_member),
+) -> list[MeetingOut]:
+    now = _clock.now()
+    async with org_session(member.organization_id) as session:
+        repo = SqlMeetingsRepository(session, member.organization_id)
+        items = await list_meetings(repo, member.user.id, upcoming=(scope == "upcoming"), now=now)
+    return [MeetingOut(**asdict(m)) for m in items]

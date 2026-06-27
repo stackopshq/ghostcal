@@ -43,9 +43,34 @@ export default function EventTypesPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   async function reload() {
     setItems(await listEventTypes());
+  }
+
+  async function toggleActive(item: EventType) {
+    setOpenMenu(null);
+    await updateEventType(item.id, {
+      title: item.title,
+      duration_min: item.duration_min,
+      slot_interval_min: item.slot_interval_min,
+      location_type: item.location_type,
+      active: !item.active,
+    });
+    await reload();
+  }
+
+  function startEdit(item: EventType) {
+    setOpenMenu(null);
+    setForm({
+      id: item.id,
+      title: item.title,
+      duration_min: item.duration_min,
+      slot_interval_min: item.slot_interval_min,
+      location_type: item.location_type,
+      active: item.active,
+    });
   }
 
   useEffect(() => {
@@ -250,29 +275,47 @@ export default function EventTypesPage() {
               >
                 {copied === item.id ? "Copied ✓" : "Copy link"}
               </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setForm({
-                    id: item.id,
-                    title: item.title,
-                    duration_min: item.duration_min,
-                    slot_interval_min: item.slot_interval_min,
-                    location_type: item.location_type,
-                    active: item.active,
-                  })
-                }
-                className="rounded-lg border border-border-strong px-3 py-2 text-sm text-foreground transition hover:border-accent hover:text-accent"
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                onClick={() => remove(item)}
-                className="rounded-lg border border-border-strong px-3 py-2 text-sm text-muted transition hover:border-red-400 hover:text-red-400"
-              >
-                Delete
-              </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  aria-label="More actions"
+                  onClick={() => setOpenMenu(openMenu === item.id ? null : item.id)}
+                  className="rounded-lg border border-border-strong px-3 py-2 text-sm text-foreground transition hover:border-accent hover:text-accent"
+                >
+                  ⋮
+                </button>
+                {openMenu === item.id && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)} />
+                    <div className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-lg border border-border-strong bg-surface shadow-2xl">
+                      <button
+                        type="button"
+                        onClick={() => startEdit(item)}
+                        className="block w-full px-4 py-2 text-left text-sm text-foreground transition hover:bg-surface-2"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleActive(item)}
+                        className="block w-full px-4 py-2 text-left text-sm text-foreground transition hover:bg-surface-2"
+                      >
+                        {item.active ? "Deactivate" : "Activate"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenMenu(null);
+                          remove(item);
+                        }}
+                        className="block w-full px-4 py-2 text-left text-sm text-red-400 transition hover:bg-surface-2"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         ))}
