@@ -31,6 +31,26 @@ class SlotUnavailable(SchedulingError):
     """The requested start time is not (or no longer) a bookable slot."""
 
 
+class OrganizationNotFound(SchedulingError):
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class PublicEventType:
+    id: uuid.UUID
+    slug: str
+    title: str
+    description: str | None
+    duration_min: int
+    location_type: str
+
+
+@dataclass(frozen=True, slots=True)
+class BookingPage:
+    organization_name: str
+    event_types: list[PublicEventType]
+
+
 @dataclass(frozen=True, slots=True)
 class EventContext:
     """Everything the engine needs about an event type, plus who hosts it."""
@@ -64,6 +84,10 @@ class BookingConfirmation:
 class SchedulingRepository(Protocol):
     async def get_event_context(self, event_type_id: uuid.UUID) -> EventContext | None: ...
 
+    async def get_organization_name(self) -> str | None: ...
+
+    async def list_active_event_types(self) -> list[PublicEventType]: ...
+
     async def get_busy(
         self, host_id: uuid.UUID, start: datetime, end: datetime
     ) -> list[TimeRange]: ...
@@ -87,6 +111,13 @@ async def get_event_type(repo: SchedulingRepository, *, event_type_id: uuid.UUID
     if context is None:
         raise EventTypeNotFound(str(event_type_id))
     return context
+
+
+async def get_booking_page(repo: SchedulingRepository) -> BookingPage:
+    name = await repo.get_organization_name()
+    if name is None:
+        raise OrganizationNotFound("organization not found")
+    return BookingPage(organization_name=name, event_types=await repo.list_active_event_types())
 
 
 async def get_availability(

@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ghostcal.application.meetings import BookingSummary, MeetingsRepository
@@ -51,3 +51,16 @@ class SqlMeetingsRepository(MeetingsRepository):
             )
             for booking, title in rows
         ]
+
+    async def cancel(self, booking_id: uuid.UUID, host_id: uuid.UUID) -> bool:
+        result = await self._session.execute(
+            update(models.Booking)
+            .where(
+                models.Booking.id == booking_id,
+                models.Booking.host_id == host_id,
+                models.Booking.status == "confirmed",
+            )
+            .values(status="cancelled")
+            .returning(models.Booking.id)
+        )
+        return result.scalar_one_or_none() is not None

@@ -129,6 +129,20 @@ class EventTypeOut(BaseModel):
     host_name: str
 
 
+class PublicEventTypeOut(BaseModel):
+    id: uuid.UUID
+    slug: str
+    title: str
+    description: str | None
+    duration_min: int
+    location_type: str
+
+
+class BookingPageOut(BaseModel):
+    organization_name: str
+    event_types: list[PublicEventTypeOut]
+
+
 class SlotOut(BaseModel):
     start: datetime
     end: datetime

@@ -11,7 +11,7 @@ import pytest_asyncio
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
-from ghostcal.application.meetings import list_meetings
+from ghostcal.application.meetings import cancel_meeting, list_meetings
 from ghostcal.infrastructure.db import models
 from ghostcal.infrastructure.db.meetings_repository import SqlMeetingsRepository
 from ghostcal.infrastructure.db.session import org_session
@@ -80,3 +80,12 @@ async def test_upcoming_and_past(org_with_bookings: dict[str, uuid.UUID]) -> Non
     assert [m.start_at for m in past] == [PAST]
     assert upcoming[0].event_title == "Intro call"
     assert upcoming[0].invitee_name == "Inv"
+
+
+async def test_cancel_frees_the_meeting(org_with_bookings: dict[str, uuid.UUID]) -> None:
+    org, host = org_with_bookings["org"], org_with_bookings["host"]
+    async with org_session(org) as session:
+        repo = SqlMeetingsRepository(session, org)
+        upcoming = await list_meetings(repo, host, upcoming=True, now=NOW)
+        await cancel_meeting(repo, upcoming[0].id, host)
+        assert await list_meetings(repo, host, upcoming=True, now=NOW) == []

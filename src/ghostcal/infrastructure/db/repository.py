@@ -13,7 +13,7 @@ from sqlalchemy import insert, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ghostcal.application.scheduling import EventContext, SlotUnavailable
+from ghostcal.application.scheduling import EventContext, PublicEventType, SlotUnavailable
 from ghostcal.domain.availability import DateOverride, EventType, Schedule, WeeklyRule
 from ghostcal.domain.time import TimeRange
 from ghostcal.infrastructure.db import models
@@ -60,6 +60,37 @@ class SqlSchedulingRepository:
             event=event,
             schedule=schedule,
         )
+
+    async def get_organization_name(self) -> str | None:
+        return (
+            await self._session.execute(
+                select(models.Organization.name).where(models.Organization.id == self._org_id)
+            )
+        ).scalar_one_or_none()
+
+    async def list_active_event_types(self) -> list[PublicEventType]:
+        rows = (
+            (
+                await self._session.execute(
+                    select(models.EventType)
+                    .where(models.EventType.active.is_(True))
+                    .order_by(models.EventType.created_at)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        return [
+            PublicEventType(
+                id=r.id,
+                slug=r.slug,
+                title=r.title,
+                description=r.description,
+                duration_min=r.duration_min,
+                location_type=r.location_type,
+            )
+            for r in rows
+        ]
 
     async def _load_schedule(self, schedule_id: uuid.UUID | None, owner_id: uuid.UUID) -> Schedule:
         if schedule_id is not None:

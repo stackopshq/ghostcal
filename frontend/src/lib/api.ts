@@ -50,6 +50,24 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export type PublicEventType = {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  duration_min: number;
+  location_type: string;
+};
+
+export type BookingPage = {
+  organization_name: string;
+  event_types: PublicEventType[];
+};
+
+export function getBookingPage(org: string): Promise<BookingPage> {
+  return request<BookingPage>(`/v1/orgs/${org}/event-types`);
+}
+
 export function getEventType(org: string, event: string): Promise<EventType> {
   return request<EventType>(`/v1/orgs/${org}/event-types/${event}`);
 }

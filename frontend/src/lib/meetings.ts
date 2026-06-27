@@ -20,3 +20,7 @@ export type MeetingScope = "upcoming" | "past";
 export function listMeetings(scope: MeetingScope): Promise<Meeting[]> {
   return authedFetch<Meeting[]>(`/v1/me/meetings?scope=${scope}`);
 }
+
+export function cancelMeeting(id: string): Promise<void> {
+  return authedFetch<void>(`/v1/me/meetings/${id}/cancel`, { method: "POST" });
+}

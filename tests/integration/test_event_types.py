@@ -21,8 +21,10 @@ from ghostcal.application.event_types import (
     list_event_types,
     update_event_type,
 )
+from ghostcal.application.scheduling import get_booking_page
 from ghostcal.infrastructure.db import models
 from ghostcal.infrastructure.db.event_types_repository import SqlEventTypesRepository
+from ghostcal.infrastructure.db.repository import SqlSchedulingRepository
 from ghostcal.infrastructure.db.session import org_session
 
 pytestmark = pytest.mark.integration
@@ -128,3 +130,21 @@ async def test_owner_isolation(org_owner: dict[str, uuid.UUID]) -> None:
         assert await list_event_types(repo, stranger) == []
         with pytest.raises(EventTypeNotFound):
             await get_event_type(repo, uuid.uuid4(), owner)
+
+
+async def test_public_booking_page_lists_active(org_owner: dict[str, uuid.UUID]) -> None:
+    org, owner = org_owner["org"], org_owner["owner"]
+    async with org_session(org) as session:
+        repo = SqlEventTypesRepository(session, org)
+        await create_event_type(repo, owner, _input("Active one"))
+        await create_event_type(
+            repo, owner, EventTypeInput(title="Hidden", duration_min=30, active=False)
+        )
+
+    async with org_session(org) as session:
+        page = await get_booking_page(SqlSchedulingRepository(session, org))
+
+    assert page.organization_name == "Org"
+    titles = [e.title for e in page.event_types]
+    assert "Active one" in titles
+    assert "Hidden" not in titles

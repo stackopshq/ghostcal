@@ -7,6 +7,10 @@ from dataclasses import dataclass
 from datetime import datetime
 
 
+class MeetingNotFound(Exception):
+    pass
+
+
 @dataclass(frozen=True, slots=True)
 class BookingSummary:
     id: uuid.UUID
@@ -29,8 +33,19 @@ class MeetingsRepository:
         chronologically (ascending for upcoming, most-recent-first for past)."""
         raise NotImplementedError
 
+    async def cancel(self, booking_id: uuid.UUID, host_id: uuid.UUID) -> bool:
+        """Mark the host's confirmed booking cancelled (freeing the slot). False if not found."""
+        raise NotImplementedError
+
 
 async def list_meetings(
     repo: MeetingsRepository, host_id: uuid.UUID, *, upcoming: bool, now: datetime
 ) -> list[BookingSummary]:
     return await repo.list_for_host(host_id, upcoming=upcoming, now=now)
+
+
+async def cancel_meeting(
+    repo: MeetingsRepository, booking_id: uuid.UUID, host_id: uuid.UUID
+) -> None:
+    if not await repo.cancel(booking_id, host_id):
+        raise MeetingNotFound(str(booking_id))

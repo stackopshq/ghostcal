@@ -7,6 +7,7 @@ use case. Domain errors are translated to HTTP status codes.
 from __future__ import annotations
 
 import uuid
+from dataclasses import asdict
 from datetime import date
 
 from fastapi import APIRouter, HTTPException, Query
@@ -15,9 +16,11 @@ from ghostcal.application.ports.clock import SystemClock
 from ghostcal.application.scheduling import (
     BookingRequest,
     EventTypeNotFound,
+    OrganizationNotFound,
     SlotUnavailable,
     create_booking,
     get_availability,
+    get_booking_page,
     get_event_type,
 )
 from ghostcal.infrastructure.db.repository import SqlSchedulingRepository
@@ -26,12 +29,28 @@ from ghostcal.presentation.schemas import (
     AvailabilityOut,
     BookingIn,
     BookingOut,
+    BookingPageOut,
     EventTypeOut,
+    PublicEventTypeOut,
     SlotOut,
 )
 
 router = APIRouter(prefix="/v1/orgs/{organization_id}", tags=["scheduling"])
 _clock = SystemClock()
+
+
+@router.get("/event-types", response_model=BookingPageOut)
+async def read_booking_page(organization_id: uuid.UUID) -> BookingPageOut:
+    async with org_session(organization_id) as session:
+        repo = SqlSchedulingRepository(session, organization_id)
+        try:
+            page = await get_booking_page(repo)
+        except OrganizationNotFound as exc:
+            raise HTTPException(status_code=404, detail="organization not found") from exc
+    return BookingPageOut(
+        organization_name=page.organization_name,
+        event_types=[PublicEventTypeOut(**asdict(e)) for e in page.event_types],
+    )
 
 
 @router.get("/event-types/{event_type_id}", response_model=EventTypeOut)

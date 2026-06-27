@@ -25,7 +25,7 @@ from ghostcal.application.event_types import (
     list_event_types,
     update_event_type,
 )
-from ghostcal.application.meetings import list_meetings
+from ghostcal.application.meetings import MeetingNotFound, cancel_meeting, list_meetings
 from ghostcal.application.ports.clock import SystemClock
 from ghostcal.application.schedules import (
     InvalidSchedule,
@@ -281,3 +281,15 @@ async def list_my_meetings(
         repo = SqlMeetingsRepository(session, member.organization_id)
         items = await list_meetings(repo, member.user.id, upcoming=(scope == "upcoming"), now=now)
     return [MeetingOut(**asdict(m)) for m in items]
+
+
+@router.post("/meetings/{booking_id}/cancel", status_code=204)
+async def cancel_my_meeting(
+    booking_id: uuid.UUID, member: Member = Depends(current_member)
+) -> None:
+    async with org_session(member.organization_id) as session:
+        repo = SqlMeetingsRepository(session, member.organization_id)
+        try:
+            await cancel_meeting(repo, booking_id, member.user.id)
+        except MeetingNotFound as exc:
+            raise HTTPException(status_code=404, detail="meeting not found") from exc

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { listMeetings, type Meeting, type MeetingScope } from "@/lib/meetings";
+import { cancelMeeting, listMeetings, type Meeting, type MeetingScope } from "@/lib/meetings";
 
 function fmtDay(iso: string, tz: string): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -31,6 +31,7 @@ export default function MeetingsPage() {
   const [scope, setScope] = useState<MeetingScope>("upcoming");
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refresh, setRefresh] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -41,12 +42,18 @@ export default function MeetingsPage() {
     return () => {
       active = false;
     };
-  }, [scope]);
+  }, [scope, refresh]);
 
   function switchTo(next: MeetingScope) {
     if (next === scope) return;
     setLoading(true);
     setScope(next);
+  }
+
+  async function cancel(id: string) {
+    if (!confirm("Cancel this meeting? The invitee's slot will be freed.")) return;
+    await cancelMeeting(id);
+    setRefresh((r) => r + 1);
   }
 
   return (
@@ -95,11 +102,22 @@ export default function MeetingsPage() {
                 {m.invitee_name} · {m.invitee_email}
               </p>
             </div>
-            <div className="text-sm sm:text-right">
-              <p className="text-foreground">{fmtDay(m.start_at, tz)}</p>
-              <p className="text-muted">
-                {fmtTime(m.start_at, tz)} – {fmtTime(m.end_at, tz)}
-              </p>
+            <div className="flex items-center gap-4">
+              <div className="text-sm sm:text-right">
+                <p className="text-foreground">{fmtDay(m.start_at, tz)}</p>
+                <p className="text-muted">
+                  {fmtTime(m.start_at, tz)} – {fmtTime(m.end_at, tz)}
+                </p>
+              </div>
+              {scope === "upcoming" && (
+                <button
+                  type="button"
+                  onClick={() => cancel(m.id)}
+                  className="rounded-lg border border-border-strong px-3 py-2 text-sm text-muted transition hover:border-red-400 hover:text-red-400"
+                >
+                  Cancel
+                </button>
+              )}
             </div>
           </div>
         ))}
