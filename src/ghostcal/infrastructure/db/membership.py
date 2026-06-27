@@ -37,6 +37,13 @@ async def organization_id_by_slug(session: AsyncSession, slug: str) -> uuid.UUID
     return result.scalar_one()  # type: ignore[no-any-return]
 
 
+async def poll_organization_by_slug(session: AsyncSession, slug: str) -> uuid.UUID | None:
+    result = await session.execute(
+        text("SELECT poll_organization_by_slug(:slug) AS org"), {"slug": slug}
+    )
+    return result.scalar_one()  # type: ignore[no-any-return]
+
+
 async def active_caldav_connections(
     session: AsyncSession,
 ) -> list[tuple[uuid.UUID, uuid.UUID]]:

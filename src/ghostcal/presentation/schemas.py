@@ -99,6 +99,69 @@ class AcceptInvitationOut(BaseModel):
     organization_id: uuid.UUID
 
 
+class PollCreateIn(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    duration_min: int = Field(gt=0, le=1440)
+    location_type: str = "google_meet"
+    option_starts: list[datetime] = Field(min_length=2, max_length=25)
+
+
+class PollOptionOut(BaseModel):
+    id: uuid.UUID
+    start_at: datetime
+    end_at: datetime
+    votes: int
+
+
+class VoterOut(BaseModel):
+    name: str
+    email: str
+    option_ids: list[uuid.UUID]
+
+
+class PollOut(BaseModel):
+    id: uuid.UUID
+    slug: str
+    title: str
+    duration_min: int
+    location_type: str
+    status: str
+    owner_name: str
+    finalized_option_id: uuid.UUID | None
+    options: list[PollOptionOut]
+    voters: list[VoterOut] = Field(default_factory=list)
+
+
+class PublicPollOut(BaseModel):
+    slug: str
+    title: str
+    duration_min: int
+    location_type: str
+    status: str
+    owner_name: str
+    finalized_option_id: uuid.UUID | None
+    options: list[PollOptionOut]
+
+
+class PollSummaryOut(BaseModel):
+    id: uuid.UUID
+    slug: str
+    title: str
+    status: str
+    option_count: int
+    vote_count: int
+
+
+class VoteIn(BaseModel):
+    voter_name: str = Field(min_length=1, max_length=200)
+    voter_email: EmailStr
+    option_ids: list[uuid.UUID] = Field(min_length=1, max_length=25)
+
+
+class FinalizeIn(BaseModel):
+    option_id: uuid.UUID
+
+
 class RegisteredOut(BaseModel):
     user_id: uuid.UUID
 

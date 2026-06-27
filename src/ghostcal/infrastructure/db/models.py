@@ -38,9 +38,10 @@ from ghostcal.infrastructure.db.base import Base, TimestampMixin
 MEMBERSHIP_ROLES = ("owner", "admin", "member")
 IDENTITY_PROVIDERS = ("google", "microsoft", "oidc")
 BOOKING_STATUSES = ("confirmed", "cancelled", "rescheduled")
-# How an event type assigns hosts. "solo": the owner. "round_robin": one host picked from a pool.
-# "collective"/"group" are reserved for a later slice.
+# How an event type assigns hosts: the owner (solo), one host picked from a pool (round_robin),
+# every pooled host required (collective), or many invitees per slot up to capacity (group).
 EVENT_KINDS = ("solo", "round_robin", "collective", "group")
+POLL_STATUSES = ("open", "finalized", "cancelled")
 
 
 def _pk() -> Mapped[uuid.UUID]:
@@ -401,6 +402,54 @@ class BookingReminder(TimestampMixin, Base):
     sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class Poll(TimestampMixin, Base):
+    """A meeting poll: the host proposes several times; invitees vote; the host finalizes one."""
+
+    __tablename__ = "polls"
+    __table_args__ = (
+        UniqueConstraint("slug"),
+        CheckConstraint(f"status IN {POLL_STATUSES}", name="poll_status_allowed"),
+    )
+
+    id: Mapped[uuid.UUID] = _pk()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    slug: Mapped[str] = mapped_column(String(100))
+    title: Mapped[str] = mapped_column(String(200))
+    duration_min: Mapped[int] = mapped_column(SmallInteger)
+    location_type: Mapped[str] = mapped_column(String(20), default="google_meet")
+    status: Mapped[str] = mapped_column(String(20), default="open", server_default="open")
+    finalized_option_id: Mapped[uuid.UUID | None] = mapped_column()
+
+
+class PollOption(TimestampMixin, Base):
+    __tablename__ = "poll_options"
+
+    id: Mapped[uuid.UUID] = _pk()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    poll_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("polls.id", ondelete="CASCADE"))
+    start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    end_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class PollVote(TimestampMixin, Base):
+    __tablename__ = "poll_votes"
+    __table_args__ = (UniqueConstraint("option_id", "voter_email"),)
+
+    id: Mapped[uuid.UUID] = _pk()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    poll_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("polls.id", ondelete="CASCADE"))
+    option_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("poll_options.id", ondelete="CASCADE"))
+    voter_name: Mapped[str] = mapped_column(String(200))
+    voter_email: Mapped[str] = mapped_column(String(320))
+
+
 RLS_TABLES: dict[str, str] = {
     "organizations": "id",
     "memberships": "organization_id",
@@ -412,6 +461,9 @@ RLS_TABLES: dict[str, str] = {
     "availability_overrides": "organization_id",
     "bookings": "organization_id",
     "booking_reminders": "organization_id",
+    "polls": "organization_id",
+    "poll_options": "organization_id",
+    "poll_votes": "organization_id",
     "caldav_connections": "organization_id",
     "external_busy": "organization_id",
 }

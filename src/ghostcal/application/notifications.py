@@ -173,6 +173,57 @@ async def send_booking_reminder(
     )
 
 
+def _poll_ics(*, title: str, organizer: str, start_at: datetime, end_at: datetime) -> str:
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//GhostCal//Poll//EN",
+        "METHOD:PUBLISH",
+        "BEGIN:VEVENT",
+        f"UID:poll-{_ics_dt(start_at)}-{organizer}@ghostcal",
+        f"DTSTAMP:{_ics_dt(start_at)}",
+        f"DTSTART:{_ics_dt(start_at)}",
+        f"DTEND:{_ics_dt(end_at)}",
+        f"SUMMARY:{title}",
+        "END:VEVENT",
+        "END:VCALENDAR",
+    ]
+    return "\r\n".join(lines) + "\r\n"
+
+
+async def send_poll_result(
+    mailer: EmailSender,
+    *,
+    to_email: str,
+    attendee_name: str,
+    poll_title: str,
+    owner_name: str,
+    start_at: datetime,
+    end_at: datetime,
+    location_type: str,
+    timezone: str = "UTC",
+) -> None:
+    invite = Attachment(
+        "invite.ics",
+        _poll_ics(
+            title=poll_title, organizer=owner_name, start_at=start_at, end_at=end_at
+        ).encode(),
+        "text/calendar",
+    )
+    await mailer.send(
+        to=to_email,
+        subject=f"Time confirmed: {poll_title}",
+        html=(
+            f"<p>Hi {attendee_name}, the time for <strong>{poll_title}</strong> has been set.</p>"
+            f"<p>When: {_human(start_at, timezone)}<br>"
+            f"Host: {owner_name}<br>"
+            f"Where: {_location_label(location_type)}</p>"
+            f"<p>The calendar invite is attached.</p>"
+        ),
+        attachments=[invite],
+    )
+
+
 async def send_booking_cancellation(
     mailer: EmailSender,
     *,
