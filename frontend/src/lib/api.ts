@@ -1,17 +1,12 @@
 // Typed client for the GhostCal API.
 
-// Resolve the API base URL:
-// 1. NEXT_PUBLIC_API_URL if set (explicit override);
-// 2. in the browser, the same host that served the page, on port 8000 (works when accessed
-//    from another machine — "localhost" would wrongly mean the visitor's own machine);
-// 3. localhost:8000 on the server (SSR) and as a last resort.
+// Resolve the API base URL.
+// - In the browser: same-origin "/api", proxied to the backend by Next's rewrites. The browser
+//   only ever talks to this origin, so the backend port need not be exposed and there is no CORS.
+// - On the server (SSR): reach the backend directly.
 export function resolveBaseUrl(): string {
-  const override = process.env.NEXT_PUBLIC_API_URL;
-  if (override) return override.replace(/\/$/, "");
-  if (typeof window !== "undefined") {
-    return `${window.location.protocol}//${window.location.hostname}:8000`;
-  }
-  return "http://localhost:8000";
+  if (typeof window !== "undefined") return "/api";
+  return process.env.API_INTERNAL_URL?.replace(/\/$/, "") ?? "http://localhost:8000";
 }
 
 const BASE_URL = resolveBaseUrl();
