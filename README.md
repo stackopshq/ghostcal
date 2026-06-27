@@ -12,10 +12,26 @@ and database-guaranteed no-double-booking. Multi-tenant (organizations) from day
 See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for the design and
 **[docs/adr/](docs/adr/)** for decision records.
 
+## Features
+
+- **Event types**: solo, **round-robin** (least-loaded host from a pool), **collective** (all hosts
+  attend), and **group** (many invitees per slot, capacity). Buffers, minimum notice, bookable
+  window, per-day caps, and **custom booking questions** (text/select/checkbox/…).
+- **Booking page**: timezone picker, custom questions, additional guests; readable slug URLs; an
+  **embeddable widget** (`/embed/...`) with a copy-paste iframe snippet.
+- **Invitee self-service**: cancel / reschedule via a signed link (no account).
+- **Teams**: organizations, members & roles (owner/admin/member), token invitations.
+- **Meeting polls**: propose times → invitees vote → host finalizes and everyone is emailed.
+- **Notifications**: confirmation/cancellation emails with `.ics`; automated **reminders** (Celery).
+- **Calendar sync**: bidirectional **CalDAV** (read busy + write bookings).
+- **Integrations**: outbound **webhooks** (HMAC-signed) for booking/poll events.
+- **Ops**: per-IP rate limiting, Redis availability cache, booking **analytics** dashboard,
+  structured JSON logs with request ids. Multi-tenant **Postgres RLS** throughout.
+
 ## Stack
 
-Python 3.14 · FastAPI · PostgreSQL · SQLAlchemy 2.0 (async) · Alembic · Celery (Redis) ·
-Authlib · Next.js (frontend, later). Tooling: `uv`, `ruff`, `mypy`, `pytest` + Hypothesis.
+Python 3.14 · FastAPI · PostgreSQL (RLS, tstzrange + EXCLUDE) · SQLAlchemy 2.0 (async) · Alembic ·
+Celery (Redis) · Next.js 16 (frontend). Tooling: `uv`, `ruff`, `mypy`, `pytest` + Hypothesis.
 
 ## Run (development)
 
