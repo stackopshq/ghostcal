@@ -260,6 +260,56 @@ class Booking(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(20), default="confirmed")
     location: Mapped[str | None] = mapped_column(String(500))
     meeting_url: Mapped[str | None] = mapped_column(String(2048))
+    # Identifiers of the event mirrored onto the host's external (CalDAV) calendar, if any.
+    external_event_uid: Mapped[str | None] = mapped_column(String(512))
+    external_event_url: Mapped[str | None] = mapped_column(String(2048))
+
+
+class CaldavConnection(TimestampMixin, Base):
+    """A host's link to an external CalDAV calendar (one per member for now)."""
+
+    __tablename__ = "caldav_connections"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "user_id"),
+        CheckConstraint("status IN ('active', 'needs_reauth')", name="status_allowed"),
+    )
+
+    id: Mapped[uuid.UUID] = _pk()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    server_url: Mapped[str] = mapped_column(String(2048))
+    username: Mapped[str] = mapped_column(String(320))
+    password_encrypted: Mapped[str] = mapped_column(Text)
+    calendar_url: Mapped[str] = mapped_column(String(2048))
+    calendar_name: Mapped[str | None] = mapped_column(String(255))
+    status: Mapped[str] = mapped_column(String(20), default="active")
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ExternalBusy(Base):
+    """Busy intervals pulled from a host's external calendar (cache for the engine)."""
+
+    __tablename__ = "external_busy"
+    __table_args__ = (
+        Index("ix_external_busy_org_period", "organization_id", "period", postgresql_using="gist"),
+    )
+
+    id: Mapped[uuid.UUID] = _pk()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    connection_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("caldav_connections.id", ondelete="CASCADE")
+    )
+    host_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    end_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    period: Mapped[object] = mapped_column(
+        TSTZRANGE,
+        Computed("tstzrange(start_at, end_at, '[)')", persisted=True),
+    )
 
 
 # Tenant-scoped tables that receive Row-Level Security (column carrying the tenant id).
@@ -271,6 +321,8 @@ RLS_TABLES: dict[str, str] = {
     "availability_rules": "organization_id",
     "availability_overrides": "organization_id",
     "bookings": "organization_id",
+    "caldav_connections": "organization_id",
+    "external_busy": "organization_id",
 }
 
 # server-side timestamp default helper kept importable for migrations/tests
