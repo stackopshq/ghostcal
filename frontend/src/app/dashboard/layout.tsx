@@ -10,6 +10,7 @@ const ICONS: Record<string, string> = {
   events: "M9 17l6-6-6-6M5 21V3",
   availability: "M12 7v5l3 2M12 21a9 9 0 100-18 9 9 0 000 18z",
   meetings: "M8 3v3M16 3v3M4 8h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z",
+  settings: "M4 21v-7M4 10V3M12 21v-9M12 5V3M20 21v-5M20 11V3M1 14h6M9 5h6M17 16h6",
   plus: "M12 5v14M5 12h14",
   logout: "M16 17l5-5-5-5M21 12H9M13 21H5a2 2 0 01-2-2V5a2 2 0 012-2h8",
 };
@@ -34,6 +35,7 @@ const NAV = [
   { href: "/dashboard/event-types", label: "Event types", icon: ICONS.events },
   { href: "/dashboard/meetings", label: "Meetings", icon: ICONS.meetings },
   { href: "/dashboard/availability", label: "Availability", icon: ICONS.availability },
+  { href: "/dashboard/settings", label: "Settings", icon: ICONS.settings },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

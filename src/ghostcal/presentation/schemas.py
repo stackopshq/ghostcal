@@ -77,6 +77,17 @@ class CreatedOut(BaseModel):
     id: uuid.UUID
 
 
+class OrganizationOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    slug: str
+
+
+class OrganizationIn(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    slug: str = Field(min_length=3, max_length=100)
+
+
 class MeetingOut(BaseModel):
     id: uuid.UUID
     event_title: str

@@ -28,6 +28,13 @@ from ghostcal.application.event_types import (
 )
 from ghostcal.application.meetings import MeetingNotFound, cancel_meeting, list_meetings
 from ghostcal.application.notifications import send_booking_cancellation
+from ghostcal.application.organization import (
+    HandleTaken,
+    InvalidHandle,
+    OrganizationData,
+    get_organization,
+    update_organization,
+)
 from ghostcal.application.ports.clock import SystemClock
 from ghostcal.application.schedules import (
     InvalidSchedule,
@@ -45,6 +52,7 @@ from ghostcal.config import get_settings
 from ghostcal.infrastructure.db.event_types_repository import SqlEventTypesRepository
 from ghostcal.infrastructure.db.meetings_repository import SqlMeetingsRepository
 from ghostcal.infrastructure.db.membership import primary_organization
+from ghostcal.infrastructure.db.organization_repository import SqlOrganizationRepository
 from ghostcal.infrastructure.db.schedules_repository import SqlSchedulesRepository
 from ghostcal.infrastructure.db.session import db_session, org_session
 from ghostcal.infrastructure.email import build_email_sender
@@ -54,6 +62,8 @@ from ghostcal.presentation.schemas import (
     EventTypeDetailOut,
     EventTypeIn,
     MeetingOut,
+    OrganizationIn,
+    OrganizationOut,
     OverrideSchema,
     RuleSchema,
     ScheduleIn,
@@ -312,3 +322,33 @@ async def cancel_my_meeting(
         )
     except Exception:
         _logger.exception("failed to send cancellation for booking %s", booking_id)
+
+
+# --- Organization profile (handle) -----------------------------------------------------------
+
+
+def _organization_out(org: OrganizationData) -> OrganizationOut:
+    return OrganizationOut(id=org.id, name=org.name, slug=org.slug)
+
+
+@router.get("/organization", response_model=OrganizationOut)
+async def get_my_organization(member: Member = Depends(current_member)) -> OrganizationOut:
+    async with org_session(member.organization_id) as session:
+        repo = SqlOrganizationRepository(session, member.organization_id)
+        org = await get_organization(repo)
+    return _organization_out(org)
+
+
+@router.put("/organization", response_model=OrganizationOut)
+async def update_my_organization(
+    payload: OrganizationIn, member: Member = Depends(current_member)
+) -> OrganizationOut:
+    async with org_session(member.organization_id) as session:
+        repo = SqlOrganizationRepository(session, member.organization_id)
+        try:
+            org = await update_organization(repo, name=payload.name, slug=payload.slug)
+        except InvalidHandle as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except HandleTaken as exc:
+            raise HTTPException(status_code=409, detail="handle already taken") from exc
+    return _organization_out(org)
