@@ -15,6 +15,21 @@ async def primary_organization(session: AsyncSession, user_id: uuid.UUID) -> uui
     return result.scalar_one()  # type: ignore[no-any-return]
 
 
+async def primary_membership(
+    session: AsyncSession, user_id: uuid.UUID
+) -> tuple[uuid.UUID, str] | None:
+    """(organization_id, role) of the user's primary membership, or None."""
+    row = (
+        await session.execute(
+            text("SELECT organization_id, role FROM user_primary_membership(:uid)"),
+            {"uid": str(user_id)},
+        )
+    ).first()
+    if row is None:
+        return None
+    return (row.organization_id, row.role)
+
+
 async def organization_id_by_slug(session: AsyncSession, slug: str) -> uuid.UUID | None:
     result = await session.execute(
         text("SELECT organization_id_by_slug(:slug) AS org"), {"slug": slug}

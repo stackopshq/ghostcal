@@ -127,6 +127,38 @@ class Membership(TimestampMixin, Base):
     role: Mapped[str] = mapped_column(String(20), default="member")
 
 
+class OrganizationInvitation(TimestampMixin, Base):
+    """Pending invitation to join an organization. Only the token hash is stored."""
+
+    __tablename__ = "organization_invitations"
+    __table_args__ = (
+        CheckConstraint(f"role IN {MEMBERSHIP_ROLES}", name="invitation_role_allowed"),
+        Index(
+            "uq_pending_invitation_per_email",
+            "organization_id",
+            "email",
+            unique=True,
+            postgresql_where=text("accepted_at IS NULL"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _pk()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    email: Mapped[str] = mapped_column(String(320))
+    role: Mapped[str] = mapped_column(String(20), default="member")
+    token_hash: Mapped[str] = mapped_column(String(128), unique=True)
+    invited_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    accepted_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+
+
 class EventType(TimestampMixin, Base):
     __tablename__ = "event_types"
     __table_args__ = (
@@ -316,6 +348,7 @@ class ExternalBusy(Base):
 RLS_TABLES: dict[str, str] = {
     "organizations": "id",
     "memberships": "organization_id",
+    "organization_invitations": "organization_id",
     "event_types": "organization_id",
     "availability_schedules": "organization_id",
     "availability_rules": "organization_id",

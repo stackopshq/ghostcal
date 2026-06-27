@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     access_token_ttl_seconds: int = 900  # 15 min
     refresh_token_ttl_seconds: int = 60 * 60 * 24 * 30  # 30 days
     email_verification_ttl_seconds: int = 60 * 60 * 24  # 24 h
+    invitation_ttl_seconds: int = 60 * 60 * 24 * 7  # 7 days
 
     # Encryption key for calendar tokens at rest (envelope key, base64)
     token_encryption_key: SecretStr = Field(min_length=32)

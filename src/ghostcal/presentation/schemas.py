@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime, time
+from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -57,6 +58,45 @@ class ProfileUpdateIn(BaseModel):
 class PasswordChangeIn(BaseModel):
     current_password: str = Field(min_length=1, max_length=200)
     new_password: str = Field(min_length=8, max_length=200)
+
+
+RoleName = Literal["owner", "admin", "member"]
+
+
+class MemberOut(BaseModel):
+    user_id: uuid.UUID
+    name: str
+    email: str
+    role: str
+    joined_at: datetime
+
+
+class InvitationOut(BaseModel):
+    id: uuid.UUID
+    email: str
+    role: str
+    created_at: datetime
+    expires_at: datetime
+
+
+class InviteIn(BaseModel):
+    email: EmailStr
+    role: RoleName = "member"
+
+
+class RoleUpdateIn(BaseModel):
+    role: RoleName
+
+
+class InvitationPreviewOut(BaseModel):
+    organization_id: uuid.UUID
+    organization_name: str
+    email: str
+    role: str
+
+
+class AcceptInvitationOut(BaseModel):
+    organization_id: uuid.UUID
 
 
 class RegisteredOut(BaseModel):

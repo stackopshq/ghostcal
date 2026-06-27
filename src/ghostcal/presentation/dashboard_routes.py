@@ -62,7 +62,7 @@ from ghostcal.infrastructure.calendars import CaldavCalendarClient
 from ghostcal.infrastructure.db.caldav_repository import SqlCaldavConnectionRepository
 from ghostcal.infrastructure.db.event_types_repository import SqlEventTypesRepository
 from ghostcal.infrastructure.db.meetings_repository import SqlMeetingsRepository
-from ghostcal.infrastructure.db.membership import primary_organization
+from ghostcal.infrastructure.db.membership import primary_membership
 from ghostcal.infrastructure.db.organization_repository import SqlOrganizationRepository
 from ghostcal.infrastructure.db.schedules_repository import SqlSchedulesRepository
 from ghostcal.infrastructure.db.session import db_session, org_session
@@ -100,14 +100,16 @@ _logger = logging.getLogger("ghostcal.dashboard")
 class Member:
     user: AuthenticatedUser
     organization_id: uuid.UUID
+    role: str
 
 
 async def current_member(user: AuthenticatedUser = Depends(current_user)) -> Member:
     async with db_session() as session:
-        org_id = await primary_organization(session, user.id)
-    if org_id is None:
+        membership = await primary_membership(session, user.id)
+    if membership is None:
         raise HTTPException(status_code=403, detail="user has no organization")
-    return Member(user=user, organization_id=org_id)
+    org_id, role = membership
+    return Member(user=user, organization_id=org_id, role=role)
 
 
 def _to_out(schedule: ScheduleData) -> ScheduleOut:
