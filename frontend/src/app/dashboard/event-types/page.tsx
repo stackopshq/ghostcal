@@ -27,6 +27,11 @@ const BLANK: FormState = {
   title: "",
   duration_min: 30,
   slot_interval_min: 30,
+  buffer_before_min: 0,
+  buffer_after_min: 0,
+  min_notice_min: 0,
+  date_window_days: 60,
+  max_per_day: null,
   location_type: "google_meet",
   active: true,
   questions: [],
@@ -49,6 +54,11 @@ function toInput(x: EventTypeInput): EventTypeInput {
     title: x.title,
     duration_min: x.duration_min,
     slot_interval_min: x.slot_interval_min,
+    buffer_before_min: x.buffer_before_min,
+    buffer_after_min: x.buffer_after_min,
+    min_notice_min: x.min_notice_min,
+    date_window_days: x.date_window_days,
+    max_per_day: x.max_per_day,
     location_type: x.location_type,
     active: x.active,
     questions: x.questions,
@@ -230,6 +240,64 @@ export default function EventTypesPage() {
               </select>
             </label>
           </div>
+          <div className="grid gap-4 sm:grid-cols-4">
+            <label className="flex flex-col gap-1 text-sm text-muted">
+              Buffer before (min)
+              <input
+                type="number"
+                min={0}
+                value={form.buffer_before_min}
+                onChange={(e) => setForm({ ...form, buffer_before_min: Number(e.target.value) })}
+                className={inputClass}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-muted">
+              Buffer after (min)
+              <input
+                type="number"
+                min={0}
+                value={form.buffer_after_min}
+                onChange={(e) => setForm({ ...form, buffer_after_min: Number(e.target.value) })}
+                className={inputClass}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-muted">
+              Min notice (min)
+              <input
+                type="number"
+                min={0}
+                value={form.min_notice_min}
+                onChange={(e) => setForm({ ...form, min_notice_min: Number(e.target.value) })}
+                className={inputClass}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-muted">
+              Bookable window (days)
+              <input
+                type="number"
+                min={1}
+                value={form.date_window_days}
+                onChange={(e) => setForm({ ...form, date_window_days: Number(e.target.value) })}
+                className={inputClass}
+              />
+            </label>
+          </div>
+          <label className="flex flex-col gap-1 text-sm text-muted sm:max-w-[12rem]">
+            Max bookings per day (blank = unlimited)
+            <input
+              type="number"
+              min={1}
+              value={form.max_per_day ?? ""}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  max_per_day: e.target.value === "" ? null : Number(e.target.value),
+                })
+              }
+              className={inputClass}
+            />
+          </label>
+
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-sm text-muted">
               Type

@@ -36,6 +36,11 @@ export type EventTypeInput = {
   title: string;
   duration_min: number;
   slot_interval_min: number;
+  buffer_before_min: number;
+  buffer_after_min: number;
+  min_notice_min: number;
+  date_window_days: number;
+  max_per_day: number | null;
   location_type: string;
   active: boolean;
   questions: BookingQuestion[];
