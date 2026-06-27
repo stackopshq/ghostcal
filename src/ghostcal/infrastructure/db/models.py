@@ -450,6 +450,23 @@ class PollVote(TimestampMixin, Base):
     voter_email: Mapped[str] = mapped_column(String(320))
 
 
+class WebhookEndpoint(TimestampMixin, Base):
+    """An outbound webhook: GhostCal POSTs signed event payloads to ``url``."""
+
+    __tablename__ = "webhook_endpoints"
+
+    id: Mapped[uuid.UUID] = _pk()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    url: Mapped[str] = mapped_column(String(2048))
+    secret: Mapped[str] = mapped_column(String(80))
+    event_types: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'[]'::jsonb")
+    )
+    active: Mapped[bool] = mapped_column(default=True, server_default=text("true"))
+
+
 RLS_TABLES: dict[str, str] = {
     "organizations": "id",
     "memberships": "organization_id",
@@ -464,6 +481,7 @@ RLS_TABLES: dict[str, str] = {
     "polls": "organization_id",
     "poll_options": "organization_id",
     "poll_votes": "organization_id",
+    "webhook_endpoints": "organization_id",
     "caldav_connections": "organization_id",
     "external_busy": "organization_id",
 }

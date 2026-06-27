@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import uuid
+
+import httpx
 
 from ghostcal.application.calendars import NotConnected, sync_calendar
 from ghostcal.application.ports.calendar import CalendarError
 from ghostcal.application.ports.clock import SystemClock
 from ghostcal.application.reminders import DueReminder, dispatch_reminders
+from ghostcal.application.webhooks import sign_payload
 from ghostcal.celery_app import celery_app
 from ghostcal.config import get_settings
 from ghostcal.infrastructure.calendars import CaldavCalendarClient
@@ -16,6 +21,7 @@ from ghostcal.infrastructure.db.caldav_repository import SqlCaldavConnectionRepo
 from ghostcal.infrastructure.db.membership import active_caldav_connections
 from ghostcal.infrastructure.db.reminders_repository import SqlReminderGateway
 from ghostcal.infrastructure.db.session import db_session, org_session, reset_engine
+from ghostcal.infrastructure.db.webhooks_repository import SqlWebhookRepository
 from ghostcal.infrastructure.email import build_email_sender
 from ghostcal.infrastructure.security.encryption import SecretBox
 from ghostcal.infrastructure.security.tokens import BookingManagementCodec
@@ -85,3 +91,50 @@ async def _send_due_reminders() -> int:
     finally:
         await reset_engine()
     return sent
+
+
+@celery_app.task(name="ghostcal.deliver_webhooks")  # type: ignore[untyped-decorator]
+def deliver_webhooks(organization_id: str, event_type: str, payload: dict[str, object]) -> int:
+    """POST a signed event payload to every active endpoint subscribed to it."""
+    return asyncio.run(_deliver_webhooks(uuid.UUID(organization_id), event_type, payload))
+
+
+async def _deliver_webhooks(
+    organization_id: uuid.UUID, event_type: str, payload: dict[str, object]
+) -> int:
+    delivered = 0
+    try:
+        async with org_session(organization_id) as session:
+            targets = await SqlWebhookRepository(session, organization_id).targets_for_event(
+                event_type
+            )
+        if not targets:
+            return 0
+        body = json.dumps({"event": event_type, "data": payload}, default=str).encode()
+        async with httpx.AsyncClient(timeout=10.0) as http:
+            for target in targets:
+                headers = {
+                    "content-type": "application/json",
+                    "user-agent": "GhostCal-Webhook/1.0",
+                    "X-GhostCal-Event": event_type,
+                    "X-GhostCal-Signature": f"sha256={sign_payload(target.secret, body)}",
+                }
+                try:
+                    response = await http.post(target.url, content=body, headers=headers)
+                    if response.status_code < 400:
+                        delivered += 1
+                    else:
+                        logger.warning("webhook %s returned %s", target.url, response.status_code)
+                except httpx.HTTPError:
+                    logger.warning("webhook delivery to %s failed", target.url)
+    finally:
+        await reset_engine()
+    return delivered
+
+
+def emit_event(organization_id: uuid.UUID, event_type: str, payload: dict[str, object]) -> None:
+    """Enqueue webhook delivery for an event. Best-effort: never fails the caller."""
+    try:
+        deliver_webhooks.delay(str(organization_id), event_type, payload)
+    except Exception:
+        logger.warning("could not enqueue webhook event %s", event_type)

@@ -162,6 +162,26 @@ class FinalizeIn(BaseModel):
     option_id: uuid.UUID
 
 
+class WebhookCreateIn(BaseModel):
+    url: str = Field(min_length=1, max_length=2048)
+    event_types: list[str] = Field(min_length=1, max_length=20)
+
+
+class WebhookOut(BaseModel):
+    id: uuid.UUID
+    url: str
+    event_types: list[str]
+    active: bool
+    created_at: datetime
+
+
+class WebhookCreatedOut(BaseModel):
+    id: uuid.UUID
+    url: str
+    event_types: list[str]
+    secret: str
+
+
 class RegisteredOut(BaseModel):
     user_id: uuid.UUID
 

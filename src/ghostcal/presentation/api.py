@@ -20,6 +20,7 @@ from ghostcal.presentation.poll_routes import router as poll_router
 from ghostcal.presentation.profile_routes import router as profile_router
 from ghostcal.presentation.public_poll_routes import router as public_poll_router
 from ghostcal.presentation.routes import router as scheduling_router
+from ghostcal.presentation.webhook_routes import router as webhook_router
 
 
 def create_app() -> FastAPI:
@@ -57,6 +58,7 @@ def create_app() -> FastAPI:
     app.include_router(invitations_router)
     app.include_router(poll_router)
     app.include_router(public_poll_router)
+    app.include_router(webhook_router)
     app.include_router(dashboard_router)
     app.include_router(scheduling_router)
     app.include_router(manage_router)

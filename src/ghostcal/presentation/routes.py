@@ -40,6 +40,7 @@ from ghostcal.infrastructure.db.session import db_session, org_session
 from ghostcal.infrastructure.email import build_email_sender
 from ghostcal.infrastructure.security.encryption import SecretBox
 from ghostcal.infrastructure.security.tokens import BookingManagementCodec
+from ghostcal.infrastructure.tasks import emit_event
 from ghostcal.presentation.schemas import (
     AvailabilityOut,
     BookingIn,
@@ -72,6 +73,20 @@ _LOCATION_LABELS = {
 def _manage_url(booking_id: uuid.UUID, organization_id: uuid.UUID) -> str:
     token = _manage_codec.encode(booking_id, organization_id)
     return f"{_settings.frontend_base_url}/manage/{token}"
+
+
+def _booking_payload(conf: BookingConfirmation) -> dict[str, object]:
+    return {
+        "booking_id": str(conf.booking_id),
+        "event_title": conf.event_title,
+        "host_name": conf.host_name,
+        "host_email": conf.host_email,
+        "invitee_name": conf.invitee_name,
+        "invitee_email": conf.invitee_email,
+        "start_at": conf.start_at.isoformat(),
+        "end_at": conf.end_at.isoformat(),
+        "location_type": conf.location_type,
+    }
 
 
 async def _mirror_to_calendar(org_id: uuid.UUID, confirmation: BookingConfirmation) -> None:
@@ -202,6 +217,7 @@ async def create_booking_endpoint(org_id: OrgId, event_slug: str, payload: Booki
         await _mirror_to_calendar(org_id, confirmation)
     except Exception:
         _logger.exception("failed to mirror booking %s to calendar", confirmation.booking_id)
+    emit_event(org_id, "booking.created", _booking_payload(confirmation))
 
     return BookingOut(
         id=confirmation.booking_id,

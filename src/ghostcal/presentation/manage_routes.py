@@ -31,6 +31,7 @@ from ghostcal.infrastructure.db.session import org_session
 from ghostcal.infrastructure.email import build_email_sender
 from ghostcal.infrastructure.security.encryption import SecretBox
 from ghostcal.infrastructure.security.tokens import BookingManagementCodec
+from ghostcal.infrastructure.tasks import emit_event
 from ghostcal.presentation.schemas import BookingOut, ManageBookingOut, RescheduleIn
 
 _settings = get_settings()
@@ -157,6 +158,7 @@ async def cancel(token: str) -> None:
         await _unmirror(org_id, detail.host_id, detail.external_event_uid)
     except Exception:
         _logger.exception("failed to unmirror booking %s from calendar", detail.booking_id)
+    emit_event(org_id, "booking.cancelled", {"booking_id": str(detail.booking_id)})
 
 
 @router.post("/{token}/reschedule", response_model=BookingOut)
@@ -192,6 +194,15 @@ async def reschedule(token: str, payload: RescheduleIn) -> BookingOut:
         await _mirror(org_id, confirmation)
     except Exception:
         _logger.exception("failed to move mirrored event for %s", confirmation.booking_id)
+    emit_event(
+        org_id,
+        "booking.rescheduled",
+        {
+            "booking_id": str(confirmation.booking_id),
+            "start_at": confirmation.start_at.isoformat(),
+            "end_at": confirmation.end_at.isoformat(),
+        },
+    )
 
     return BookingOut(
         id=confirmation.booking_id, start_at=confirmation.start_at, end_at=confirmation.end_at
