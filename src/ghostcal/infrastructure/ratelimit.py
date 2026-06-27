@@ -41,9 +41,7 @@ async def _allow(bucket: str, identifier: str, limit: int, window: int) -> bool:
         return True
 
 
-def rate_limit(
-    bucket: str, limit: int, window: int = 60
-) -> Callable[[Request], Awaitable[None]]:
+def rate_limit(bucket: str, limit: int, window: int = 60) -> Callable[[Request], Awaitable[None]]:
     """FastAPI dependency: at most ``limit`` requests per ``window`` seconds per client IP."""
 
     async def dependency(request: Request) -> None:
