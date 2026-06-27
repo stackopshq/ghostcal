@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { primaryButtonClass } from "@/components/AuthCard";
@@ -55,12 +56,20 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-semibold text-foreground">Welcome, {user.name}</h1>
         <p className="mt-1 text-sm text-muted">{user.email}</p>
         <p className="mt-4 text-sm text-muted">
-          Your scheduling dashboard is coming together. Event-type management lands next — for
-          now your account is set up and verified.
+          Set the hours you&apos;re available, then create bookable event types (coming next).
         </p>
-        <button type="button" disabled className={`mt-6 ${primaryButtonClass}`}>
-          Create an event type (soon)
-        </button>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link href="/dashboard/availability" className={primaryButtonClass}>
+            Edit availability
+          </Link>
+          <button
+            type="button"
+            disabled
+            className="rounded-lg border border-border-strong px-4 py-2.5 text-sm font-medium text-muted/60"
+          >
+            Create an event type (soon)
+          </button>
+        </div>
       </section>
     </main>
   );

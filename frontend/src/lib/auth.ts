@@ -116,7 +116,7 @@ export async function authedFetch<T>(path: string, init?: RequestInit): Promise<
     const detail = await res.text().catch(() => res.statusText);
     throw new ApiError(res.status, detail || res.statusText);
   }
-  return res.json() as Promise<T>;
+  return (res.status === 204 ? undefined : await res.json()) as T;
 }
 
 export function getMe(): Promise<User> {
