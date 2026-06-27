@@ -356,6 +356,21 @@ class ExternalBusy(Base):
 
 
 # Tenant-scoped tables that receive Row-Level Security (column carrying the tenant id).
+class BookingReminder(TimestampMixin, Base):
+    """One row per reminder sent for a booking (idempotency for the periodic reminder task)."""
+
+    __tablename__ = "booking_reminders"
+    __table_args__ = (UniqueConstraint("booking_id", "minutes_before"),)
+
+    id: Mapped[uuid.UUID] = _pk()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    booking_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("bookings.id", ondelete="CASCADE"))
+    minutes_before: Mapped[int] = mapped_column()
+    sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 RLS_TABLES: dict[str, str] = {
     "organizations": "id",
     "memberships": "organization_id",
@@ -365,6 +380,7 @@ RLS_TABLES: dict[str, str] = {
     "availability_rules": "organization_id",
     "availability_overrides": "organization_id",
     "bookings": "organization_id",
+    "booking_reminders": "organization_id",
     "caldav_connections": "organization_id",
     "external_busy": "organization_id",
 }

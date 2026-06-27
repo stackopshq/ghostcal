@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     # How often the worker re-syncs each connected CalDAV calendar's busy time.
     caldav_sync_interval_seconds: int = 900  # 15 min
 
+    # Booking reminders: how often the worker scans for due reminders, and the offsets (minutes
+    # before the meeting) at which an invitee is reminded. Default: 24 h and 1 h before.
+    reminder_scan_interval_seconds: int = 300  # 5 min
+    reminder_offsets_minutes: list[int] = [1440, 60]
+
     # Transactional email (Resend). When the API key is unset, emails are logged instead of sent.
     resend_api_key: SecretStr | None = None
     email_from: str = "GhostCal <onboarding@resend.dev>"

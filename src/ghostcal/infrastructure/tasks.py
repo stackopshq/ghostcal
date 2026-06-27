@@ -8,13 +8,17 @@ import logging
 from ghostcal.application.calendars import NotConnected, sync_calendar
 from ghostcal.application.ports.calendar import CalendarError
 from ghostcal.application.ports.clock import SystemClock
+from ghostcal.application.reminders import DueReminder, dispatch_reminders
 from ghostcal.celery_app import celery_app
 from ghostcal.config import get_settings
 from ghostcal.infrastructure.calendars import CaldavCalendarClient
 from ghostcal.infrastructure.db.caldav_repository import SqlCaldavConnectionRepository
 from ghostcal.infrastructure.db.membership import active_caldav_connections
+from ghostcal.infrastructure.db.reminders_repository import SqlReminderGateway
 from ghostcal.infrastructure.db.session import db_session, org_session, reset_engine
+from ghostcal.infrastructure.email import build_email_sender
 from ghostcal.infrastructure.security.encryption import SecretBox
+from ghostcal.infrastructure.security.tokens import BookingManagementCodec
 
 logger = logging.getLogger("ghostcal.tasks")
 
@@ -22,6 +26,13 @@ _settings = get_settings()
 _cipher = SecretBox(_settings.token_encryption_key.get_secret_value())
 _client = CaldavCalendarClient()
 _clock = SystemClock()
+_mailer = build_email_sender(_settings)
+_manage_codec = BookingManagementCodec(_settings.secret_key.get_secret_value())
+
+
+def _manage_url(reminder: DueReminder) -> str:
+    token = _manage_codec.encode(reminder.booking_id, reminder.organization_id)
+    return f"{_settings.frontend_base_url}/manage/{token}"
 
 
 @celery_app.task(name="ghostcal.sync_all_calendars")  # type: ignore[untyped-decorator]
@@ -52,3 +63,25 @@ async def _sync_all() -> int:
         # The next task invocation runs on a fresh event loop; drop the engine bound to this one.
         await reset_engine()
     return synced
+
+
+@celery_app.task(name="ghostcal.send_due_reminders")  # type: ignore[untyped-decorator]
+def send_due_reminders() -> int:
+    """Send all due booking reminders. Returns how many were sent."""
+    return asyncio.run(_send_due_reminders())
+
+
+async def _send_due_reminders() -> int:
+    offsets = tuple(_settings.reminder_offsets_minutes)
+    try:
+        async with db_session() as session:
+            sent = await dispatch_reminders(
+                SqlReminderGateway(session),
+                _mailer,
+                offsets=offsets,
+                manage_url=_manage_url,
+            )
+        logger.info("reminders dispatched: %d", sent)
+    finally:
+        await reset_engine()
+    return sent

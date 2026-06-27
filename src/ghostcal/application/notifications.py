@@ -118,6 +118,49 @@ async def send_booking_confirmation(
         )
 
 
+def _lead_label(minutes_before: int) -> str:
+    if minutes_before % 1440 == 0:
+        days = minutes_before // 1440
+        return "tomorrow" if days == 1 else f"in {days} days"
+    if minutes_before % 60 == 0:
+        hours = minutes_before // 60
+        return "in 1 hour" if hours == 1 else f"in {hours} hours"
+    return f"in {minutes_before} minutes"
+
+
+async def send_booking_reminder(
+    mailer: EmailSender,
+    *,
+    invitee_email: str,
+    invitee_timezone: str,
+    event_title: str,
+    host_name: str,
+    location_type: str,
+    start_at: datetime,
+    minutes_before: int,
+    manage_url: str | None = None,
+) -> None:
+    when = _human(start_at, invitee_timezone)
+    lead = _lead_label(minutes_before)
+    manage = (
+        f'<p>Need to change it? <a href="{manage_url}">Reschedule or cancel</a>.</p>'
+        if manage_url
+        else ""
+    )
+    await mailer.send(
+        to=invitee_email,
+        subject=f"Reminder: {event_title} with {host_name} ({lead})",
+        html=(
+            f"<p>This is a reminder that your meeting starts {lead}.</p>"
+            f"<p><strong>{event_title}</strong><br>"
+            f"With: {host_name}<br>"
+            f"When: {when}<br>"
+            f"Where: {_location_label(location_type)}</p>"
+            f"{manage}"
+        ),
+    )
+
+
 async def send_booking_cancellation(
     mailer: EmailSender,
     *,
