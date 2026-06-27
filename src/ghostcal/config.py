@@ -57,6 +57,10 @@ class Settings(BaseSettings):
     reminder_scan_interval_seconds: int = 300  # 5 min
     reminder_offsets_minutes: list[int] = [1440, 60]
 
+    # Per-IP rate limits (requests/minute) on abuse-prone public endpoints.
+    booking_rate_limit_per_minute: int = 20
+    vote_rate_limit_per_minute: int = 60
+
     # Transactional email (Resend). When the API key is unset, emails are logged instead of sent.
     resend_api_key: SecretStr | None = None
     email_from: str = "GhostCal <onboarding@resend.dev>"

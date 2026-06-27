@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from ghostcal.application.polls import (
     InvalidPoll,
@@ -14,12 +14,15 @@ from ghostcal.application.polls import (
     cast_votes,
     get_public_poll,
 )
+from ghostcal.config import get_settings
 from ghostcal.infrastructure.db.membership import poll_organization_by_slug
 from ghostcal.infrastructure.db.polls_repository import SqlPollsRepository
 from ghostcal.infrastructure.db.session import db_session, org_session
+from ghostcal.infrastructure.ratelimit import rate_limit
 from ghostcal.presentation.schemas import PollOptionOut, PublicPollOut, VoteIn
 
 router = APIRouter(prefix="/v1/polls", tags=["polls"])
+_settings = get_settings()
 
 
 async def _resolve_org(slug: str) -> uuid.UUID:
@@ -53,7 +56,11 @@ async def view_poll(slug: str) -> PublicPollOut:
     )
 
 
-@router.post("/{slug}/votes", status_code=204)
+@router.post(
+    "/{slug}/votes",
+    status_code=204,
+    dependencies=[Depends(rate_limit("vote", _settings.vote_rate_limit_per_minute))],
+)
 async def vote(slug: str, payload: VoteIn) -> None:
     org_id = await _resolve_org(slug)
     async with org_session(org_id) as session:

@@ -38,6 +38,7 @@ from ghostcal.infrastructure.db.membership import organization_id_by_slug
 from ghostcal.infrastructure.db.repository import SqlSchedulingRepository
 from ghostcal.infrastructure.db.session import db_session, org_session
 from ghostcal.infrastructure.email import build_email_sender
+from ghostcal.infrastructure.ratelimit import rate_limit
 from ghostcal.infrastructure.security.encryption import SecretBox
 from ghostcal.infrastructure.security.tokens import BookingManagementCodec
 from ghostcal.infrastructure.tasks import emit_event
@@ -183,7 +184,12 @@ async def read_availability(
     )
 
 
-@router.post("/event-types/{event_slug}/bookings", response_model=BookingOut, status_code=201)
+@router.post(
+    "/event-types/{event_slug}/bookings",
+    response_model=BookingOut,
+    status_code=201,
+    dependencies=[Depends(rate_limit("booking", _settings.booking_rate_limit_per_minute))],
+)
 async def create_booking_endpoint(org_id: OrgId, event_slug: str, payload: BookingIn) -> BookingOut:
     async with org_session(org_id) as session:
         repo = _repo(session, org_id)
