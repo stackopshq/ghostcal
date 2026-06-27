@@ -52,6 +52,7 @@ def build_ics(conf: BookingConfirmation) -> str:
         f"LOCATION:{_location_label(conf.location_type)}",
         f"ORGANIZER;CN={conf.host_name}:mailto:{conf.host_email}",
         f"ATTENDEE;CN={conf.invitee_name}:mailto:{conf.invitee_email}",
+        *(f"ATTENDEE:mailto:{guest}" for guest in conf.guest_emails),
         "END:VEVENT",
         "END:VCALENDAR",
     ]
@@ -103,6 +104,18 @@ async def send_booking_confirmation(
         ),
         attachments=[invite],
     )
+    # Additional guests get the same invite (best-effort, like every send here).
+    for guest in conf.guest_emails:
+        await mailer.send(
+            to=guest,
+            subject=f"Invitation: {conf.event_title} with {conf.host_name}",
+            html=_confirmation_html(
+                conf,
+                when=_human(conf.start_at, conf.invitee_timezone),
+                counterpart=conf.host_name,
+            ),
+            attachments=[invite],
+        )
 
 
 async def send_booking_cancellation(

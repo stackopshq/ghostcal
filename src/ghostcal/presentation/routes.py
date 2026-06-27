@@ -23,6 +23,7 @@ from ghostcal.application.scheduling import (
     BookingConfirmation,
     BookingRequest,
     EventTypeNotFound,
+    InvalidBookingInput,
     OrganizationNotFound,
     SlotUnavailable,
     create_booking,
@@ -141,6 +142,7 @@ async def read_event_type(org_id: OrgId, event_slug: str) -> EventTypeOut:
         duration_min=int(context.event.duration.total_seconds() // 60),
         location_type=context.location_type,
         host_name=context.host_name,
+        questions=[asdict(q) for q in context.questions],
     )
 
 
@@ -177,11 +179,15 @@ async def create_booking_endpoint(org_id: OrgId, event_slug: str, payload: Booki
             invitee_name=payload.invitee_name,
             invitee_email=payload.invitee_email,
             invitee_timezone=payload.invitee_timezone,
+            guest_emails=tuple(str(g) for g in payload.guest_emails),
+            answers=payload.answers,
         )
         try:
             confirmation = await create_booking(repo, _clock, request)
         except EventTypeNotFound as exc:
             raise HTTPException(status_code=404, detail="event type not found") from exc
+        except InvalidBookingInput as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         except SlotUnavailable as exc:
             raise HTTPException(status_code=409, detail="slot is no longer available") from exc
 

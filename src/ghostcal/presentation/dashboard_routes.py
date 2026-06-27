@@ -22,6 +22,7 @@ from ghostcal.application.calendars import (
     sync_calendar,
 )
 from ghostcal.application.event_types import (
+    BookingQuestion,
     EventTypeData,
     EventTypeInput,
     EventTypeInUse,
@@ -235,6 +236,16 @@ def _event_type_in(payload: EventTypeIn) -> EventTypeInput:
         max_per_day=payload.max_per_day,
         location_type=payload.location_type,
         active=payload.active,
+        questions=tuple(
+            BookingQuestion(
+                id=q.id,
+                label=q.label,
+                type=q.type,
+                required=q.required,
+                options=tuple(q.options),
+            )
+            for q in payload.questions
+        ),
     )
 
 

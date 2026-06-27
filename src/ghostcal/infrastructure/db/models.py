@@ -29,7 +29,7 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import TSTZRANGE, ExcludeConstraint
+from sqlalchemy.dialects.postgresql import JSONB, TSTZRANGE, ExcludeConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ghostcal.infrastructure.db.base import Base, TimestampMixin
@@ -191,6 +191,10 @@ class EventType(TimestampMixin, Base):
     price_cents: Mapped[int | None]
     currency: Mapped[str | None] = mapped_column(String(3))
     active: Mapped[bool] = mapped_column(default=True)
+    # Custom questions asked of the invitee at booking time: [{id,label,type,required,options}].
+    booking_questions: Mapped[list[dict[str, object]]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'[]'::jsonb")
+    )
 
 
 class AvailabilitySchedule(TimestampMixin, Base):
@@ -292,6 +296,13 @@ class Booking(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(20), default="confirmed")
     location: Mapped[str | None] = mapped_column(String(500))
     meeting_url: Mapped[str | None] = mapped_column(String(2048))
+    # Additional guest emails and the invitee's answers to the event type's custom questions.
+    guest_emails: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'[]'::jsonb")
+    )
+    answers: Mapped[dict[str, str]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb")
+    )
     # Identifiers of the event mirrored onto the host's external (CalDAV) calendar, if any.
     external_event_uid: Mapped[str | None] = mapped_column(String(512))
     external_event_url: Mapped[str | None] = mapped_column(String(2048))

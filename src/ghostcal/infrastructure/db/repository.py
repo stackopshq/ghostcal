@@ -13,6 +13,7 @@ from sqlalchemy import insert, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ghostcal.application.event_types import questions_from_json as _to_questions
 from ghostcal.application.scheduling import EventContext, PublicEventType, SlotUnavailable
 from ghostcal.domain.availability import DateOverride, EventType, Schedule, WeeklyRule
 from ghostcal.domain.time import TimeRange
@@ -63,6 +64,7 @@ class SqlSchedulingRepository:
             date_window_days=event_row.date_window_days,
             event=event,
             schedule=schedule,
+            questions=_to_questions(event_row.booking_questions),
         )
 
     async def get_event_type_id_by_slug(self, slug: str) -> uuid.UUID | None:
@@ -102,6 +104,7 @@ class SqlSchedulingRepository:
                 description=r.description,
                 duration_min=r.duration_min,
                 location_type=r.location_type,
+                questions=_to_questions(r.booking_questions),
             )
             for r in rows
         ]
@@ -196,6 +199,8 @@ class SqlSchedulingRepository:
         invitee_name: str,
         invitee_email: str,
         invitee_timezone: str,
+        guest_emails: tuple[str, ...] = (),
+        answers: dict[str, str] | None = None,
     ) -> uuid.UUID:
         # Serialize concurrent attempts on the same (host, slot) so the loser gets a clean
         # SlotUnavailable instead of racing on the constraint. The EXCLUDE constraint remains the
@@ -218,6 +223,8 @@ class SqlSchedulingRepository:
                     start_at=start_at,
                     end_at=end_at,
                     status="confirmed",
+                    guest_emails=list(guest_emails),
+                    answers=answers or {},
                 )
                 .returning(models.Booking.id)
             )

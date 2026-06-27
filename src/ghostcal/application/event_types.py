@@ -21,6 +21,49 @@ LOCATION_TYPES: tuple[str, ...] = (
     "custom",
 )
 
+# Supported custom-question input types (collected from the invitee at booking time).
+QUESTION_TYPES: tuple[str, ...] = ("text", "textarea", "phone", "select", "checkbox")
+
+
+@dataclass(frozen=True, slots=True)
+class BookingQuestion:
+    id: str
+    label: str
+    type: str = "text"
+    required: bool = False
+    options: tuple[str, ...] = ()
+
+
+def question_to_dict(question: BookingQuestion) -> dict[str, object]:
+    return {
+        "id": question.id,
+        "label": question.label,
+        "type": question.type,
+        "required": question.required,
+        "options": list(question.options),
+    }
+
+
+def question_from_dict(raw: dict[str, object]) -> BookingQuestion:
+    raw_options = raw.get("options")
+    options = raw_options if isinstance(raw_options, list) else []
+    return BookingQuestion(
+        id=str(raw.get("id", "")),
+        label=str(raw.get("label", "")),
+        type=str(raw.get("type", "text")),
+        required=bool(raw.get("required", False)),
+        options=tuple(str(o) for o in options),
+    )
+
+
+def questions_to_json(questions: tuple[BookingQuestion, ...]) -> list[dict[str, object]]:
+    return [question_to_dict(q) for q in questions]
+
+
+def questions_from_json(raw: object) -> tuple[BookingQuestion, ...]:
+    items = raw if isinstance(raw, list) else []
+    return tuple(question_from_dict(r) for r in items)
+
 
 class EventTypeError(Exception):
     """Base class for event-type use-case errors."""
@@ -51,6 +94,7 @@ class EventTypeInput:
     location_type: str = "google_meet"
     description: str | None = None
     active: bool = True
+    questions: tuple[BookingQuestion, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +114,7 @@ class EventTypeData:
     max_per_day: int | None
     location_type: str
     active: bool
+    questions: tuple[BookingQuestion, ...] = ()
 
 
 class EventTypesRepository:
@@ -110,6 +155,23 @@ def _validate(data: EventTypeInput) -> None:
         raise InvalidEventType(f"unknown location type: {data.location_type}")
     if data.max_per_day is not None and data.max_per_day <= 0:
         raise InvalidEventType("max per day must be positive")
+    _validate_questions(data.questions)
+
+
+def _validate_questions(questions: tuple[BookingQuestion, ...]) -> None:
+    seen: set[str] = set()
+    for q in questions:
+        if not q.id.strip():
+            raise InvalidEventType("question id is required")
+        if q.id in seen:
+            raise InvalidEventType(f"duplicate question id: {q.id}")
+        seen.add(q.id)
+        if not q.label.strip():
+            raise InvalidEventType(f"question '{q.id}' needs a label")
+        if q.type not in QUESTION_TYPES:
+            raise InvalidEventType(f"unknown question type: {q.type}")
+        if q.type == "select" and not q.options:
+            raise InvalidEventType(f"select question '{q.id}' needs options")
 
 
 async def list_event_types(repo: EventTypesRepository, owner_id: uuid.UUID) -> list[EventTypeData]:

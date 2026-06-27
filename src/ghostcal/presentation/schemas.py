@@ -188,6 +188,14 @@ class MeetingOut(BaseModel):
     meeting_url: str | None
 
 
+class BookingQuestionSchema(BaseModel):
+    id: str = Field(min_length=1, max_length=64)
+    label: str = Field(min_length=1, max_length=200)
+    type: Literal["text", "textarea", "phone", "select", "checkbox"] = "text"
+    required: bool = False
+    options: list[str] = Field(default_factory=list, max_length=50)
+
+
 class EventTypeIn(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2000)
@@ -200,6 +208,7 @@ class EventTypeIn(BaseModel):
     max_per_day: int | None = Field(default=None, gt=0)
     location_type: str = "google_meet"
     active: bool = True
+    questions: list[BookingQuestionSchema] = Field(default_factory=list, max_length=30)
 
 
 class EventTypeDetailOut(BaseModel):
@@ -218,6 +227,7 @@ class EventTypeDetailOut(BaseModel):
     max_per_day: int | None
     location_type: str
     active: bool
+    questions: list[BookingQuestionSchema] = Field(default_factory=list)
 
 
 class EventTypeOut(BaseModel):
@@ -226,6 +236,7 @@ class EventTypeOut(BaseModel):
     duration_min: int
     location_type: str
     host_name: str
+    questions: list[BookingQuestionSchema] = Field(default_factory=list)
 
 
 class PublicEventTypeOut(BaseModel):
@@ -235,6 +246,7 @@ class PublicEventTypeOut(BaseModel):
     description: str | None
     duration_min: int
     location_type: str
+    questions: list[BookingQuestionSchema] = Field(default_factory=list)
 
 
 class BookingPageOut(BaseModel):
@@ -257,6 +269,8 @@ class BookingIn(BaseModel):
     invitee_name: str = Field(min_length=1, max_length=200)
     invitee_email: str = Field(min_length=3, max_length=320)
     invitee_timezone: str = Field(min_length=1, max_length=64)
+    guest_emails: list[EmailStr] = Field(default_factory=list, max_length=10)
+    answers: dict[str, str] = Field(default_factory=dict)
 
 
 class BookingOut(BaseModel):

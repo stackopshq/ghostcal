@@ -9,14 +9,17 @@ repository and a fixed clock.
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from typing import Protocol
 from zoneinfo import ZoneInfo
 
+from ghostcal.application.event_types import BookingQuestion
 from ghostcal.application.ports.clock import Clock
 from ghostcal.domain.availability import EventType, Schedule, compute_slots
 from ghostcal.domain.time import TimeRange
+
+MAX_GUESTS = 10
 
 
 class SchedulingError(Exception):
@@ -35,6 +38,10 @@ class OrganizationNotFound(SchedulingError):
     pass
 
 
+class InvalidBookingInput(SchedulingError):
+    """Required custom questions are unanswered, or guest input is invalid."""
+
+
 @dataclass(frozen=True, slots=True)
 class PublicEventType:
     id: uuid.UUID
@@ -43,6 +50,7 @@ class PublicEventType:
     description: str | None
     duration_min: int
     location_type: str
+    questions: tuple[BookingQuestion, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,6 +73,7 @@ class EventContext:
     date_window_days: int
     event: EventType
     schedule: Schedule
+    questions: tuple[BookingQuestion, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +83,8 @@ class BookingRequest:
     invitee_name: str
     invitee_email: str
     invitee_timezone: str
+    guest_emails: tuple[str, ...] = ()
+    answers: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,6 +101,7 @@ class BookingConfirmation:
     location_type: str
     start_at: datetime
     end_at: datetime
+    guest_emails: tuple[str, ...] = ()
 
 
 class SchedulingRepository(Protocol):
@@ -114,6 +126,8 @@ class SchedulingRepository(Protocol):
         invitee_name: str,
         invitee_email: str,
         invitee_timezone: str,
+        guest_emails: tuple[str, ...] = (),
+        answers: dict[str, str] | None = None,
     ) -> uuid.UUID:
         """Insert a confirmed booking. Raise ``SlotUnavailable`` on overlap (race)."""
         ...
@@ -174,6 +188,9 @@ async def create_booking(
     if context is None:
         raise EventTypeNotFound(str(request.event_type_id))
 
+    answers = _clean_answers(context.questions, request.answers)
+    guests = _clean_guests(request.guest_emails)
+
     now = clock.now()
     # Re-validate against freshly computed availability for that local day: the slot must still
     # be offered. The DB exclusion constraint is the final guard against races.
@@ -198,6 +215,8 @@ async def create_booking(
         invitee_name=request.invitee_name,
         invitee_email=request.invitee_email,
         invitee_timezone=request.invitee_timezone,
+        guest_emails=guests,
+        answers=answers,
     )
     return BookingConfirmation(
         booking_id=booking_id,
@@ -212,7 +231,31 @@ async def create_booking(
         location_type=context.location_type,
         start_at=request.start_at,
         end_at=end_at,
+        guest_emails=guests,
     )
+
+
+def _clean_answers(
+    questions: tuple[BookingQuestion, ...], answers: dict[str, str]
+) -> dict[str, str]:
+    """Keep only answers to known questions; enforce that required ones are filled."""
+    by_id = {q.id: q for q in questions}
+    cleaned = {qid: str(value) for qid, value in answers.items() if qid in by_id}
+    for question in questions:
+        if question.required and not cleaned.get(question.id, "").strip():
+            raise InvalidBookingInput(f"question '{question.id}' is required")
+    return cleaned
+
+
+def _clean_guests(guest_emails: tuple[str, ...]) -> tuple[str, ...]:
+    seen: list[str] = []
+    for raw in guest_emails:
+        email = raw.strip().lower()
+        if email and email not in seen:
+            seen.append(email)
+    if len(seen) > MAX_GUESTS:
+        raise InvalidBookingInput(f"at most {MAX_GUESTS} guests are allowed")
+    return tuple(seen)
 
 
 def _cap_window(from_date: date, to_date: date, window_days: int) -> date:

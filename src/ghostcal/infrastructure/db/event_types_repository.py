@@ -13,6 +13,8 @@ from ghostcal.application.event_types import (
     EventTypeInput,
     EventTypeInUse,
     EventTypesRepository,
+    questions_from_json,
+    questions_to_json,
 )
 from ghostcal.infrastructure.db import models
 
@@ -124,6 +126,7 @@ def _values(data: EventTypeInput) -> dict[str, object]:
         "max_per_day": data.max_per_day,
         "location_type": data.location_type,
         "active": data.active,
+        "booking_questions": questions_to_json(data.questions),
     }
 
 
@@ -144,4 +147,5 @@ def _to_data(row: models.EventType, organization_slug: str) -> EventTypeData:
         max_per_day=row.max_per_day,
         location_type=row.location_type,
         active=row.active,
+        questions=questions_from_json(row.booking_questions),
     )
