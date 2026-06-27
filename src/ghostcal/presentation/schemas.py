@@ -209,7 +209,7 @@ class EventTypeIn(BaseModel):
     location_type: str = "google_meet"
     active: bool = True
     questions: list[BookingQuestionSchema] = Field(default_factory=list, max_length=30)
-    kind: Literal["solo", "round_robin"] = "solo"
+    kind: Literal["solo", "round_robin", "collective"] = "solo"
     host_ids: list[uuid.UUID] = Field(default_factory=list, max_length=50)
 
 

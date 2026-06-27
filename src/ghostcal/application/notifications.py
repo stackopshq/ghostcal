@@ -104,6 +104,18 @@ async def send_booking_confirmation(
         ),
         attachments=[invite],
     )
+    # Co-hosts of a collective meeting get the same host notification.
+    for cohost_email in conf.additional_host_emails:
+        await mailer.send(
+            to=cohost_email,
+            subject=f"New booking: {conf.event_title} with {conf.invitee_name}",
+            html=_confirmation_html(
+                conf,
+                when=_human(conf.start_at, conf.host_timezone),
+                counterpart=f"{conf.invitee_name} ({conf.invitee_email})",
+            ),
+            attachments=[invite],
+        )
     # Additional guests get the same invite (best-effort, like every send here).
     for guest in conf.guest_emails:
         await mailer.send(

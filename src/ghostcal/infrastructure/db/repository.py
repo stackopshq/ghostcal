@@ -45,7 +45,7 @@ class SqlSchedulingRepository:
         # Owner uses the event type's configured schedule; round-robin pool members each use their
         # own first schedule. The pool is the owner for solo event types.
         owner = await self._host_ref(event_row.owner_id, event_row.schedule_id)
-        if event_row.kind == "round_robin":
+        if event_row.kind in ("round_robin", "collective"):
             pool_ids = (
                 (
                     await self._session.execute(
@@ -285,6 +285,56 @@ class SqlSchedulingRepository:
         except IntegrityError as exc:
             raise SlotUnavailable(start_at.isoformat()) from exc
         return result.scalar_one()
+
+    async def insert_collective_booking(
+        self,
+        *,
+        context: EventContext,
+        host_ids: tuple[uuid.UUID, ...],
+        start_at: datetime,
+        end_at: datetime,
+        invitee_name: str,
+        invitee_email: str,
+        invitee_timezone: str,
+        guest_emails: tuple[str, ...] = (),
+        answers: dict[str, str] | None = None,
+    ) -> uuid.UUID:
+        group_id = uuid.uuid4()
+        # Lock every host/slot (sorted, to avoid deadlocks between concurrent collective bookings).
+        for host_id in sorted(host_ids, key=str):
+            await self._session.execute(
+                text("SELECT pg_advisory_xact_lock(hashtextextended(:k, 0))"),
+                {"k": f"{host_id}:{start_at.isoformat()}"},
+            )
+        primary_id: uuid.UUID | None = None
+        try:
+            for host_id in host_ids:
+                booking_id = (
+                    await self._session.execute(
+                        insert(models.Booking)
+                        .values(
+                            organization_id=self._org_id,
+                            event_type_id=context.event_type_id,
+                            host_id=host_id,
+                            invitee_name=invitee_name,
+                            invitee_email=invitee_email,
+                            invitee_timezone=invitee_timezone,
+                            start_at=start_at,
+                            end_at=end_at,
+                            status="confirmed",
+                            guest_emails=list(guest_emails),
+                            answers=answers or {},
+                            collective_group_id=group_id,
+                        )
+                        .returning(models.Booking.id)
+                    )
+                ).scalar_one()
+                if primary_id is None:
+                    primary_id = booking_id
+        except IntegrityError as exc:
+            raise SlotUnavailable(start_at.isoformat()) from exc
+        assert primary_id is not None  # host_ids is non-empty for collective
+        return primary_id
 
     async def set_external_event(
         self, booking_id: uuid.UUID, uid: str | None, url: str | None

@@ -120,6 +120,8 @@ class BookingConfirmation:
     start_at: datetime
     end_at: datetime
     guest_emails: tuple[str, ...] = ()
+    # Other required hosts on a collective booking (each also gets the host notification).
+    additional_host_emails: tuple[str, ...] = ()
 
 
 class SchedulingRepository(Protocol):
@@ -153,6 +155,25 @@ class SchedulingRepository(Protocol):
         answers: dict[str, str] | None = None,
     ) -> uuid.UUID:
         """Insert a confirmed booking. Raise ``SlotUnavailable`` on overlap (race)."""
+        ...
+
+    async def insert_collective_booking(
+        self,
+        *,
+        context: EventContext,
+        host_ids: tuple[uuid.UUID, ...],
+        start_at: datetime,
+        end_at: datetime,
+        invitee_name: str,
+        invitee_email: str,
+        invitee_timezone: str,
+        guest_emails: tuple[str, ...] = (),
+        answers: dict[str, str] | None = None,
+    ) -> uuid.UUID:
+        """Insert one confirmed booking per required host, linked by a collective group id.
+
+        Returns the primary (first host's) booking id. Raise ``SlotUnavailable`` if any host
+        overlaps an existing booking (the whole insert is rolled back)."""
         ...
 
     async def set_external_event(
@@ -207,13 +228,20 @@ async def get_availability(
 
     now = clock.now()
     capped_to = _cap_window(from_date, to_date, context.date_window_days)
-    # A slot is offered if ANY candidate host is free for it (union across the pool). For a solo
-    # event type the pool is just the owner, so this reduces to the single-host case.
+    # Count how many hosts offer each slot start. Solo/round-robin offer a slot if ANY host is free
+    # (union); collective requires EVERY host free (intersection).
     by_start: dict[datetime, TimeRange] = {}
+    counts: dict[datetime, int] = {}
     for host in context.hosts:
         for slot in await _host_day_slots(repo, host, context.event, now, from_date, capped_to):
             by_start.setdefault(slot.start, slot)
-    return sorted(by_start.values(), key=lambda slot: slot.start)
+            counts[slot.start] = counts.get(slot.start, 0) + 1
+    if context.kind == "collective":
+        needed = len(context.hosts)
+        offered = [slot for start, slot in by_start.items() if counts[start] == needed]
+    else:
+        offered = list(by_start.values())
+    return sorted(offered, key=lambda slot: slot.start)
 
 
 async def _choose_host(repo: SchedulingRepository, candidates: list[HostRef]) -> HostRef:
@@ -240,37 +268,59 @@ async def create_booking(
     guests = _clean_guests(request.guest_emails)
 
     now = clock.now()
-    # Re-validate against freshly computed availability: the slot must still be offered by at least
-    # one host. The DB exclusion constraint is the final guard against races.
+    # Re-validate against freshly computed availability: each host must still offer the slot. The
+    # DB exclusion constraint is the final guard against races.
     candidates: list[HostRef] = []
     for host in context.hosts:
         day = request.start_at.astimezone(ZoneInfo(host.schedule.timezone)).date()
         slots = await _host_day_slots(repo, host, context.event, now, day, day)
         if any(slot.start == request.start_at for slot in slots):
             candidates.append(host)
-    if not candidates:
-        raise SlotUnavailable(request.start_at.isoformat())
 
-    chosen = await _choose_host(repo, candidates)
     end_at = request.start_at + context.event.duration
-    booking_id = await repo.insert_booking(
-        context=context,
-        host_id=chosen.host_id,
-        start_at=request.start_at,
-        end_at=end_at,
-        invitee_name=request.invitee_name,
-        invitee_email=request.invitee_email,
-        invitee_timezone=request.invitee_timezone,
-        guest_emails=guests,
-        answers=answers,
-    )
+
+    if context.kind == "collective":
+        # Every host must be free; book all of them as one linked meeting.
+        if len(candidates) != len(context.hosts):
+            raise SlotUnavailable(request.start_at.isoformat())
+        hosts = context.hosts
+        booking_id = await repo.insert_collective_booking(
+            context=context,
+            host_ids=tuple(h.host_id for h in hosts),
+            start_at=request.start_at,
+            end_at=end_at,
+            invitee_name=request.invitee_name,
+            invitee_email=request.invitee_email,
+            invitee_timezone=request.invitee_timezone,
+            guest_emails=guests,
+            answers=answers,
+        )
+        primary = hosts[0]
+        additional = tuple(h.email for h in hosts[1:])
+    else:
+        if not candidates:
+            raise SlotUnavailable(request.start_at.isoformat())
+        primary = await _choose_host(repo, candidates)
+        booking_id = await repo.insert_booking(
+            context=context,
+            host_id=primary.host_id,
+            start_at=request.start_at,
+            end_at=end_at,
+            invitee_name=request.invitee_name,
+            invitee_email=request.invitee_email,
+            invitee_timezone=request.invitee_timezone,
+            guest_emails=guests,
+            answers=answers,
+        )
+        additional = ()
+
     return BookingConfirmation(
         booking_id=booking_id,
-        host_id=chosen.host_id,
+        host_id=primary.host_id,
         event_title=context.title,
-        host_name=chosen.name,
-        host_email=chosen.email,
-        host_timezone=chosen.timezone,
+        host_name=primary.name,
+        host_email=primary.email,
+        host_timezone=primary.timezone,
         invitee_name=request.invitee_name,
         invitee_email=request.invitee_email,
         invitee_timezone=request.invitee_timezone,
@@ -278,6 +328,7 @@ async def create_booking(
         start_at=request.start_at,
         end_at=end_at,
         guest_emails=guests,
+        additional_host_emails=additional,
     )
 
 

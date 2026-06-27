@@ -317,6 +317,9 @@ class Booking(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(20), default="confirmed")
     location: Mapped[str | None] = mapped_column(String(500))
     meeting_url: Mapped[str | None] = mapped_column(String(2048))
+    # Collective bookings insert one row per required host, all sharing this id (so cancel/manage
+    # act on the whole meeting). NULL for solo/round-robin/group bookings.
+    collective_group_id: Mapped[uuid.UUID | None] = mapped_column(index=True)
     # Additional guest emails and the invitee's answers to the event type's custom questions.
     guest_emails: Mapped[list[str]] = mapped_column(
         JSONB, nullable=False, server_default=text("'[]'::jsonb")

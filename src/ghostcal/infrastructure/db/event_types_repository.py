@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ghostcal.application.event_types import (
+    POOLED_KINDS,
     EventTypeData,
     EventTypeInput,
     EventTypeInUse,
@@ -126,7 +127,7 @@ class SqlEventTypesRepository(EventTypesRepository):
                 .returning(models.EventType.id)
             )
         ).scalar_one()
-        if data.kind == "round_robin":
+        if data.kind in POOLED_KINDS:
             await self._replace_pool(event_type_id, data.host_ids)
         return event_type_id
 
@@ -139,8 +140,8 @@ class SqlEventTypesRepository(EventTypesRepository):
         for field, value in _values(data).items():
             setattr(row, field, value)
         await self._session.flush()
-        # Keep the pool in sync with the kind: round-robin owns a pool, others have none.
-        await self._replace_pool(event_type_id, data.host_ids if data.kind == "round_robin" else ())
+        # Keep the pool in sync with the kind: pooled kinds own a pool, others have none.
+        await self._replace_pool(event_type_id, data.host_ids if data.kind in POOLED_KINDS else ())
         return True
 
     async def delete(self, event_type_id: uuid.UUID, owner_id: uuid.UUID) -> bool:

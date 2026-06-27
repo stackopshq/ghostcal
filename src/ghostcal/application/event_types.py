@@ -24,8 +24,10 @@ LOCATION_TYPES: tuple[str, ...] = (
 # Supported custom-question input types (collected from the invitee at booking time).
 QUESTION_TYPES: tuple[str, ...] = ("text", "textarea", "phone", "select", "checkbox")
 
-# Host-assignment kinds implemented so far. "collective"/"group" are reserved for a later slice.
-SUPPORTED_KINDS: tuple[str, ...] = ("solo", "round_robin")
+# Host-assignment kinds. "group" (capacity > 1 per slot) is added in a later slice.
+SUPPORTED_KINDS: tuple[str, ...] = ("solo", "round_robin", "collective")
+# Kinds that draw their hosts from the event_type_hosts pool.
+POOLED_KINDS: tuple[str, ...] = ("round_robin", "collective")
 
 
 @dataclass(frozen=True, slots=True)
@@ -164,8 +166,8 @@ def _validate(data: EventTypeInput) -> None:
         raise InvalidEventType("max per day must be positive")
     if data.kind not in SUPPORTED_KINDS:
         raise InvalidEventType(f"unsupported event kind: {data.kind}")
-    if data.kind == "round_robin" and not data.host_ids:
-        raise InvalidEventType("round-robin needs at least one host")
+    if data.kind in POOLED_KINDS and not data.host_ids:
+        raise InvalidEventType(f"{data.kind} needs at least one host")
     _validate_questions(data.questions)
 
 

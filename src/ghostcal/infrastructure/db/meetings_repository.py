@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ghostcal.application.meetings import BookingSummary, MeetingsRepository
 from ghostcal.infrastructure.db import models
+from ghostcal.infrastructure.db.manage_repository import cancel_booking_or_group
 
 
 class SqlMeetingsRepository(MeetingsRepository):
@@ -68,7 +69,7 @@ class SqlMeetingsRepository(MeetingsRepository):
         if row is None:
             return None
         booking, title = row
-        booking.status = "cancelled"  # flushed on commit; frees the slot
+        await cancel_booking_or_group(self._session, booking)
         return BookingSummary(
             id=booking.id,
             event_title=title,

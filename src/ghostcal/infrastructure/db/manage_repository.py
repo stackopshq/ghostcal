@@ -5,11 +5,26 @@ from __future__ import annotations
 import uuid
 from dataclasses import replace
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ghostcal.application.manage import BookingDetail, ManageRepository
 from ghostcal.infrastructure.db import models
+
+
+async def cancel_booking_or_group(session: AsyncSession, booking: models.Booking) -> None:
+    """Cancel the booking; for a collective meeting, cancel all of its linked host rows."""
+    if booking.collective_group_id is not None:
+        await session.execute(
+            update(models.Booking)
+            .where(
+                models.Booking.collective_group_id == booking.collective_group_id,
+                models.Booking.status == "confirmed",
+            )
+            .values(status="cancelled")
+        )
+    else:
+        booking.status = "cancelled"  # flushed on commit; frees the slot
 
 
 class SqlBookingManageRepository(ManageRepository):
@@ -70,5 +85,5 @@ class SqlBookingManageRepository(ManageRepository):
             return None
         booking = await self._session.get(models.Booking, booking_id)
         assert booking is not None
-        booking.status = "cancelled"  # flushed on commit; frees the slot
+        await cancel_booking_or_group(self._session, booking)
         return replace(detail, status="cancelled")
