@@ -1,15 +1,12 @@
 # Gitleaks configuration. Extends the default ruleset.
+#
+# NOTE: use the singular [allowlist] table, not the [[allowlists]] array — the array form is not
+# honoured by the gitleaks version pinned in CI (8.21.x), so path allowlisting silently no-ops.
 [extend]
 useDefault = true
 
-# Non-secret placeholders used only to instantiate config in tests. These never authenticate
-# against any real system. Scoped narrowly to the test fixture file.
-[[allowlists]]
-description = "Test placeholder credentials in conftest"
-paths = ['''tests/conftest\.py''']
-regexes = ['''test-(secret|encryption)-key-at-least-32''']
-
-# Fake passwords/tokens hard-coded in the test suite (fixtures, not real credentials).
-[[allowlists]]
-description = "Test placeholder credentials under tests/"
+# Test fixtures contain placeholder credentials only (passwords/keys/tokens used to instantiate
+# config or exercise auth flows). They never authenticate against any real system.
+[allowlist]
+description = "Test placeholder credentials (fixtures, never real)"
 paths = ['''tests/.*\.py''']
