@@ -62,13 +62,12 @@ export default function DashboardPage() {
           <Link href="/dashboard/availability" className={primaryButtonClass}>
             Edit availability
           </Link>
-          <button
-            type="button"
-            disabled
-            className="rounded-lg border border-border-strong px-4 py-2.5 text-sm font-medium text-muted/60"
+          <Link
+            href="/dashboard/event-types"
+            className="rounded-lg border border-border-strong px-4 py-2.5 text-sm font-medium text-foreground transition hover:border-accent hover:text-accent"
           >
-            Create an event type (soon)
-          </button>
+            Event types
+          </Link>
         </div>
       </section>
     </main>
