@@ -148,3 +148,16 @@ async def test_public_booking_page_lists_active(org_owner: dict[str, uuid.UUID])
     titles = [e.title for e in page.event_types]
     assert "Active one" in titles
     assert "Hidden" not in titles
+
+
+async def test_event_type_id_by_slug(org_owner: dict[str, uuid.UUID]) -> None:
+    org, owner = org_owner["org"], org_owner["owner"]
+    async with org_session(org) as session:
+        repo = SqlEventTypesRepository(session, org)
+        event_type_id = await create_event_type(repo, owner, _input("By slug"))
+        data = await get_event_type(repo, event_type_id, owner)
+
+    async with org_session(org) as session:
+        scheduling = SqlSchedulingRepository(session, org)
+        assert await scheduling.get_event_type_id_by_slug(data.slug) == event_type_id
+        assert await scheduling.get_event_type_id_by_slug("does-not-exist") is None

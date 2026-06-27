@@ -40,7 +40,7 @@ export default async function HostPage({ params }: { params: Promise<{ org: stri
           {page.event_types.map((et) => (
             <Link
               key={et.id}
-              href={`/${org}/${et.id}`}
+              href={`/${org}/${et.slug}`}
               className="glass flex flex-col gap-2 rounded-2xl border-l-[3px] border-l-accent p-5 transition hover:border-accent hover:shadow-[0_0_24px_rgba(0,240,255,0.18)]"
             >
               <p className="font-medium text-foreground">{et.title}</p>

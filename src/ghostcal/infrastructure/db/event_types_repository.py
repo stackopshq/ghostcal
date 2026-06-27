@@ -34,7 +34,8 @@ class SqlEventTypesRepository(EventTypesRepository):
             .scalars()
             .all()
         )
-        return [_to_data(r) for r in rows]
+        org_slug = await self._org_slug()
+        return [_to_data(r, org_slug) for r in rows]
 
     async def get(self, event_type_id: uuid.UUID, owner_id: uuid.UUID) -> EventTypeData | None:
         row = (
@@ -45,7 +46,16 @@ class SqlEventTypesRepository(EventTypesRepository):
                 )
             )
         ).scalar_one_or_none()
-        return _to_data(row) if row is not None else None
+        if row is None:
+            return None
+        return _to_data(row, await self._org_slug())
+
+    async def _org_slug(self) -> str:
+        return (
+            await self._session.execute(
+                select(models.Organization.slug).where(models.Organization.id == self._org_id)
+            )
+        ).scalar_one()
 
     async def create(self, owner_id: uuid.UUID, slug: str, data: EventTypeInput) -> uuid.UUID:
         return (
@@ -117,10 +127,11 @@ def _values(data: EventTypeInput) -> dict[str, object]:
     }
 
 
-def _to_data(row: models.EventType) -> EventTypeData:
+def _to_data(row: models.EventType, organization_slug: str) -> EventTypeData:
     return EventTypeData(
         id=row.id,
         organization_id=row.organization_id,
+        organization_slug=organization_slug,
         slug=row.slug,
         title=row.title,
         description=row.description,

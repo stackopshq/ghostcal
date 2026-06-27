@@ -13,3 +13,10 @@ async def primary_organization(session: AsyncSession, user_id: uuid.UUID) -> uui
         text("SELECT user_primary_organization(:uid) AS org"), {"uid": str(user_id)}
     )
     return result.scalar_one()  # type: ignore[no-any-return]
+
+
+async def organization_id_by_slug(session: AsyncSession, slug: str) -> uuid.UUID | None:
+    result = await session.execute(
+        text("SELECT organization_id_by_slug(:slug) AS org"), {"slug": slug}
+    )
+    return result.scalar_one()  # type: ignore[no-any-return]

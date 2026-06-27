@@ -65,6 +65,16 @@ class SqlSchedulingRepository:
             schedule=schedule,
         )
 
+    async def get_event_type_id_by_slug(self, slug: str) -> uuid.UUID | None:
+        return (
+            await self._session.execute(
+                select(models.EventType.id).where(
+                    models.EventType.slug == slug,
+                    models.EventType.active.is_(True),
+                )
+            )
+        ).scalar_one_or_none()
+
     async def get_organization_name(self) -> str | None:
         return (
             await self._session.execute(

@@ -57,6 +57,7 @@ class EventTypeInput:
 class EventTypeData:
     id: uuid.UUID
     organization_id: uuid.UUID
+    organization_slug: str
     slug: str
     title: str
     description: str | None

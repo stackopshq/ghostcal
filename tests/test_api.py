@@ -17,7 +17,7 @@ def test_health_ok() -> None:
 
 def test_scheduling_routes_are_mounted() -> None:
     paths = app.openapi()["paths"]
-    base = "/v1/orgs/{organization_id}/event-types/{event_type_id}"
+    base = "/v1/orgs/{org_slug}/event-types/{event_slug}"
     assert f"{base}/availability" in paths
     assert "get" in paths[f"{base}/availability"]
     assert f"{base}/bookings" in paths

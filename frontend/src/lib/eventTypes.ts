@@ -5,6 +5,7 @@ import { authedFetch } from "@/lib/auth";
 export type EventType = {
   id: string;
   organization_id: string;
+  organization_slug: string;
   slug: string;
   title: string;
   description: string | null;
@@ -58,8 +59,8 @@ export function deleteEventType(id: string): Promise<void> {
   return authedFetch<void>(`/v1/me/event-types/${id}`, { method: "DELETE" });
 }
 
-/** The public booking URL for an event type, built from the current origin. */
+/** The public booking URL for an event type (readable slugs), built from the current origin. */
 export function publicLink(eventType: EventType): string {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  return `${origin}/${eventType.organization_id}/${eventType.id}`;
+  return `${origin}/${eventType.organization_slug}/${eventType.slug}`;
 }
