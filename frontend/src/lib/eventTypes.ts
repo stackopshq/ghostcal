@@ -2,6 +2,14 @@
 
 import { authedFetch } from "@/lib/auth";
 
+export type BookingQuestion = {
+  id: string;
+  label: string;
+  type: "text" | "textarea" | "phone" | "select" | "checkbox";
+  required: boolean;
+  options: string[];
+};
+
 export type EventType = {
   id: string;
   organization_id: string;
@@ -18,6 +26,10 @@ export type EventType = {
   max_per_day: number | null;
   location_type: string;
   active: boolean;
+  questions: BookingQuestion[];
+  kind: string;
+  host_ids: string[];
+  capacity: number;
 };
 
 export type EventTypeInput = {
@@ -26,6 +38,10 @@ export type EventTypeInput = {
   slot_interval_min: number;
   location_type: string;
   active: boolean;
+  questions: BookingQuestion[];
+  kind: string;
+  host_ids: string[];
+  capacity: number;
 };
 
 export const LOCATION_LABELS: Record<string, string> = {
