@@ -32,6 +32,7 @@ from ghostcal.application.scheduling import (
     get_event_type,
 )
 from ghostcal.config import get_settings
+from ghostcal.infrastructure.cache import get_json, set_json
 from ghostcal.infrastructure.calendars import CaldavCalendarClient
 from ghostcal.infrastructure.db.caldav_repository import SqlCaldavConnectionRepository
 from ghostcal.infrastructure.db.membership import organization_id_by_slug
@@ -172,12 +173,21 @@ async def read_availability(
     async with org_session(org_id) as session:
         repo = _repo(session, org_id)
         event_type_id = await _event_type_id(repo, event_slug)
+        cache_key = f"avail:{event_type_id}:{from_date}:{to_date}"
+        cached = await get_json(cache_key)
+        if isinstance(cached, list):
+            return AvailabilityOut(
+                event_type_id=event_type_id, slots=[SlotOut(**slot) for slot in cached]
+            )
         try:
             slots = await get_availability(
                 repo, _clock, event_type_id=event_type_id, from_date=from_date, to_date=to_date
             )
         except EventTypeNotFound as exc:
             raise HTTPException(status_code=404, detail="event type not found") from exc
+
+    payload = [{"start": s.start.isoformat(), "end": s.end.isoformat()} for s in slots]
+    await set_json(cache_key, payload, _settings.availability_cache_ttl_seconds)
     return AvailabilityOut(
         event_type_id=event_type_id,
         slots=[SlotOut(start=s.start, end=s.end) for s in slots],

@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     booking_rate_limit_per_minute: int = 20
     vote_rate_limit_per_minute: int = 60
 
+    # How long computed availability is cached (seconds). Short, so freshly-taken slots clear fast.
+    availability_cache_ttl_seconds: int = 45
+
     # Transactional email (Resend). When the API key is unset, emails are logged instead of sent.
     resend_api_key: SecretStr | None = None
     email_from: str = "GhostCal <onboarding@resend.dev>"
