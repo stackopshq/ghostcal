@@ -47,7 +47,36 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const detail = await res.text().catch(() => res.statusText);
     throw new ApiError(res.status, detail || res.statusText);
   }
-  return res.json() as Promise<T>;
+  return (res.status === 204 ? undefined : await res.json()) as T;
+}
+
+export type ManageBooking = {
+  event_title: string;
+  host_name: string;
+  organization_slug: string;
+  event_slug: string;
+  invitee_name: string;
+  invitee_timezone: string;
+  duration_min: number;
+  location_type: string;
+  start_at: string;
+  end_at: string;
+  status: string;
+};
+
+export function getManagedBooking(token: string): Promise<ManageBooking> {
+  return request<ManageBooking>(`/v1/bookings/manage/${token}`);
+}
+
+export function cancelManagedBooking(token: string): Promise<void> {
+  return request<void>(`/v1/bookings/manage/${token}/cancel`, { method: "POST" });
+}
+
+export function rescheduleManagedBooking(token: string, startAt: string): Promise<Booking> {
+  return request<Booking>(`/v1/bookings/manage/${token}/reschedule`, {
+    method: "POST",
+    body: JSON.stringify({ start_at: startAt }),
+  });
 }
 
 export type PublicEventType = {

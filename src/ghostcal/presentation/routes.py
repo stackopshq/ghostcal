@@ -33,6 +33,7 @@ from ghostcal.infrastructure.db.membership import organization_id_by_slug
 from ghostcal.infrastructure.db.repository import SqlSchedulingRepository
 from ghostcal.infrastructure.db.session import db_session, org_session
 from ghostcal.infrastructure.email import build_email_sender
+from ghostcal.infrastructure.security.tokens import BookingManagementCodec
 from ghostcal.presentation.schemas import (
     AvailabilityOut,
     BookingIn,
@@ -43,10 +44,17 @@ from ghostcal.presentation.schemas import (
     SlotOut,
 )
 
+_settings = get_settings()
 router = APIRouter(prefix="/v1/orgs/{org_slug}", tags=["scheduling"])
 _clock = SystemClock()
-_mailer = build_email_sender(get_settings())
+_mailer = build_email_sender(_settings)
+_manage_codec = BookingManagementCodec(_settings.secret_key.get_secret_value())
 _logger = logging.getLogger("ghostcal.booking")
+
+
+def _manage_url(booking_id: uuid.UUID, organization_id: uuid.UUID) -> str:
+    token = _manage_codec.encode(booking_id, organization_id)
+    return f"{_settings.frontend_base_url}/manage/{token}"
 
 
 async def resolve_org(org_slug: str) -> uuid.UUID:
@@ -145,7 +153,9 @@ async def create_booking_endpoint(org_id: OrgId, event_slug: str, payload: Booki
 
     # Best-effort, after commit: an email failure must not undo a confirmed booking.
     try:
-        await send_booking_confirmation(_mailer, confirmation)
+        await send_booking_confirmation(
+            _mailer, confirmation, manage_url=_manage_url(confirmation.booking_id, org_id)
+        )
     except Exception:
         _logger.exception("failed to send confirmation for booking %s", confirmation.booking_id)
 

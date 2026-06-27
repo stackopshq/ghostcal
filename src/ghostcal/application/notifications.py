@@ -58,7 +58,14 @@ def build_ics(conf: BookingConfirmation) -> str:
     return "\r\n".join(lines) + "\r\n"
 
 
-def _confirmation_html(conf: BookingConfirmation, *, when: str, counterpart: str) -> str:
+def _confirmation_html(
+    conf: BookingConfirmation, *, when: str, counterpart: str, manage_url: str | None = None
+) -> str:
+    manage = (
+        f'<p>Need to change it? <a href="{manage_url}">Reschedule or cancel</a>.</p>'
+        if manage_url
+        else ""
+    )
     return (
         f"<p>Your meeting is confirmed.</p>"
         f"<p><strong>{conf.event_title}</strong><br>"
@@ -66,17 +73,23 @@ def _confirmation_html(conf: BookingConfirmation, *, when: str, counterpart: str
         f"When: {when}<br>"
         f"Where: {_location_label(conf.location_type)}</p>"
         f"<p>The calendar invite is attached.</p>"
+        f"{manage}"
     )
 
 
-async def send_booking_confirmation(mailer: EmailSender, conf: BookingConfirmation) -> None:
+async def send_booking_confirmation(
+    mailer: EmailSender, conf: BookingConfirmation, *, manage_url: str | None = None
+) -> None:
     invite = Attachment("invite.ics", build_ics(conf).encode("utf-8"), "text/calendar")
 
     await mailer.send(
         to=conf.invitee_email,
         subject=f"Confirmed: {conf.event_title} with {conf.host_name}",
         html=_confirmation_html(
-            conf, when=_human(conf.start_at, conf.invitee_timezone), counterpart=conf.host_name
+            conf,
+            when=_human(conf.start_at, conf.invitee_timezone),
+            counterpart=conf.host_name,
+            manage_url=manage_url,
         ),
         attachments=[invite],
     )

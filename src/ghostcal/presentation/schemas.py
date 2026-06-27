@@ -177,3 +177,21 @@ class BookingOut(BaseModel):
     start_at: datetime
     end_at: datetime
     status: str = "confirmed"
+
+
+class ManageBookingOut(BaseModel):
+    event_title: str
+    host_name: str
+    organization_slug: str
+    event_slug: str
+    invitee_name: str
+    invitee_timezone: str
+    duration_min: int
+    location_type: str
+    start_at: datetime
+    end_at: datetime
+    status: str
+
+
+class RescheduleIn(BaseModel):
+    start_at: datetime
