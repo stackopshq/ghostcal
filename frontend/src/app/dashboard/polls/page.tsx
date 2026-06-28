@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useT } from "@/lib/i18n";
 import { createPoll, listPolls, type PollSummary } from "@/lib/polls";
 
 export default function PollsPage() {
+  const t = useT();
   const [polls, setPolls] = useState<PollSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(0);
@@ -37,7 +39,7 @@ export default function PollsPage() {
       .filter(Boolean)
       .map((local) => new Date(local).toISOString());
     if (starts.length < 2) {
-      setError("Add at least two time options.");
+      setError(t("pollsh.errMinTwo"));
       return;
     }
     setCreating(true);
@@ -52,7 +54,7 @@ export default function PollsPage() {
       setOptions(["", ""]);
       setRefresh((r) => r + 1);
     } catch {
-      setError("Could not create the poll.");
+      setError(t("pollsh.errCreate"));
     } finally {
       setCreating(false);
     }
@@ -61,23 +63,21 @@ export default function PollsPage() {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 p-6 sm:p-10">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">Meeting polls</h1>
-        <p className="mt-1 text-sm text-muted">
-          Propose several times, let invitees vote, then lock one in.
-        </p>
+        <h1 className="text-2xl font-semibold text-foreground">{t("pollsh.title")}</h1>
+        <p className="mt-1 text-sm text-muted">{t("pollsh.sub")}</p>
       </div>
 
       <form onSubmit={submit} className="glass flex flex-col gap-4 rounded-2xl p-6">
-        <h2 className="text-sm font-medium text-foreground">New poll</h2>
+        <h2 className="text-sm font-medium text-foreground">{t("pollsh.new")}</h2>
         <input
           required
-          placeholder="Poll title (e.g. Team retro)"
+          placeholder={t("pollsh.titlePh")}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className="rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
         />
         <label className="flex items-center gap-3 text-sm text-muted">
-          Duration
+          {t("pollsh.duration")}
           <select
             value={duration}
             onChange={(e) => setDuration(Number(e.target.value))}
@@ -92,7 +92,7 @@ export default function PollsPage() {
         </label>
 
         <div className="flex flex-col gap-2">
-          <span className="text-sm text-muted">Proposed times</span>
+          <span className="text-sm text-muted">{t("pollsh.proposedTimes")}</span>
           {options.map((value, i) => (
             <div key={i} className="flex gap-2">
               <input
@@ -117,7 +117,7 @@ export default function PollsPage() {
             onClick={() => setOptions((prev) => [...prev, ""])}
             className="self-start text-sm text-accent hover:brightness-110"
           >
-            + Add a time
+            {t("pollsh.addTime")}
           </button>
         </div>
 
@@ -127,14 +127,14 @@ export default function PollsPage() {
           disabled={creating}
           className="self-start rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.45)] transition hover:brightness-110 disabled:opacity-60"
         >
-          {creating ? "Creating…" : "Create poll"}
+          {creating ? t("pollsh.creating") : t("pollsh.create")}
         </button>
       </form>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-foreground">Your polls</h2>
-        {loading && <p className="text-sm text-muted">Loading…</p>}
-        {!loading && polls.length === 0 && <p className="text-sm text-muted">No polls yet.</p>}
+        <h2 className="text-sm font-medium text-foreground">{t("pollsh.yourPolls")}</h2>
+        {loading && <p className="text-sm text-muted">{t("common.loading")}</p>}
+        {!loading && polls.length === 0 && <p className="text-sm text-muted">{t("pollsh.none")}</p>}
         {polls.map((p) => (
           <Link
             key={p.id}
@@ -144,7 +144,11 @@ export default function PollsPage() {
             <div>
               <p className="font-medium text-foreground">{p.title}</p>
               <p className="text-sm text-muted">
-                {p.option_count} options · {p.vote_count} votes · {p.status}
+                {t("pollsh.summary", {
+                  options: p.option_count,
+                  votes: p.vote_count,
+                  status: p.status,
+                })}
               </p>
             </div>
             <span className="text-accent">→</span>

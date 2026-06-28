@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useT } from "@/lib/i18n";
 import { cancelPoll, finalizePoll, getPoll, type Poll } from "@/lib/polls";
 
 function fmt(iso: string, tz: string): string {
@@ -17,6 +18,7 @@ function fmt(iso: string, tz: string): string {
 }
 
 export default function PollDetailPage() {
+  const t = useT();
   const params = useParams<{ id: string }>();
   const id = params.id;
   const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
@@ -36,7 +38,7 @@ export default function PollDetailPage() {
   }, [id]);
 
   async function finalize(optionId: string) {
-    if (!confirm("Lock in this time? Everyone who voted will be notified.")) return;
+    if (!confirm(t("pollsh.confirmFinalize"))) return;
     setBusy(true);
     try {
       setPoll(await finalizePoll(id, optionId));
@@ -46,13 +48,13 @@ export default function PollDetailPage() {
   }
 
   async function remove() {
-    if (!confirm("Cancel this poll?")) return;
+    if (!confirm(t("pollsh.confirmCancel"))) return;
     await cancelPoll(id);
     window.location.href = "/dashboard/polls";
   }
 
-  if (loading) return <Wrap>Loading…</Wrap>;
-  if (!poll) return <Wrap>Poll not found.</Wrap>;
+  if (loading) return <Wrap>{t("common.loading")}</Wrap>;
+  if (!poll) return <Wrap>{t("pollsh.notFound")}</Wrap>;
 
   const shareUrl =
     typeof window !== "undefined" ? `${window.location.origin}/poll/${poll.slug}` : "";
@@ -60,18 +62,18 @@ export default function PollDetailPage() {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6 sm:p-10">
       <Link href="/dashboard/polls" className="text-sm text-muted hover:text-foreground">
-        ← All polls
+        {t("pollsh.allPolls")}
       </Link>
       <div>
         <h1 className="text-2xl font-semibold text-foreground">{poll.title}</h1>
         <p className="mt-1 text-sm text-muted">
-          {poll.duration_min} min · {poll.status}
+          {t("pollsh.minStatus", { n: poll.duration_min, status: poll.status })}
         </p>
       </div>
 
       {poll.status === "open" && (
         <p className="rounded-lg border border-border bg-surface-2/50 px-4 py-3 text-sm text-muted">
-          Share to collect votes: <span className="text-accent">{shareUrl}</span>
+          {t("pollsh.share")} <span className="text-accent">{shareUrl}</span>
         </p>
       )}
 
@@ -89,8 +91,8 @@ export default function PollDetailPage() {
               <div>
                 <p className="font-medium text-foreground">{fmt(o.start_at, tz)}</p>
                 <p className="text-sm text-muted">
-                  {o.votes} vote{o.votes === 1 ? "" : "s"}
-                  {won && <span className="text-accent"> · chosen</span>}
+                  {t("pollsh.votesCount", { n: o.votes })}
+                  {won && <span className="text-accent"> {t("pollsh.chosen")}</span>}
                 </p>
               </div>
               {poll.status === "open" && (
@@ -100,7 +102,7 @@ export default function PollDetailPage() {
                   onClick={() => finalize(o.id)}
                   className="rounded-lg border border-border-strong px-3 py-1.5 text-sm text-foreground transition hover:border-accent hover:text-accent disabled:opacity-60"
                 >
-                  Pick this time
+                  {t("pollsh.pickThis")}
                 </button>
               )}
             </div>
@@ -110,11 +112,10 @@ export default function PollDetailPage() {
 
       {poll.voters.length > 0 && (
         <section className="flex flex-col gap-1">
-          <h2 className="text-sm font-medium text-foreground">Voters</h2>
+          <h2 className="text-sm font-medium text-foreground">{t("pollsh.voters")}</h2>
           {poll.voters.map((v) => (
             <p key={v.email} className="text-sm text-muted">
-              {v.name} ({v.email}) — {v.option_ids.length} time
-              {v.option_ids.length === 1 ? "" : "s"}
+              {v.name} ({v.email}) — {t("pollsh.timesCount", { n: v.option_ids.length })}
             </p>
           ))}
         </section>
@@ -125,7 +126,7 @@ export default function PollDetailPage() {
         onClick={remove}
         className="self-start text-sm text-muted transition hover:text-red-400"
       >
-        Cancel poll
+        {t("pollsh.cancelPoll")}
       </button>
     </main>
   );
