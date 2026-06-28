@@ -10,6 +10,7 @@ import {
   type ManageBooking,
   type Slot,
 } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 
 const LOCATION_LABELS: Record<string, string> = {
   google_meet: "Google Meet",
@@ -63,6 +64,7 @@ const accentBtn =
   "rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.45)] transition hover:brightness-110 disabled:opacity-60";
 
 export default function ManagePage() {
+  const t = useT();
   const token = String(useParams().token);
   const [booking, setBooking] = useState<ManageBooking | null>(null);
   const [loading, setLoading] = useState(true);
@@ -95,7 +97,7 @@ export default function ManagePage() {
       const res = await getAvailability(booking.organization_slug, booking.event_slug, from, to);
       setSlots(res.slots);
     } catch {
-      setError("Could not load available times.");
+      setError(t("manage.errLoadTimes"));
     }
   }
 
@@ -114,7 +116,7 @@ export default function ManagePage() {
       await cancelManagedBooking(token);
       setMode("cancelled");
     } catch {
-      setError("Could not cancel. Please try again.");
+      setError(t("manage.errCancel"));
     } finally {
       setBusy(false);
     }
@@ -129,7 +131,7 @@ export default function ManagePage() {
       setBooking((b) => (b ? { ...b, start_at: updated.start_at, end_at: updated.end_at } : b));
       setMode("rescheduled");
     } catch {
-      setError("That time is no longer available. Pick another.");
+      setError(t("manage.errReschedule"));
     } finally {
       setBusy(false);
     }
@@ -138,11 +140,11 @@ export default function ManagePage() {
   return (
     <main className="flex flex-1 items-center justify-center p-4 sm:p-8">
       {loading ? (
-        <p className="text-sm text-muted">Loading…</p>
+        <p className="text-sm text-muted">{t("common.loading")}</p>
       ) : invalid || !booking ? (
         <div className={card}>
-          <h1 className="text-xl font-semibold text-foreground">Link not valid</h1>
-          <p className="mt-2 text-sm text-muted">This management link is invalid or has expired.</p>
+          <h1 className="text-xl font-semibold text-foreground">{t("manage.linkInvalid")}</h1>
+          <p className="mt-2 text-sm text-muted">{t("manage.linkInvalidSub")}</p>
         </div>
       ) : (
         <div className={card}>
@@ -151,39 +153,39 @@ export default function ManagePage() {
           </div>
 
           <h1 className="text-xl font-semibold text-foreground">{booking.event_title}</h1>
-          <p className="mt-1 text-sm text-muted">with {booking.host_name}</p>
+          <p className="mt-1 text-sm text-muted">{t("booking.with", { host: booking.host_name })}</p>
           <p className="mt-3 text-sm text-foreground">{longWhen(booking.start_at, tz)}</p>
           <p className="text-sm text-muted">{LOCATION_LABELS[booking.location_type] ?? booking.location_type}</p>
 
           {booking.status !== "confirmed" && mode === "view" && (
-            <p className="mt-6 text-sm text-muted">This booking is no longer active.</p>
+            <p className="mt-6 text-sm text-muted">{t("manage.notActive")}</p>
           )}
 
           {mode === "cancelled" && (
-            <p className="mt-6 text-sm text-accent">Your meeting has been cancelled.</p>
+            <p className="mt-6 text-sm text-accent">{t("manage.cancelled")}</p>
           )}
           {mode === "rescheduled" && (
             <p className="mt-6 text-sm text-accent">
-              Rescheduled to {longWhen(booking.start_at, tz)}. A new confirmation is on its way.
+              {t("manage.rescheduledTo", { when: longWhen(booking.start_at, tz) })}
             </p>
           )}
 
           {booking.status === "confirmed" && mode === "view" && (
             <div className="mt-8 flex gap-3">
               <button type="button" onClick={startReschedule} className={accentBtn}>
-                Reschedule
+                {t("manage.reschedule")}
               </button>
               <button type="button" onClick={cancel} disabled={busy} className={dangerBtn}>
-                Cancel meeting
+                {t("manage.cancelMeeting")}
               </button>
             </div>
           )}
 
           {mode === "rescheduling" && (
             <div className="mt-8">
-              <p className="mb-3 text-sm font-medium text-foreground">Pick a new time</p>
+              <p className="mb-3 text-sm font-medium text-foreground">{t("manage.pickNew")}</p>
               {days.length === 0 ? (
-                <p className="text-sm text-muted">No times available in the next two weeks.</p>
+                <p className="text-sm text-muted">{t("booking.noTimes")}</p>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-[1fr_minmax(0,9rem)]">
                   <div className="flex flex-wrap gap-2 self-start">
@@ -235,14 +237,14 @@ export default function ManagePage() {
                   disabled={!newStart || busy}
                   className={accentBtn}
                 >
-                  {busy ? "Confirming…" : "Confirm new time"}
+                  {busy ? t("booking.confirming") : t("manage.confirmNew")}
                 </button>
                 <button
                   type="button"
                   onClick={() => setMode("view")}
                   className="text-sm text-muted hover:text-foreground"
                 >
-                  Back
+                  {t("manage.back")}
                 </button>
               </div>
             </div>

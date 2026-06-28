@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { getPublicPoll, votePoll, type PublicPoll } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 
 function fmt(iso: string, tz: string): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -16,6 +17,7 @@ function fmt(iso: string, tz: string): string {
 }
 
 export default function PublicPollPage() {
+  const t = useT();
   const params = useParams<{ slug: string }>();
   const slug = params.slug;
   const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
@@ -51,7 +53,7 @@ export default function PublicPollPage() {
     e.preventDefault();
     setError(null);
     if (picked.size === 0) {
-      setError("Pick at least one time.");
+      setError(t("poll.pickOne"));
       return;
     }
     try {
@@ -62,32 +64,33 @@ export default function PublicPollPage() {
       });
       setDone(true);
     } catch {
-      setError("Could not record your vote.");
+      setError(t("poll.errVote"));
     }
   }
 
-  if (loading)
-    return <Center>Loading…</Center>;
-  if (!poll) return <Center>This poll doesn&apos;t exist.</Center>;
+  if (loading) return <Center>{t("common.loading")}</Center>;
+  if (!poll) return <Center>{t("poll.notExist")}</Center>;
 
   const finalized = poll.options.find((o) => o.id === poll.finalized_option_id);
 
   return (
     <main className="flex flex-1 items-center justify-center p-4 sm:p-8">
       <div className="glass w-full max-w-lg rounded-2xl p-8 shadow-2xl">
-        <p className="text-sm text-muted">{poll.owner_name} is asking</p>
+        <p className="text-sm text-muted">{t("poll.asking", { owner: poll.owner_name })}</p>
         <h1 className="mt-1 text-2xl font-semibold text-foreground">{poll.title}</h1>
-        <p className="mt-1 text-sm text-muted">{poll.duration_min} min · times in {tz}</p>
+        <p className="mt-1 text-sm text-muted">
+          {t("poll.minTimes", { n: poll.duration_min, tz })}
+        </p>
 
         {finalized ? (
           <div className="mt-6 rounded-xl border border-accent p-4">
-            <p className="text-sm text-muted">Confirmed time</p>
+            <p className="text-sm text-muted">{t("poll.confirmedTime")}</p>
             <p className="text-lg font-medium text-foreground">{fmt(finalized.start_at, tz)}</p>
           </div>
         ) : done ? (
-          <p className="mt-6 text-sm text-accent">Thanks — your vote is in. ✓</p>
+          <p className="mt-6 text-sm text-accent">{t("poll.thanks")}</p>
         ) : poll.status !== "open" ? (
-          <p className="mt-6 text-sm text-muted">This poll is closed.</p>
+          <p className="mt-6 text-sm text-muted">{t("poll.closed")}</p>
         ) : (
           <form onSubmit={submit} className="mt-6 flex flex-col gap-3">
             {poll.options.map((o) => (
@@ -102,7 +105,7 @@ export default function PublicPollPage() {
             ))}
             <input
               required
-              placeholder="Your name"
+              placeholder={t("booking.yourName")}
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
@@ -110,7 +113,7 @@ export default function PublicPollPage() {
             <input
               required
               type="email"
-              placeholder="Your email"
+              placeholder={t("booking.yourEmail")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
@@ -120,7 +123,7 @@ export default function PublicPollPage() {
               type="submit"
               className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.45)] transition hover:brightness-110"
             >
-              Submit vote
+              {t("poll.submit")}
             </button>
           </form>
         )}

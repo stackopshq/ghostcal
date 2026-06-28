@@ -10,6 +10,7 @@ import {
   type EventType,
   type Slot,
 } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 
 const LOCATION_LABELS: Record<string, string> = {
   google_meet: "Google Meet",
@@ -77,6 +78,7 @@ export default function BookingClient({
   event: string;
   eventType: EventType;
 }) {
+  const t = useT();
   const detectedTz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
   const timezones = useMemo(() => listTimezones(detectedTz), [detectedTz]);
   const [tz, setTz] = useState(detectedTz);
@@ -144,9 +146,7 @@ export default function BookingClient({
       setConfirmation(booking);
     } catch (e) {
       setBookingError(
-        e instanceof ApiError && e.status === 409
-          ? "That slot was just taken. Pick another time."
-          : "Could not confirm the booking. Please try again.",
+        e instanceof ApiError && e.status === 409 ? t("booking.errTaken") : t("booking.errGeneric"),
       );
     } finally {
       setSubmitting(false);
@@ -168,7 +168,7 @@ export default function BookingClient({
           <li>{location}</li>
         </ul>
         <label className="flex flex-col gap-1 text-xs text-muted/70">
-          Time zone
+          {t("booking.timezone")}
           <select
             value={tz}
             onChange={(e) => {
@@ -194,13 +194,13 @@ export default function BookingClient({
         ) : (
           <>
             <h2 className="mb-6 text-sm font-medium tracking-wide text-foreground">
-              Select a time
+              {t("booking.selectTime")}
             </h2>
 
-            {loading && <p className="text-sm text-muted">Loading availability…</p>}
+            {loading && <p className="text-sm text-muted">{t("booking.loading")}</p>}
             {loadError && <p className="text-sm text-red-400">{loadError}</p>}
             {!loading && !loadError && days.length === 0 && (
-              <p className="text-sm text-muted">No times available in the next two weeks.</p>
+              <p className="text-sm text-muted">{t("booking.noTimes")}</p>
             )}
 
             {days.length > 0 && (
@@ -268,7 +268,7 @@ export default function BookingClient({
                 </p>
                 <input
                   required
-                  placeholder="Your name"
+                  placeholder={t("booking.yourName")}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
@@ -276,13 +276,13 @@ export default function BookingClient({
                 <input
                   required
                   type="email"
-                  placeholder="Your email"
+                  placeholder={t("booking.yourEmail")}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
                 />
                 <input
-                  placeholder="Add guests (emails, comma-separated)"
+                  placeholder={t("booking.guests")}
                   value={guests}
                   onChange={(e) => setGuests(e.target.value)}
                   className="rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
@@ -301,7 +301,7 @@ export default function BookingClient({
                   disabled={submitting || missingRequired()}
                   className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.45)] transition hover:brightness-110 disabled:opacity-60"
                 >
-                  {submitting ? "Confirming…" : "Confirm booking"}
+                  {submitting ? t("booking.confirming") : t("booking.confirm")}
                 </button>
               </form>
             )}
@@ -321,6 +321,7 @@ function QuestionField({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const t = useT();
   const inputClass =
     "rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent";
   const label = (
@@ -361,7 +362,7 @@ function QuestionField({
           onChange={(e) => onChange(e.target.value)}
           className={inputClass}
         >
-          <option value="">Choose…</option>
+          <option value="">{t("booking.choose")}</option>
           {question.options.map((opt) => (
             <option key={opt} value={opt}>
               {opt}
@@ -382,16 +383,18 @@ function QuestionField({
 }
 
 function Confirmed({ slot, tz, host }: { slot: Booking; tz: string; host: string }) {
+  const t = useT();
   return (
     <div className="flex flex-col items-start gap-3 py-6">
       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/15 text-2xl text-accent ring-1 ring-border-strong">
         ✓
       </div>
-      <h2 className="text-xl font-semibold text-foreground">You&apos;re booked</h2>
+      <h2 className="text-xl font-semibold text-foreground">{t("booking.booked")}</h2>
       <p className="text-sm text-muted">
-        {dayLabel(slot.start_at, tz)} at {timeLabel(slot.start_at, tz)} with {host}.
+        {dayLabel(slot.start_at, tz)} · {timeLabel(slot.start_at, tz)} —{" "}
+        {t("booking.with", { host })}
       </p>
-      <p className="text-xs text-muted/70">A confirmation will follow by email.</p>
+      <p className="text-xs text-muted/70">{t("booking.emailFollow")}</p>
     </div>
   );
 }
