@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useT } from "@/lib/i18n";
 import {
   createWebhook,
   deleteWebhook,
@@ -10,6 +11,7 @@ import {
 } from "@/lib/webhooks";
 
 export default function WebhookSettings() {
+  const t = useT();
   const [hooks, setHooks] = useState<Webhook[]>([]);
   const [events, setEvents] = useState<string[]>([]);
   const [url, setUrl] = useState("");
@@ -26,10 +28,11 @@ export default function WebhookSettings() {
         setHooks(h);
         setEvents(e);
       })
-      .catch(() => active && setError("Could not load webhooks."));
+      .catch(() => active && setError(t("webhooks.errLoad")));
     return () => {
       active = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh]);
 
   function toggle(ev: string) {
@@ -46,7 +49,7 @@ export default function WebhookSettings() {
     setError(null);
     setSecret(null);
     if (picked.size === 0) {
-      setError("Pick at least one event.");
+      setError(t("webhooks.pickEvent"));
       return;
     }
     try {
@@ -56,7 +59,7 @@ export default function WebhookSettings() {
       setPicked(new Set());
       setRefresh((r) => r + 1);
     } catch {
-      setError("Could not create the webhook (check the URL).");
+      setError(t("webhooks.errCreate"));
     }
   }
 
@@ -68,10 +71,8 @@ export default function WebhookSettings() {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h2 className="text-lg font-semibold text-foreground">Webhooks</h2>
-        <p className="mt-1 text-sm text-muted">
-          POST signed event payloads to your endpoints (X-GhostCal-Signature: HMAC-SHA256).
-        </p>
+        <h2 className="text-lg font-semibold text-foreground">{t("webhooks.title")}</h2>
+        <p className="mt-1 text-sm text-muted">{t("webhooks.sub")}</p>
       </div>
 
       {hooks.map((h) => (
@@ -88,14 +89,14 @@ export default function WebhookSettings() {
             onClick={() => remove(h.id)}
             className="text-muted transition hover:text-red-400"
           >
-            Delete
+            {t("common.delete")}
           </button>
         </div>
       ))}
 
       {secret && (
         <p className="rounded-lg border border-accent/40 bg-surface-2/50 px-4 py-3 text-sm text-foreground">
-          Signing secret (shown once): <span className="text-accent">{secret}</span>
+          {t("webhooks.secretOnce")} <span className="text-accent">{secret}</span>
         </p>
       )}
 
@@ -131,7 +132,7 @@ export default function WebhookSettings() {
           type="submit"
           className="self-start rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.45)] transition hover:brightness-110"
         >
-          Add webhook
+          {t("webhooks.add")}
         </button>
       </form>
     </div>

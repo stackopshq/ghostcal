@@ -7,9 +7,11 @@ import CalendarSettings from "@/components/CalendarSettings";
 import WebhookSettings from "@/components/WebhookSettings";
 import { ApiError } from "@/lib/api";
 import { isAuthenticated } from "@/lib/auth";
+import { useT } from "@/lib/i18n";
 import { getOrganization, updateOrganization } from "@/lib/organization";
 
 export default function SettingsPage() {
+  const t = useT();
   const router = useRouter();
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
@@ -45,11 +47,11 @@ export default function SettingsPage() {
     } catch (err) {
       setStatus("error");
       if (err instanceof ApiError && err.status === 409) {
-        setError("That handle is already taken — try another.");
+        setError(t("settings.errTaken"));
       } else if (err instanceof ApiError && err.status === 422) {
-        setError("Handle must be lowercase letters, digits and single hyphens (3–100 chars).");
+        setError(t("settings.errInvalid"));
       } else {
-        setError("Could not save. Please try again.");
+        setError(t("settings.errGeneric"));
       }
     } finally {
       setSaving(false);
@@ -59,7 +61,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <main className="flex flex-1 items-center justify-center p-8">
-        <p className="text-sm text-muted">Loading…</p>
+        <p className="text-sm text-muted">{t("common.loading")}</p>
       </main>
     );
   }
@@ -69,13 +71,13 @@ export default function SettingsPage() {
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6 sm:p-10">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">Settings</h1>
-        <p className="mt-1 text-sm text-muted">Your organization name and public booking handle.</p>
+        <h1 className="text-2xl font-semibold text-foreground">{t("settings.title")}</h1>
+        <p className="mt-1 text-sm text-muted">{t("settings.sub")}</p>
       </div>
 
       <form onSubmit={save} className="glass flex flex-col gap-5 rounded-2xl p-6 sm:p-8">
         <label className="flex flex-col gap-1 text-sm text-muted">
-          Organization name
+          {t("settings.orgName")}
           <input
             value={name}
             onChange={(e) => {
@@ -87,7 +89,7 @@ export default function SettingsPage() {
         </label>
 
         <label className="flex flex-col gap-1 text-sm text-muted">
-          Handle
+          {t("settings.handle")}
           <input
             value={slug}
             onChange={(e) => {
@@ -100,7 +102,7 @@ export default function SettingsPage() {
         </label>
 
         <p className="rounded-lg border border-border bg-surface-2/50 px-4 py-3 text-sm text-muted">
-          Your booking page:{" "}
+          {t("settings.yourBookingPage")}{" "}
           <span className="text-accent">
             {origin}/{slug || "your-handle"}
           </span>
@@ -109,9 +111,9 @@ export default function SettingsPage() {
         {error && <p className="text-sm text-red-400">{error}</p>}
         <div className="flex items-center gap-4">
           <button type="submit" disabled={saving} className={primaryButtonClass}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? t("common.saving") : t("common.save")}
           </button>
-          {status === "saved" && <span className="text-sm text-accent">Saved ✓</span>}
+          {status === "saved" && <span className="text-sm text-accent">{t("common.saved")}</span>}
         </div>
       </form>
 

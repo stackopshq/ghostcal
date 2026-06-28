@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { inputClass, primaryButtonClass } from "@/components/AuthCard";
 import { ApiError } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 import { changePassword, getProfile, updateProfile } from "@/lib/profile";
 
 function timezones(fallback: string): string[] {
@@ -15,6 +16,7 @@ function timezones(fallback: string): string[] {
 }
 
 export default function ProfileSettings() {
+  const t = useT();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [tz, setTz] = useState("UTC");
@@ -38,10 +40,11 @@ export default function ProfileSettings() {
         setTz(p.timezone);
         setAvatar(p.avatar_url ?? "");
       })
-      .catch(() => active && setProfileError("Could not load your profile."));
+      .catch(() => active && setProfileError(t("profile.errLoad")));
     return () => {
       active = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function saveProfile(e: React.FormEvent) {
@@ -52,7 +55,7 @@ export default function ProfileSettings() {
       await updateProfile({ name, timezone: tz, avatar_url: avatar.trim() || null });
       setSavedProfile(true);
     } catch {
-      setProfileError("Could not save your profile (check the avatar URL).");
+      setProfileError(t("profile.errSave"));
     }
   }
 
@@ -68,15 +71,15 @@ export default function ProfileSettings() {
     } catch (err) {
       setPasswordError(
         err instanceof ApiError && err.status === 403
-          ? "Current password is incorrect."
-          : "Could not change your password (min 8 characters).",
+          ? t("profile.errCurrentWrong")
+          : t("profile.errPassword"),
       );
     }
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <h2 className="text-lg font-semibold text-foreground">Your profile</h2>
+      <h2 className="text-lg font-semibold text-foreground">{t("profile.yourProfile")}</h2>
 
       <form onSubmit={saveProfile} className="flex flex-col gap-4">
         <div className="flex items-center gap-4">
@@ -87,7 +90,7 @@ export default function ProfileSettings() {
             className="h-14 w-14 rounded-full border border-border-strong object-cover"
           />
           <label className="flex flex-1 flex-col gap-1 text-sm text-muted">
-            Avatar URL
+            {t("profile.avatarUrl")}
             <input
               type="url"
               placeholder="https://…/avatar.png"
@@ -98,15 +101,15 @@ export default function ProfileSettings() {
           </label>
         </div>
         <label className="flex flex-col gap-1 text-sm text-muted">
-          Email
+          {t("common.email")}
           <input value={email} disabled className={`${inputClass} opacity-60`} />
         </label>
         <label className="flex flex-col gap-1 text-sm text-muted">
-          Name
+          {t("profile.name")}
           <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
         </label>
         <label className="flex flex-col gap-1 text-sm text-muted">
-          Time zone
+          {t("profile.timezone")}
           <select value={tz} onChange={(e) => setTz(e.target.value)} className={inputClass}>
             {zones.map((z) => (
               <option key={z} value={z}>
@@ -118,18 +121,18 @@ export default function ProfileSettings() {
         {profileError && <p className="text-sm text-red-400">{profileError}</p>}
         <div className="flex items-center gap-4">
           <button type="submit" className={primaryButtonClass}>
-            Save profile
+            {t("profile.save")}
           </button>
-          {savedProfile && <span className="text-sm text-accent">Saved ✓</span>}
+          {savedProfile && <span className="text-sm text-accent">{t("common.saved")}</span>}
         </div>
       </form>
 
       <form onSubmit={savePassword} className="flex flex-col gap-4 border-t border-border pt-6">
-        <h3 className="text-sm font-medium text-foreground">Change password</h3>
+        <h3 className="text-sm font-medium text-foreground">{t("profile.changePassword")}</h3>
         <input
           type="password"
           required
-          placeholder="Current password"
+          placeholder={t("profile.currentPassword")}
           value={current}
           onChange={(e) => setCurrent(e.target.value)}
           className={inputClass}
@@ -138,7 +141,7 @@ export default function ProfileSettings() {
           type="password"
           required
           minLength={8}
-          placeholder="New password (min 8 characters)"
+          placeholder={t("profile.newPassword")}
           value={next}
           onChange={(e) => setNext(e.target.value)}
           className={inputClass}
@@ -146,9 +149,9 @@ export default function ProfileSettings() {
         {passwordError && <p className="text-sm text-red-400">{passwordError}</p>}
         <div className="flex items-center gap-4">
           <button type="submit" className={primaryButtonClass}>
-            Update password
+            {t("profile.updatePassword")}
           </button>
-          {savedPassword && <span className="text-sm text-accent">Updated ✓</span>}
+          {savedPassword && <span className="text-sm text-accent">{t("profile.updated")}</span>}
         </div>
       </form>
     </div>
