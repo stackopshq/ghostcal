@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { type Analytics, getAnalytics } from "@/lib/analytics";
+import { useT } from "@/lib/i18n";
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
@@ -13,6 +14,7 @@ function Stat({ label, value }: { label: string; value: number }) {
 }
 
 export default function AnalyticsPage() {
+  const t = useT();
   const [data, setData] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -27,8 +29,8 @@ export default function AnalyticsPage() {
     };
   }, []);
 
-  if (loading) return <Center>Loading…</Center>;
-  if (!data) return <Center>Could not load analytics.</Center>;
+  if (loading) return <Center>{t("common.loading")}</Center>;
+  if (!data) return <Center>{t("analytics.errLoad")}</Center>;
 
   const maxDay = Math.max(1, ...data.daily.map((d) => d.count));
   const maxEvent = Math.max(1, ...data.by_event_type.map((e) => e.count));
@@ -36,21 +38,21 @@ export default function AnalyticsPage() {
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-8 p-6 sm:p-10">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">Analytics</h1>
-        <p className="mt-1 text-sm text-muted">Booking activity across your organization.</p>
+        <h1 className="text-2xl font-semibold text-foreground">{t("analytics.title")}</h1>
+        <p className="mt-1 text-sm text-muted">{t("analytics.sub")}</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-4">
-        <Stat label="Total bookings" value={data.total_bookings} />
-        <Stat label="Upcoming" value={data.upcoming_bookings} />
-        <Stat label="Booked (30d)" value={data.bookings_last_30_days} />
-        <Stat label="Cancelled (30d)" value={data.cancellations_last_30_days} />
+        <Stat label={t("analytics.total")} value={data.total_bookings} />
+        <Stat label={t("analytics.upcoming")} value={data.upcoming_bookings} />
+        <Stat label={t("analytics.booked30")} value={data.bookings_last_30_days} />
+        <Stat label={t("analytics.cancelled30")} value={data.cancellations_last_30_days} />
       </div>
 
       <section className="glass flex flex-col gap-3 rounded-2xl p-6">
-        <h2 className="text-sm font-medium text-foreground">Activity (2 weeks)</h2>
+        <h2 className="text-sm font-medium text-foreground">{t("analytics.activity")}</h2>
         {data.daily.length === 0 ? (
-          <p className="text-sm text-muted">No bookings in this window.</p>
+          <p className="text-sm text-muted">{t("analytics.noActivity")}</p>
         ) : (
           <div className="flex h-32 items-end gap-1.5">
             {data.daily.map((d) => (
@@ -67,9 +69,9 @@ export default function AnalyticsPage() {
       </section>
 
       <section className="glass flex flex-col gap-3 rounded-2xl p-6">
-        <h2 className="text-sm font-medium text-foreground">Top event types</h2>
+        <h2 className="text-sm font-medium text-foreground">{t("analytics.topEvents")}</h2>
         {data.by_event_type.length === 0 ? (
-          <p className="text-sm text-muted">No bookings yet.</p>
+          <p className="text-sm text-muted">{t("analytics.noBookings")}</p>
         ) : (
           data.by_event_type.map((e) => (
             <div key={e.title} className="flex items-center gap-3 text-sm">

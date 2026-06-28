@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { getActiveOrg, setActiveOrg } from "@/lib/auth";
+import { useT } from "@/lib/i18n";
 import { getMyOrganizations, type OrgMembership } from "@/lib/organization";
 
 export default function OrgSwitcher() {
+  const t = useT();
   const [orgs, setOrgs] = useState<OrgMembership[]>([]);
   const [active, setActive] = useState("");
 
@@ -26,7 +28,9 @@ export default function OrgSwitcher() {
 
   return (
     <label className="mb-4 flex flex-col gap-1 px-1">
-      <span className="text-[10px] uppercase tracking-wide text-muted/70">Organization</span>
+      <span className="text-[10px] uppercase tracking-wide text-muted/70">
+        {t("dash.organization")}
+      </span>
       <select
         value={active}
         onChange={(e) => {

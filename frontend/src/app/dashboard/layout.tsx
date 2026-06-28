@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { DashboardUserContext } from "@/components/dashboard-context";
 import OrgSwitcher from "@/components/OrgSwitcher";
 import { getMe, isAuthenticated, logout, type User } from "@/lib/auth";
+import { useT } from "@/lib/i18n";
 
 const ICONS: Record<string, string> = {
   events: "M9 17l6-6-6-6M5 21V3",
@@ -37,17 +38,18 @@ function Glyph({ d, className = "h-4 w-4" }: { d: string; className?: string }) 
 }
 
 const NAV = [
-  { href: "/dashboard/event-types", label: "Event types", icon: ICONS.events },
-  { href: "/dashboard/meetings", label: "Meetings", icon: ICONS.meetings },
-  { href: "/dashboard/analytics", label: "Analytics", icon: ICONS.analytics },
-  { href: "/dashboard/polls", label: "Polls", icon: ICONS.polls },
-  { href: "/dashboard/availability", label: "Availability", icon: ICONS.availability },
-  { href: "/dashboard/team", label: "Team", icon: ICONS.team },
-  { href: "/dashboard/profile", label: "Profile", icon: ICONS.profile },
-  { href: "/dashboard/settings", label: "Settings", icon: ICONS.settings },
+  { href: "/dashboard/event-types", labelKey: "nav.events", icon: ICONS.events },
+  { href: "/dashboard/meetings", labelKey: "nav.meetings", icon: ICONS.meetings },
+  { href: "/dashboard/analytics", labelKey: "nav.analytics", icon: ICONS.analytics },
+  { href: "/dashboard/polls", labelKey: "nav.polls", icon: ICONS.polls },
+  { href: "/dashboard/availability", labelKey: "nav.availability", icon: ICONS.availability },
+  { href: "/dashboard/team", labelKey: "nav.team", icon: ICONS.team },
+  { href: "/dashboard/profile", labelKey: "nav.profile", icon: ICONS.profile },
+  { href: "/dashboard/settings", labelKey: "nav.settings", icon: ICONS.settings },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const t = useT();
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
@@ -72,7 +74,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!ready || !user) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
-        <p className="text-sm text-muted">Loading…</p>
+        <p className="text-sm text-muted">{t("common.loading")}</p>
       </div>
     );
   }
@@ -99,7 +101,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           href="/dashboard/event-types"
           className="mb-6 flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.35)] transition hover:brightness-110"
         >
-          <Glyph d={ICONS.plus} /> Create
+          <Glyph d={ICONS.plus} /> {t("dash.create")}
         </Link>
 
         <nav className="flex flex-col gap-1">
@@ -116,7 +118,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     : "text-muted hover:bg-surface hover:text-foreground",
                 ].join(" ")}
               >
-                <Glyph d={item.icon} /> {item.label}
+                <Glyph d={item.icon} /> {t(item.labelKey)}
               </Link>
             );
           })}
@@ -137,7 +139,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             onClick={onLogout}
             className="mt-3 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted transition hover:bg-surface hover:text-foreground"
           >
-            <Glyph d={ICONS.logout} /> Sign out
+            <Glyph d={ICONS.logout} /> {t("dash.signOut")}
           </button>
         </div>
       </aside>

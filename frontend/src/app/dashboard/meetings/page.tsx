@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useT } from "@/lib/i18n";
 import { cancelMeeting, listMeetings, type Meeting, type MeetingScope } from "@/lib/meetings";
 
 function fmtDay(iso: string, tz: string): string {
@@ -21,12 +22,13 @@ function fmtTime(iso: string, tz: string): string {
   }).format(new Date(iso));
 }
 
-const TABS: { key: MeetingScope; label: string }[] = [
-  { key: "upcoming", label: "Upcoming" },
-  { key: "past", label: "Past" },
+const TABS: { key: MeetingScope; labelKey: string }[] = [
+  { key: "upcoming", labelKey: "meetings.upcoming" },
+  { key: "past", labelKey: "meetings.past" },
 ];
 
 export default function MeetingsPage() {
+  const t = useT();
   const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
   const [scope, setScope] = useState<MeetingScope>("upcoming");
   const [meetings, setMeetings] = useState<Meeting[]>([]);
@@ -51,7 +53,7 @@ export default function MeetingsPage() {
   }
 
   async function cancel(id: string) {
-    if (!confirm("Cancel this meeting? The invitee's slot will be freed.")) return;
+    if (!confirm(t("meetings.confirmCancel"))) return;
     await cancelMeeting(id);
     setRefresh((r) => r + 1);
   }
@@ -59,10 +61,8 @@ export default function MeetingsPage() {
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6 sm:p-10">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">Meetings</h1>
-        <p className="mt-1 text-sm text-muted">
-          Your booked meetings. Times shown in {tz}.
-        </p>
+        <h1 className="text-2xl font-semibold text-foreground">{t("meetings.title")}</h1>
+        <p className="mt-1 text-sm text-muted">{t("meetings.sub", { tz })}</p>
       </div>
 
       <div className="flex gap-1 border-b border-border">
@@ -78,15 +78,15 @@ export default function MeetingsPage() {
                 : "border-transparent text-muted hover:text-foreground",
             ].join(" ")}
           >
-            {tab.label}
+            {t(tab.labelKey)}
           </button>
         ))}
       </div>
 
-      {loading && <p className="text-sm text-muted">Loading…</p>}
+      {loading && <p className="text-sm text-muted">{t("common.loading")}</p>}
       {!loading && meetings.length === 0 && (
         <p className="text-sm text-muted">
-          No {scope} meetings{scope === "upcoming" ? " — share an event type link to get booked." : "."}
+          {scope === "upcoming" ? t("meetings.noneUpcoming") : t("meetings.nonePast")}
         </p>
       )}
 
@@ -115,7 +115,7 @@ export default function MeetingsPage() {
                   onClick={() => cancel(m.id)}
                   className="rounded-lg border border-border-strong px-3 py-2 text-sm text-muted transition hover:border-red-400 hover:text-red-400"
                 >
-                  Cancel
+                  {t("meetings.cancel")}
                 </button>
               )}
             </div>

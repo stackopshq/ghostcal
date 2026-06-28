@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useT } from "@/lib/i18n";
 import {
   changeRole,
   inviteMember,
@@ -15,6 +16,7 @@ import {
 const ROLES = ["member", "admin", "owner"];
 
 export default function TeamPage() {
+  const t = useT();
   const [members, setMembers] = useState<Member[]>([]);
   const [invites, setInvites] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,11 +33,12 @@ export default function TeamPage() {
         setMembers(m);
         setInvites(i);
       })
-      .catch(() => active && setError("Could not load the team."))
+      .catch(() => active && setError(t("team.errLoad")))
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh]);
 
   function reload() {
@@ -50,7 +53,7 @@ export default function TeamPage() {
       setInviteEmail("");
       reload();
     } catch {
-      setError("Could not send the invitation (already a member or invited?).");
+      setError(t("team.errInvite"));
     }
   }
 
@@ -59,17 +62,17 @@ export default function TeamPage() {
     try {
       setMembers(await changeRole(userId, role));
     } catch {
-      setError("You can't change that member's role.");
+      setError(t("team.errRole"));
     }
   }
 
   async function onRemove(userId: string) {
-    if (!confirm("Remove this member from the organization?")) return;
+    if (!confirm(t("team.confirmRemove"))) return;
     try {
       await removeMember(userId);
       reload();
     } catch {
-      setError("You can't remove that member.");
+      setError(t("team.errRemove"));
     }
   }
 
@@ -81,17 +84,17 @@ export default function TeamPage() {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 p-6 sm:p-10">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">Team</h1>
-        <p className="mt-1 text-sm text-muted">Manage members and invitations.</p>
+        <h1 className="text-2xl font-semibold text-foreground">{t("team.title")}</h1>
+        <p className="mt-1 text-sm text-muted">{t("team.sub")}</p>
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
-      {loading && <p className="text-sm text-muted">Loading…</p>}
+      {loading && <p className="text-sm text-muted">{t("common.loading")}</p>}
 
       {!loading && (
         <>
           <section className="flex flex-col gap-3">
-            <h2 className="text-sm font-medium text-foreground">Members</h2>
+            <h2 className="text-sm font-medium text-foreground">{t("team.members")}</h2>
             {members.map((m) => (
               <div
                 key={m.user_id}
@@ -118,7 +121,7 @@ export default function TeamPage() {
                     onClick={() => onRemove(m.user_id)}
                     className="rounded-lg border border-border-strong px-3 py-1.5 text-sm text-muted transition hover:border-red-400 hover:text-red-400"
                   >
-                    Remove
+                    {t("team.remove")}
                   </button>
                 </div>
               </div>
@@ -126,7 +129,7 @@ export default function TeamPage() {
           </section>
 
           <section className="flex flex-col gap-3">
-            <h2 className="text-sm font-medium text-foreground">Invite a teammate</h2>
+            <h2 className="text-sm font-medium text-foreground">{t("team.invite")}</h2>
             <form onSubmit={invite} className="flex flex-col gap-3 sm:flex-row">
               <input
                 required
@@ -151,7 +154,7 @@ export default function TeamPage() {
                 type="submit"
                 className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.45)] transition hover:brightness-110"
               >
-                Invite
+                {t("team.inviteBtn")}
               </button>
             </form>
 
@@ -163,14 +166,17 @@ export default function TeamPage() {
                     className="flex items-center justify-between rounded-lg border border-border px-4 py-2.5 text-sm"
                   >
                     <span className="text-foreground">
-                      {i.email} <span className="text-muted">· {i.role} · pending</span>
+                      {i.email}{" "}
+                      <span className="text-muted">
+                        · {i.role} · {t("team.pending")}
+                      </span>
                     </span>
                     <button
                       type="button"
                       onClick={() => onRevoke(i.id)}
                       className="text-muted transition hover:text-red-400"
                     >
-                      Revoke
+                      {t("team.revoke")}
                     </button>
                   </div>
                 ))}
