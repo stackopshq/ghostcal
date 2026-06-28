@@ -6,6 +6,7 @@ import { inputClass, primaryButtonClass } from "@/components/AuthCard";
 import { useDashboardUser } from "@/components/dashboard-context";
 import { ApiError } from "@/lib/api";
 import { isAuthenticated } from "@/lib/auth";
+import { useT } from "@/lib/i18n";
 import {
   type BookingQuestion,
   createEventType,
@@ -41,11 +42,11 @@ const BLANK: FormState = {
   redirect_url: null,
 };
 
-const KINDS: { value: string; label: string }[] = [
-  { value: "solo", label: "Solo (just you)" },
-  { value: "round_robin", label: "Round-robin (assign one host)" },
-  { value: "collective", label: "Collective (all hosts attend)" },
-  { value: "group", label: "Group (many invitees per slot)" },
+const KINDS: { value: string; labelKey: string }[] = [
+  { value: "solo", labelKey: "et.kindSolo" },
+  { value: "round_robin", labelKey: "et.kindRR" },
+  { value: "collective", labelKey: "et.kindCollective" },
+  { value: "group", labelKey: "et.kindGroup" },
 ];
 
 const QUESTION_TYPES = ["text", "textarea", "phone", "select", "checkbox"] as const;
@@ -71,6 +72,7 @@ function toInput(x: EventTypeInput): EventTypeInput {
 }
 
 export default function EventTypesPage() {
+  const t = useT();
   const router = useRouter();
   const host = useDashboardUser();
   const hostInitials = host
@@ -131,9 +133,7 @@ export default function EventTypesPage() {
       await reload();
     } catch (e) {
       setError(
-        e instanceof ApiError && e.status === 422
-          ? "Check the fields — duration and interval must be positive."
-          : "Could not save. Please try again.",
+        e instanceof ApiError && e.status === 422 ? t("et.errSave") : t("et.errSaveGeneric"),
       );
     } finally {
       setSaving(false);
@@ -141,15 +141,13 @@ export default function EventTypesPage() {
   }
 
   async function remove(item: EventType) {
-    if (!confirm(`Delete "${item.title}"?`)) return;
+    if (!confirm(t("et.confirmDelete", { title: item.title }))) return;
     try {
       await deleteEventType(item.id);
       await reload();
     } catch (e) {
       alert(
-        e instanceof ApiError && e.status === 409
-          ? "This event type has bookings and can't be deleted."
-          : "Could not delete. Please try again.",
+        e instanceof ApiError && e.status === 409 ? t("et.errDeleteInUse") : t("et.errDelete"),
       );
     }
   }
@@ -163,7 +161,7 @@ export default function EventTypesPage() {
   if (loading) {
     return (
       <main className="flex flex-1 items-center justify-center p-8">
-        <p className="text-sm text-muted">Loading…</p>
+        <p className="text-sm text-muted">{t("common.loading")}</p>
       </main>
     );
   }
@@ -172,14 +170,12 @@ export default function EventTypesPage() {
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6 sm:p-10">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Event types</h1>
-          <p className="mt-1 text-sm text-muted">
-            Create bookable meeting types and share their link.
-          </p>
+          <h1 className="text-2xl font-semibold text-foreground">{t("et.title")}</h1>
+          <p className="mt-1 text-sm text-muted">{t("et.sub")}</p>
         </div>
         {!form && (
           <button type="button" onClick={() => setForm({ ...BLANK })} className={primaryButtonClass}>
-            + New event type
+            {t("et.new")}
           </button>
         )}
       </div>
@@ -196,17 +192,17 @@ export default function EventTypesPage() {
       {form && (
         <section className="glass flex flex-col gap-4 rounded-2xl p-6">
           <h2 className="text-sm font-medium text-foreground">
-            {form.id ? "Edit event type" : "New event type"}
+            {form.id ? t("et.editTitle") : t("et.newTitle")}
           </h2>
           <input
-            placeholder="Title (e.g. Intro call)"
+            placeholder={t("et.titlePh")}
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
             className={inputClass}
           />
           <div className="grid gap-4 sm:grid-cols-3">
             <label className="flex flex-col gap-1 text-sm text-muted">
-              Duration (min)
+              {t("et.duration")}
               <input
                 type="number"
                 min={1}
@@ -216,19 +212,17 @@ export default function EventTypesPage() {
               />
             </label>
             <label className="flex flex-col gap-1 text-sm text-muted">
-              Slot every (min)
+              {t("et.slotEvery")}
               <input
                 type="number"
                 min={1}
                 value={form.slot_interval_min}
-                onChange={(e) =>
-                  setForm({ ...form, slot_interval_min: Number(e.target.value) })
-                }
+                onChange={(e) => setForm({ ...form, slot_interval_min: Number(e.target.value) })}
                 className={inputClass}
               />
             </label>
             <label className="flex flex-col gap-1 text-sm text-muted">
-              Location
+              {t("et.location")}
               <select
                 value={form.location_type}
                 onChange={(e) => setForm({ ...form, location_type: e.target.value })}
@@ -244,7 +238,7 @@ export default function EventTypesPage() {
           </div>
           <div className="grid gap-4 sm:grid-cols-4">
             <label className="flex flex-col gap-1 text-sm text-muted">
-              Buffer before (min)
+              {t("et.bufferBefore")}
               <input
                 type="number"
                 min={0}
@@ -254,7 +248,7 @@ export default function EventTypesPage() {
               />
             </label>
             <label className="flex flex-col gap-1 text-sm text-muted">
-              Buffer after (min)
+              {t("et.bufferAfter")}
               <input
                 type="number"
                 min={0}
@@ -264,7 +258,7 @@ export default function EventTypesPage() {
               />
             </label>
             <label className="flex flex-col gap-1 text-sm text-muted">
-              Min notice (min)
+              {t("et.minNotice")}
               <input
                 type="number"
                 min={0}
@@ -274,7 +268,7 @@ export default function EventTypesPage() {
               />
             </label>
             <label className="flex flex-col gap-1 text-sm text-muted">
-              Bookable window (days)
+              {t("et.window")}
               <input
                 type="number"
                 min={1}
@@ -285,7 +279,7 @@ export default function EventTypesPage() {
             </label>
           </div>
           <label className="flex flex-col gap-1 text-sm text-muted sm:max-w-[12rem]">
-            Max bookings per day (blank = unlimited)
+            {t("et.maxPerDay")}
             <input
               type="number"
               min={1}
@@ -300,7 +294,7 @@ export default function EventTypesPage() {
             />
           </label>
           <label className="flex flex-col gap-1 text-sm text-muted">
-            Redirect after booking (optional URL)
+            {t("et.redirect")}
             <input
               type="url"
               placeholder="https://example.com/thank-you"
@@ -312,7 +306,7 @@ export default function EventTypesPage() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-sm text-muted">
-              Type
+              {t("et.type")}
               <select
                 value={form.kind}
                 onChange={(e) => setForm({ ...form, kind: e.target.value })}
@@ -320,14 +314,14 @@ export default function EventTypesPage() {
               >
                 {KINDS.map((k) => (
                   <option key={k.value} value={k.value}>
-                    {k.label}
+                    {t(k.labelKey)}
                   </option>
                 ))}
               </select>
             </label>
             {form.kind === "group" && (
               <label className="flex flex-col gap-1 text-sm text-muted">
-                Capacity (invitees per slot)
+                {t("et.capacity")}
                 <input
                   type="number"
                   min={2}
@@ -341,9 +335,9 @@ export default function EventTypesPage() {
 
           {(form.kind === "round_robin" || form.kind === "collective") && (
             <div className="flex flex-col gap-2">
-              <span className="text-sm text-muted">Hosts in the pool</span>
+              <span className="text-sm text-muted">{t("et.hostsPool")}</span>
               {members.length === 0 && (
-                <p className="text-xs text-muted/70">Invite teammates first (Team page).</p>
+                <p className="text-xs text-muted/70">{t("et.inviteFirst")}</p>
               )}
               <div className="flex flex-wrap gap-2">
                 {members.map((m) => {
@@ -386,12 +380,12 @@ export default function EventTypesPage() {
               checked={form.active}
               onChange={(e) => setForm({ ...form, active: e.target.checked })}
             />
-            Active (bookable)
+            {t("et.active")}
           </label>
           {error && <p className="text-sm text-red-400">{error}</p>}
           <div className="flex items-center gap-3">
             <button type="button" onClick={save} disabled={saving} className={primaryButtonClass}>
-              {saving ? "Saving…" : "Save"}
+              {saving ? t("common.saving") : t("common.save")}
             </button>
             <button
               type="button"
@@ -401,15 +395,13 @@ export default function EventTypesPage() {
               }}
               className="text-sm text-muted hover:text-foreground"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
           </div>
         </section>
       )}
 
-      {items.length === 0 && !form && (
-        <p className="text-sm text-muted">No event types yet. Create one to get a booking link.</p>
-      )}
+      {items.length === 0 && !form && <p className="text-sm text-muted">{t("et.none")}</p>}
 
       <div className="flex flex-col gap-3">
         {items.map((item) => (
@@ -421,13 +413,14 @@ export default function EventTypesPage() {
             <div>
               <p className="font-medium text-foreground">
                 {item.title}
-                {!item.active && <span className="ml-2 text-xs text-muted">(inactive)</span>}
+                {!item.active && <span className="ml-2 text-xs text-muted">{t("et.inactive")}</span>}
               </p>
               <p className="text-sm text-muted">
                 {item.duration_min} min ·{" "}
                 {LOCATION_LABELS[item.location_type] ?? item.location_type}
                 {item.kind !== "solo" && <span className="text-accent"> · {item.kind}</span>}
-                {item.questions.length > 0 && ` · ${item.questions.length} questions`}
+                {item.questions.length > 0 &&
+                  ` · ${t("et.questionsCount", { n: item.questions.length })}`}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -437,14 +430,14 @@ export default function EventTypesPage() {
                 rel="noreferrer"
                 className="rounded-lg border border-border-strong px-3 py-2 text-sm text-foreground transition hover:border-accent hover:text-accent"
               >
-                Open ↗
+                {t("et.open")}
               </a>
               <button
                 type="button"
                 onClick={() => copy(item)}
                 className="rounded-lg border border-border-strong px-3 py-2 text-sm text-foreground transition hover:border-accent hover:text-accent"
               >
-                {copied === item.id ? "Copied ✓" : "Copy link"}
+                {copied === item.id ? t("et.copied") : t("et.copyLink")}
               </button>
               <div className="relative">
                 <button
@@ -464,7 +457,7 @@ export default function EventTypesPage() {
                         onClick={() => startEdit(item)}
                         className="block w-full px-4 py-2 text-left text-sm text-foreground transition hover:bg-surface-2"
                       >
-                        Edit
+                        {t("common.edit")}
                       </button>
                       <button
                         type="button"
@@ -476,14 +469,14 @@ export default function EventTypesPage() {
                         }}
                         className="block w-full px-4 py-2 text-left text-sm text-foreground transition hover:bg-surface-2"
                       >
-                        Copy embed code
+                        {t("et.copyEmbed")}
                       </button>
                       <button
                         type="button"
                         onClick={() => toggleActive(item)}
                         className="block w-full px-4 py-2 text-left text-sm text-foreground transition hover:bg-surface-2"
                       >
-                        {item.active ? "Deactivate" : "Activate"}
+                        {item.active ? t("et.deactivate") : t("et.activate")}
                       </button>
                       <button
                         type="button"
@@ -493,7 +486,7 @@ export default function EventTypesPage() {
                         }}
                         className="block w-full px-4 py-2 text-left text-sm text-red-400 transition hover:bg-surface-2"
                       >
-                        Delete
+                        {t("common.delete")}
                       </button>
                     </div>
                   </>
@@ -514,6 +507,7 @@ function QuestionsBuilder({
   questions: BookingQuestion[];
   onChange: (questions: BookingQuestion[]) => void;
 }) {
+  const t = useT();
   const cls =
     "rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent";
 
@@ -528,12 +522,12 @@ function QuestionsBuilder({
 
   return (
     <div className="flex flex-col gap-3 border-t border-border pt-4">
-      <span className="text-sm text-muted">Custom questions for invitees</span>
+      <span className="text-sm text-muted">{t("et.questions")}</span>
       {questions.map((q, i) => (
         <div key={q.id} className="flex flex-col gap-2 rounded-lg border border-border p-3">
           <div className="flex flex-wrap gap-2">
             <input
-              placeholder="Question label"
+              placeholder={t("et.questionLabel")}
               value={q.label}
               onChange={(e) => update(i, { label: e.target.value })}
               className={`${cls} flex-1`}
@@ -555,7 +549,7 @@ function QuestionsBuilder({
                 checked={q.required}
                 onChange={(e) => update(i, { required: e.target.checked })}
               />
-              required
+              {t("et.required")}
             </label>
             <button
               type="button"
@@ -567,7 +561,7 @@ function QuestionsBuilder({
           </div>
           {q.type === "select" && (
             <input
-              placeholder="Options, comma-separated"
+              placeholder={t("et.optionsPh")}
               value={q.options.join(", ")}
               onChange={(e) =>
                 update(i, {
@@ -587,7 +581,7 @@ function QuestionsBuilder({
         onClick={add}
         className="self-start text-sm text-accent hover:brightness-110"
       >
-        + Add a question
+        {t("et.addQuestion")}
       </button>
     </div>
   );
