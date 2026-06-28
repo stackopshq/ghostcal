@@ -65,6 +65,13 @@ class PasswordChangeIn(BaseModel):
 RoleName = Literal["owner", "admin", "member"]
 
 
+class OrgMembershipOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    slug: str
+    role: str
+
+
 class MemberOut(BaseModel):
     user_id: uuid.UUID
     name: str

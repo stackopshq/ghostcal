@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { DashboardUserContext } from "@/components/dashboard-context";
+import OrgSwitcher from "@/components/OrgSwitcher";
 import { getMe, isAuthenticated, logout, type User } from "@/lib/auth";
 
 const ICONS: Record<string, string> = {
@@ -91,6 +92,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <span className="text-lg text-accent">●</span>
           <span className="text-lg font-semibold tracking-tight text-foreground">GhostCal</span>
         </Link>
+
+        <OrgSwitcher />
 
         <Link
           href="/dashboard/event-types"

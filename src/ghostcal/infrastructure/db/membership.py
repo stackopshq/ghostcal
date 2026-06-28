@@ -30,6 +30,31 @@ async def primary_membership(
     return (row.organization_id, row.role)
 
 
+async def user_organizations(
+    session: AsyncSession, user_id: uuid.UUID
+) -> list[tuple[uuid.UUID, str, str, str]]:
+    """All orgs the user belongs to as (id, name, slug, role), oldest membership first."""
+    rows = (
+        await session.execute(
+            text("SELECT organization_id, name, slug, role FROM user_organizations(:uid)"),
+            {"uid": str(user_id)},
+        )
+    ).all()
+    return [(r.organization_id, r.name, r.slug, r.role) for r in rows]
+
+
+async def role_in_org(
+    session: AsyncSession, user_id: uuid.UUID, organization_id: uuid.UUID
+) -> str | None:
+    """The user's role in a specific org, or None if not a member."""
+    return (  # type: ignore[no-any-return]
+        await session.execute(
+            text("SELECT user_role_in_org(:uid, :oid) AS role"),
+            {"uid": str(user_id), "oid": str(organization_id)},
+        )
+    ).scalar_one()
+
+
 async def organization_id_by_slug(session: AsyncSession, slug: str) -> uuid.UUID | None:
     result = await session.execute(
         text("SELECT organization_id_by_slug(:slug) AS org"), {"slug": slug}

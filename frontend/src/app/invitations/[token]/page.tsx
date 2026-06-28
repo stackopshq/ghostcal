@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getInvitationPreview, type InvitationPreview } from "@/lib/api";
-import { isAuthenticated } from "@/lib/auth";
+import { isAuthenticated, setActiveOrg } from "@/lib/auth";
 import { acceptInvitation } from "@/lib/team";
 
 export default function InvitationPage() {
@@ -36,7 +36,8 @@ export default function InvitationPage() {
     setAccepting(true);
     setError(null);
     try {
-      await acceptInvitation(token);
+      const { organization_id } = await acceptInvitation(token);
+      setActiveOrg(organization_id); // land in the org you just joined
       router.push("/dashboard");
     } catch {
       setError("Could not accept the invitation. Make sure you're signed in.");

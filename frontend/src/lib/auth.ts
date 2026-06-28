@@ -8,6 +8,17 @@ import { ApiError, resolveBaseUrl } from "@/lib/api";
 
 const ACCESS_KEY = "gc_access";
 const REFRESH_KEY = "gc_refresh";
+const ORG_KEY = "gc_org";
+
+export function getActiveOrg(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(ORG_KEY);
+}
+
+export function setActiveOrg(orgId: string | null): void {
+  if (orgId) localStorage.setItem(ORG_KEY, orgId);
+  else localStorage.removeItem(ORG_KEY);
+}
 
 export type User = {
   id: string;
@@ -40,6 +51,7 @@ function setTokens(tokens: Tokens): void {
 export function clearTokens(): void {
   localStorage.removeItem(ACCESS_KEY);
   localStorage.removeItem(REFRESH_KEY);
+  localStorage.removeItem(ORG_KEY);
 }
 
 export function isAuthenticated(): boolean {
@@ -97,6 +109,7 @@ async function tryRefresh(): Promise<boolean> {
 
 /** Fetch an authenticated endpoint, transparently refreshing once on a 401. */
 export async function authedFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const org = getActiveOrg();
   const run = async (): Promise<Response> =>
     fetch(`${base()}${path}`, {
       ...init,
@@ -104,6 +117,7 @@ export async function authedFetch<T>(path: string, init?: RequestInit): Promise<
         "Content-Type": "application/json",
         ...init?.headers,
         Authorization: `Bearer ${getAccessToken() ?? ""}`,
+        ...(org ? { "X-Organization-Id": org } : {}),
       },
       cache: "no-store",
     });

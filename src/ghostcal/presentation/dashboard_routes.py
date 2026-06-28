@@ -11,7 +11,7 @@ import uuid
 from dataclasses import asdict, dataclass
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
 from ghostcal.application.analytics import get_analytics
 from ghostcal.application.auth import AuthenticatedUser
@@ -65,7 +65,11 @@ from ghostcal.infrastructure.db.analytics_repository import SqlAnalyticsReposito
 from ghostcal.infrastructure.db.caldav_repository import SqlCaldavConnectionRepository
 from ghostcal.infrastructure.db.event_types_repository import SqlEventTypesRepository
 from ghostcal.infrastructure.db.meetings_repository import SqlMeetingsRepository
-from ghostcal.infrastructure.db.membership import primary_membership
+from ghostcal.infrastructure.db.membership import (
+    primary_membership,
+    role_in_org,
+    user_organizations,
+)
 from ghostcal.infrastructure.db.organization_repository import SqlOrganizationRepository
 from ghostcal.infrastructure.db.schedules_repository import SqlSchedulesRepository
 from ghostcal.infrastructure.db.session import db_session, org_session
@@ -84,6 +88,7 @@ from ghostcal.presentation.schemas import (
     MeetingOut,
     OrganizationIn,
     OrganizationOut,
+    OrgMembershipOut,
     OverrideSchema,
     RuleSchema,
     ScheduleIn,
@@ -107,13 +112,39 @@ class Member:
     role: str
 
 
-async def current_member(user: AuthenticatedUser = Depends(current_user)) -> Member:
+async def current_member(
+    user: AuthenticatedUser = Depends(current_user),
+    org_header: str | None = Header(default=None, alias="X-Organization-Id"),
+) -> Member:
     async with db_session() as session:
+        # An explicit org (from the switcher) is honoured after verifying membership; otherwise the
+        # user's primary (oldest) organization is used.
+        if org_header:
+            try:
+                chosen = uuid.UUID(org_header)
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail="invalid organization id") from exc
+            role = await role_in_org(session, user.id, chosen)
+            if role is None:
+                raise HTTPException(status_code=403, detail="not a member of that organization")
+            return Member(user=user, organization_id=chosen, role=role)
         membership = await primary_membership(session, user.id)
     if membership is None:
         raise HTTPException(status_code=403, detail="user has no organization")
     org_id, role = membership
     return Member(user=user, organization_id=org_id, role=role)
+
+
+@router.get("/organizations", response_model=list[OrgMembershipOut])
+async def my_organizations(
+    user: AuthenticatedUser = Depends(current_user),
+) -> list[OrgMembershipOut]:
+    async with db_session() as session:
+        orgs = await user_organizations(session, user.id)
+    return [
+        OrgMembershipOut(id=org_id, name=name, slug=slug, role=role)
+        for org_id, name, slug, role in orgs
+    ]
 
 
 def _to_out(schedule: ScheduleData) -> ScheduleOut:
