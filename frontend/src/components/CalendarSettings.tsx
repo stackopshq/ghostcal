@@ -12,14 +12,18 @@ import {
   type CalendarInfo,
   type CalendarStatus,
 } from "@/lib/calendar";
+import { useT } from "@/lib/i18n";
 
-function errorText(e: unknown): string {
-  if (e instanceof ApiError && e.status === 401) return "Invalid calendar credentials.";
-  if (e instanceof ApiError && e.status === 502) return "Could not reach the calendar server.";
-  return "Something went wrong. Please try again.";
+type T = (key: string, params?: Record<string, string | number>) => string;
+
+function errorText(e: unknown, t: T): string {
+  if (e instanceof ApiError && e.status === 401) return t("cal.invalidCreds");
+  if (e instanceof ApiError && e.status === 502) return t("cal.unreachable");
+  return t("common.errGeneric");
 }
 
 export default function CalendarSettings() {
+  const t = useT();
   const [status, setStatus] = useState<CalendarStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -48,7 +52,7 @@ export default function CalendarSettings() {
       setCalendars(list);
       setSelected(list[0]?.url ?? "");
     } catch (e) {
-      setError(errorText(e));
+      setError(errorText(e, t));
     } finally {
       setBusy(false);
     }
@@ -69,9 +73,9 @@ export default function CalendarSettings() {
       setStatus(updated);
       setCalendars(null);
       setPassword("");
-      setMessage("Calendar connected and synced.");
+      setMessage(t("cal.connected"));
     } catch (e) {
-      setError(errorText(e));
+      setError(errorText(e, t));
     } finally {
       setBusy(false);
     }
@@ -83,17 +87,17 @@ export default function CalendarSettings() {
     setMessage(null);
     try {
       const res = await syncCalendar();
-      setMessage(`Synced ${res.synced} busy block(s).`);
+      setMessage(t("cal.synced", { n: res.synced }));
       setStatus(await getCalendarStatus());
     } catch (e) {
-      setError(errorText(e));
+      setError(errorText(e, t));
     } finally {
       setBusy(false);
     }
   }
 
   async function disconnect() {
-    if (!confirm("Disconnect this calendar?")) return;
+    if (!confirm(t("cal.confirmDisconnect"))) return;
     setBusy(true);
     try {
       await disconnectCalendar();
@@ -105,33 +109,30 @@ export default function CalendarSettings() {
   }
 
   if (loading) {
-    return <p className="text-sm text-muted">Loading…</p>;
+    return <p className="text-sm text-muted">{t("common.loading")}</p>;
   }
 
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h2 className="text-lg font-semibold text-foreground">Connected calendar</h2>
-        <p className="mt-1 text-sm text-muted">
-          Connect a CalDAV calendar (iCloud, Nextcloud, Fastmail…) so your busy times block
-          availability and bookings appear on it.
-        </p>
+        <h2 className="text-lg font-semibold text-foreground">{t("cal.title")}</h2>
+        <p className="mt-1 text-sm text-muted">{t("cal.sub")}</p>
       </div>
 
       {status?.connected ? (
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface-2/40 p-4">
           <p className="text-sm text-foreground">
-            <span className="text-accent">●</span> {status.calendar_name ?? "Calendar"}{" "}
+            <span className="text-accent">●</span> {status.calendar_name ?? t("cal.calendarFallback")}{" "}
             <span className="text-muted">— {status.username}@{status.server_url}</span>
           </p>
           <p className="text-xs text-muted">
-            Status: {status.status}
+            {t("cal.status")} {status.status}
             {status.last_synced_at &&
-              ` · last synced ${new Date(status.last_synced_at).toLocaleString()}`}
+              ` · ${t("cal.lastSynced", { date: new Date(status.last_synced_at).toLocaleString() })}`}
           </p>
           <div className="flex gap-3">
             <button type="button" onClick={sync} disabled={busy} className={primaryButtonClass}>
-              {busy ? "…" : "Sync now"}
+              {busy ? "…" : t("cal.syncNow")}
             </button>
             <button
               type="button"
@@ -139,28 +140,28 @@ export default function CalendarSettings() {
               disabled={busy}
               className="rounded-lg border border-border-strong px-4 py-2.5 text-sm text-muted transition hover:border-red-400 hover:text-red-400"
             >
-              Disconnect
+              {t("cal.disconnect")}
             </button>
           </div>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
           <input
-            placeholder="CalDAV server URL (e.g. https://caldav.fastmail.com/)"
+            placeholder={t("cal.serverPh")}
             value={serverUrl}
             onChange={(e) => setServerUrl(e.target.value)}
             className={inputClass}
           />
           <div className="grid gap-3 sm:grid-cols-2">
             <input
-              placeholder="Username"
+              placeholder={t("cal.username")}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className={inputClass}
             />
             <input
               type="password"
-              placeholder="App password"
+              placeholder={t("cal.appPassword")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={inputClass}
@@ -174,7 +175,7 @@ export default function CalendarSettings() {
               disabled={busy || !serverUrl || !username || !password}
               className={primaryButtonClass}
             >
-              {busy ? "Checking…" : "Find calendars"}
+              {busy ? t("cal.checking") : t("cal.findCalendars")}
             </button>
           ) : (
             <div className="flex flex-col gap-3">
@@ -191,14 +192,14 @@ export default function CalendarSettings() {
               </select>
               <div className="flex gap-3">
                 <button type="button" onClick={connect} disabled={busy} className={primaryButtonClass}>
-                  {busy ? "Connecting…" : "Connect"}
+                  {busy ? t("cal.connecting") : t("cal.connect")}
                 </button>
                 <button
                   type="button"
                   onClick={() => setCalendars(null)}
                   className="text-sm text-muted hover:text-foreground"
                 >
-                  Back
+                  {t("cal.back")}
                 </button>
               </div>
             </div>
