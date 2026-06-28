@@ -5,8 +5,10 @@ import { useState } from "react";
 import AuthCard, { inputClass, primaryButtonClass } from "@/components/AuthCard";
 import { ApiError } from "@/lib/api";
 import { register } from "@/lib/auth";
+import { useT } from "@/lib/i18n";
 
 export default function RegisterPage() {
+  const t = useT();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,8 +26,8 @@ export default function RegisterPage() {
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 409
-          ? "That email is already registered."
-          : "Could not create the account. Check your details and try again.",
+          ? t("register.errTaken")
+          : t("register.errGeneric"),
       );
     } finally {
       setSubmitting(false);
@@ -35,25 +37,27 @@ export default function RegisterPage() {
   if (done) {
     return (
       <AuthCard
-        title="Check your inbox"
-        subtitle={`We sent a verification link to ${email}. Confirm it to activate your account.`}
-        footer={<Link href="/login" className="text-accent hover:underline">Back to sign in</Link>}
+        title={t("register.checkInbox")}
+        subtitle={t("register.checkInboxSub", { email })}
+        footer={
+          <Link href="/login" className="text-accent hover:underline">
+            {t("register.backToSignIn")}
+          </Link>
+        }
       >
-        <p className="text-sm text-muted">
-          The link expires in 24 hours. You can close this tab.
-        </p>
+        <p className="text-sm text-muted">{t("register.expires")}</p>
       </AuthCard>
     );
   }
 
   return (
     <AuthCard
-      title="Create your account"
+      title={t("register.title")}
       footer={
         <>
-          Already have an account?{" "}
+          {t("register.haveAccount")}{" "}
           <Link href="/login" className="text-accent hover:underline">
-            Sign in
+            {t("common.signIn")}
           </Link>
         </>
       }
@@ -61,7 +65,7 @@ export default function RegisterPage() {
       <form className="flex flex-col gap-3" onSubmit={onSubmit}>
         <input
           required
-          placeholder="Your name"
+          placeholder={t("register.yourName")}
           value={name}
           onChange={(e) => setName(e.target.value)}
           className={inputClass}
@@ -69,7 +73,7 @@ export default function RegisterPage() {
         <input
           required
           type="email"
-          placeholder="Email"
+          placeholder={t("common.email")}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className={inputClass}
@@ -78,14 +82,14 @@ export default function RegisterPage() {
           required
           type="password"
           minLength={8}
-          placeholder="Password (min 8 characters)"
+          placeholder={t("register.passwordPh")}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className={inputClass}
         />
         {error && <p className="text-sm text-red-400">{error}</p>}
         <button type="submit" disabled={submitting} className={primaryButtonClass}>
-          {submitting ? "Creating…" : "Create account"}
+          {submitting ? t("register.submitting") : t("register.submit")}
         </button>
       </form>
     </AuthCard>

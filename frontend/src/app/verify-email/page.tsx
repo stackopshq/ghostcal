@@ -5,10 +5,12 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import AuthCard from "@/components/AuthCard";
 import { verifyEmail } from "@/lib/auth";
+import { useT } from "@/lib/i18n";
 
 type Status = "verifying" | "ok" | "error";
 
 function VerifyInner() {
+  const t = useT();
   const token = useSearchParams().get("token");
   const [status, setStatus] = useState<Status>(token ? "verifying" : "error");
 
@@ -20,33 +22,54 @@ function VerifyInner() {
   }, [token]);
 
   if (status === "verifying") {
-    return <AuthCard title="Verifying your email…"><p className="text-sm text-muted">One moment.</p></AuthCard>;
+    return (
+      <AuthCard title={t("verify.verifying")}>
+        <p className="text-sm text-muted">{t("verify.oneMoment")}</p>
+      </AuthCard>
+    );
   }
   if (status === "ok") {
     return (
       <AuthCard
-        title="Email verified ✓"
-        subtitle="Your account is active."
-        footer={<Link href="/login" className="text-accent hover:underline">Sign in</Link>}
+        title={t("verify.okTitle")}
+        subtitle={t("verify.okSub")}
+        footer={
+          <Link href="/login" className="text-accent hover:underline">
+            {t("common.signIn")}
+          </Link>
+        }
       >
-        <p className="text-sm text-muted">You can now sign in to GhostCal.</p>
+        <p className="text-sm text-muted">{t("verify.okBody")}</p>
       </AuthCard>
     );
   }
   return (
     <AuthCard
-      title="Verification failed"
-      subtitle="This link is invalid or has expired."
-      footer={<Link href="/register" className="text-accent hover:underline">Create a new account</Link>}
+      title={t("verify.failTitle")}
+      subtitle={t("verify.failSub")}
+      footer={
+        <Link href="/register" className="text-accent hover:underline">
+          {t("verify.createNew")}
+        </Link>
+      }
     >
-      <p className="text-sm text-muted">Request a fresh verification link by signing up again.</p>
+      <p className="text-sm text-muted">{t("verify.failBody")}</p>
+    </AuthCard>
+  );
+}
+
+function Loading() {
+  const t = useT();
+  return (
+    <AuthCard title={t("verify.verifying")}>
+      <p className="text-sm text-muted">{t("verify.oneMoment")}</p>
     </AuthCard>
   );
 }
 
 export default function VerifyEmailPage() {
   return (
-    <Suspense fallback={<AuthCard title="Verifying your email…"><p className="text-sm text-muted">One moment.</p></AuthCard>}>
+    <Suspense fallback={<Loading />}>
       <VerifyInner />
     </Suspense>
   );

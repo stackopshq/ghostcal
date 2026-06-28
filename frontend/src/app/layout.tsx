@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { I18nProvider } from "@/lib/i18n";
 import "./globals.css";
 
 // Inter (SIL OFL) — matches the chosen typography (see docs/adr/0001).
@@ -21,7 +23,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <I18nProvider>
+          {children}
+          <LanguageSwitcher className="fixed bottom-3 right-4 z-50 rounded-full border border-border bg-surface/80 px-2 py-1 backdrop-blur" />
+        </I18nProvider>
+      </body>
     </html>
   );
 }
