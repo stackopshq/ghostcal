@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { inputClass, primaryButtonClass } from "@/components/AuthCard";
 import { ApiError } from "@/lib/api";
 import { isAuthenticated } from "@/lib/auth";
+import { useT } from "@/lib/i18n";
 import {
   createSchedule,
   listSchedules,
@@ -59,6 +60,7 @@ function rulesToWeek(rules: Rule[]): Range[][] {
 }
 
 export default function AvailabilityPage() {
+  const t = useT();
   const router = useRouter();
   const browserTz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
 
@@ -138,9 +140,7 @@ export default function AvailabilityPage() {
     } catch (e) {
       setStatus("error");
       setError(
-        e instanceof ApiError && e.status === 422
-          ? "Check your hours — each end time must be after its start."
-          : "Could not save. Please try again.",
+        e instanceof ApiError && e.status === 422 ? t("avail.errSave") : t("avail.errGeneric"),
       );
     } finally {
       setSaving(false);
@@ -150,7 +150,7 @@ export default function AvailabilityPage() {
   if (loading) {
     return (
       <main className="flex flex-1 items-center justify-center p-8">
-        <p className="text-sm text-muted">Loading…</p>
+        <p className="text-sm text-muted">{t("common.loading")}</p>
       </main>
     );
   }
@@ -158,16 +158,14 @@ export default function AvailabilityPage() {
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6 sm:p-10">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">Availability</h1>
-        <p className="mt-1 text-sm text-muted">
-          Set the weekly hours you can be booked. Times are in the schedule&apos;s timezone.
-        </p>
+        <h1 className="text-2xl font-semibold text-foreground">{t("avail.title")}</h1>
+        <p className="mt-1 text-sm text-muted">{t("avail.sub")}</p>
       </div>
 
       <section className="glass flex flex-col gap-6 rounded-2xl p-6 sm:p-8">
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm text-muted">
-            Schedule name
+            {t("avail.scheduleName")}
             <input
               value={name}
               onChange={(e) => {
@@ -178,7 +176,7 @@ export default function AvailabilityPage() {
             />
           </label>
           <label className="flex flex-col gap-1 text-sm text-muted">
-            Timezone
+            {t("avail.timezone")}
             <select
               value={timezone}
               onChange={(e) => {
@@ -197,11 +195,11 @@ export default function AvailabilityPage() {
         </div>
 
         <div className="flex flex-col divide-y divide-border">
-          {DAYS.map((label, day) => {
+          {DAYS.map((_label, day) => {
             const ranges = week[day];
             const enabled = ranges.length > 0;
             return (
-              <div key={label} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-start">
+              <div key={day} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-start">
                 <button
                   type="button"
                   onClick={() => toggleDay(day)}
@@ -216,11 +214,11 @@ export default function AvailabilityPage() {
                       enabled ? "bg-accent shadow-[0_0_8px_rgba(0,240,255,0.7)]" : "bg-border-strong",
                     ].join(" ")}
                   />
-                  {label}
+                  {t(`day.${day}`)}
                 </button>
 
                 <div className="flex flex-1 flex-col gap-2">
-                  {!enabled && <span className="text-sm text-muted/70">Unavailable</span>}
+                  {!enabled && <span className="text-sm text-muted/70">{t("avail.unavailable")}</span>}
                   {ranges.map((r, i) => (
                     <div key={i} className="flex items-center gap-2">
                       <input
@@ -239,7 +237,7 @@ export default function AvailabilityPage() {
                       <button
                         type="button"
                         onClick={() => removeRange(day, i)}
-                        aria-label="Remove time range"
+                        aria-label={t("avail.removeRange")}
                         className="px-2 text-muted transition hover:text-red-400"
                       >
                         ×
@@ -252,7 +250,7 @@ export default function AvailabilityPage() {
                       onClick={() => addRange(day)}
                       className="self-start text-xs text-accent hover:underline"
                     >
-                      + Add a range
+                      {t("avail.addRange")}
                     </button>
                   )}
                 </div>
@@ -263,9 +261,9 @@ export default function AvailabilityPage() {
 
         <div className="flex items-center gap-4">
           <button type="button" onClick={save} disabled={saving} className={primaryButtonClass}>
-            {saving ? "Saving…" : "Save availability"}
+            {saving ? t("common.saving") : t("avail.save")}
           </button>
-          {status === "saved" && <span className="text-sm text-accent">Saved ✓</span>}
+          {status === "saved" && <span className="text-sm text-accent">{t("common.saved")}</span>}
           {status === "error" && error && <span className="text-sm text-red-400">{error}</span>}
         </div>
       </section>
