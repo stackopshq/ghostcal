@@ -121,6 +121,17 @@ export function getAvailability(
   return request(`/v1/orgs/${org}/event-types/${event}/availability?${qs}`);
 }
 
+export type InvitationPreview = {
+  organization_id: string;
+  organization_name: string;
+  email: string;
+  role: string;
+};
+
+export function getInvitationPreview(token: string): Promise<InvitationPreview> {
+  return request<InvitationPreview>(`/v1/invitations/${token}`);
+}
+
 export type PollOption = { id: string; start_at: string; end_at: string; votes: number };
 
 export type PublicPoll = {

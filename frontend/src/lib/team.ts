@@ -47,3 +47,9 @@ export function inviteMember(email: string, role: string): Promise<Invitation> {
 export function revokeInvitation(id: string): Promise<void> {
   return authedFetch<void>(`/v1/me/organization/invitations/${id}`, { method: "DELETE" });
 }
+
+export function acceptInvitation(token: string): Promise<{ organization_id: string }> {
+  return authedFetch<{ organization_id: string }>(`/v1/invitations/${token}/accept`, {
+    method: "POST",
+  });
+}
