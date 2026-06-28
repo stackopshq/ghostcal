@@ -36,7 +36,9 @@ class ProfileService:
             raise UnknownUser("unknown user")
         return user
 
-    async def update(self, user_id: uuid.UUID, *, name: str, timezone: str) -> AuthUserRecord:
+    async def update(
+        self, user_id: uuid.UUID, *, name: str, timezone: str, avatar_url: str | None = None
+    ) -> AuthUserRecord:
         name = name.strip()
         if not name:
             raise ProfileError("name is required")
@@ -44,7 +46,10 @@ class ProfileService:
             ZoneInfo(timezone)
         except (ZoneInfoNotFoundError, ValueError) as exc:
             raise InvalidTimezone(f"unknown timezone: {timezone}") from exc
-        await self._repo.update_profile(user_id, name=name, timezone=timezone)
+        avatar = (avatar_url or "").strip() or None
+        if avatar and not avatar.startswith(("http://", "https://")):
+            raise ProfileError("avatar URL must be an absolute http(s) URL")
+        await self._repo.update_profile(user_id, name=name, timezone=timezone, avatar_url=avatar)
         return await self.get(user_id)
 
     async def change_password(

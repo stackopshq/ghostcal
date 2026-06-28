@@ -8,13 +8,18 @@ export type Profile = {
   name: string;
   timezone: string;
   email_verified: boolean;
+  avatar_url: string | null;
 };
 
 export function getProfile(): Promise<Profile> {
   return authedFetch<Profile>("/v1/me/profile");
 }
 
-export function updateProfile(body: { name: string; timezone: string }): Promise<Profile> {
+export function updateProfile(body: {
+  name: string;
+  timezone: string;
+  avatar_url: string | null;
+}): Promise<Profile> {
   return authedFetch<Profile>("/v1/me/profile", {
     method: "PUT",
     body: JSON.stringify(body),

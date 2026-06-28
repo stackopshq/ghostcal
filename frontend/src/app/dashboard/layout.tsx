@@ -14,6 +14,7 @@ const ICONS: Record<string, string> = {
   team: "M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75",
   polls: "M18 20V10M12 20V4M6 20v-6",
   analytics: "M3 3v18h18M7 16l4-4 3 3 5-6",
+  profile: "M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z",
   plus: "M12 5v14M5 12h14",
   logout: "M16 17l5-5-5-5M21 12H9M13 21H5a2 2 0 01-2-2V5a2 2 0 012-2h8",
 };
@@ -41,6 +42,7 @@ const NAV = [
   { href: "/dashboard/polls", label: "Polls", icon: ICONS.polls },
   { href: "/dashboard/availability", label: "Availability", icon: ICONS.availability },
   { href: "/dashboard/team", label: "Team", icon: ICONS.team },
+  { href: "/dashboard/profile", label: "Profile", icon: ICONS.profile },
   { href: "/dashboard/settings", label: "Settings", icon: ICONS.settings },
 ];
 

@@ -18,6 +18,7 @@ export default function ProfileSettings() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [tz, setTz] = useState("UTC");
+  const [avatar, setAvatar] = useState("");
   const zones = useMemo(() => timezones("UTC"), []);
   const [savedProfile, setSavedProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -35,6 +36,7 @@ export default function ProfileSettings() {
         setEmail(p.email);
         setName(p.name);
         setTz(p.timezone);
+        setAvatar(p.avatar_url ?? "");
       })
       .catch(() => active && setProfileError("Could not load your profile."));
     return () => {
@@ -47,10 +49,10 @@ export default function ProfileSettings() {
     setProfileError(null);
     setSavedProfile(false);
     try {
-      await updateProfile({ name, timezone: tz });
+      await updateProfile({ name, timezone: tz, avatar_url: avatar.trim() || null });
       setSavedProfile(true);
     } catch {
-      setProfileError("Could not save your profile.");
+      setProfileError("Could not save your profile (check the avatar URL).");
     }
   }
 
@@ -77,6 +79,24 @@ export default function ProfileSettings() {
       <h2 className="text-lg font-semibold text-foreground">Your profile</h2>
 
       <form onSubmit={saveProfile} className="flex flex-col gap-4">
+        <div className="flex items-center gap-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={avatar || "https://api.dicebear.com/9.x/initials/svg?seed=" + name}
+            alt=""
+            className="h-14 w-14 rounded-full border border-border-strong object-cover"
+          />
+          <label className="flex flex-1 flex-col gap-1 text-sm text-muted">
+            Avatar URL
+            <input
+              type="url"
+              placeholder="https://…/avatar.png"
+              value={avatar}
+              onChange={(e) => setAvatar(e.target.value)}
+              className={inputClass}
+            />
+          </label>
+        </div>
         <label className="flex flex-col gap-1 text-sm text-muted">
           Email
           <input value={email} disabled className={`${inputClass} opacity-60`} />

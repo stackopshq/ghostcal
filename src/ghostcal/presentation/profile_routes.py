@@ -32,6 +32,7 @@ def _out(record: AuthUserRecord) -> ProfileOut:
         name=record.name,
         timezone=record.timezone,
         email_verified=record.email_verified,
+        avatar_url=record.avatar_url,
     )
 
 
@@ -46,7 +47,10 @@ async def update_profile(payload: ProfileUpdateIn, user: CurrentUser) -> Profile
     async with db_session() as session:
         try:
             record = await _service(session).update(
-                user.id, name=payload.name, timezone=payload.timezone
+                user.id,
+                name=payload.name,
+                timezone=payload.timezone,
+                avatar_url=payload.avatar_url,
             )
         except InvalidTimezone as exc:
             raise HTTPException(status_code=422, detail="unknown timezone") from exc

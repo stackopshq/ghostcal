@@ -52,6 +52,7 @@ class SqlAuthRepository(AuthRepository):
                 models.User.email,
                 models.User.name,
                 models.User.timezone,
+                models.User.avatar_url,
                 models.User.email_verified_at,
                 models.UserCredential.password_hash,
             )
@@ -68,6 +69,7 @@ class SqlAuthRepository(AuthRepository):
                 models.User.email,
                 models.User.name,
                 models.User.timezone,
+                models.User.avatar_url,
                 models.User.email_verified_at,
                 models.UserCredential.password_hash,
             )
@@ -138,11 +140,13 @@ class SqlAuthRepository(AuthRepository):
             .values(revoked_at=now)
         )
 
-    async def update_profile(self, user_id: uuid.UUID, *, name: str, timezone: str) -> None:
+    async def update_profile(
+        self, user_id: uuid.UUID, *, name: str, timezone: str, avatar_url: str | None
+    ) -> None:
         await self._session.execute(
             update(models.User)
             .where(models.User.id == user_id)
-            .values(name=name, timezone=timezone)
+            .values(name=name, timezone=timezone, avatar_url=avatar_url)
         )
 
     async def set_password_hash(self, user_id: uuid.UUID, password_hash: str) -> None:
@@ -163,4 +167,5 @@ def _to_record(row: object) -> AuthUserRecord | None:
         timezone=row.timezone,  # type: ignore[attr-defined]
         email_verified=row.email_verified_at is not None,  # type: ignore[attr-defined]
         password_hash=row.password_hash,  # type: ignore[attr-defined]
+        avatar_url=row.avatar_url,  # type: ignore[attr-defined]
     )

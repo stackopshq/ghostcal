@@ -51,6 +51,7 @@ class AuthUserRecord:
     timezone: str
     email_verified: bool
     password_hash: str | None
+    avatar_url: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,7 +92,9 @@ class AuthRepository:
     async def get_by_id(self, user_id: uuid.UUID) -> AuthUserRecord | None:
         raise NotImplementedError
 
-    async def update_profile(self, user_id: uuid.UUID, *, name: str, timezone: str) -> None:
+    async def update_profile(
+        self, user_id: uuid.UUID, *, name: str, timezone: str, avatar_url: str | None
+    ) -> None:
         raise NotImplementedError
 
     async def set_password_hash(self, user_id: uuid.UUID, password_hash: str) -> None:

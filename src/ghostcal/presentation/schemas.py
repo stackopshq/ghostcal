@@ -48,11 +48,13 @@ class ProfileOut(BaseModel):
     name: str
     timezone: str
     email_verified: bool
+    avatar_url: str | None = None
 
 
 class ProfileUpdateIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     timezone: str = Field(min_length=1, max_length=64)
+    avatar_url: str | None = Field(default=None, max_length=2048)
 
 
 class PasswordChangeIn(BaseModel):

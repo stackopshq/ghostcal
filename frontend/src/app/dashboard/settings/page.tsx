@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { inputClass, primaryButtonClass } from "@/components/AuthCard";
 import CalendarSettings from "@/components/CalendarSettings";
-import ProfileSettings from "@/components/ProfileSettings";
 import WebhookSettings from "@/components/WebhookSettings";
 import { ApiError } from "@/lib/api";
 import { isAuthenticated } from "@/lib/auth";
@@ -115,10 +114,6 @@ export default function SettingsPage() {
           {status === "saved" && <span className="text-sm text-accent">Saved ✓</span>}
         </div>
       </form>
-
-      <section className="glass rounded-2xl p-6 sm:p-8">
-        <ProfileSettings />
-      </section>
 
       <section className="glass rounded-2xl p-6 sm:p-8">
         <CalendarSettings />
