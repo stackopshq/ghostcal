@@ -1,24 +1,26 @@
-// Zero-knowledge crypto for GhostCal (libsodium).
+// Zero-knowledge crypto for GhostCal, on the vendored WebCrypto core (lib/e2e).
 //
-// The org has an X25519 keypair. Invitees seal their private details (name, answers, notes) to the
-// org PUBLIC key with an anonymous sealed box — they need no key of their own. Only the holder of
-// the org PRIVATE key (a host, in their browser) can open them; the server only ever stores
-// ciphertext. The private key is wrapped (secretbox) under a key derived from the host's password
-// via Argon2id, and a second time under a one-time recovery phrase. See docs/adr/0002.
+// Each organization has an X25519 keypair. Invitees seal their private details to the org PUBLIC
+// key with an anonymous ECIES seal (X25519 ECDH → HKDF → AES-256-GCM) — they need no key of their
+// own. Only the holder of the org PRIVATE key (a host, in their browser) can open them; the server
+// only ever stores ciphertext. The private key (PKCS#8) is wrapped with AES-256-GCM under a key
+// derived from the host's password via Argon2id, and a second time under a one-time recovery
+// phrase. Team members receive the key through an invitation-link fragment (see ADR-0003).
 
-// The "sumo" build is required: the standard libsodium-wrappers omits crypto_pwhash (Argon2id).
-import _sodium from "libsodium-wrappers-sumo";
-
-let ready: Promise<typeof _sodium> | null = null;
-
-async function sodium(): Promise<typeof _sodium> {
-  if (!ready) {
-    ready = _sodium.ready.then(() => _sodium);
-  }
-  return ready;
-}
-
-const B64 = 1; // sodium.base64_variants.ORIGINAL (avoids loading sodium just for the enum)
+import {
+  ARGON2_SALT_BYTES,
+  decryptSymmetric,
+  deriveKey,
+  encryptSymmetric,
+  fromB64,
+  fromB64Url,
+  generateKeypair,
+  openSealed,
+  randomKey,
+  sealToPublicKey,
+  toB64,
+  toB64Url,
+} from "@/lib/e2e";
 
 export type WrappedKey = { wrapped_private_key: string; salt: string };
 
@@ -37,57 +39,37 @@ export type InviteePrivate = {
   notes: string;
 };
 
-async function deriveKey(s: typeof _sodium, passphrase: string, salt: Uint8Array): Promise<Uint8Array> {
-  return s.crypto_pwhash(
-    s.crypto_secretbox_KEYBYTES,
-    passphrase,
-    salt,
-    s.crypto_pwhash_OPSLIMIT_INTERACTIVE,
-    s.crypto_pwhash_MEMLIMIT_INTERACTIVE,
-    s.crypto_pwhash_ALG_ARGON2ID13,
-  );
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+
+async function wrap(privateKeyBytes: Uint8Array<ArrayBuffer>, passphrase: string): Promise<WrappedKey> {
+  const salt = crypto.getRandomValues(new Uint8Array(ARGON2_SALT_BYTES));
+  const key = await deriveKey(passphrase, salt);
+  return { wrapped_private_key: await encryptSymmetric(key, privateKeyBytes), salt: toB64(salt) };
 }
 
-async function wrap(s: typeof _sodium, privateKey: Uint8Array, passphrase: string): Promise<WrappedKey> {
-  const salt = s.randombytes_buf(s.crypto_pwhash_SALTBYTES);
-  const key = await deriveKey(s, passphrase, salt);
-  const nonce = s.randombytes_buf(s.crypto_secretbox_NONCEBYTES);
-  const cipher = s.crypto_secretbox_easy(privateKey, nonce, key);
-  // Store nonce || ciphertext so unwrap is self-contained.
-  const blob = new Uint8Array(nonce.length + cipher.length);
-  blob.set(nonce);
-  blob.set(cipher, nonce.length);
-  return { wrapped_private_key: s.to_base64(blob, B64), salt: s.to_base64(salt, B64) };
-}
-
-async function unwrap(
-  s: typeof _sodium,
-  wrappedB64: string,
-  saltB64: string,
-  passphrase: string,
-): Promise<Uint8Array> {
-  const key = await deriveKey(s, passphrase, s.from_base64(saltB64, B64));
-  const blob = s.from_base64(wrappedB64, B64);
-  const nonce = blob.slice(0, s.crypto_secretbox_NONCEBYTES);
-  const cipher = blob.slice(s.crypto_secretbox_NONCEBYTES);
-  return s.crypto_secretbox_open_easy(cipher, nonce, key); // throws if the passphrase is wrong
+async function unwrap(wrappedBlob: string, saltB64: string, passphrase: string): Promise<Uint8Array> {
+  const key = await deriveKey(passphrase, fromB64(saltB64));
+  return decryptSymmetric(key, wrappedBlob); // AES-GCM auth fails (throws) on a wrong passphrase
 }
 
 /** A high-entropy recovery phrase shown once at sign-up (24 random bytes, grouped for legibility). */
 export async function generateRecoveryPhrase(): Promise<string> {
-  const s = await sodium();
-  const raw = s.to_base64(s.randombytes_buf(24), B64);
+  const raw = toB64Url(crypto.getRandomValues(new Uint8Array(24)));
   return (raw.match(/.{1,4}/g) ?? [raw]).join("-");
 }
 
 /** Generate a fresh org keypair and wrap the private key under the password and the recovery phrase. */
-export async function generateKeyMaterial(password: string, recoveryPhrase: string): Promise<ZkKeyMaterial> {
-  const s = await sodium();
-  const kp = s.crypto_box_keypair();
-  const byPassword = await wrap(s, kp.privateKey, password);
-  const byRecovery = await wrap(s, kp.privateKey, recoveryPhrase);
+export async function generateKeyMaterial(
+  password: string,
+  recoveryPhrase: string,
+): Promise<ZkKeyMaterial> {
+  const kp = await generateKeypair();
+  const privBytes = fromB64(kp.privateKey);
+  const byPassword = await wrap(privBytes, password);
+  const byRecovery = await wrap(privBytes, recoveryPhrase);
   return {
-    public_key: s.to_base64(kp.publicKey, B64),
+    public_key: kp.publicKey,
     wrapped_private_key: byPassword.wrapped_private_key,
     wrap_salt: byPassword.salt,
     recovery_wrapped_private_key: byRecovery.wrapped_private_key,
@@ -101,8 +83,7 @@ export async function unlockWithPassword(
   wrappedB64: string,
   saltB64: string,
 ): Promise<string> {
-  const s = await sodium();
-  return s.to_base64(await unwrap(s, wrappedB64, saltB64, password), B64);
+  return toB64(await unwrap(wrappedB64, saltB64, password));
 }
 
 /** Unwrap with the recovery phrase (password reset) — returns the private key base64. */
@@ -111,61 +92,88 @@ export async function unlockWithRecovery(
   wrappedB64: string,
   saltB64: string,
 ): Promise<string> {
-  const s = await sodium();
-  return s.to_base64(await unwrap(s, wrappedB64, saltB64, recoveryPhrase.trim()), B64);
+  return toB64(await unwrap(wrappedB64, saltB64, recoveryPhrase.trim()));
 }
 
 /** Re-wrap a known private key under a new password (after a password change/reset). */
 export async function rewrapForPassword(privateKeyB64: string, newPassword: string): Promise<WrappedKey> {
-  const s = await sodium();
-  return wrap(s, s.from_base64(privateKeyB64, B64), newPassword);
+  return wrap(fromB64(privateKeyB64), newPassword);
+}
+
+// --- Team key sharing (invitation-link fragment) -----------------------------------------------
+
+/** Seal the org private key under a fresh random grant key (carried in the invite link fragment). */
+export async function wrapKeyForGrant(
+  orgPrivateKeyB64: string,
+): Promise<{ grant_key: string; wrapped_org_key: string }> {
+  const grantKey = randomKey();
+  return {
+    grant_key: toB64Url(grantKey),
+    wrapped_org_key: await encryptSymmetric(grantKey, fromB64(orgPrivateKeyB64)),
+  };
+}
+
+/** Recover the org private key from a grant blob using the fragment grant key. */
+export async function unwrapKeyFromGrant(grantKeyB64Url: string, wrappedOrgKey: string): Promise<string> {
+  return toB64(await decryptSymmetric(fromB64Url(grantKeyB64Url), wrappedOrgKey));
 }
 
 // --- Unlocked-key session store ----------------------------------------------------------------
-// The unwrapped org keypair lives in sessionStorage: per-tab, cleared on tab close, never written
-// to disk. It is recovered for the tab's lifetime so the dashboard can decrypt without re-prompting.
+// The unwrapped org keypairs live in sessionStorage, keyed by organization id: per-tab, cleared on
+// tab close, never written to disk. A member of several orgs holds a distinct key per org, so the
+// dashboard reads the keypair for the *active* org.
 
-const SK_KEY = "gc_zk_sk";
-const PK_KEY = "gc_zk_pk";
+const KEYS = "gc_zk_keys";
 
 export type UnlockedKeys = { publicKey: string; privateKey: string };
 
-export function storeUnlockedKeys(keys: UnlockedKeys): void {
-  sessionStorage.setItem(PK_KEY, keys.publicKey);
-  sessionStorage.setItem(SK_KEY, keys.privateKey);
+function readMap(): Record<string, UnlockedKeys> {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(sessionStorage.getItem(KEYS) ?? "{}") as Record<string, UnlockedKeys>;
+  } catch {
+    return {};
+  }
 }
 
-export function getUnlockedKeys(): UnlockedKeys | null {
-  if (typeof window === "undefined") return null;
-  const publicKey = sessionStorage.getItem(PK_KEY);
-  const privateKey = sessionStorage.getItem(SK_KEY);
-  return publicKey && privateKey ? { publicKey, privateKey } : null;
+export function storeUnlockedKey(orgId: string, keys: UnlockedKeys): void {
+  const map = readMap();
+  map[orgId] = keys;
+  sessionStorage.setItem(KEYS, JSON.stringify(map));
+}
+
+/** Every unlocked org keypair, with its org id (e.g. to re-wrap all keys on a password change). */
+export function listUnlockedKeys(): Array<{ organizationId: string; keys: UnlockedKeys }> {
+  return Object.entries(readMap()).map(([organizationId, keys]) => ({ organizationId, keys }));
+}
+
+/** The keypair for an org (defaults to any unlocked org when no id is given). */
+export function getUnlockedKeys(orgId?: string | null): UnlockedKeys | null {
+  const map = readMap();
+  if (orgId && map[orgId]) return map[orgId];
+  if (orgId) return null;
+  const first = Object.values(map)[0];
+  return first ?? null;
 }
 
 export function clearUnlockedKeys(): void {
   if (typeof window === "undefined") return;
-  sessionStorage.removeItem(PK_KEY);
-  sessionStorage.removeItem(SK_KEY);
+  sessionStorage.removeItem(KEYS);
 }
 
-/** Seal the invitee's private details to the org public key (booking page). Returns base64. */
+// --- Invitee blob (booking page ⇄ dashboard) ---------------------------------------------------
+
+/** Seal the invitee's private details to the org public key (booking page). */
 export async function sealInviteePrivate(data: InviteePrivate, orgPublicKeyB64: string): Promise<string> {
-  const s = await sodium();
-  const message = s.from_string(JSON.stringify(data));
-  return s.to_base64(s.crypto_box_seal(message, s.from_base64(orgPublicKeyB64, B64)), B64);
+  return sealToPublicKey(orgPublicKeyB64, enc.encode(JSON.stringify(data)));
 }
 
-/** Open a sealed invitee blob with the org keypair (host dashboard). */
+/** Open a sealed invitee blob with the org private key (host dashboard). */
 export async function openInviteePrivate(
-  blobB64: string,
-  orgPublicKeyB64: string,
+  blob: string,
+  _orgPublicKeyB64: string,
   orgPrivateKeyB64: string,
 ): Promise<InviteePrivate> {
-  const s = await sodium();
-  const opened = s.crypto_box_seal_open(
-    s.from_base64(blobB64, B64),
-    s.from_base64(orgPublicKeyB64, B64),
-    s.from_base64(orgPrivateKeyB64, B64),
-  );
-  return JSON.parse(s.to_string(opened)) as InviteePrivate;
+  const opened = await openSealed(orgPrivateKeyB64, blob);
+  return JSON.parse(dec.decode(opened)) as InviteePrivate;
 }

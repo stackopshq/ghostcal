@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { cancelMeeting, listMeetings, type Meeting, type MeetingScope } from "@/lib/meetings";
+import { getActiveOrg } from "@/lib/auth";
 import { getUnlockedKeys, openInviteePrivate, type InviteePrivate } from "@/lib/zk";
 
 function fmtDay(iso: string, tz: string): string {
@@ -45,7 +46,7 @@ export default function MeetingsPage() {
         if (!active) return;
         setMeetings(m);
         // Decrypt the sealed invitee blobs in-browser with the org private key (per-tab session).
-        const keys = getUnlockedKeys();
+        const keys = getUnlockedKeys(getActiveOrg());
         const sealed = m.filter((x) => x.invitee_private);
         if (sealed.length > 0 && !keys) {
           setLocked(true);

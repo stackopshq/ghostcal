@@ -9,8 +9,9 @@ import {
   clearUnlockedKeys,
   generateKeyMaterial,
   generateRecoveryPhrase,
+  listUnlockedKeys,
   rewrapForPassword,
-  storeUnlockedKeys,
+  storeUnlockedKey,
   unlockWithPassword,
   type ZkKeyMaterial,
 } from "@/lib/zk";
@@ -101,19 +102,30 @@ export async function register(
   return { user_id, recovery_phrase: recoveryPhrase };
 }
 
-type ZkKeysOut = ZkKeyMaterial & { organization_id: string };
+export type ZkKeysOut = {
+  organization_id: string;
+  public_key: string;
+  wrapped_private_key: string;
+  wrap_salt: string;
+};
 
-export function getZkKeys(): Promise<ZkKeysOut> {
-  return authedFetch<ZkKeysOut>("/v1/auth/zk-keys");
+export function getZkKeys(): Promise<ZkKeysOut[]> {
+  return authedFetch<ZkKeysOut[]>("/v1/auth/zk-keys");
 }
 
-// Unwrap the org private key with the password and stash it in the per-tab session store, so the
-// dashboard can decrypt invitee details. Best-effort: a failure here never blocks login.
+// Unwrap every org private key with the password and stash them (keyed by org) in the per-tab
+// session store, so the dashboard can decrypt the active org's invitee details. A member of
+// several orgs holds a distinct key per org. Best-effort: a failure here never blocks login.
 async function unlockZk(password: string): Promise<void> {
   try {
-    const keys = await getZkKeys();
-    const privateKey = await unlockWithPassword(password, keys.wrapped_private_key, keys.wrap_salt);
-    storeUnlockedKeys({ publicKey: keys.public_key, privateKey });
+    for (const k of await getZkKeys()) {
+      try {
+        const privateKey = await unlockWithPassword(password, k.wrapped_private_key, k.wrap_salt);
+        storeUnlockedKey(k.organization_id, { publicKey: k.public_key, privateKey });
+      } catch {
+        /* skip an org whose key this password can't unwrap (e.g. a granted key) */
+      }
+    }
   } catch {
     /* leave locked; the dashboard will offer to unlock */
   }
@@ -129,17 +141,20 @@ export async function login(email: string, password: string): Promise<void> {
   await unlockZk(password);
 }
 
-// Re-wrap the (already unlocked) private key under a new password and persist it. Call after a
-// successful password change so the new password can unlock the key next time.
-export async function rewrapZkForNewPassword(privateKey: string, newPassword: string): Promise<void> {
-  const wrapped = await rewrapForPassword(privateKey, newPassword);
-  await authedFetch<void>("/v1/auth/zk-rewrap", {
-    method: "POST",
-    body: JSON.stringify({
-      wrapped_private_key: wrapped.wrapped_private_key,
-      wrap_salt: wrapped.salt,
-    }),
-  });
+// Re-wrap every unlocked org key under a new password and persist them. Call after a successful
+// password change so the new password can unlock each org key next time.
+export async function rewrapAllForNewPassword(newPassword: string): Promise<void> {
+  for (const { organizationId, keys } of listUnlockedKeys()) {
+    const wrapped = await rewrapForPassword(keys.privateKey, newPassword);
+    await authedFetch<void>("/v1/auth/zk-rewrap", {
+      method: "POST",
+      body: JSON.stringify({
+        organization_id: organizationId,
+        wrapped_private_key: wrapped.wrapped_private_key,
+        wrap_salt: wrapped.salt,
+      }),
+    });
+  }
 }
 
 export async function logout(): Promise<void> {

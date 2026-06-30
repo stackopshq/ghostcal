@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getActiveOrg } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 import {
   changeRole,
@@ -12,6 +13,7 @@ import {
   removeMember,
   revokeInvitation,
 } from "@/lib/team";
+import { getUnlockedKeys, wrapKeyForGrant } from "@/lib/zk";
 
 const ROLES = ["member", "admin", "owner"];
 
@@ -24,6 +26,7 @@ export default function TeamPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
   const [error, setError] = useState<string | null>(null);
+  const [secureLink, setSecureLink] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -48,8 +51,22 @@ export default function TeamPage() {
   async function invite(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setSecureLink(null);
     try {
-      await inviteMember(inviteEmail.trim(), inviteRole);
+      // If the org key is unlocked, seal it under a random grant key carried in the link fragment,
+      // so the new member can decrypt invitee data once they accept (zero-knowledge team sharing).
+      const keys = getUnlockedKeys(getActiveOrg());
+      let wrappedOrgKey: string | null = null;
+      let grantKey: string | null = null;
+      if (keys) {
+        const grant = await wrapKeyForGrant(keys.privateKey);
+        wrappedOrgKey = grant.wrapped_org_key;
+        grantKey = grant.grant_key;
+      }
+      const invitation = await inviteMember(inviteEmail.trim(), inviteRole, wrappedOrgKey);
+      if (invitation.token && grantKey) {
+        setSecureLink(`${window.location.origin}/invitations/${invitation.token}#k=${grantKey}`);
+      }
       setInviteEmail("");
       reload();
     } catch {
@@ -157,6 +174,25 @@ export default function TeamPage() {
                 {t("team.inviteBtn")}
               </button>
             </form>
+
+            {secureLink && (
+              <div className="rounded-xl border border-accent/40 bg-surface-2/60 p-4">
+                <p className="mb-1 flex items-center gap-1.5 text-sm font-medium text-accent">
+                  <span aria-hidden>🔑</span> {t("team.secureLinkTitle")}
+                </p>
+                <p className="mb-2 text-xs text-muted">{t("team.secureLinkSub")}</p>
+                <code className="block break-all rounded-lg bg-base/80 px-3 py-2 font-mono text-xs text-foreground">
+                  {secureLink}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => void navigator.clipboard?.writeText(secureLink)}
+                  className="mt-2 text-xs text-accent hover:underline"
+                >
+                  {t("team.secureLinkCopy")}
+                </button>
+              </div>
+            )}
 
             {invites.length > 0 && (
               <div className="flex flex-col gap-2">

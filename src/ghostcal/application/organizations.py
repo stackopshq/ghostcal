@@ -15,7 +15,7 @@ from __future__ import annotations
 import hashlib
 import secrets
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 
 from ghostcal.application.ports.clock import Clock
@@ -80,6 +80,9 @@ class PendingInvitation:
     role: str
     created_at: datetime
     expires_at: datetime
+    # The plaintext token, returned only when the invitation is created, so the inviter's browser
+    # can build the secure accept link (with the key fragment). Never populated by listings.
+    token: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,6 +91,8 @@ class InvitationPreview:
     organization_name: str
     email: str
     role: str
+    # The org private key sealed under the link-fragment grant key (zero-knowledge team sharing).
+    wrapped_org_key: str | None = None
 
 
 class OrgRepository:
@@ -123,6 +128,7 @@ class OrgRepository:
         token_hash: str,
         invited_by: uuid.UUID,
         expires_at: datetime,
+        wrapped_org_key: str | None = None,
     ) -> PendingInvitation:
         raise NotImplementedError
 
@@ -140,6 +146,17 @@ class InvitationGateway:
         raise NotImplementedError
 
     async def accept(self, token_hash: str, user_id: uuid.UUID) -> uuid.UUID | None:
+        raise NotImplementedError
+
+    async def store_member_key(
+        self,
+        org_id: uuid.UUID,
+        user_id: uuid.UUID,
+        *,
+        wrapped_private_key: str,
+        wrap_salt: str,
+    ) -> None:
+        """Store a member's password-wrapped org key (membership is verified server-side)."""
         raise NotImplementedError
 
 
@@ -179,7 +196,9 @@ class OrganizationService:
         self._require_manager(actor)
         return await self._repo.list_invitations(actor.organization_id)
 
-    async def invite(self, actor: OrgActor, *, email: str, role: str) -> PendingInvitation:
+    async def invite(
+        self, actor: OrgActor, *, email: str, role: str, wrapped_org_key: str | None = None
+    ) -> PendingInvitation:
         self._require_manager(actor)
         if role not in MEMBER_ROLES:
             raise InvalidRole(f"unknown role: {role}")
@@ -200,7 +219,11 @@ class OrganizationService:
             token_hash=_hash_token(plain),
             invited_by=actor.user_id,
             expires_at=expires_at,
+            wrapped_org_key=wrapped_org_key,
         )
+        # Return the plaintext token so the inviter's browser can build the secure link with the
+        # decryption-key fragment; the email below carries only the keyless link.
+        invitation = replace(invitation, token=plain)
         link = f"{self._frontend_base_url}/invitations/{plain}"
         await self._mailer.send(
             to=email,

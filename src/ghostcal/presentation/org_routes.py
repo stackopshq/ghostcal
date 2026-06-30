@@ -63,6 +63,7 @@ def _invitation_out(invitation: PendingInvitation) -> InvitationOut:
         role=invitation.role,
         created_at=invitation.created_at,
         expires_at=invitation.expires_at,
+        token=invitation.token,
     )
 
 
@@ -127,7 +128,10 @@ async def invite(payload: InviteIn, member: Member = Depends(current_member)) ->
     async with org_session(member.organization_id) as session:
         try:
             invitation = await _make(session, member).invite(
-                _actor(member), email=payload.email, role=payload.role
+                _actor(member),
+                email=payload.email,
+                role=payload.role,
+                wrapped_org_key=payload.wrapped_org_key,
             )
         except NotAuthorized as exc:
             raise HTTPException(status_code=403, detail=str(exc)) from exc

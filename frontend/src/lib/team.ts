@@ -16,6 +16,8 @@ export type Invitation = {
   role: string;
   created_at: string;
   expires_at: string;
+  // Returned only on creation, so the inviter can build the secure accept link (#k fragment).
+  token?: string | null;
 };
 
 export function listMembers(): Promise<Member[]> {
@@ -37,10 +39,30 @@ export function listInvitations(): Promise<Invitation[]> {
   return authedFetch<Invitation[]>("/v1/me/organization/invitations");
 }
 
-export function inviteMember(email: string, role: string): Promise<Invitation> {
+export function inviteMember(
+  email: string,
+  role: string,
+  wrappedOrgKey: string | null,
+): Promise<Invitation> {
   return authedFetch<Invitation>("/v1/me/organization/invitations", {
     method: "POST",
-    body: JSON.stringify({ email, role }),
+    body: JSON.stringify({ email, role, wrapped_org_key: wrappedOrgKey }),
+  });
+}
+
+/** Persist a member's org key (re-wrapped under their password) after recovering it from a grant. */
+export function storeMemberKey(
+  organizationId: string,
+  wrappedPrivateKey: string,
+  wrapSalt: string,
+): Promise<void> {
+  return authedFetch<void>("/v1/invitations/member-key", {
+    method: "POST",
+    body: JSON.stringify({
+      organization_id: organizationId,
+      wrapped_private_key: wrappedPrivateKey,
+      wrap_salt: wrapSalt,
+    }),
   });
 }
 

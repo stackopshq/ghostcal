@@ -6,7 +6,8 @@ import { useEffect, useState } from "react";
 import { getInvitationPreview, type InvitationPreview } from "@/lib/api";
 import { isAuthenticated, setActiveOrg } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
-import { acceptInvitation } from "@/lib/team";
+import { acceptInvitation, storeMemberKey } from "@/lib/team";
+import { rewrapForPassword, storeUnlockedKey, unwrapKeyFromGrant } from "@/lib/zk";
 
 export default function InvitationPage() {
   const t = useT();
@@ -18,6 +19,14 @@ export default function InvitationPage() {
   const [authed, setAuthed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accepting, setAccepting] = useState(false);
+  const [password, setPassword] = useState("");
+  // The decryption grant key rides in the URL fragment (#k=...), never sent to the server. Read it
+  // once at mount; it has no setter.
+  const [grantKey] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    const m = /[#&]k=([^&]+)/.exec(window.location.hash);
+    return m ? decodeURIComponent(m[1]) : null;
+  });
 
   useEffect(() => {
     let active = true;
@@ -34,11 +43,22 @@ export default function InvitationPage() {
     };
   }, [token]);
 
+  // Whether this invite carries decryption access that we can unlock (needs the password to re-wrap).
+  const hasGrant = Boolean(grantKey && preview?.wrapped_org_key);
+
   async function accept() {
     setAccepting(true);
     setError(null);
     try {
       const { organization_id } = await acceptInvitation(token);
+      // Convert the grant: recover the org private key with the fragment key, re-wrap it under this
+      // member's password, and persist it — so they can decrypt the team's invitee data.
+      if (grantKey && preview?.wrapped_org_key && password) {
+        const orgPrivateKey = await unwrapKeyFromGrant(grantKey, preview.wrapped_org_key);
+        const wrapped = await rewrapForPassword(orgPrivateKey, password);
+        await storeMemberKey(organization_id, wrapped.wrapped_private_key, wrapped.salt);
+        storeUnlockedKey(organization_id, { publicKey: "", privateKey: orgPrivateKey });
+      }
       setActiveOrg(organization_id); // land in the org you just joined
       router.push("/dashboard");
     } catch {
@@ -70,14 +90,30 @@ export default function InvitationPage() {
             {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
 
             {authed ? (
-              <button
-                type="button"
-                onClick={accept}
-                disabled={accepting}
-                className="mt-6 w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.45)] transition hover:brightness-110 disabled:opacity-60"
-              >
-                {accepting ? t("inv.joining") : t("inv.accept")}
-              </button>
+              <div className="mt-6 flex flex-col gap-3">
+                {hasGrant && (
+                  <div className="text-left">
+                    <p className="mb-1 flex items-center gap-1.5 text-xs text-accent">
+                      <span aria-hidden>🔑</span> {t("inv.unlockTitle")}
+                    </p>
+                    <input
+                      type="password"
+                      placeholder={t("inv.unlockPasswordPh")}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
+                    />
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={accept}
+                  disabled={accepting || (hasGrant && !password)}
+                  className="w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.45)] transition hover:brightness-110 disabled:opacity-60"
+                >
+                  {accepting ? t("inv.joining") : t("inv.accept")}
+                </button>
+              </div>
             ) : (
               <div className="mt-6 flex flex-col gap-3">
                 <p className="text-sm text-muted">

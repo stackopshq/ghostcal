@@ -12,7 +12,11 @@ from ghostcal.application.organizations import (
 from ghostcal.infrastructure.db.org_repository import SqlInvitationGateway
 from ghostcal.infrastructure.db.session import db_session
 from ghostcal.presentation.auth_routes import CurrentUser
-from ghostcal.presentation.schemas import AcceptInvitationOut, InvitationPreviewOut
+from ghostcal.presentation.schemas import (
+    AcceptInvitationOut,
+    InvitationPreviewOut,
+    StoreMemberKeyIn,
+)
 
 router = APIRouter(prefix="/v1/invitations", tags=["invitations"])
 
@@ -29,6 +33,7 @@ async def preview(token: str) -> InvitationPreviewOut:
         organization_name=result.organization_name,
         email=result.email,
         role=result.role,
+        wrapped_org_key=result.wrapped_org_key,
     )
 
 
@@ -42,3 +47,16 @@ async def accept(token: str, user: CurrentUser) -> AcceptInvitationOut:
         except InvitationInvalid as exc:
             raise HTTPException(status_code=404, detail="invalid or expired invitation") from exc
     return AcceptInvitationOut(organization_id=org_id)
+
+
+@router.post("/member-key", status_code=204)
+async def store_member_key(payload: StoreMemberKeyIn, user: CurrentUser) -> None:
+    """Store the member's org key, re-wrapped under their password after recovering it from the
+    invitation-link fragment. Membership is verified inside the SECURITY DEFINER helper."""
+    async with db_session() as session:
+        await SqlInvitationGateway(session).store_member_key(
+            payload.organization_id,
+            user.id,
+            wrapped_private_key=payload.wrapped_private_key,
+            wrap_salt=payload.wrap_salt,
+        )
