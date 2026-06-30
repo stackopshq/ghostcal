@@ -6,10 +6,12 @@ import asyncio
 import json
 import logging
 import uuid
+from datetime import timedelta
 
 import httpx
 
 from ghostcal.application.calendars import NotConnected, sync_calendar
+from ghostcal.application.event_reminders import dispatch_event_reminders
 from ghostcal.application.ports.calendar import CalendarError
 from ghostcal.application.ports.clock import SystemClock
 from ghostcal.application.reminders import DueReminder, dispatch_reminders
@@ -18,6 +20,7 @@ from ghostcal.celery_app import celery_app
 from ghostcal.config import get_settings
 from ghostcal.infrastructure.calendars import CaldavCalendarClient
 from ghostcal.infrastructure.db.caldav_repository import SqlCaldavConnectionRepository
+from ghostcal.infrastructure.db.event_reminders_repository import SqlEventReminderGateway
 from ghostcal.infrastructure.db.membership import active_caldav_connections
 from ghostcal.infrastructure.db.reminders_repository import SqlReminderGateway
 from ghostcal.infrastructure.db.session import db_session, org_session, reset_engine
@@ -88,6 +91,25 @@ async def _send_due_reminders() -> int:
                 manage_url=_manage_url,
             )
         logger.info("reminders dispatched: %d", sent)
+    finally:
+        await reset_engine()
+    return sent
+
+
+@celery_app.task(name="ghostcal.send_due_event_reminders")  # type: ignore[untyped-decorator]
+def send_due_event_reminders() -> int:
+    """Send all due calendar-event reminders. Returns how many were sent."""
+    return asyncio.run(_send_due_event_reminders())
+
+
+async def _send_due_event_reminders() -> int:
+    window = timedelta(seconds=_settings.reminder_scan_interval_seconds)
+    try:
+        async with db_session() as session:
+            sent = await dispatch_event_reminders(
+                SqlEventReminderGateway(session), _mailer, now=_clock.now(), scan_window=window
+            )
+        logger.info("event reminders dispatched: %d", sent)
     finally:
         await reset_engine()
     return sent

@@ -495,6 +495,7 @@ class EventIn(BaseModel):
     exdates: list[str] = Field(default_factory=list, max_length=512)
     # Sealed {title, description, location} — encrypted in the browser; the server never reads it.
     content: str | None = Field(default=None, max_length=16384)
+    reminder_minutes: int | None = Field(default=None, ge=0, le=40320)
 
 
 class EventOut(BaseModel):
@@ -507,6 +508,7 @@ class EventOut(BaseModel):
     rrule: str | None
     exdates: list[str]
     content: str | None
+    reminder_minutes: int | None
 
 
 class AgendaItemOut(BaseModel):

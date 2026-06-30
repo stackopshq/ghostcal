@@ -184,6 +184,29 @@ async def send_booking_reminder(
     )
 
 
+async def send_event_reminder(
+    mailer: EmailSender,
+    *,
+    to: str,
+    start_at: datetime,
+    timezone: str,
+    minutes_before: int,
+) -> None:
+    """Remind the owner of an upcoming calendar event. Zero-knowledge: the event is never named —
+    the server only knows the time."""
+    when = _human(start_at, timezone)
+    lead = _lead_label(minutes_before)
+    await mailer.send(
+        to=to,
+        subject=f"Reminder: an event {lead}",
+        html=(
+            f"<p>You have a calendar event {lead}.</p>"
+            f"<p><strong>When:</strong> {when}</p>"
+            f"<p>Open GhostCal to see the details — they're end-to-end encrypted.</p>"
+        ),
+    )
+
+
 def _poll_ics(*, title: str, organizer: str, start_at: datetime, end_at: datetime) -> str:
     lines = [
         "BEGIN:VCALENDAR",

@@ -419,6 +419,8 @@ class ExternalBusy(Base):
     host_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     end_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # External event title, encrypted at rest (read from the user's own calendar during sync).
+    summary: Mapped[str | None] = mapped_column(EncryptedString)
     period: Mapped[object] = mapped_column(
         TSTZRANGE,
         Computed("tstzrange(start_at, end_at, '[)')", persisted=True),
@@ -465,6 +467,8 @@ class CalendarEvent(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(20), default="confirmed")
     # Sealed {title, description, location} — encrypted to the org key, decrypted only in-browser.
     content: Mapped[str | None] = mapped_column(Text)
+    # Minutes before each occurrence to email the owner a content-less reminder; NULL = none.
+    reminder_minutes: Mapped[int | None] = mapped_column()
 
 
 # Tenant-scoped tables that receive Row-Level Security (column carrying the tenant id).

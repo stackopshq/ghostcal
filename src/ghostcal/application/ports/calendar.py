@@ -9,8 +9,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 
-from ghostcal.domain.time import TimeRange
-
 
 class CalendarError(Exception):
     pass
@@ -33,6 +31,15 @@ class CalendarCredentials:
     password: str
 
 
+@dataclass(frozen=True, slots=True)
+class BusyEvent:
+    """A busy interval from an external calendar, with its summary if the server exposed one."""
+
+    start: datetime
+    end: datetime
+    summary: str | None = None
+
+
 class CalendarClient(Protocol):
     async def list_calendars(self, creds: CalendarCredentials) -> list[CalendarInfo]:
         """Validate credentials and return the available calendars."""
@@ -40,8 +47,8 @@ class CalendarClient(Protocol):
 
     async def fetch_busy(
         self, creds: CalendarCredentials, calendar_url: str, start: datetime, end: datetime
-    ) -> list[TimeRange]:
-        """Busy intervals (UTC) from events overlapping [start, end)."""
+    ) -> list[BusyEvent]:
+        """Busy events (UTC, with summaries) overlapping [start, end)."""
         ...
 
     async def create_event(

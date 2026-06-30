@@ -47,6 +47,7 @@ def _to_input(payload: EventIn) -> EventInput:
         rrule=payload.rrule,
         exdates=tuple(payload.exdates),
         content=payload.content,
+        reminder_minutes=payload.reminder_minutes,
     )
 
 
@@ -122,6 +123,7 @@ async def read_my_event(event_id: uuid.UUID, member: Member = Depends(current_me
         rrule=e.rrule,
         exdates=list(e.exdates),
         content=e.content,
+        reminder_minutes=e.reminder_minutes,
     )
 
 
