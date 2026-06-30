@@ -6,11 +6,32 @@ are the caller's concern (sends are best-effort and must not fail the booking).
 
 from __future__ import annotations
 
+import html
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 from ghostcal.application.ports.email import Attachment, EmailSender
 from ghostcal.application.scheduling import BookingConfirmation
+
+
+def _h(value: str | None) -> str:
+    """HTML-escape a user-controlled value before interpolating into an email body (anti-XSS)."""
+    return html.escape(value or "")
+
+
+def _ics(value: str | None) -> str:
+    """Escape a value for an iCalendar text property per RFC 5545 (and strip CR/LF to block
+    property injection)."""
+    return (
+        (value or "")
+        .replace("\\", "\\\\")
+        .replace("\r\n", " ")
+        .replace("\n", " ")
+        .replace("\r", " ")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+    )
+
 
 _LOCATION_LABELS = {
     "google_meet": "Google Meet",
@@ -33,7 +54,7 @@ def _invitee_label(name: str | None, email: str) -> str:
 
 
 def _attendee_line(name: str | None, email: str) -> str:
-    return f"ATTENDEE;CN={name}:mailto:{email}" if name else f"ATTENDEE:mailto:{email}"
+    return f"ATTENDEE;CN={_ics(name)}:mailto:{email}" if name else f"ATTENDEE:mailto:{email}"
 
 
 def _human(dt: datetime, timezone: str) -> str:
@@ -57,10 +78,10 @@ def build_ics(conf: BookingConfirmation) -> str:
         f"DTSTAMP:{_ics_dt(conf.start_at)}",
         f"DTSTART:{_ics_dt(conf.start_at)}",
         f"DTEND:{_ics_dt(conf.end_at)}",
-        f"SUMMARY:{conf.event_title} with {conf.host_name}",
-        f"DESCRIPTION:{conf.event_title} ({_location_label(conf.location_type)})",
+        f"SUMMARY:{_ics(conf.event_title)} with {_ics(conf.host_name)}",
+        f"DESCRIPTION:{_ics(conf.event_title)} ({_location_label(conf.location_type)})",
         f"LOCATION:{_location_label(conf.location_type)}",
-        f"ORGANIZER;CN={conf.host_name}:mailto:{conf.host_email}",
+        f"ORGANIZER;CN={_ics(conf.host_name)}:mailto:{conf.host_email}",
         _attendee_line(conf.invitee_name, conf.invitee_email),
         *(f"ATTENDEE:mailto:{guest}" for guest in conf.guest_emails),
         "END:VEVENT",
@@ -79,8 +100,8 @@ def _confirmation_html(
     )
     return (
         f"<p>Your meeting is confirmed.</p>"
-        f"<p><strong>{conf.event_title}</strong><br>"
-        f"With: {counterpart}<br>"
+        f"<p><strong>{_h(conf.event_title)}</strong><br>"
+        f"With: {_h(counterpart)}<br>"
         f"When: {when}<br>"
         f"Where: {_location_label(conf.location_type)}</p>"
         f"<p>The calendar invite is attached.</p>"
@@ -175,8 +196,8 @@ async def send_booking_reminder(
         subject=f"Reminder: {event_title} with {host_name} ({lead})",
         html=(
             f"<p>This is a reminder that your meeting starts {lead}.</p>"
-            f"<p><strong>{event_title}</strong><br>"
-            f"With: {host_name}<br>"
+            f"<p><strong>{_h(event_title)}</strong><br>"
+            f"With: {_h(host_name)}<br>"
             f"When: {when}<br>"
             f"Where: {_location_label(location_type)}</p>"
             f"{manage}"
@@ -214,11 +235,11 @@ def _poll_ics(*, title: str, organizer: str, start_at: datetime, end_at: datetim
         "PRODID:-//GhostCal//Poll//EN",
         "METHOD:PUBLISH",
         "BEGIN:VEVENT",
-        f"UID:poll-{_ics_dt(start_at)}-{organizer}@ghostcal",
+        f"UID:poll-{_ics_dt(start_at)}-{_ics(organizer)}@ghostcal",
         f"DTSTAMP:{_ics_dt(start_at)}",
         f"DTSTART:{_ics_dt(start_at)}",
         f"DTEND:{_ics_dt(end_at)}",
-        f"SUMMARY:{title}",
+        f"SUMMARY:{_ics(title)}",
         "END:VEVENT",
         "END:VCALENDAR",
     ]
@@ -248,9 +269,10 @@ async def send_poll_result(
         to=to_email,
         subject=f"Time confirmed: {poll_title}",
         html=(
-            f"<p>Hi {attendee_name}, the time for <strong>{poll_title}</strong> has been set.</p>"
+            f"<p>Hi {_h(attendee_name)}, the time for "
+            f"<strong>{_h(poll_title)}</strong> has been set.</p>"
             f"<p>When: {_human(start_at, timezone)}<br>"
-            f"Host: {owner_name}<br>"
+            f"Host: {_h(owner_name)}<br>"
             f"Where: {_location_label(location_type)}</p>"
             f"<p>The calendar invite is attached.</p>"
         ),
@@ -274,7 +296,7 @@ async def send_booking_cancellation(
         subject=f"Cancelled: {event_title}{suffix}",
         html=(
             f"<p>Your meeting has been cancelled.</p>"
-            f"<p><strong>{event_title}</strong><br>When: {when}</p>"
+            f"<p><strong>{_h(event_title)}</strong><br>When: {when}</p>"
             f"<p>You can book another time if you still need to meet.</p>"
         ),
     )
