@@ -17,6 +17,7 @@ from ghostcal.infrastructure.db.auth_repository import SqlAuthRepository
 from ghostcal.infrastructure.db.session import db_session
 from ghostcal.infrastructure.security.passwords import Argon2PasswordHasher
 from ghostcal.infrastructure.security.tokens import JwtAccessTokenCodec
+from tests.integration.conftest import ZK_PLACEHOLDER
 
 pytestmark = pytest.mark.integration
 
@@ -62,7 +63,7 @@ async def test_profile_update_and_password_change(admin_engine: AsyncEngine) -> 
     try:
         async with db_session() as s:
             user_id = await _auth(s, mailer).register(
-                email=email, name="Init Name", password=PASSWORD
+                email=email, name="Init Name", password=PASSWORD, zk_keys=ZK_PLACEHOLDER
             )
         async with db_session() as s:
             await _auth(s, mailer).verify_email(token=mailer.token())

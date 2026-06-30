@@ -50,6 +50,7 @@ class SqlMeetingsRepository(MeetingsRepository):
                 location=booking.location,
                 meeting_url=booking.meeting_url,
                 external_event_uid=booking.external_event_uid,
+                invitee_private=booking.invitee_private,
             )
             for booking, title in rows
         ]

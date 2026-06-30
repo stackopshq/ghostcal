@@ -34,3 +34,4 @@ htmlcov/
 # Claude / agent local config — never versioned
 CLAUDE.md
 .claude/
+compose.override.yaml

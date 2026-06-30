@@ -74,7 +74,7 @@ async def _mirror(org_id: uuid.UUID, conf: BookingConfirmation) -> None:
             _calendar_client,
             host_id=conf.host_id,
             booking_id=conf.booking_id,
-            summary=f"{conf.event_title} with {conf.invitee_name}",
+            summary=conf.event_title,
             description=f"Booked via GhostCal — {conf.invitee_email}",
             location=_LOCATION_LABELS.get(conf.location_type, conf.location_type),
             start=conf.start_at,

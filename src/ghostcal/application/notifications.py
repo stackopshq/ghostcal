@@ -26,6 +26,16 @@ def _location_label(location_type: str) -> str:
     return _LOCATION_LABELS.get(location_type, location_type)
 
 
+def _invitee_label(name: str | None, email: str) -> str:
+    """How to refer to the invitee in host-facing copy. The name is zero-knowledge, so for
+    booking-page bookings only the email is known server-side."""
+    return f"{name} ({email})" if name else email
+
+
+def _attendee_line(name: str | None, email: str) -> str:
+    return f"ATTENDEE;CN={name}:mailto:{email}" if name else f"ATTENDEE:mailto:{email}"
+
+
 def _human(dt: datetime, timezone: str) -> str:
     local = dt.astimezone(ZoneInfo(timezone))
     return f"{local.strftime('%A, %d %B %Y at %H:%M')} ({timezone})"
@@ -51,7 +61,7 @@ def build_ics(conf: BookingConfirmation) -> str:
         f"DESCRIPTION:{conf.event_title} ({_location_label(conf.location_type)})",
         f"LOCATION:{_location_label(conf.location_type)}",
         f"ORGANIZER;CN={conf.host_name}:mailto:{conf.host_email}",
-        f"ATTENDEE;CN={conf.invitee_name}:mailto:{conf.invitee_email}",
+        _attendee_line(conf.invitee_name, conf.invitee_email),
         *(f"ATTENDEE:mailto:{guest}" for guest in conf.guest_emails),
         "END:VEVENT",
         "END:VCALENDAR",
@@ -94,13 +104,14 @@ async def send_booking_confirmation(
         ),
         attachments=[invite],
     )
+    invitee_label = _invitee_label(conf.invitee_name, conf.invitee_email)
     await mailer.send(
         to=conf.host_email,
-        subject=f"New booking: {conf.event_title} with {conf.invitee_name}",
+        subject=f"New booking: {conf.event_title}",
         html=_confirmation_html(
             conf,
             when=_human(conf.start_at, conf.host_timezone),
-            counterpart=f"{conf.invitee_name} ({conf.invitee_email})",
+            counterpart=invitee_label,
         ),
         attachments=[invite],
     )
@@ -108,11 +119,11 @@ async def send_booking_confirmation(
     for cohost_email in conf.additional_host_emails:
         await mailer.send(
             to=cohost_email,
-            subject=f"New booking: {conf.event_title} with {conf.invitee_name}",
+            subject=f"New booking: {conf.event_title}",
             html=_confirmation_html(
                 conf,
                 when=_human(conf.start_at, conf.host_timezone),
-                counterpart=f"{conf.invitee_name} ({conf.invitee_email})",
+                counterpart=invitee_label,
             ),
             attachments=[invite],
         )
@@ -230,13 +241,14 @@ async def send_booking_cancellation(
     invitee_email: str,
     invitee_timezone: str,
     event_title: str,
-    host_name: str,
+    host_name: str | None,
     start_at: datetime,
 ) -> None:
     when = _human(start_at, invitee_timezone)
+    suffix = f" with {host_name}" if host_name else ""
     await mailer.send(
         to=invitee_email,
-        subject=f"Cancelled: {event_title} with {host_name}",
+        subject=f"Cancelled: {event_title}{suffix}",
         html=(
             f"<p>Your meeting has been cancelled.</p>"
             f"<p><strong>{event_title}</strong><br>When: {when}</p>"

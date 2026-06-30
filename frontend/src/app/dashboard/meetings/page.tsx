@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { cancelMeeting, listMeetings, type Meeting, type MeetingScope } from "@/lib/meetings";
+import { getUnlockedKeys, openInviteePrivate, type InviteePrivate } from "@/lib/zk";
 
 function fmtDay(iso: string, tz: string): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -32,13 +33,36 @@ export default function MeetingsPage() {
   const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
   const [scope, setScope] = useState<MeetingScope>("upcoming");
   const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [decrypted, setDecrypted] = useState<Record<string, InviteePrivate>>({});
+  const [locked, setLocked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(0);
 
   useEffect(() => {
     let active = true;
     listMeetings(scope)
-      .then((m) => active && setMeetings(m))
+      .then(async (m) => {
+        if (!active) return;
+        setMeetings(m);
+        // Decrypt the sealed invitee blobs in-browser with the org private key (per-tab session).
+        const keys = getUnlockedKeys();
+        const sealed = m.filter((x) => x.invitee_private);
+        if (sealed.length > 0 && !keys) {
+          setLocked(true);
+          return;
+        }
+        setLocked(false);
+        if (!keys) return;
+        const out: Record<string, InviteePrivate> = {};
+        for (const x of sealed) {
+          try {
+            out[x.id] = await openInviteePrivate(x.invitee_private!, keys.publicKey, keys.privateKey);
+          } catch {
+            /* skip blobs we cannot open */
+          }
+        }
+        if (active) setDecrypted(out);
+      })
       .catch(() => active && setMeetings([]))
       .finally(() => active && setLoading(false));
     return () => {
@@ -83,6 +107,12 @@ export default function MeetingsPage() {
         ))}
       </div>
 
+      {locked && (
+        <p className="glass flex items-center gap-2 rounded-xl border-l-[3px] border-l-accent p-3 text-sm text-accent/90">
+          <span aria-hidden>🔒</span> {t("meetings.locked")}
+        </p>
+      )}
+
       {loading && <p className="text-sm text-muted">{t("common.loading")}</p>}
       {!loading && meetings.length === 0 && (
         <p className="text-sm text-muted">
@@ -99,8 +129,11 @@ export default function MeetingsPage() {
             <div>
               <p className="font-medium text-foreground">{m.event_title}</p>
               <p className="text-sm text-muted">
-                {m.invitee_name} · {m.invitee_email}
+                {(decrypted[m.id]?.name || m.invitee_name) ?? "—"} · {m.invitee_email}
               </p>
+              {decrypted[m.id] && (
+                <MeetingDetails details={decrypted[m.id]} label={t("meetings.privateDetails")} />
+              )}
             </div>
             <div className="flex items-center gap-4">
               <div className="text-sm sm:text-right">
@@ -123,5 +156,26 @@ export default function MeetingsPage() {
         ))}
       </div>
     </main>
+  );
+}
+
+function MeetingDetails({ details, label }: { details: InviteePrivate; label: string }) {
+  const entries = Object.entries(details.answers ?? {}).filter(([, v]) => v);
+  if (entries.length === 0 && !details.notes) return null;
+  return (
+    <div className="mt-2 rounded-lg border border-border bg-surface-2/60 p-3 text-xs">
+      <p className="mb-1 flex items-center gap-1 text-accent/80">
+        <span aria-hidden>🔓</span> {label}
+      </p>
+      <dl className="flex flex-col gap-0.5">
+        {entries.map(([k, v]) => (
+          <div key={k} className="flex gap-2">
+            <dt className="text-muted/70">{k}:</dt>
+            <dd className="text-foreground">{v}</dd>
+          </div>
+        ))}
+        {details.notes && <p className="mt-1 whitespace-pre-wrap text-foreground">{details.notes}</p>}
+      </dl>
+    </div>
   );
 }

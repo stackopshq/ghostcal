@@ -78,12 +78,52 @@ class AuthConfig:
     frontend_base_url: str
 
 
+@dataclass(frozen=True, slots=True)
+class ZkKeyMaterial:
+    """Zero-knowledge key material generated client-side at sign-up.
+
+    All fields are base64 strings; the server stores them verbatim and can derive nothing from
+    them (no private key, no password- or recovery-derived key). See ADR-0002.
+    """
+
+    public_key: str
+    wrapped_private_key: str
+    wrap_salt: str
+    recovery_wrapped_private_key: str
+    recovery_salt: str
+
+
+@dataclass(frozen=True, slots=True)
+class ZkKeyBundle:
+    """What the browser needs to unlock the org private key (recovery copy included for resets)."""
+
+    organization_id: uuid.UUID
+    public_key: str
+    wrapped_private_key: str
+    wrap_salt: str
+    recovery_wrapped_private_key: str
+    recovery_salt: str
+
+
 class AuthRepository:
     async def provision_account(
         self, *, email: str, name: str, password_hash: str, org_name: str, org_slug: str
     ) -> uuid.UUID:
         """Create user + credentials + org + owner membership atomically. Return the user id.
         Raise ``EmailAlreadyRegistered`` if the email is taken."""
+        raise NotImplementedError
+
+    async def store_zk_keys(self, user_id: uuid.UUID, material: ZkKeyMaterial) -> None:
+        """Persist the wrapped zero-knowledge keys for the user's owner organization."""
+        raise NotImplementedError
+
+    async def get_zk_keys(self, user_id: uuid.UUID) -> ZkKeyBundle | None:
+        raise NotImplementedError
+
+    async def rewrap_zk_key(
+        self, user_id: uuid.UUID, *, wrapped_private_key: str, wrap_salt: str
+    ) -> None:
+        """Replace the password-wrapped private key (after a password change/reset)."""
         raise NotImplementedError
 
     async def get_by_email(self, email: str) -> AuthUserRecord | None:
@@ -152,7 +192,9 @@ class AuthService:
         self._clock = clock
         self._config = config
 
-    async def register(self, *, email: str, name: str, password: str) -> uuid.UUID:
+    async def register(
+        self, *, email: str, name: str, password: str, zk_keys: ZkKeyMaterial
+    ) -> uuid.UUID:
         email = email.strip().lower()
         password_hash = self._hasher.hash(password)
         user_id = await self._repo.provision_account(
@@ -162,8 +204,19 @@ class AuthService:
             org_name=name or email,
             org_slug=_org_slug(email),
         )
+        await self._repo.store_zk_keys(user_id, zk_keys)
         await self._send_verification(user_id, email)
         return user_id
+
+    async def get_zk_keys(self, user_id: uuid.UUID) -> ZkKeyBundle | None:
+        return await self._repo.get_zk_keys(user_id)
+
+    async def rewrap_zk_key(
+        self, user_id: uuid.UUID, *, wrapped_private_key: str, wrap_salt: str
+    ) -> None:
+        await self._repo.rewrap_zk_key(
+            user_id, wrapped_private_key=wrapped_private_key, wrap_salt=wrap_salt
+        )
 
     async def _send_verification(self, user_id: uuid.UUID, email: str) -> None:
         plain = secrets.token_urlsafe(32)

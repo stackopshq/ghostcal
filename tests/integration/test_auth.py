@@ -27,6 +27,7 @@ from ghostcal.infrastructure.db.auth_repository import SqlAuthRepository
 from ghostcal.infrastructure.db.session import db_session
 from ghostcal.infrastructure.security.passwords import Argon2PasswordHasher
 from ghostcal.infrastructure.security.tokens import JwtAccessTokenCodec
+from tests.integration.conftest import ZK_PLACEHOLDER
 
 pytestmark = pytest.mark.integration
 
@@ -67,7 +68,7 @@ async def test_full_auth_flow(admin_engine: AsyncEngine) -> None:
     try:
         async with db_session() as s:
             user_id = await _service(s, mailer).register(
-                email=email, name="Test User", password=PASSWORD
+                email=email, name="Test User", password=PASSWORD, zk_keys=ZK_PLACEHOLDER
             )
         token = mailer.token()
 
@@ -110,7 +111,7 @@ async def test_full_auth_flow(admin_engine: AsyncEngine) -> None:
         with pytest.raises(EmailAlreadyRegistered):
             async with db_session() as s:
                 await _service(s, mailer).register(
-                    email=email, name="Dup", password="another-password"
+                    email=email, name="Dup", password="another-password", zk_keys=ZK_PLACEHOLDER
                 )
     finally:
         if user_id is not None:

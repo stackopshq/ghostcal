@@ -15,7 +15,9 @@ class MeetingNotFound(Exception):
 class BookingSummary:
     id: uuid.UUID
     event_title: str
-    invitee_name: str
+    # None for booking-page bookings (zero-knowledge); the dashboard shows the name from the
+    # decrypted ``invitee_private`` blob instead.
+    invitee_name: str | None
     invitee_email: str
     invitee_timezone: str
     start_at: datetime
@@ -24,6 +26,8 @@ class BookingSummary:
     location: str | None
     meeting_url: str | None
     external_event_uid: str | None = None
+    # Sealed-box blob with the invitee's answers + notes; the dashboard decrypts it in-browser.
+    invitee_private: str | None = None
 
 
 class MeetingsRepository:

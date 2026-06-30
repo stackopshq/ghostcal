@@ -1,4 +1,9 @@
-"""Unit tests for booking-input validation (custom answers + guests)."""
+"""Unit tests for booking-input validation (sealed answers presence + guests).
+
+Answers are zero-knowledge: the server can no longer inspect their content, so per-field "required"
+checks moved to the booking page. The server only enforces that *a* sealed blob is present when the
+event type has any required question. See ADR-0002.
+"""
 
 from __future__ import annotations
 
@@ -8,8 +13,8 @@ from ghostcal.application.event_types import BookingQuestion
 from ghostcal.application.scheduling import (
     MAX_GUESTS,
     InvalidBookingInput,
-    _clean_answers,
     _clean_guests,
+    _require_private,
 )
 
 QUESTIONS = (
@@ -18,23 +23,20 @@ QUESTIONS = (
 )
 
 
-def test_required_answer_missing_is_rejected() -> None:
+def test_required_question_without_sealed_blob_is_rejected() -> None:
     with pytest.raises(InvalidBookingInput):
-        _clean_answers(QUESTIONS, {"notes": "hi"})
+        _require_private(QUESTIONS, None)
 
 
-def test_required_answer_blank_is_rejected() -> None:
-    with pytest.raises(InvalidBookingInput):
-        _clean_answers(QUESTIONS, {"company": "   "})
+def test_required_question_with_sealed_blob_is_accepted() -> None:
+    blob = "c2VhbGVkLWNpcGhlcnRleHQ="
+    assert _require_private(QUESTIONS, blob) == blob
 
 
-def test_unknown_answers_are_dropped_and_known_kept() -> None:
-    cleaned = _clean_answers(QUESTIONS, {"company": "Acme", "spam": "x", "notes": "later"})
-    assert cleaned == {"company": "Acme", "notes": "later"}
-
-
-def test_no_questions_accepts_empty() -> None:
-    assert _clean_answers((), {}) == {}
+def test_no_required_questions_accepts_missing_blob() -> None:
+    optional = (BookingQuestion(id="notes", label="Notes", type="textarea", required=False),)
+    assert _require_private(optional, None) is None
+    assert _require_private((), None) is None
 
 
 def test_guests_are_normalized_and_deduped() -> None:

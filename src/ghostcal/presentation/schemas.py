@@ -9,10 +9,39 @@ from typing import Literal
 from pydantic import BaseModel, EmailStr, Field
 
 
+class ZkKeyMaterialIn(BaseModel):
+    """Zero-knowledge key material generated in the browser at sign-up (all base64). See ADR-0002.
+
+    The server stores these verbatim and can derive nothing from them — no private key, no
+    password- or recovery-derived key ever reaches it.
+    """
+
+    public_key: str = Field(min_length=1, max_length=512)
+    wrapped_private_key: str = Field(min_length=1, max_length=2048)
+    wrap_salt: str = Field(min_length=1, max_length=512)
+    recovery_wrapped_private_key: str = Field(min_length=1, max_length=2048)
+    recovery_salt: str = Field(min_length=1, max_length=512)
+
+
 class RegisterIn(BaseModel):
     email: EmailStr
     name: str = Field(min_length=1, max_length=200)
     password: str = Field(min_length=8, max_length=200)
+    zk_keys: ZkKeyMaterialIn
+
+
+class ZkKeysOut(BaseModel):
+    organization_id: uuid.UUID
+    public_key: str
+    wrapped_private_key: str
+    wrap_salt: str
+    recovery_wrapped_private_key: str
+    recovery_salt: str
+
+
+class ZkRewrapIn(BaseModel):
+    wrapped_private_key: str = Field(min_length=1, max_length=2048)
+    wrap_salt: str = Field(min_length=1, max_length=512)
 
 
 class VerifyEmailIn(BaseModel):
@@ -289,7 +318,8 @@ class SyncResultOut(BaseModel):
 class MeetingOut(BaseModel):
     id: uuid.UUID
     event_title: str
-    invitee_name: str
+    # Null for booking-page bookings — the dashboard decrypts the name from ``invitee_private``.
+    invitee_name: str | None
     invitee_email: str
     invitee_timezone: str
     start_at: datetime
@@ -297,6 +327,9 @@ class MeetingOut(BaseModel):
     status: str
     location: str | None
     meeting_url: str | None
+    # Sealed-box blob with the invitee's answers + notes; the host decrypts it in-browser. Null
+    # when nothing private was submitted. The server never reads it.
+    invitee_private: str | None = None
 
 
 class BookingQuestionSchema(BaseModel):
@@ -357,6 +390,9 @@ class EventTypeOut(BaseModel):
     host_name: str
     questions: list[BookingQuestionSchema] = Field(default_factory=list)
     redirect_url: str | None = None
+    # The organization's zero-knowledge public key; the booking page seals answers to it. Null
+    # only for legacy orgs created before zero-knowledge.
+    zk_public_key: str | None = None
 
 
 class PublicEventTypeOut(BaseModel):
@@ -386,11 +422,14 @@ class AvailabilityOut(BaseModel):
 
 class BookingIn(BaseModel):
     start_at: datetime
-    invitee_name: str = Field(min_length=1, max_length=200)
+    # No invitee_name: it is zero-knowledge — the booking page seals it into ``invitee_private``
+    # and the server never receives it in cleartext.
     invitee_email: str = Field(min_length=3, max_length=320)
     invitee_timezone: str = Field(min_length=1, max_length=64)
     guest_emails: list[EmailStr] = Field(default_factory=list, max_length=10)
-    answers: dict[str, str] = Field(default_factory=dict)
+    # Sealed-box blob (base64) holding the answers + notes, encrypted in-browser to the org public
+    # key. The server stores it as-is and never reads it. Null when nothing private was submitted.
+    invitee_private: str | None = Field(default=None, max_length=8192)
 
 
 class BookingOut(BaseModel):
@@ -405,7 +444,7 @@ class ManageBookingOut(BaseModel):
     host_name: str
     organization_slug: str
     event_slug: str
-    invitee_name: str
+    invitee_name: str | None
     invitee_timezone: str
     duration_min: int
     location_type: str

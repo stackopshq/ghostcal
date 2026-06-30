@@ -121,6 +121,15 @@ class SqlSchedulingRepository:
             )
         ).scalar_one_or_none()
 
+    async def get_org_public_key(self) -> str | None:
+        return (
+            await self._session.execute(
+                select(models.Organization.zk_public_key).where(
+                    models.Organization.id == self._org_id
+                )
+            )
+        ).scalar_one_or_none()
+
     async def list_active_event_types(self) -> list[PublicEventType]:
         rows = (
             (
@@ -266,11 +275,11 @@ class SqlSchedulingRepository:
         host_id: uuid.UUID,
         start_at: datetime,
         end_at: datetime,
-        invitee_name: str,
+        invitee_name: str | None,
         invitee_email: str,
         invitee_timezone: str,
         guest_emails: tuple[str, ...] = (),
-        answers: dict[str, str] | None = None,
+        invitee_private: str | None = None,
         blocks_host: bool = True,
         max_at_slot: int | None = None,
     ) -> uuid.UUID:
@@ -311,7 +320,7 @@ class SqlSchedulingRepository:
                     end_at=end_at,
                     status="confirmed",
                     guest_emails=list(guest_emails),
-                    answers=answers or {},
+                    invitee_private=invitee_private,
                     blocks_host=blocks_host,
                 )
                 .returning(models.Booking.id)
@@ -327,11 +336,11 @@ class SqlSchedulingRepository:
         host_ids: tuple[uuid.UUID, ...],
         start_at: datetime,
         end_at: datetime,
-        invitee_name: str,
+        invitee_name: str | None,
         invitee_email: str,
         invitee_timezone: str,
         guest_emails: tuple[str, ...] = (),
-        answers: dict[str, str] | None = None,
+        invitee_private: str | None = None,
     ) -> uuid.UUID:
         group_id = uuid.uuid4()
         # Lock every host/slot (sorted, to avoid deadlocks between concurrent collective bookings).
@@ -357,7 +366,7 @@ class SqlSchedulingRepository:
                             end_at=end_at,
                             status="confirmed",
                             guest_emails=list(guest_emails),
-                            answers=answers or {},
+                            invitee_private=invitee_private,
                             collective_group_id=group_id,
                         )
                         .returning(models.Booking.id)

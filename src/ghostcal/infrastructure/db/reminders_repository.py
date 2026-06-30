@@ -9,9 +9,15 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ghostcal.application.reminders import DueReminder, ReminderGateway
+from ghostcal.config import get_settings
+from ghostcal.infrastructure.security.encryption import SecretBox
+
+# invitee_email is encrypted at rest; this raw-SQL path (a SECURITY DEFINER function) bypasses the
+# ORM TypeDecorator, so we decrypt it here with the application key to actually send the reminder.
+_cipher = SecretBox(get_settings().token_encryption_key.get_secret_value())
 
 _DUE = text(
-    "SELECT booking_id, organization_id, minutes_before, invitee_name, invitee_email, "
+    "SELECT booking_id, organization_id, minutes_before, invitee_email, "
     "invitee_timezone, event_title, host_name, host_email, host_timezone, location_type, "
     "start_at, end_at FROM due_booking_reminders(:offsets)"
 ).bindparams(bindparam("offsets", type_=ARRAY(Integer)))
@@ -28,8 +34,7 @@ class SqlReminderGateway(ReminderGateway):
                 booking_id=r.booking_id,
                 organization_id=r.organization_id,
                 minutes_before=r.minutes_before,
-                invitee_name=r.invitee_name,
-                invitee_email=r.invitee_email,
+                invitee_email=_cipher.decrypt(r.invitee_email),
                 invitee_timezone=r.invitee_timezone,
                 event_title=r.event_title,
                 host_name=r.host_name,

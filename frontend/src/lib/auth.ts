@@ -5,6 +5,15 @@
 // httpOnly cookie behind a same-origin proxy.
 
 import { ApiError, resolveBaseUrl } from "@/lib/api";
+import {
+  clearUnlockedKeys,
+  generateKeyMaterial,
+  generateRecoveryPhrase,
+  rewrapForPassword,
+  storeUnlockedKeys,
+  unlockWithPassword,
+  type ZkKeyMaterial,
+} from "@/lib/zk";
 
 const ACCESS_KEY = "gc_access";
 const REFRESH_KEY = "gc_refresh";
@@ -73,8 +82,41 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
 
-export function register(email: string, name: string, password: string): Promise<{ user_id: string }> {
-  return post("/v1/auth/register", { email, name, password });
+// Sign-up generates the org keypair in the browser. The private key is wrapped under the password
+// and under a one-time recovery phrase (shown to the user); the server only ever receives the
+// public key and the wrapped blobs. Returns the recovery phrase so the page can display it once.
+export async function register(
+  email: string,
+  name: string,
+  password: string,
+): Promise<{ user_id: string; recovery_phrase: string }> {
+  const recoveryPhrase = await generateRecoveryPhrase();
+  const zk_keys: ZkKeyMaterial = await generateKeyMaterial(password, recoveryPhrase);
+  const { user_id } = await post<{ user_id: string }>("/v1/auth/register", {
+    email,
+    name,
+    password,
+    zk_keys,
+  });
+  return { user_id, recovery_phrase: recoveryPhrase };
+}
+
+type ZkKeysOut = ZkKeyMaterial & { organization_id: string };
+
+export function getZkKeys(): Promise<ZkKeysOut> {
+  return authedFetch<ZkKeysOut>("/v1/auth/zk-keys");
+}
+
+// Unwrap the org private key with the password and stash it in the per-tab session store, so the
+// dashboard can decrypt invitee details. Best-effort: a failure here never blocks login.
+async function unlockZk(password: string): Promise<void> {
+  try {
+    const keys = await getZkKeys();
+    const privateKey = await unlockWithPassword(password, keys.wrapped_private_key, keys.wrap_salt);
+    storeUnlockedKeys({ publicKey: keys.public_key, privateKey });
+  } catch {
+    /* leave locked; the dashboard will offer to unlock */
+  }
 }
 
 export function verifyEmail(token: string): Promise<void> {
@@ -84,11 +126,26 @@ export function verifyEmail(token: string): Promise<void> {
 export async function login(email: string, password: string): Promise<void> {
   const tokens = await post<Tokens>("/v1/auth/login", { email, password });
   setTokens(tokens);
+  await unlockZk(password);
+}
+
+// Re-wrap the (already unlocked) private key under a new password and persist it. Call after a
+// successful password change so the new password can unlock the key next time.
+export async function rewrapZkForNewPassword(privateKey: string, newPassword: string): Promise<void> {
+  const wrapped = await rewrapForPassword(privateKey, newPassword);
+  await authedFetch<void>("/v1/auth/zk-rewrap", {
+    method: "POST",
+    body: JSON.stringify({
+      wrapped_private_key: wrapped.wrapped_private_key,
+      wrap_salt: wrapped.salt,
+    }),
+  });
 }
 
 export async function logout(): Promise<void> {
   const refresh = getRefreshToken();
   clearTokens();
+  clearUnlockedKeys();
   if (refresh) {
     await post("/v1/auth/logout", { refresh_token: refresh }).catch(() => undefined);
   }

@@ -78,12 +78,12 @@ def _manage_url(booking_id: uuid.UUID, organization_id: uuid.UUID) -> str:
 
 
 def _booking_payload(conf: BookingConfirmation) -> dict[str, object]:
+    # The invitee name is zero-knowledge (sealed in the booking), so it is never in the payload.
     return {
         "booking_id": str(conf.booking_id),
         "event_title": conf.event_title,
         "host_name": conf.host_name,
         "host_email": conf.host_email,
-        "invitee_name": conf.invitee_name,
         "invitee_email": conf.invitee_email,
         "start_at": conf.start_at.isoformat(),
         "end_at": conf.end_at.isoformat(),
@@ -101,7 +101,7 @@ async def _mirror_to_calendar(org_id: uuid.UUID, confirmation: BookingConfirmati
             _calendar_client,
             host_id=confirmation.host_id,
             booking_id=confirmation.booking_id,
-            summary=f"{confirmation.event_title} with {confirmation.invitee_name}",
+            summary=confirmation.event_title,
             description=f"Booked via GhostCal — {confirmation.invitee_email}",
             location=_LOCATION_LABELS.get(confirmation.location_type, confirmation.location_type),
             start=confirmation.start_at,
@@ -153,6 +153,7 @@ async def read_event_type(org_id: OrgId, event_slug: str) -> EventTypeOut:
             context = await get_event_type(repo, event_type_id=event_type_id)
         except EventTypeNotFound as exc:
             raise HTTPException(status_code=404, detail="event type not found") from exc
+        zk_public_key = await repo.get_org_public_key()
     return EventTypeOut(
         id=context.event_type_id,
         title=context.title,
@@ -161,6 +162,7 @@ async def read_event_type(org_id: OrgId, event_slug: str) -> EventTypeOut:
         host_name=context.host_name,
         questions=[asdict(q) for q in context.questions],
         redirect_url=context.redirect_url,
+        zk_public_key=zk_public_key,
     )
 
 
@@ -208,11 +210,11 @@ async def create_booking_endpoint(org_id: OrgId, event_slug: str, payload: Booki
         request = BookingRequest(
             event_type_id=event_type_id,
             start_at=payload.start_at,
-            invitee_name=payload.invitee_name,
+            invitee_name=None,  # zero-knowledge: the name is sealed inside invitee_private
             invitee_email=payload.invitee_email,
             invitee_timezone=payload.invitee_timezone,
             guest_emails=tuple(str(g) for g in payload.guest_emails),
-            answers=payload.answers,
+            invitee_private=payload.invitee_private,
         )
         try:
             confirmation = await create_booking(repo, _clock, request)

@@ -11,6 +11,7 @@ import {
   type Slot,
 } from "@/lib/api";
 import { useT } from "@/lib/i18n";
+import { sealInviteePrivate } from "@/lib/zk";
 
 const LOCATION_LABELS: Record<string, string> = {
   google_meet: "Google Meet",
@@ -91,6 +92,7 @@ export default function BookingClient({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [guests, setGuests] = useState("");
+  const [notes, setNotes] = useState("");
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
@@ -131,13 +133,17 @@ export default function BookingClient({
     setSubmitting(true);
     setBookingError(null);
     try {
+      // Zero-knowledge: seal the name, answers and notes to the org public key in the browser. The
+      // server receives only ciphertext (and the email it needs to send confirmations).
+      const invitee_private = eventType.zk_public_key
+        ? await sealInviteePrivate({ name, answers, notes }, eventType.zk_public_key)
+        : null;
       const booking = await createBooking(org, event, {
         start_at: selectedSlot.start,
-        invitee_name: name,
         invitee_email: email,
         invitee_timezone: tz,
         guest_emails: parseEmails(guests),
-        answers,
+        invitee_private,
       });
       if (eventType.redirect_url) {
         window.location.href = eventType.redirect_url;
@@ -295,6 +301,19 @@ export default function BookingClient({
                     onChange={(v) => setAnswer(q.id, v)}
                   />
                 ))}
+                <textarea
+                  placeholder={t("booking.notes")}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={3}
+                  className="rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
+                />
+                {eventType.zk_public_key && (
+                  <p className="flex items-start gap-1.5 text-xs text-accent/80">
+                    <span aria-hidden>🔒</span>
+                    <span>{t("booking.zkNotice")}</span>
+                  </p>
+                )}
                 {bookingError && <p className="text-sm text-red-400">{bookingError}</p>}
                 <button
                   type="submit"
