@@ -12,25 +12,17 @@ const devOrigins = (process.env.DEV_ORIGINS ?? "10.25.0.19,dev-kevin")
   .map((o) => o.trim())
   .filter(Boolean);
 
-// Content-Security-Policy. `wasm-unsafe-eval` lets the vendored crypto core load hash-wasm's
-// Argon2id WebAssembly (AES-GCM and X25519 are native WebCrypto and need nothing extra). Framing
-// is intentionally left open so the booking widget can be embedded on third-party sites.
-// React's dev server uses eval() for debugging, so `unsafe-eval` is added in development only —
-// production never needs it.
-const isDev = process.env.NODE_ENV !== "production";
-const scriptSrc = ["'self'", "'unsafe-inline'", "'wasm-unsafe-eval'", isDev ? "'unsafe-eval'" : ""]
-  .filter(Boolean)
-  .join(" ");
-const CSP = [
-  "default-src 'self'",
-  `script-src ${scriptSrc}`,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
-  "font-src 'self' data:",
-  "connect-src 'self'",
-  "base-uri 'self'",
-  "form-action 'self'",
-].join("; ");
+// The Content-Security-Policy (with a per-request nonce and frame-ancestors) is set in
+// src/middleware.ts. These are the static, request-independent security headers.
+const SECURITY_HEADERS = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=(), browsing-topics=()",
+  },
+];
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: devOrigins,
@@ -38,16 +30,7 @@ const nextConfig: NextConfig = {
     return [{ source: "/api/:path*", destination: `${API_INTERNAL_URL}/:path*` }];
   },
   async headers() {
-    return [
-      {
-        source: "/:path*",
-        headers: [
-          { key: "Content-Security-Policy", value: CSP },
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-        ],
-      },
-    ];
+    return [{ source: "/:path*", headers: SECURITY_HEADERS }];
   },
 };
 

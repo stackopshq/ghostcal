@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -122,12 +122,18 @@ async def create_my_calendar(
     return CalendarOut(id=c.id, name=c.name, color=c.color, is_default=c.is_default)
 
 
+_MAX_AGENDA_WINDOW = timedelta(days=366)
+
+
 @router.get("/calendar/agenda", response_model=list[AgendaItemOut])
 async def read_agenda(
     member: Member = Depends(current_member),
     from_: datetime = Query(alias="from"),
     to: datetime = Query(alias="to"),
 ) -> list[AgendaItemOut]:
+    # Bound the window so a recurring event can't be asked to expand over an unbounded range (DoS).
+    if to < from_ or (to - from_) > _MAX_AGENDA_WINDOW:
+        raise HTTPException(status_code=422, detail="agenda window must be within 366 days")
     async with org_session(member.organization_id) as session:
         items = await get_agenda(_repo(session, member.organization_id), member.user.id, from_, to)
     return [

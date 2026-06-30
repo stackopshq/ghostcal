@@ -21,9 +21,12 @@ from ghostcal.application.ports.calendar import (
     CalendarInfo,
 )
 from ghostcal.domain.time import TimeRange
+from ghostcal.infrastructure.security.egress import assert_public_url
 
 
 def _client(creds: CalendarCredentials) -> Any:
+    # SSRF guard: never connect to a CalDAV server on an internal/loopback/metadata address.
+    assert_public_url(creds.server_url)
     # The caldav library ships incomplete type info; treat its objects as Any at this boundary.
     return caldav.DAVClient(  # type: ignore[operator]
         url=creds.server_url, username=creds.username, password=creds.password
@@ -32,6 +35,18 @@ def _client(creds: CalendarCredentials) -> Any:
 
 def _ics_dt(dt: datetime) -> str:
     return dt.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
+
+
+def _ics_text(value: str) -> str:
+    """Escape an iCalendar text value per RFC 5545 and strip CR/LF (anti property-injection)."""
+    return (
+        value.replace("\\", "\\\\")
+        .replace("\r\n", " ")
+        .replace("\n", " ")
+        .replace("\r", " ")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+    )
 
 
 def _as_utc_range(start_value: object, end_value: object) -> TimeRange | None:
@@ -108,6 +123,7 @@ class CaldavCalendarClient:
         self, creds: CalendarCredentials, calendar_url: str, start: datetime, end: datetime
     ) -> list[BusyEvent]:
         try:
+            assert_public_url(calendar_url)
             calendar = _client(creds).calendar(url=calendar_url)
             events = calendar.search(start=start, end=end, event=True, expand=True)
         except AuthorizationError as exc:
@@ -155,14 +171,15 @@ class CaldavCalendarClient:
                 f"DTSTAMP:{_ics_dt(start)}",
                 f"DTSTART:{_ics_dt(start)}",
                 f"DTEND:{_ics_dt(end)}",
-                f"SUMMARY:{summary}",
-                f"DESCRIPTION:{description}",
-                f"LOCATION:{location}",
+                f"SUMMARY:{_ics_text(summary)}",
+                f"DESCRIPTION:{_ics_text(description)}",
+                f"LOCATION:{_ics_text(location)}",
                 "END:VEVENT",
                 "END:VCALENDAR",
             ]
         )
         try:
+            assert_public_url(calendar_url)
             calendar = _client(creds).calendar(url=calendar_url)
             event = calendar.save_event(ical)
         except AuthorizationError as exc:
@@ -173,6 +190,7 @@ class CaldavCalendarClient:
 
     def _delete_event(self, creds: CalendarCredentials, calendar_url: str, uid: str) -> None:
         try:
+            assert_public_url(calendar_url)
             calendar = _client(creds).calendar(url=calendar_url)
             event = calendar.event_by_uid(uid)
         except Exception:

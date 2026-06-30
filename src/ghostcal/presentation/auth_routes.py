@@ -24,6 +24,7 @@ from ghostcal.config import get_settings
 from ghostcal.infrastructure.db.auth_repository import SqlAuthRepository
 from ghostcal.infrastructure.db.session import db_session
 from ghostcal.infrastructure.email import build_email_sender
+from ghostcal.infrastructure.ratelimit import rate_limit
 from ghostcal.infrastructure.security.passwords import Argon2PasswordHasher
 from ghostcal.infrastructure.security.tokens import JwtAccessTokenCodec
 from ghostcal.presentation.schemas import (
@@ -43,6 +44,8 @@ _bearer = HTTPBearer(auto_error=False)
 
 # Stateless collaborators, built once from settings.
 _settings = get_settings()
+# Per-IP throttle on the auth surface (brute-force + Argon2 CPU-DoS guard).
+_AUTH_RL = [Depends(rate_limit("auth", _settings.auth_rate_limit_per_minute))]
 _hasher = Argon2PasswordHasher()
 _codec = JwtAccessTokenCodec(
     _settings.secret_key.get_secret_value(),
@@ -93,7 +96,7 @@ async def current_user(
 CurrentUser = Annotated[AuthenticatedUser, Depends(current_user)]
 
 
-@router.post("/register", response_model=RegisteredOut, status_code=201)
+@router.post("/register", response_model=RegisteredOut, status_code=201, dependencies=_AUTH_RL)
 async def register(payload: RegisterIn) -> RegisteredOut:
     zk_keys = ZkKeyMaterial(
         public_key=payload.zk_keys.public_key,
@@ -133,7 +136,7 @@ async def zk_keys(user: CurrentUser) -> list[ZkKeysOut]:
     ]
 
 
-@router.post("/zk-rewrap", status_code=204)
+@router.post("/zk-rewrap", status_code=204, dependencies=_AUTH_RL)
 async def zk_rewrap(payload: ZkRewrapIn, user: CurrentUser) -> None:
     """Store an org key re-wrapped under a new password (called after a password change)."""
     async with db_session() as session:
@@ -145,7 +148,7 @@ async def zk_rewrap(payload: ZkRewrapIn, user: CurrentUser) -> None:
         )
 
 
-@router.post("/verify-email", status_code=204)
+@router.post("/verify-email", status_code=204, dependencies=_AUTH_RL)
 async def verify_email(payload: VerifyEmailIn) -> None:
     async with db_session() as session:
         try:
@@ -154,7 +157,7 @@ async def verify_email(payload: VerifyEmailIn) -> None:
             raise HTTPException(status_code=400, detail="invalid or expired token") from exc
 
 
-@router.post("/login", response_model=TokenOut)
+@router.post("/login", response_model=TokenOut, dependencies=_AUTH_RL)
 async def login(payload: LoginIn) -> TokenOut:
     async with db_session() as session:
         try:
@@ -166,7 +169,7 @@ async def login(payload: LoginIn) -> TokenOut:
     return _token_out(tokens)
 
 
-@router.post("/refresh", response_model=TokenOut)
+@router.post("/refresh", response_model=TokenOut, dependencies=_AUTH_RL)
 async def refresh(payload: RefreshIn) -> TokenOut:
     async with db_session() as session:
         try:

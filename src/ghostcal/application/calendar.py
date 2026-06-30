@@ -12,6 +12,9 @@ from datetime import datetime
 
 from ghostcal.domain.calendar import RecurringEvent, expand
 
+# Overall cap on agenda items returned in one read (defence-in-depth against expansion blow-up).
+MAX_AGENDA_ITEMS = 5000
+
 
 class CalendarError(Exception):
     pass
@@ -230,6 +233,8 @@ async def get_agenda(
     events = await repo.events_overlapping(owner_id, start, end)
     by_id = {str(e.id): e for e in events}
     for e in events:
+        if len(items) >= MAX_AGENDA_ITEMS:
+            break
         for occ in expand(_to_recurring(e), start, end):
             src = by_id[occ.event_id]
             items.append(

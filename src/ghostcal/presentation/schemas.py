@@ -5,8 +5,45 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime, time
 from typing import Literal
+from zoneinfo import available_timezones
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
+
+_TIMEZONES = available_timezones()
+# RRULE frequencies finer than daily can expand to enormous occurrence counts — reject them.
+_BLOCKED_FREQS = ("SECONDLY", "MINUTELY", "HOURLY")
+
+
+def _validate_timezone(value: str) -> str:
+    if value not in _TIMEZONES:
+        raise ValueError("unknown IANA timezone")
+    return value
+
+
+def _validate_rrule(value: str | None) -> str | None:
+    if value is None:
+        return None
+    upper = value.upper()
+    if any(f"FREQ={f}" in upper for f in _BLOCKED_FREQS):
+        raise ValueError("sub-daily recurrence frequencies are not allowed")
+    return value
+
+
+def _validate_iso_datetimes(values: list[str]) -> list[str]:
+    for v in values:
+        try:
+            datetime.fromisoformat(v)
+        except ValueError as exc:
+            raise ValueError(f"invalid ISO datetime in exdates: {v}") from exc
+    return values
+
+
+def _validate_http_url(value: str | None) -> str | None:
+    if value is None:
+        return None
+    if not (value.startswith("http://") or value.startswith("https://")):
+        raise ValueError("url must be an http(s) URL")
+    return value
 
 
 class ZkKeyMaterialIn(BaseModel):
@@ -85,6 +122,9 @@ class ProfileUpdateIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     timezone: str = Field(min_length=1, max_length=64)
     avatar_url: str | None = Field(default=None, max_length=2048)
+
+    _v_tz = field_validator("timezone")(_validate_timezone)
+    _v_avatar = field_validator("avatar_url")(_validate_http_url)
 
 
 class PasswordChangeIn(BaseModel):
@@ -371,6 +411,8 @@ class EventTypeIn(BaseModel):
     capacity: int = Field(default=1, ge=1, le=1000)
     redirect_url: str | None = Field(default=None, max_length=2048)
 
+    _v_redirect = field_validator("redirect_url")(_validate_http_url)
+
 
 class EventTypeDetailOut(BaseModel):
     id: uuid.UUID
@@ -437,12 +479,14 @@ class BookingIn(BaseModel):
     start_at: datetime
     # No invitee_name: it is zero-knowledge — the booking page seals it into ``invitee_private``
     # and the server never receives it in cleartext.
-    invitee_email: str = Field(min_length=3, max_length=320)
+    invitee_email: EmailStr
     invitee_timezone: str = Field(min_length=1, max_length=64)
     guest_emails: list[EmailStr] = Field(default_factory=list, max_length=10)
     # Sealed-box blob (base64) holding the answers + notes, encrypted in-browser to the org public
     # key. The server stores it as-is and never reads it. Null when nothing private was submitted.
     invitee_private: str | None = Field(default=None, max_length=8192)
+
+    _v_tz = field_validator("invitee_timezone")(_validate_timezone)
 
 
 class BookingOut(BaseModel):
@@ -498,6 +542,10 @@ class EventIn(BaseModel):
     # Sealed {title, description, location} — encrypted in the browser; the server never reads it.
     content: str | None = Field(default=None, max_length=16384)
     reminder_minutes: int | None = Field(default=None, ge=0, le=40320)
+
+    _v_tz = field_validator("timezone")(_validate_timezone)
+    _v_rrule = field_validator("rrule")(_validate_rrule)
+    _v_exdates = field_validator("exdates")(_validate_iso_datetimes)
 
 
 class EventOut(BaseModel):
