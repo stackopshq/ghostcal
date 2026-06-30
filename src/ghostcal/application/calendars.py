@@ -8,13 +8,13 @@ from datetime import datetime, timedelta
 from typing import Protocol
 
 from ghostcal.application.ports.calendar import (
+    BusyEvent,
     CalendarAuthError,
     CalendarClient,
     CalendarCredentials,
     CalendarInfo,
 )
 from ghostcal.application.ports.clock import Clock
-from ghostcal.domain.time import TimeRange
 
 
 class NotConnected(Exception):
@@ -62,7 +62,7 @@ class CaldavConnectionRepository:
         raise NotImplementedError
 
     async def replace_busy(
-        self, connection_id: uuid.UUID, host_id: uuid.UUID, busy: list[TimeRange]
+        self, connection_id: uuid.UUID, host_id: uuid.UUID, busy: list[BusyEvent]
     ) -> None:
         raise NotImplementedError
 

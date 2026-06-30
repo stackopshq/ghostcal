@@ -165,14 +165,18 @@ class SqlCalendarRepository(CalendarRepository):
     ) -> list[BusyBlock]:
         rows = (
             await self._session.execute(
-                select(models.ExternalBusy.start_at, models.ExternalBusy.end_at).where(
+                select(
+                    models.ExternalBusy.start_at,
+                    models.ExternalBusy.end_at,
+                    models.ExternalBusy.summary,
+                ).where(
                     models.ExternalBusy.host_id == owner_id,
                     models.ExternalBusy.start_at < end,
                     models.ExternalBusy.end_at > start,
                 )
             )
         ).all()
-        return [BusyBlock(start_at=r.start_at, end_at=r.end_at, title=None) for r in rows]
+        return [BusyBlock(start_at=r.start_at, end_at=r.end_at, title=r.summary) for r in rows]
 
 
 def _calendar(row: models.Calendar) -> CalendarRecord:
@@ -190,6 +194,7 @@ def _event(row: models.CalendarEvent) -> EventRecord:
         rrule=row.rrule,
         exdates=tuple(row.exdates),
         content=row.content,
+        reminder_minutes=row.reminder_minutes,
     )
 
 
@@ -204,4 +209,5 @@ def _event_values(data: EventInput) -> dict[str, object]:
         "exdates": list(data.exdates),
         "status": "confirmed",
         "content": data.content,
+        "reminder_minutes": data.reminder_minutes,
     }

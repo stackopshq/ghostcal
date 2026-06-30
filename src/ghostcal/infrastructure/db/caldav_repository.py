@@ -10,7 +10,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ghostcal.application.calendars import CaldavConnectionRepository, ConnectionRecord
-from ghostcal.domain.time import TimeRange
+from ghostcal.application.ports.calendar import BusyEvent
 from ghostcal.infrastructure.db import models
 
 
@@ -89,7 +89,7 @@ class SqlCaldavConnectionRepository(CaldavConnectionRepository):
         return result.scalar_one_or_none() is not None
 
     async def replace_busy(
-        self, connection_id: uuid.UUID, host_id: uuid.UUID, busy: list[TimeRange]
+        self, connection_id: uuid.UUID, host_id: uuid.UUID, busy: list[BusyEvent]
     ) -> None:
         await self._session.execute(
             delete(models.ExternalBusy).where(models.ExternalBusy.connection_id == connection_id)
@@ -102,10 +102,11 @@ class SqlCaldavConnectionRepository(CaldavConnectionRepository):
                         "organization_id": self._org_id,
                         "connection_id": connection_id,
                         "host_id": host_id,
-                        "start_at": tr.start,
-                        "end_at": tr.end,
+                        "start_at": e.start,
+                        "end_at": e.end,
+                        "summary": e.summary,
                     }
-                    for tr in busy
+                    for e in busy
                 ],
             )
 

@@ -6,6 +6,8 @@
 </p>
 
 <p align="center">
+  <a href="docs/roadmap.md">Roadmap</a>
+  &nbsp;·&nbsp;
   <a href="docs/ARCHITECTURE.md">Architecture</a>
   &nbsp;·&nbsp;
   <a href="docs/adr/0002-zero-knowledge-invitee-data.md">Zero-knowledge (ADR)</a>

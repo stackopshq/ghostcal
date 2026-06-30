@@ -43,6 +43,7 @@ class EventInput:
     rrule: str | None = None
     exdates: tuple[str, ...] = ()
     content: str | None = None  # sealed blob
+    reminder_minutes: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,6 +57,7 @@ class EventRecord:
     rrule: str | None
     exdates: tuple[str, ...]
     content: str | None
+    reminder_minutes: int | None
 
 
 @dataclass(frozen=True, slots=True)

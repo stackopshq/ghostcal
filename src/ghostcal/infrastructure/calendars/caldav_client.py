@@ -14,6 +14,7 @@ import caldav
 from caldav.lib.error import AuthorizationError
 
 from ghostcal.application.ports.calendar import (
+    BusyEvent,
     CalendarAuthError,
     CalendarCredentials,
     CalendarError,
@@ -60,7 +61,7 @@ class CaldavCalendarClient:
 
     async def fetch_busy(
         self, creds: CalendarCredentials, calendar_url: str, start: datetime, end: datetime
-    ) -> list[TimeRange]:
+    ) -> list[BusyEvent]:
         return await asyncio.to_thread(self._fetch_busy, creds, calendar_url, start, end)
 
     async def create_event(
@@ -105,7 +106,7 @@ class CaldavCalendarClient:
 
     def _fetch_busy(
         self, creds: CalendarCredentials, calendar_url: str, start: datetime, end: datetime
-    ) -> list[TimeRange]:
+    ) -> list[BusyEvent]:
         try:
             calendar = _client(creds).calendar(url=calendar_url)
             events = calendar.search(start=start, end=end, event=True, expand=True)
@@ -114,7 +115,7 @@ class CaldavCalendarClient:
         except Exception as exc:
             raise CalendarError(str(exc)) from exc
 
-        busy: list[TimeRange] = []
+        busy: list[BusyEvent] = []
         for event in events:
             for comp in event.icalendar_instance.walk("VEVENT"):
                 if str(comp.get("transp", "")).upper() == "TRANSPARENT":
@@ -125,7 +126,12 @@ class CaldavCalendarClient:
                 dtend = comp.get("dtend")
                 tr = _as_utc_range(dtstart.dt if dtstart else None, dtend.dt if dtend else None)
                 if tr is not None:
-                    busy.append(tr)
+                    summary = comp.get("summary")
+                    busy.append(
+                        BusyEvent(
+                            start=tr.start, end=tr.end, summary=str(summary) if summary else None
+                        )
+                    )
         return busy
 
     def _create_event(
