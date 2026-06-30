@@ -101,8 +101,9 @@ class ZkKeyBundle:
     public_key: str
     wrapped_private_key: str
     wrap_salt: str
-    recovery_wrapped_private_key: str
-    recovery_salt: str
+    # NULL for keys received via a team grant (no recovery copy — re-grantable). See ADR-0003.
+    recovery_wrapped_private_key: str | None
+    recovery_salt: str | None
 
 
 class AuthRepository:
@@ -117,13 +118,19 @@ class AuthRepository:
         """Persist the wrapped zero-knowledge keys for the user's owner organization."""
         raise NotImplementedError
 
-    async def get_zk_keys(self, user_id: uuid.UUID) -> ZkKeyBundle | None:
+    async def get_zk_keys(self, user_id: uuid.UUID) -> list[ZkKeyBundle]:
+        """All of the user's org keys (one per organization they can decrypt)."""
         raise NotImplementedError
 
     async def rewrap_zk_key(
-        self, user_id: uuid.UUID, *, wrapped_private_key: str, wrap_salt: str
+        self,
+        user_id: uuid.UUID,
+        org_id: uuid.UUID,
+        *,
+        wrapped_private_key: str,
+        wrap_salt: str,
     ) -> None:
-        """Replace the password-wrapped private key (after a password change/reset)."""
+        """Replace the password-wrapped private key for one org (after a password change)."""
         raise NotImplementedError
 
     async def get_by_email(self, email: str) -> AuthUserRecord | None:
@@ -208,14 +215,19 @@ class AuthService:
         await self._send_verification(user_id, email)
         return user_id
 
-    async def get_zk_keys(self, user_id: uuid.UUID) -> ZkKeyBundle | None:
+    async def get_zk_keys(self, user_id: uuid.UUID) -> list[ZkKeyBundle]:
         return await self._repo.get_zk_keys(user_id)
 
     async def rewrap_zk_key(
-        self, user_id: uuid.UUID, *, wrapped_private_key: str, wrap_salt: str
+        self,
+        user_id: uuid.UUID,
+        org_id: uuid.UUID,
+        *,
+        wrapped_private_key: str,
+        wrap_salt: str,
     ) -> None:
         await self._repo.rewrap_zk_key(
-            user_id, wrapped_private_key=wrapped_private_key, wrap_salt=wrap_salt
+            user_id, org_id, wrapped_private_key=wrapped_private_key, wrap_salt=wrap_salt
         )
 
     async def _send_verification(self, user_id: uuid.UUID, email: str) -> None:

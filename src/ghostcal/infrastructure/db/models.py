@@ -80,8 +80,10 @@ class OrgMemberKey(TimestampMixin, Base):
     )
     wrapped_private_key: Mapped[str] = mapped_column(Text)
     wrap_salt: Mapped[str] = mapped_column(Text)
-    recovery_wrapped_private_key: Mapped[str] = mapped_column(Text)
-    recovery_salt: Mapped[str] = mapped_column(Text)
+    # Recovery copy — present for the founder, NULL for members who received the key via an
+    # invitation grant (their access is re-grantable rather than recoverable). See ADR-0003.
+    recovery_wrapped_private_key: Mapped[str | None] = mapped_column(Text)
+    recovery_salt: Mapped[str | None] = mapped_column(Text)
 
 
 class User(TimestampMixin, Base):
@@ -189,6 +191,9 @@ class OrganizationInvitation(TimestampMixin, Base):
     accepted_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
     )
+    # The org private key sealed under a random grant key carried in the invite link fragment
+    # (zero-knowledge team key sharing). NULL when the inviter had no key unlocked. See ADR-0003.
+    wrapped_org_key: Mapped[str | None] = mapped_column(Text)
 
 
 class EventType(TimestampMixin, Base):

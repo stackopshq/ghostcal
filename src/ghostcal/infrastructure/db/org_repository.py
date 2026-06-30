@@ -134,6 +134,7 @@ class SqlOrgRepository(OrgRepository):
         token_hash: str,
         invited_by: uuid.UUID,
         expires_at: datetime,
+        wrapped_org_key: str | None = None,
     ) -> PendingInvitation:
         try:
             row = (
@@ -146,6 +147,7 @@ class SqlOrgRepository(OrgRepository):
                         token_hash=token_hash,
                         invited_by_user_id=invited_by,
                         expires_at=expires_at,
+                        wrapped_org_key=wrapped_org_key,
                     )
                     .returning(
                         models.OrganizationInvitation.id,
@@ -206,7 +208,7 @@ class SqlInvitationGateway(InvitationGateway):
         row = (
             await self._session.execute(
                 text(
-                    "SELECT organization_id, organization_name, email, role "
+                    "SELECT organization_id, organization_name, email, role, wrapped_org_key "
                     "FROM organization_invitation_preview(:h)"
                 ),
                 {"h": token_hash},
@@ -219,6 +221,7 @@ class SqlInvitationGateway(InvitationGateway):
             organization_name=row.organization_name,
             email=row.email,
             role=row.role,
+            wrapped_org_key=row.wrapped_org_key,
         )
 
     async def accept(self, token_hash: str, user_id: uuid.UUID) -> uuid.UUID | None:
@@ -228,3 +231,16 @@ class SqlInvitationGateway(InvitationGateway):
                 {"h": token_hash, "u": str(user_id)},
             )
         ).scalar_one()
+
+    async def store_member_key(
+        self,
+        org_id: uuid.UUID,
+        user_id: uuid.UUID,
+        *,
+        wrapped_private_key: str,
+        wrap_salt: str,
+    ) -> None:
+        await self._session.execute(
+            text("SELECT store_member_org_key(:o, :u, :w, :s)"),
+            {"o": str(org_id), "u": str(user_id), "w": wrapped_private_key, "s": wrap_salt},
+        )

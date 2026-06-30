@@ -189,3 +189,56 @@ async def test_org_members_roles_and_invitations(admin_engine: AsyncEngine) -> N
         for uid in (invitee_id, owner_id):
             if uid is not None:
                 await _delete_user(admin_engine, uid)
+
+
+async def test_team_key_grant_flow(admin_engine: AsyncEngine) -> None:
+    """Invite carries a wrapped org key; the joiner can store their re-wrapped copy; get_zk_keys
+    then returns the joined org's key (zero-knowledge team sharing, ADR-0003)."""
+    mailer = CapturingMailer()
+    suffix = uuid.uuid4().hex[:8]
+    owner_id = invitee_id = None
+    try:
+        owner_id = await _register_verified(mailer, f"kowner-{suffix}@example.test", "Owner")
+        invitee_id = await _register_verified(mailer, f"kinvitee-{suffix}@example.test", "Invitee")
+
+        async with db_session() as s:
+            membership = await primary_membership(s, owner_id)
+        assert membership is not None
+        org_id, _ = membership
+        owner = OrgActor(organization_id=org_id, user_id=owner_id, role="owner")
+
+        # Invite with the org key sealed under the link-fragment grant key.
+        async with org_session(org_id) as s:
+            invitation = await _org(s, org_id, mailer).invite(
+                owner,
+                email=f"kinvitee-{suffix}@example.test",
+                role="member",
+                wrapped_org_key="WRAPPED-ORG-KEY-BLOB",
+            )
+        assert invitation.token is not None  # returned so the inviter can build the secure link
+        token = mailer.invite_token()
+
+        # The preview exposes the wrapped org key to the accept page.
+        async with db_session() as s:
+            preview = await preview_invitation(SqlInvitationGateway(s), token=token)
+        assert preview.wrapped_org_key == "WRAPPED-ORG-KEY-BLOB"
+
+        # Accept, then store the member's re-wrapped copy.
+        async with db_session() as s:
+            await accept_invitation(SqlInvitationGateway(s), token=token, user_id=invitee_id)
+        async with db_session() as s:
+            await SqlInvitationGateway(s).store_member_key(
+                org_id, invitee_id, wrapped_private_key="MEMBER-WRAPPED", wrap_salt="MEMBER-SALT"
+            )
+
+        # The joiner's keys now include the joined org's key, with no recovery copy.
+        async with db_session() as s:
+            keys = await SqlAuthRepository(s).get_zk_keys(invitee_id)
+        joined = next((k for k in keys if k.organization_id == org_id), None)
+        assert joined is not None
+        assert joined.wrapped_private_key == "MEMBER-WRAPPED"
+        assert joined.recovery_wrapped_private_key is None
+    finally:
+        for uid in (invitee_id, owner_id):
+            if uid is not None:
+                await _delete_user(admin_engine, uid)

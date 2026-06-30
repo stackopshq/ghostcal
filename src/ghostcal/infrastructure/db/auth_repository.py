@@ -64,8 +64,8 @@ class SqlAuthRepository(AuthRepository):
             },
         )
 
-    async def get_zk_keys(self, user_id: uuid.UUID) -> ZkKeyBundle | None:
-        row = (
+    async def get_zk_keys(self, user_id: uuid.UUID) -> list[ZkKeyBundle]:
+        rows = (
             await self._session.execute(
                 text(
                     "SELECT organization_id, public_key, wrapped_private_key, wrap_salt, "
@@ -73,24 +73,31 @@ class SqlAuthRepository(AuthRepository):
                 ),
                 {"uid": user_id},
             )
-        ).first()
-        if row is None or row.public_key is None:
-            return None
-        return ZkKeyBundle(
-            organization_id=row.organization_id,
-            public_key=row.public_key,
-            wrapped_private_key=row.wrapped_private_key,
-            wrap_salt=row.wrap_salt,
-            recovery_wrapped_private_key=row.recovery_wrapped_private_key,
-            recovery_salt=row.recovery_salt,
-        )
+        ).all()
+        return [
+            ZkKeyBundle(
+                organization_id=row.organization_id,
+                public_key=row.public_key,
+                wrapped_private_key=row.wrapped_private_key,
+                wrap_salt=row.wrap_salt,
+                recovery_wrapped_private_key=row.recovery_wrapped_private_key,
+                recovery_salt=row.recovery_salt,
+            )
+            for row in rows
+            if row.public_key is not None
+        ]
 
     async def rewrap_zk_key(
-        self, user_id: uuid.UUID, *, wrapped_private_key: str, wrap_salt: str
+        self,
+        user_id: uuid.UUID,
+        org_id: uuid.UUID,
+        *,
+        wrapped_private_key: str,
+        wrap_salt: str,
     ) -> None:
         await self._session.execute(
-            text("SELECT rewrap_zk_key(:uid, :wsk, :wsalt)"),
-            {"uid": user_id, "wsk": wrapped_private_key, "wsalt": wrap_salt},
+            text("SELECT rewrap_zk_key(:uid, :oid, :wsk, :wsalt)"),
+            {"uid": user_id, "oid": org_id, "wsk": wrapped_private_key, "wsalt": wrap_salt},
         )
 
     async def get_by_email(self, email: str) -> AuthUserRecord | None:

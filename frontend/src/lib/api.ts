@@ -128,6 +128,8 @@ export type InvitationPreview = {
   organization_name: string;
   email: string;
   role: string;
+  // Org private key sealed under the link-fragment grant key (zero-knowledge team sharing).
+  wrapped_org_key: string | null;
 };
 
 export function getInvitationPreview(token: string): Promise<InvitationPreview> {

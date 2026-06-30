@@ -35,11 +35,12 @@ class ZkKeysOut(BaseModel):
     public_key: str
     wrapped_private_key: str
     wrap_salt: str
-    recovery_wrapped_private_key: str
-    recovery_salt: str
+    recovery_wrapped_private_key: str | None = None
+    recovery_salt: str | None = None
 
 
 class ZkRewrapIn(BaseModel):
+    organization_id: uuid.UUID
     wrapped_private_key: str = Field(min_length=1, max_length=2048)
     wrap_salt: str = Field(min_length=1, max_length=512)
 
@@ -115,11 +116,16 @@ class InvitationOut(BaseModel):
     role: str
     created_at: datetime
     expires_at: datetime
+    # The plaintext token, returned only when an invitation is created, so the inviter's browser can
+    # build the secure accept link with the decryption-key fragment. Never set on listings.
+    token: str | None = None
 
 
 class InviteIn(BaseModel):
     email: EmailStr
     role: RoleName = "member"
+    # The org private key sealed under the link-fragment grant key (zero-knowledge team sharing).
+    wrapped_org_key: str | None = Field(default=None, max_length=4096)
 
 
 class RoleUpdateIn(BaseModel):
@@ -131,6 +137,13 @@ class InvitationPreviewOut(BaseModel):
     organization_name: str
     email: str
     role: str
+    wrapped_org_key: str | None = None
+
+
+class StoreMemberKeyIn(BaseModel):
+    organization_id: uuid.UUID
+    wrapped_private_key: str = Field(min_length=1, max_length=2048)
+    wrap_salt: str = Field(min_length=1, max_length=512)
 
 
 class AcceptInvitationOut(BaseModel):

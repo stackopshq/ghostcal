@@ -12,10 +12,36 @@ const devOrigins = (process.env.DEV_ORIGINS ?? "10.25.0.19,dev-kevin")
   .map((o) => o.trim())
   .filter(Boolean);
 
+// Content-Security-Policy. `wasm-unsafe-eval` lets the vendored crypto core load hash-wasm's
+// Argon2id WebAssembly (AES-GCM and X25519 are native WebCrypto and need nothing extra). Framing
+// is intentionally left open so the booking widget can be embedded on third-party sites.
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "connect-src 'self'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join("; ");
+
 const nextConfig: NextConfig = {
   allowedDevOrigins: devOrigins,
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${API_INTERNAL_URL}/:path*` }];
+  },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: CSP },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        ],
+      },
+    ];
   },
 };
 
