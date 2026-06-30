@@ -26,6 +26,7 @@ from ghostcal.infrastructure.db.reminders_repository import SqlReminderGateway
 from ghostcal.infrastructure.db.session import db_session, org_session, reset_engine
 from ghostcal.infrastructure.db.webhooks_repository import SqlWebhookRepository
 from ghostcal.infrastructure.email import build_email_sender
+from ghostcal.infrastructure.security.egress import BlockedOutboundURL, assert_public_url
 from ghostcal.infrastructure.security.encryption import SecretBox
 from ghostcal.infrastructure.security.tokens import BookingManagementCodec
 
@@ -133,8 +134,15 @@ async def _deliver_webhooks(
         if not targets:
             return 0
         body = json.dumps({"event": event_type, "data": payload}, default=str).encode()
-        async with httpx.AsyncClient(timeout=10.0) as http:
+        # follow_redirects=False (the default) so a 30x can't bounce us to an internal address.
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=False) as http:
             for target in targets:
+                # Re-check at send time too: the URL was validated at creation, but DNS can rebind.
+                try:
+                    assert_public_url(target.url)
+                except BlockedOutboundURL:
+                    logger.warning("webhook target %s blocked by SSRF guard", target.url)
+                    continue
                 headers = {
                     "content-type": "application/json",
                     "user-agent": "GhostCal-Webhook/1.0",

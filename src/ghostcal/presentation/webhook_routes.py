@@ -16,10 +16,19 @@ from ghostcal.application.webhooks import (
 )
 from ghostcal.infrastructure.db.session import org_session
 from ghostcal.infrastructure.db.webhooks_repository import SqlWebhookRepository
+from ghostcal.infrastructure.security.egress import BlockedOutboundURL, assert_public_url
 from ghostcal.presentation.dashboard_routes import Member, current_member
 from ghostcal.presentation.schemas import WebhookCreatedOut, WebhookCreateIn, WebhookOut
 
 router = APIRouter(prefix="/v1/me/webhooks", tags=["webhooks"])
+
+_MANAGER_ROLES = ("owner", "admin")
+
+
+def _require_manager(member: Member) -> None:
+    # Webhooks fan out booking PII for the whole org, so restrict them to owners/admins.
+    if member.role not in _MANAGER_ROLES:
+        raise HTTPException(status_code=403, detail="requires owner or admin")
 
 
 @router.get("/events", response_model=list[str])
@@ -29,6 +38,7 @@ async def list_event_types() -> list[str]:
 
 @router.get("", response_model=list[WebhookOut])
 async def list_my_webhooks(member: Member = Depends(current_member)) -> list[WebhookOut]:
+    _require_manager(member)
     async with org_session(member.organization_id) as session:
         endpoints = await list_webhooks(SqlWebhookRepository(session, member.organization_id))
     return [
@@ -47,6 +57,11 @@ async def list_my_webhooks(member: Member = Depends(current_member)) -> list[Web
 async def create_my_webhook(
     payload: WebhookCreateIn, member: Member = Depends(current_member)
 ) -> WebhookCreatedOut:
+    _require_manager(member)
+    try:
+        assert_public_url(payload.url)
+    except BlockedOutboundURL as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     async with org_session(member.organization_id) as session:
         try:
             created = await create_webhook(
@@ -68,6 +83,7 @@ async def create_my_webhook(
 async def delete_my_webhook(
     endpoint_id: uuid.UUID, member: Member = Depends(current_member)
 ) -> None:
+    _require_manager(member)
     async with org_session(member.organization_id) as session:
         try:
             await delete_webhook(SqlWebhookRepository(session, member.organization_id), endpoint_id)
