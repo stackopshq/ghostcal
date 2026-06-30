@@ -18,6 +18,7 @@ from ghostcal.config import get_settings
 from ghostcal.infrastructure.db.session import get_engine
 from ghostcal.infrastructure.logging import configure_logging, request_id_var
 from ghostcal.presentation.auth_routes import router as auth_router
+from ghostcal.presentation.calendar_routes import router as calendar_router
 from ghostcal.presentation.dashboard_routes import router as dashboard_router
 from ghostcal.presentation.invitations_routes import router as invitations_router
 from ghostcal.presentation.manage_routes import router as manage_router
@@ -90,6 +91,7 @@ def create_app() -> FastAPI:
     app.include_router(public_poll_router)
     app.include_router(webhook_router)
     app.include_router(dashboard_router)
+    app.include_router(calendar_router)
     app.include_router(scheduling_router)
     app.include_router(manage_router)
     return app
