@@ -144,6 +144,21 @@ and reminders still work). The foundation for ghostmail:
 - **Ops** — per-IP rate limiting, Redis availability cache, booking **analytics** dashboard,
   structured JSON logs with request ids.
 
+## Roadmap
+
+Shipped today: the scheduler, zero-knowledge invitee data, team key sharing, and the
+zero-knowledge calendar (Phases 1–3). Planned next — see **[docs/roadmap.md](docs/roadmap.md)**:
+
+- **Calendar push & richer sharing** — optional non-zero-knowledge **synced** calendars that
+  push to a third-party CalDAV server (clearly labelled); **read-write** shared calendars;
+  **cross-organization** sharing via the invitation-fragment grant.
+- **ghostmail hooks** — `.ics` import from email, "add to calendar", free-busy sharing, and
+  meeting invitations that land directly in the recipient's GhostCal calendar — making GhostCal
+  the private agenda behind **ghostmail**.
+- **Account lifecycle / GDPR** — account deletion, data export, booking retention/auto-purge.
+- **Key rotation & revocation** — rotate an organization keypair (re-seal) to truly revoke a
+  removed member's cached access.
+
 ## Stack
 
 Python 3.14 · FastAPI · PostgreSQL (RLS, `tstzrange` + `EXCLUDE`) · SQLAlchemy 2.0 (async) ·
