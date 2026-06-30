@@ -35,10 +35,15 @@ def create_app() -> FastAPI:
     configure_logging(settings.log_level)
     access_logger = logging.getLogger("ghostcal.access")
 
+    # Don't expose the interactive API docs / schema in production.
+    _docs = (
+        {"docs_url": None, "redoc_url": None, "openapi_url": None} if settings.is_production else {}
+    )
     app = FastAPI(
         title="GhostCal",
         version=__version__,
         description="Fast, correct scheduling.",
+        **_docs,  # type: ignore[arg-type]
     )
 
     @app.middleware("http")
