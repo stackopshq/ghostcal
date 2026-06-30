@@ -7,6 +7,8 @@ import {
   type CalendarRec,
   createEvent,
   deleteEvent,
+  type EventDetail,
+  type EventInput,
   getAgenda,
   getEvent,
   listCalendars,
@@ -34,7 +36,20 @@ type Draft = {
   end: string;
   allDay: boolean;
   rrule: string;
+  reminderMinutes: number | null;
+  // Recurrence-exception context: the full master record, the clicked occurrence start, and whether
+  // an edit/delete applies to the whole series or just this occurrence.
+  master: EventDetail | null;
+  occStart: string | null;
+  scope: "series" | "occurrence";
 };
+
+const REMINDERS = [
+  { value: "", key: "calendar.remindNone" },
+  { value: "10", key: "calendar.remind10m" },
+  { value: "60", key: "calendar.remind1h" },
+  { value: "1440", key: "calendar.remind1d" },
+];
 
 function ymd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -123,10 +138,14 @@ export default function CalendarPage() {
       end: "10:00",
       allDay: false,
       rrule: "",
+      reminderMinutes: null,
+      master: null,
+      occStart: null,
+      scope: "series",
     });
   }
 
-  async function openEdit(eventId: string) {
+  async function openEdit(eventId: string, occStartIso: string) {
     const keys = getUnlockedKeys(getActiveOrg());
     if (!keys) return;
     const ev = await getEvent(eventId);
@@ -138,19 +157,43 @@ export default function CalendarPage() {
         /* leave blank if we cannot open it */
       }
     }
-    const s = new Date(ev.start_at);
-    const e = new Date(ev.end_at);
+    // Show the clicked occurrence's date/time (recurring) so an "occurrence" edit shifts the right one.
+    const occ = new Date(occStartIso);
+    const masterStart = new Date(ev.start_at);
+    const masterEnd = new Date(ev.end_at);
+    const durationMs = masterEnd.getTime() - masterStart.getTime();
+    const occEnd = new Date(occ.getTime() + durationMs);
+    const t24 = (d: Date) => d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
     setDraft({
       id: ev.id,
       title: content.title,
       description: content.description,
       location: content.location,
-      date: ymd(s),
-      start: s.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false }),
-      end: e.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false }),
+      date: ymd(occ),
+      start: t24(occ),
+      end: t24(occEnd),
       allDay: ev.all_day,
       rrule: ev.rrule ?? "",
+      reminderMinutes: ev.reminder_minutes,
+      master: ev,
+      occStart: occStartIso,
+      scope: ev.rrule ? "occurrence" : "series",
     });
+  }
+
+  // The master event with the clicked occurrence excluded (used to detach/cancel one occurrence).
+  function masterWithExdate(master: EventDetail, occStart: string): EventInput {
+    return {
+      calendar_id: master.calendar_id,
+      start_at: master.start_at,
+      end_at: master.end_at,
+      timezone: master.timezone,
+      all_day: master.all_day,
+      rrule: master.rrule,
+      content: master.content,
+      reminder_minutes: master.reminder_minutes,
+      exdates: [...master.exdates, occStart],
+    };
   }
 
   async function save() {
@@ -168,27 +211,46 @@ export default function CalendarPage() {
       { title: draft.title, description: draft.description, location: draft.location },
       keys.publicKey,
     );
-    const body = {
+    const detached: EventInput = {
       calendar_id: calendars[0]?.id ?? "",
       start_at: startAt.toISOString(),
       end_at: endAt.toISOString(),
       timezone: TZ,
       all_day: draft.allDay,
-      rrule: draft.rrule || null,
+      rrule: null,
       content,
+      reminder_minutes: draft.reminderMinutes,
     };
-    if (draft.id) await updateEvent(draft.id, body);
-    else await createEvent(body);
+
+    const editingOneOccurrence = draft.id && draft.master?.rrule && draft.scope === "occurrence";
+    if (!draft.id) {
+      await createEvent({ ...detached, rrule: draft.rrule || null });
+    } else if (editingOneOccurrence && draft.master && draft.occStart) {
+      // Exclude this occurrence from the series, then add the edited standalone event.
+      await updateEvent(draft.id, masterWithExdate(draft.master, draft.occStart));
+      await createEvent(detached);
+    } else {
+      // Whole series (or a non-recurring event): update the master in place.
+      await updateEvent(draft.id, {
+        ...detached,
+        rrule: draft.rrule || null,
+        exdates: draft.master?.exdates ?? [],
+      });
+    }
     setDraft(null);
     await load();
   }
 
   async function remove() {
-    if (draft?.id) {
+    if (!draft?.id) return;
+    if (draft.master?.rrule && draft.scope === "occurrence" && draft.occStart) {
+      // Delete just this occurrence: exclude it from the series.
+      await updateEvent(draft.id, masterWithExdate(draft.master, draft.occStart));
+    } else {
       await deleteEvent(draft.id);
-      setDraft(null);
-      await load();
     }
+    setDraft(null);
+    await load();
   }
 
   const monthLabel = cursor.toLocaleDateString(undefined, { month: "long", year: "numeric" });
@@ -271,7 +333,7 @@ export default function CalendarPage() {
                       onClick={(e) => {
                         if (it.source === "event" && it.event_id) {
                           e.stopPropagation();
-                          void openEdit(it.event_id);
+                          void openEdit(it.event_id, it.start);
                         }
                       }}
                       className={[
@@ -368,8 +430,34 @@ function EventModal({
             />
             {t("calendar.allDay")}
           </label>
-          <select value={draft.rrule} onChange={(e) => set({ rrule: e.target.value })} className={input}>
-            {REPEATS.map((r) => (
+          {draft.master?.rrule ? (
+            <div className="flex gap-4 text-sm text-muted">
+              {(["occurrence", "series"] as const).map((s) => (
+                <label key={s} className="flex items-center gap-1.5">
+                  <input
+                    type="radio"
+                    checked={draft.scope === s}
+                    onChange={() => set({ scope: s })}
+                  />
+                  {t(s === "occurrence" ? "calendar.thisOccurrence" : "calendar.wholeSeries")}
+                </label>
+              ))}
+            </div>
+          ) : (
+            <select value={draft.rrule} onChange={(e) => set({ rrule: e.target.value })} className={input}>
+              {REPEATS.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {t(r.key)}
+                </option>
+              ))}
+            </select>
+          )}
+          <select
+            value={draft.reminderMinutes ?? ""}
+            onChange={(e) => set({ reminderMinutes: e.target.value ? Number(e.target.value) : null })}
+            className={input}
+          >
+            {REMINDERS.map((r) => (
               <option key={r.value} value={r.value}>
                 {t(r.key)}
               </option>

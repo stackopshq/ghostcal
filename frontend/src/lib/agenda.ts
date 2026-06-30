@@ -25,6 +25,7 @@ export type EventInput = {
   rrule?: string | null;
   exdates?: string[];
   content?: string | null;
+  reminder_minutes?: number | null;
 };
 
 export type EventDetail = {
@@ -37,6 +38,7 @@ export type EventDetail = {
   rrule: string | null;
   exdates: string[];
   content: string | null;
+  reminder_minutes: number | null;
 };
 
 export function listCalendars(): Promise<CalendarRec[]> {
