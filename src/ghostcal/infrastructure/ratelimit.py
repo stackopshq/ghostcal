@@ -41,12 +41,22 @@ async def _allow(bucket: str, identifier: str, limit: int, window: int) -> bool:
         return True
 
 
+def _client_ip(request: Request) -> str:
+    # Behind the same-origin Next proxy the socket peer is the proxy, so honour the first hop in
+    # X-Forwarded-For (the original client) when present; otherwise fall back to the socket peer.
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        first = forwarded.split(",")[0].strip()
+        if first:
+            return first
+    return request.client.host if request.client else "unknown"
+
+
 def rate_limit(bucket: str, limit: int, window: int = 60) -> Callable[[Request], Awaitable[None]]:
     """FastAPI dependency: at most ``limit`` requests per ``window`` seconds per client IP."""
 
     async def dependency(request: Request) -> None:
-        identifier = request.client.host if request.client else "unknown"
-        if not await _allow(bucket, identifier, limit, window):
+        if not await _allow(bucket, _client_ip(request), limit, window):
             raise HTTPException(status_code=429, detail="too many requests, slow down")
 
     return dependency

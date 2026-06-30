@@ -176,6 +176,17 @@ def _hash_token(plain: str) -> str:
     return hashlib.sha256(plain.encode()).hexdigest()
 
 
+_dummy_hash_cache: str | None = None
+
+
+def _dummy_hash(hasher: PasswordHasher) -> str:
+    """A cached Argon2 hash used to equalize login timing for non-existent accounts."""
+    global _dummy_hash_cache
+    if _dummy_hash_cache is None:
+        _dummy_hash_cache = hasher.hash("ghostcal-timing-equalizer")
+    return _dummy_hash_cache
+
+
 def _org_slug(email: str) -> str:
     base = "".join(c if c.isalnum() else "-" for c in email.split("@", 1)[0].lower())
     base = base.strip("-") or "team"
@@ -254,6 +265,9 @@ class AuthService:
     async def login(self, *, email: str, password: str) -> TokenPair:
         user = await self._repo.get_by_email(email.strip().lower())
         if user is None or user.password_hash is None:
+            # Spend the same Argon2 time as a real verify so a missing account isn't detectable by
+            # timing (user enumeration).
+            self._hasher.verify(_dummy_hash(self._hasher), password)
             raise InvalidCredentials("invalid email or password")
         if not self._hasher.verify(user.password_hash, password):
             raise InvalidCredentials("invalid email or password")

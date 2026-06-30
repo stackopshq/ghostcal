@@ -10,7 +10,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, PostgresDsn, RedisDsn, SecretStr
+from pydantic import Field, PostgresDsn, RedisDsn, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -61,6 +61,8 @@ class Settings(BaseSettings):
     # Per-IP rate limits (requests/minute) on abuse-prone public endpoints.
     booking_rate_limit_per_minute: int = 20
     vote_rate_limit_per_minute: int = 60
+    # Tighter limit on auth endpoints (login/register/etc.): brute-force + Argon2 CPU-DoS guard.
+    auth_rate_limit_per_minute: int = 10
 
     # How long computed availability is cached (seconds). Short, so freshly-taken slots clear fast.
     availability_cache_ttl_seconds: int = 45
@@ -72,6 +74,20 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
+
+    @model_validator(mode="after")
+    def _reject_placeholder_secrets(self) -> Settings:
+        # Outside development, refuse the .env.example placeholders so a half-configured deploy
+        # can't ship a publicly-known signing/encryption key (JWT forgery / dump decryption).
+        if self.environment == "development":
+            return self
+        for name in ("secret_key", "token_encryption_key"):
+            value = getattr(self, name).get_secret_value()
+            if "change-me" in value.lower():
+                raise ValueError(
+                    f"{name} is still a placeholder — set a real secret outside development"
+                )
+        return self
 
 
 @lru_cache
