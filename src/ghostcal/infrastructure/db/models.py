@@ -425,6 +425,48 @@ class ExternalBusy(Base):
     )
 
 
+class Calendar(TimestampMixin, Base):
+    """A user's calendar collection (zero-knowledge personal calendar — see ADR-0004)."""
+
+    __tablename__ = "calendars"
+
+    id: Mapped[uuid.UUID] = _pk()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(String(200))
+    color: Mapped[str] = mapped_column(String(20), default="#00f0ff")
+    is_default: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
+
+
+class CalendarEvent(TimestampMixin, Base):
+    """A user's own calendar event. Scheduling fields are cleartext; ``content`` is a sealed blob
+    ({title, description, location}) the server can never read."""
+
+    __tablename__ = "calendar_events"
+    __table_args__ = (Index("ix_calendar_events_org_start", "organization_id", "start_at"),)
+
+    id: Mapped[uuid.UUID] = _pk()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    calendar_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("calendars.id", ondelete="CASCADE"))
+    start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    end_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    all_day: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
+    timezone: Mapped[str] = mapped_column(String(64), default="UTC")
+    # RFC 5545 recurrence rule (e.g. "FREQ=WEEKLY;BYDAY=MO,WE") and excluded occurrence datetimes.
+    rrule: Mapped[str | None] = mapped_column(Text)
+    exdates: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'[]'::jsonb")
+    )
+    status: Mapped[str] = mapped_column(String(20), default="confirmed")
+    # Sealed {title, description, location} — encrypted to the org key, decrypted only in-browser.
+    content: Mapped[str | None] = mapped_column(Text)
+
+
 # Tenant-scoped tables that receive Row-Level Security (column carrying the tenant id).
 class BookingReminder(TimestampMixin, Base):
     """One row per reminder sent for a booking (idempotency for the periodic reminder task)."""

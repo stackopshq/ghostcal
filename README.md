@@ -23,7 +23,7 @@
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-async-00F0FF?style=flat-square&logo=fastapi&logoColor=white">
   <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-RLS-00F0FF?style=flat-square&logo=postgresql&logoColor=white">
   <img alt="Next.js" src="https://img.shields.io/badge/Next.js-16-00F0FF?style=flat-square&logo=nextdotjs&logoColor=white">
-  <img alt="Crypto" src="https://img.shields.io/badge/crypto-libsodium-00F0FF?style=flat-square">
+  <img alt="Crypto" src="https://img.shields.io/badge/crypto-WebCrypto%20%2B%20hash--wasm-00F0FF?style=flat-square">
   <img alt="Lint: Ruff" src="https://img.shields.io/badge/lint-ruff-00F0FF?style=flat-square&logo=ruff&logoColor=white">
   <img alt="Types: mypy strict" src="https://img.shields.io/badge/types-mypy%20strict-00F0FF?style=flat-square">
   <img alt="License: AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-00F0FF?style=flat-square">
@@ -34,7 +34,8 @@
 > **Project status — v0.1.** GhostCal is a working scheduling backend (FastAPI) and booking
 > frontend (Next.js) built around a pure, exhaustively-tested availability engine: timezone- and
 > DST-correct slot computation with database-guaranteed no-double-booking. Multi-tenant
-> (organizations) from day one — and **zero-knowledge** invitee data throughout.
+> (organizations) from day one, **zero-knowledge** invitee data throughout, and a
+> **zero-knowledge personal calendar** — the foundation for ghostmail.
 
 ## Privacy — the differentiator
 
@@ -47,7 +48,7 @@ product allows and encrypt the rest at rest. Three honest tiers:
 **🔒 Tier 1 — zero-knowledge (the server can never read it).** The invitee's **name**, their
 **answers to your custom questions** (phone, address, "what's this about", case numbers, medical
 context…) and a free-text **notes / agenda** field are sealed in the browser
-([libsodium](https://doc.libsodium.org/) sealed box) to your organization's public key. The server
+(WebCrypto X25519 ECDH → AES-256-GCM) to your organization's public key. The server
 stores one opaque blob and **cannot decrypt it** — only you can, in your browser.
 
 ```
@@ -107,6 +108,14 @@ and custom questions; a weekly, timezone-correct availability editor:
 | --- | --- |
 | ![Event types](docs/assets/event-types-dark.png) | ![Availability editor](docs/assets/availability-dark.png) |
 
+**Private calendar — the server knows *when*, never *what*.** A zero-knowledge month view: event
+titles, locations and notes are sealed in your browser; only the times are cleartext (so free-busy
+and reminders still work). The foundation for ghostmail:
+
+| Dark | Light |
+| --- | --- |
+| ![Calendar, dark](docs/assets/calendar-dark.png) | ![Calendar, light](docs/assets/calendar-light.png) |
+
 ## Features
 
 - **Event types** — solo, **round-robin** (least-loaded host), **collective** (all hosts attend),
@@ -115,9 +124,13 @@ and custom questions; a weekly, timezone-correct availability editor:
   zero-knowledge.
 - **Booking page** — timezone picker, custom questions, a notes field, additional guests; readable
   slug URLs; an **embeddable widget** (`/embed/...`) with a copy-paste iframe snippet.
-- **Privacy** — zero-knowledge invitee name/answers/notes (libsodium sealed box + Argon2id-wrapped
-  org key + recovery key); at-rest envelope encryption for emails and meeting links; multi-tenant
-  Postgres RLS; no telemetry, no third-party calls on the booking path.
+- **Private calendar** — a zero-knowledge month view: create recurring events whose
+  title/location/notes are sealed in the browser; the server stores ciphertext and only reads the
+  times (for free-busy and reminders). Unified agenda over your events + bookings + external busy.
+- **Privacy** — zero-knowledge invitee name/answers/notes and calendar content (WebCrypto X25519
+  ECDH + AES-256-GCM, Argon2id-wrapped org key + recovery key); at-rest envelope encryption for
+  emails and meeting links; multi-tenant Postgres RLS; no telemetry, no third-party calls on the
+  booking path.
 - **Invitee self-service** — cancel / reschedule via a signed link (no account).
 - **Teams** — organizations, members & roles (owner/admin/member), token invitations.
 - **Meeting polls** — propose times → invitees vote → host finalizes and everyone is emailed.
@@ -132,7 +145,7 @@ and custom questions; a weekly, timezone-correct availability editor:
 ## Stack
 
 Python 3.14 · FastAPI · PostgreSQL (RLS, `tstzrange` + `EXCLUDE`) · SQLAlchemy 2.0 (async) ·
-Alembic · Celery (Redis) · Next.js 16 + libsodium (frontend). Tooling: `uv`, `ruff`, `mypy`,
+Alembic · Celery (Redis) · Next.js 16 + WebCrypto/hash-wasm (frontend). Tooling: `uv`, `ruff`, `mypy`,
 `pytest` + Hypothesis. Containers built and run with **Podman**.
 
 ## Run (development)

@@ -177,3 +177,17 @@ export async function openInviteePrivate(
   const opened = await openSealed(orgPrivateKeyB64, blob);
   return JSON.parse(dec.decode(opened)) as InviteePrivate;
 }
+
+// --- Calendar event content (zero-knowledge calendar, ADR-0004) ---------------------------------
+
+export type EventContent = { title: string; description: string; location: string };
+
+/** Seal an event's content (title/description/location) to the org public key. */
+export async function sealContent(data: EventContent, orgPublicKeyB64: string): Promise<string> {
+  return sealToPublicKey(orgPublicKeyB64, enc.encode(JSON.stringify(data)));
+}
+
+/** Open a sealed event content blob with the org private key. */
+export async function openContent(blob: string, orgPrivateKeyB64: string): Promise<EventContent> {
+  return JSON.parse(dec.decode(await openSealed(orgPrivateKeyB64, blob))) as EventContent;
+}

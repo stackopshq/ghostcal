@@ -468,3 +468,53 @@ class ManageBookingOut(BaseModel):
 
 class RescheduleIn(BaseModel):
     start_at: datetime
+
+
+# --- Calendar (zero-knowledge personal calendar, ADR-0004) ----------------------------------------
+
+
+class CalendarOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    color: str
+    is_default: bool
+
+
+class CalendarIn(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    color: str = Field(default="#00f0ff", max_length=20)
+
+
+class EventIn(BaseModel):
+    calendar_id: uuid.UUID
+    start_at: datetime
+    end_at: datetime
+    timezone: str = Field(min_length=1, max_length=64)
+    all_day: bool = False
+    rrule: str | None = Field(default=None, max_length=1024)
+    exdates: list[str] = Field(default_factory=list, max_length=512)
+    # Sealed {title, description, location} — encrypted in the browser; the server never reads it.
+    content: str | None = Field(default=None, max_length=16384)
+
+
+class EventOut(BaseModel):
+    id: uuid.UUID
+    calendar_id: uuid.UUID
+    start_at: datetime
+    end_at: datetime
+    timezone: str
+    all_day: bool
+    rrule: str | None
+    exdates: list[str]
+    content: str | None
+
+
+class AgendaItemOut(BaseModel):
+    source: str
+    start: datetime
+    end: datetime
+    all_day: bool = False
+    calendar_id: uuid.UUID | None = None
+    event_id: uuid.UUID | None = None
+    content: str | None = None
+    title: str | None = None

@@ -1,0 +1,223 @@
+"""Calendar use cases: CRUD for calendars/events and the unified agenda read.
+
+Framework-free. Persistence is a port (``CalendarRepository``); the recurrence math is the pure
+domain engine. Event ``content`` is an opaque sealed blob — the server never reads it.
+"""
+
+from __future__ import annotations
+
+import uuid
+from dataclasses import dataclass
+from datetime import datetime
+
+from ghostcal.domain.calendar import RecurringEvent, expand
+
+
+class CalendarError(Exception):
+    pass
+
+
+class CalendarNotFound(CalendarError):
+    pass
+
+
+class EventNotFound(CalendarError):
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class CalendarRecord:
+    id: uuid.UUID
+    name: str
+    color: str
+    is_default: bool
+
+
+@dataclass(frozen=True, slots=True)
+class EventInput:
+    calendar_id: uuid.UUID
+    start_at: datetime
+    end_at: datetime
+    timezone: str
+    all_day: bool = False
+    rrule: str | None = None
+    exdates: tuple[str, ...] = ()
+    content: str | None = None  # sealed blob
+
+
+@dataclass(frozen=True, slots=True)
+class EventRecord:
+    id: uuid.UUID
+    calendar_id: uuid.UUID
+    start_at: datetime
+    end_at: datetime
+    timezone: str
+    all_day: bool
+    rrule: str | None
+    exdates: tuple[str, ...]
+    content: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class BusyBlock:
+    start_at: datetime
+    end_at: datetime
+    title: str | None  # cleartext label for bookings/external busy (None when unknown)
+
+
+@dataclass(frozen=True, slots=True)
+class AgendaItem:
+    source: str  # "event" | "booking" | "external"
+    start: datetime
+    end: datetime
+    all_day: bool = False
+    calendar_id: uuid.UUID | None = None
+    event_id: uuid.UUID | None = None
+    content: str | None = None  # sealed blob (events) — decrypted in the browser
+    title: str | None = None  # cleartext label (bookings/external)
+
+
+class CalendarRepository:
+    async def list_calendars(self, owner_id: uuid.UUID) -> list[CalendarRecord]:
+        raise NotImplementedError
+
+    async def ensure_default_calendar(self, owner_id: uuid.UUID) -> CalendarRecord:
+        """Return the owner's default calendar, creating it on first use."""
+        raise NotImplementedError
+
+    async def create_calendar(
+        self, owner_id: uuid.UUID, *, name: str, color: str
+    ) -> CalendarRecord:
+        raise NotImplementedError
+
+    async def get_event(self, owner_id: uuid.UUID, event_id: uuid.UUID) -> EventRecord | None:
+        raise NotImplementedError
+
+    async def create_event(self, owner_id: uuid.UUID, data: EventInput) -> uuid.UUID:
+        raise NotImplementedError
+
+    async def update_event(
+        self, owner_id: uuid.UUID, event_id: uuid.UUID, data: EventInput
+    ) -> bool:
+        raise NotImplementedError
+
+    async def delete_event(self, owner_id: uuid.UUID, event_id: uuid.UUID) -> bool:
+        raise NotImplementedError
+
+    async def events_overlapping(
+        self, owner_id: uuid.UUID, start: datetime, end: datetime
+    ) -> list[EventRecord]:
+        """Stored events that might have an occurrence in the window (recurring ones included)."""
+        raise NotImplementedError
+
+    async def bookings_in_range(
+        self, owner_id: uuid.UUID, start: datetime, end: datetime
+    ) -> list[BusyBlock]:
+        raise NotImplementedError
+
+    async def external_busy_in_range(
+        self, owner_id: uuid.UUID, start: datetime, end: datetime
+    ) -> list[BusyBlock]:
+        raise NotImplementedError
+
+
+async def list_calendars(repo: CalendarRepository, owner_id: uuid.UUID) -> list[CalendarRecord]:
+    calendars = await repo.list_calendars(owner_id)
+    if not calendars:
+        return [await repo.ensure_default_calendar(owner_id)]
+    return calendars
+
+
+async def get_event(
+    repo: CalendarRepository, owner_id: uuid.UUID, event_id: uuid.UUID
+) -> EventRecord:
+    event = await repo.get_event(owner_id, event_id)
+    if event is None:
+        raise EventNotFound(str(event_id))
+    return event
+
+
+async def create_event(
+    repo: CalendarRepository, owner_id: uuid.UUID, data: EventInput
+) -> uuid.UUID:
+    if data.end_at < data.start_at:
+        raise CalendarError("end_at must not be before start_at")
+    return await repo.create_event(owner_id, data)
+
+
+async def update_event(
+    repo: CalendarRepository, owner_id: uuid.UUID, event_id: uuid.UUID, data: EventInput
+) -> None:
+    if data.end_at < data.start_at:
+        raise CalendarError("end_at must not be before start_at")
+    if not await repo.update_event(owner_id, event_id, data):
+        raise EventNotFound(str(event_id))
+
+
+async def delete_event(repo: CalendarRepository, owner_id: uuid.UUID, event_id: uuid.UUID) -> None:
+    if not await repo.delete_event(owner_id, event_id):
+        raise EventNotFound(str(event_id))
+
+
+def _to_recurring(e: EventRecord) -> RecurringEvent:
+    exdates = tuple(datetime.fromisoformat(x) for x in e.exdates)
+    return RecurringEvent(
+        id=str(e.id),
+        start_at=e.start_at,
+        end_at=e.end_at,
+        timezone=e.timezone,
+        all_day=e.all_day,
+        rrule=e.rrule,
+        exdates=exdates,
+    )
+
+
+async def get_agenda(
+    repo: CalendarRepository, owner_id: uuid.UUID, start: datetime, end: datetime
+) -> list[AgendaItem]:
+    """The owner's unified agenda over ``[start, end)``: events + bookings + external busy."""
+    items: list[AgendaItem] = []
+
+    events = await repo.events_overlapping(owner_id, start, end)
+    by_id = {str(e.id): e for e in events}
+    for e in events:
+        for occ in expand(_to_recurring(e), start, end):
+            src = by_id[occ.event_id]
+            items.append(
+                AgendaItem(
+                    source="event",
+                    start=occ.start,
+                    end=occ.end,
+                    all_day=occ.all_day,
+                    calendar_id=src.calendar_id,
+                    event_id=src.id,
+                    content=src.content,
+                )
+            )
+
+    for b in await repo.bookings_in_range(owner_id, start, end):
+        items.append(AgendaItem(source="booking", start=b.start_at, end=b.end_at, title=b.title))
+    for b in await repo.external_busy_in_range(owner_id, start, end):
+        items.append(AgendaItem(source="external", start=b.start_at, end=b.end_at, title=b.title))
+
+    return sorted(items, key=lambda i: i.start)
+
+
+# Re-exported for the route layer's type hints.
+__all__ = [
+    "AgendaItem",
+    "BusyBlock",
+    "CalendarError",
+    "CalendarNotFound",
+    "CalendarRecord",
+    "CalendarRepository",
+    "EventInput",
+    "EventNotFound",
+    "EventRecord",
+    "create_event",
+    "delete_event",
+    "get_agenda",
+    "get_event",
+    "list_calendars",
+    "update_event",
+]

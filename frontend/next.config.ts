@@ -15,9 +15,15 @@ const devOrigins = (process.env.DEV_ORIGINS ?? "10.25.0.19,dev-kevin")
 // Content-Security-Policy. `wasm-unsafe-eval` lets the vendored crypto core load hash-wasm's
 // Argon2id WebAssembly (AES-GCM and X25519 are native WebCrypto and need nothing extra). Framing
 // is intentionally left open so the booking widget can be embedded on third-party sites.
+// React's dev server uses eval() for debugging, so `unsafe-eval` is added in development only —
+// production never needs it.
+const isDev = process.env.NODE_ENV !== "production";
+const scriptSrc = ["'self'", "'unsafe-inline'", "'wasm-unsafe-eval'", isDev ? "'unsafe-eval'" : ""]
+  .filter(Boolean)
+  .join(" ");
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
+  `script-src ${scriptSrc}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
