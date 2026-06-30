@@ -12,9 +12,14 @@ import {
   getAgenda,
   getEvent,
   listCalendars,
+  listShares,
+  type Share,
+  shareCalendar,
+  unshareCalendar,
   updateEvent,
 } from "@/lib/agenda";
 import { useT } from "@/lib/i18n";
+import { listMembers, type Member } from "@/lib/team";
 import { getUnlockedKeys, openContent, sealContent, type EventContent } from "@/lib/zk";
 
 const TZ = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
@@ -77,6 +82,9 @@ export default function CalendarPage() {
   const [locked, setLocked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+
+  const ownCalendar = useMemo(() => calendars.find((c) => !c.is_shared), [calendars]);
 
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
@@ -284,6 +292,15 @@ export default function CalendarPage() {
           >
             ›
           </button>
+          {ownCalendar && (
+            <button
+              type="button"
+              onClick={() => setShareOpen(true)}
+              className="rounded-lg border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
+            >
+              {t("calendar.share")}
+            </button>
+          )}
         </div>
       </div>
 
@@ -330,17 +347,22 @@ export default function CalendarPage() {
                   {dayItems.slice(0, 3).map((it, i) => (
                     <span
                       key={i}
+                      title={it.read_only ? t("calendar.sharedReadOnly") : undefined}
                       onClick={(e) => {
-                        if (it.source === "event" && it.event_id) {
+                        if (it.source === "event" && it.event_id && !it.read_only) {
                           e.stopPropagation();
                           void openEdit(it.event_id, it.start);
+                        } else {
+                          e.stopPropagation();
                         }
                       }}
                       className={[
                         "truncate rounded px-1.5 py-0.5 text-[11px]",
-                        it.source === "event"
-                          ? "bg-accent/20 text-accent"
-                          : "bg-surface-2 text-muted",
+                        it.source !== "event"
+                          ? "bg-surface-2 text-muted"
+                          : it.read_only
+                            ? "border border-dashed border-accent/40 text-accent/70"
+                            : "bg-accent/20 text-accent",
                       ].join(" ")}
                     >
                       {!it.all_day && `${hm(it.start)} `}
@@ -366,7 +388,83 @@ export default function CalendarPage() {
           onClose={() => setDraft(null)}
         />
       )}
+
+      {shareOpen && ownCalendar && (
+        <ShareModal calendarId={ownCalendar.id} onClose={() => setShareOpen(false)} />
+      )}
     </main>
+  );
+}
+
+function ShareModal({ calendarId, onClose }: { calendarId: string; onClose: () => void }) {
+  const t = useT();
+  const [members, setMembers] = useState<Member[]>([]);
+  const [shared, setShared] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([listMembers(), listShares(calendarId)])
+      .then(([m, s]) => {
+        if (!active) return;
+        setMembers(m);
+        setShared(new Set(s.map((x: Share) => x.user_id)));
+      })
+      .catch(() => undefined)
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [calendarId]);
+
+  async function toggle(userId: string, on: boolean) {
+    setShared((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(userId);
+      else next.delete(userId);
+      return next;
+    });
+    if (on) await shareCalendar(calendarId, userId);
+    else await unshareCalendar(calendarId, userId);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="glass w-full max-w-md rounded-2xl p-6 shadow-2xl">
+        <h2 className="mb-1 text-lg font-semibold text-foreground">{t("calendar.shareTitle")}</h2>
+        <p className="mb-4 text-xs text-muted">{t("calendar.shareSub")}</p>
+        {loading ? (
+          <p className="text-sm text-muted">{t("common.loading")}</p>
+        ) : (
+          <div className="flex max-h-72 flex-col gap-1 overflow-y-auto">
+            {members.map((m) => (
+              <label
+                key={m.user_id}
+                className="flex items-center justify-between rounded-lg px-2 py-2 text-sm hover:bg-surface-2/50"
+              >
+                <span className="text-foreground">
+                  {m.name} <span className="text-muted">· {m.email}</span>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={shared.has(m.user_id)}
+                  onChange={(e) => void toggle(m.user_id, e.target.checked)}
+                />
+              </label>
+            ))}
+          </div>
+        )}
+        <div className="mt-5 flex justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110"
+          >
+            {t("common.done")}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

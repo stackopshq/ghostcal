@@ -3,7 +3,16 @@
 
 import { authedFetch } from "@/lib/auth";
 
-export type CalendarRec = { id: string; name: string; color: string; is_default: boolean };
+export type CalendarRec = {
+  id: string;
+  name: string;
+  color: string;
+  is_default: boolean;
+  is_shared: boolean;
+  owner_name: string | null;
+};
+
+export type Share = { user_id: string; name: string };
 
 export type AgendaItem = {
   source: "event" | "booking" | "external";
@@ -14,6 +23,7 @@ export type AgendaItem = {
   event_id: string | null;
   content: string | null; // sealed blob (events)
   title: string | null; // cleartext label (bookings/external)
+  read_only: boolean;
 };
 
 export type EventInput = {
@@ -70,4 +80,19 @@ export function updateEvent(id: string, body: EventInput): Promise<void> {
 
 export function deleteEvent(id: string): Promise<void> {
   return authedFetch<void>(`/v1/me/calendar/events/${id}`, { method: "DELETE" });
+}
+
+export function listShares(calendarId: string): Promise<Share[]> {
+  return authedFetch<Share[]>(`/v1/me/calendars/${calendarId}/shares`);
+}
+
+export function shareCalendar(calendarId: string, userId: string): Promise<void> {
+  return authedFetch<void>(`/v1/me/calendars/${calendarId}/shares`, {
+    method: "POST",
+    body: JSON.stringify({ user_id: userId }),
+  });
+}
+
+export function unshareCalendar(calendarId: string, userId: string): Promise<void> {
+  return authedFetch<void>(`/v1/me/calendars/${calendarId}/shares/${userId}`, { method: "DELETE" });
 }
