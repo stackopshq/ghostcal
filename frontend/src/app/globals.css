@@ -12,7 +12,22 @@
   --color-accent-ink: #021016; /* text on top of accent */
   --color-border: rgba(255, 255, 255, 0.06);
   --color-border-strong: rgba(255, 255, 255, 0.12);
+  --aurora: rgba(0, 240, 255, 0.08);
   --font-sans: var(--font-inter), system-ui, sans-serif;
+}
+
+/* Light mode — same cyan identity, daylight surfaces. Toggled via data-theme on <html>. */
+:root[data-theme="light"] {
+  --color-base: #f5f8fc;
+  --color-surface: #ffffff;
+  --color-surface-2: #eef3f9;
+  --color-foreground: #0f1b2d;
+  --color-muted: #5b6b82;
+  --color-accent: #0891b2; /* deeper cyan for contrast on light surfaces */
+  --color-accent-ink: #ffffff;
+  --color-border: rgba(15, 23, 42, 0.1);
+  --color-border-strong: rgba(15, 23, 42, 0.16);
+  --aurora: rgba(8, 145, 178, 0.1);
 }
 
 /* Expose the tokens to Tailwind utilities (bg-base, text-accent, border-border, …). */
@@ -34,12 +49,19 @@ body {
   color: var(--color-foreground);
   font-family: var(--font-sans);
   /* Subtle cyan aurora bleeding from the top — the "ghost" glow. */
-  background-image: radial-gradient(
-    60rem 40rem at 80% -10%,
-    rgba(0, 240, 255, 0.08),
-    transparent 60%
-  );
+  background-image: radial-gradient(60rem 40rem at 80% -10%, var(--aurora), transparent 60%);
   background-attachment: fixed;
+}
+
+/* Theme toggle icon: show the sun in dark mode (→ switch to light), the moon in light mode. */
+.theme-icon-moon {
+  display: none;
+}
+:root[data-theme="light"] .theme-icon-sun {
+  display: none;
+}
+:root[data-theme="light"] .theme-icon-moon {
+  display: inline;
 }
 
 /* Smoked-glass card. */
