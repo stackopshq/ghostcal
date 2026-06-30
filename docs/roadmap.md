@@ -22,15 +22,18 @@ read. This roadmap tracks where that promise has reached and where it's going.
 - **Zero-knowledge calendar — Phase 1.** `calendars`/`calendar_events`; a pure DST-correct
   recurrence engine; CRUD + unified agenda (events + bookings + external busy); a month view that
   seals/decrypts event content in-browser. *(see [ADR-0004](adr/0004-zero-knowledge-calendar.md))*
+- **Calendar Phase 2 — sync & richness.** Event reminders (Celery, time-only); recurrence
+  overrides/exceptions (edit/delete one occurrence); external CalDAV event titles in the agenda
+  (encrypted at rest, read-only).
+- **Calendar Phase 3 — shared calendars.** Share a calendar with org members who decrypt it with
+  the org key they already hold (team key sharing); a sharing/ACL model + agenda inclusion,
+  read-only. The zero-knowledge property holds. *(see [ADR-0005](adr/0005-shared-calendars.md))*
 
 ## Next
 
-- **Calendar Phase 2 — sync & richness.** Read external CalDAV events into the agenda (ZK kept);
-  event reminders (Celery, time-only); recurring-occurrence overrides/exceptions; optional non-ZK
-  **synced** calendars that push to a third-party CalDAV server (clearly labelled).
-- **Calendar Phase 3 — shared calendars.** Share a calendar with org members who can decrypt it
-  (they already hold the org key via team key sharing); a sharing/ACL model + agenda inclusion. The
-  zero-knowledge property holds. Cross-org sharing reuses the invitation-fragment grant.
+- **Calendar push & cross-org sharing.** Optional non-ZK **synced** calendars that push to a
+  third-party CalDAV server (clearly labelled); read-write shared calendars; sharing beyond the org
+  via the invitation-fragment grant.
 
 ## Later
 

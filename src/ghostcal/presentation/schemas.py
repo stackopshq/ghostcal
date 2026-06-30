@@ -478,6 +478,8 @@ class CalendarOut(BaseModel):
     name: str
     color: str
     is_default: bool
+    is_shared: bool = False
+    owner_name: str | None = None
 
 
 class CalendarIn(BaseModel):
@@ -520,3 +522,13 @@ class AgendaItemOut(BaseModel):
     event_id: uuid.UUID | None = None
     content: str | None = None
     title: str | None = None
+    read_only: bool = False
+
+
+class ShareIn(BaseModel):
+    user_id: uuid.UUID
+
+
+class ShareOut(BaseModel):
+    user_id: uuid.UUID
+    name: str

@@ -471,6 +471,26 @@ class CalendarEvent(TimestampMixin, Base):
     reminder_minutes: Mapped[int | None] = mapped_column()
 
 
+class CalendarShare(TimestampMixin, Base):
+    """A calendar shared (read-only) with another org member. See ADR-0005."""
+
+    __tablename__ = "calendar_shares"
+    __table_args__ = (
+        UniqueConstraint("calendar_id", "shared_with_user_id"),
+        Index("ix_calendar_shares_shared_with", "shared_with_user_id"),
+    )
+
+    id: Mapped[uuid.UUID] = _pk()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    calendar_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("calendars.id", ondelete="CASCADE"))
+    shared_with_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE")
+    )
+    can_edit: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
+
+
 # Tenant-scoped tables that receive Row-Level Security (column carrying the tenant id).
 class BookingReminder(TimestampMixin, Base):
     """One row per reminder sent for a booking (idempotency for the periodic reminder task)."""
