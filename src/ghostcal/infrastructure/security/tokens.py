@@ -31,15 +31,23 @@ class JwtAccessTokenCodec:
 class BookingManagementCodec:
     """Stateless, signed token letting an invitee manage their booking (no account).
 
-    Encodes the booking and organization ids; verified by signature. No expiry — it stays valid
-    until the booking is cancelled/rescheduled (operations check the booking status).
+    Encodes the booking and organization ids; verified by signature. Expires after ``ttl`` so a
+    leaked capability link (forwarded email, referrer, logs) does not stay valid forever.
     """
 
-    def __init__(self, secret: str) -> None:
+    def __init__(self, secret: str, ttl: timedelta = timedelta(days=90)) -> None:
         self._secret = secret
+        self._ttl = ttl
 
     def encode(self, booking_id: uuid.UUID, organization_id: uuid.UUID) -> str:
-        payload = {"bid": str(booking_id), "oid": str(organization_id), "purpose": "manage"}
+        now = datetime.now(UTC)
+        payload = {
+            "bid": str(booking_id),
+            "oid": str(organization_id),
+            "purpose": "manage",
+            "iat": now,
+            "exp": now + self._ttl,
+        }
         return jwt.encode(payload, self._secret, algorithm=_ALGORITHM)
 
     def decode(self, token: str) -> tuple[uuid.UUID, uuid.UUID]:
