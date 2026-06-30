@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ghostcal.application.calendar import (
     CalendarError,
+    CalendarNotFound,
     EventInput,
     EventNotFound,
     create_event,
@@ -16,6 +17,9 @@ from ghostcal.application.calendar import (
     get_agenda,
     get_event,
     list_calendars,
+    list_shares,
+    share_calendar,
+    unshare_calendar,
     update_event,
 )
 from ghostcal.infrastructure.db.calendar_repository import SqlCalendarRepository
@@ -28,6 +32,8 @@ from ghostcal.presentation.schemas import (
     CreatedOut,
     EventIn,
     EventOut,
+    ShareIn,
+    ShareOut,
 )
 
 router = APIRouter(prefix="/v1/me", tags=["calendar"])
@@ -56,8 +62,53 @@ async def list_my_calendars(member: Member = Depends(current_member)) -> list[Ca
     async with org_session(member.organization_id) as session:
         calendars = await list_calendars(_repo(session, member.organization_id), member.user.id)
     return [
-        CalendarOut(id=c.id, name=c.name, color=c.color, is_default=c.is_default) for c in calendars
+        CalendarOut(
+            id=c.id,
+            name=c.name,
+            color=c.color,
+            is_default=c.is_default,
+            is_shared=c.is_shared,
+            owner_name=c.owner_name,
+        )
+        for c in calendars
     ]
+
+
+@router.get("/calendars/{calendar_id}/shares", response_model=list[ShareOut])
+async def list_calendar_shares(
+    calendar_id: uuid.UUID, member: Member = Depends(current_member)
+) -> list[ShareOut]:
+    async with org_session(member.organization_id) as session:
+        shares = await list_shares(
+            _repo(session, member.organization_id), member.user.id, calendar_id
+        )
+    return [ShareOut(user_id=s.user_id, name=s.name) for s in shares]
+
+
+@router.post("/calendars/{calendar_id}/shares", status_code=204)
+async def share_my_calendar(
+    calendar_id: uuid.UUID, payload: ShareIn, member: Member = Depends(current_member)
+) -> None:
+    async with org_session(member.organization_id) as session:
+        try:
+            await share_calendar(
+                _repo(session, member.organization_id), member.user.id, calendar_id, payload.user_id
+            )
+        except CalendarNotFound as exc:
+            raise HTTPException(status_code=404, detail="calendar not found") from exc
+
+
+@router.delete("/calendars/{calendar_id}/shares/{user_id}", status_code=204)
+async def unshare_my_calendar(
+    calendar_id: uuid.UUID, user_id: uuid.UUID, member: Member = Depends(current_member)
+) -> None:
+    async with org_session(member.organization_id) as session:
+        try:
+            await unshare_calendar(
+                _repo(session, member.organization_id), member.user.id, calendar_id, user_id
+            )
+        except CalendarNotFound as exc:
+            raise HTTPException(status_code=404, detail="calendar not found") from exc
 
 
 @router.post("/calendars", response_model=CalendarOut, status_code=201)
@@ -89,6 +140,7 @@ async def read_agenda(
             event_id=i.event_id,
             content=i.content,
             title=i.title,
+            read_only=i.read_only,
         )
         for i in items
     ]

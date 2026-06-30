@@ -31,6 +31,15 @@ class CalendarRecord:
     name: str
     color: str
     is_default: bool
+    # Set when this calendar belongs to another member and was shared with the viewer (read-only).
+    is_shared: bool = False
+    owner_name: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ShareRecord:
+    user_id: uuid.UUID
+    name: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,6 +67,8 @@ class EventRecord:
     exdates: tuple[str, ...]
     content: str | None
     reminder_minutes: int | None
+    # True when this event comes from a calendar shared with the viewer (not theirs to edit).
+    read_only: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,6 +88,7 @@ class AgendaItem:
     event_id: uuid.UUID | None = None
     content: str | None = None  # sealed blob (events) — decrypted in the browser
     title: str | None = None  # cleartext label (bookings/external)
+    read_only: bool = False  # event from a calendar shared with the viewer
 
 
 class CalendarRepository:
@@ -90,6 +102,20 @@ class CalendarRepository:
     async def create_calendar(
         self, owner_id: uuid.UUID, *, name: str, color: str
     ) -> CalendarRecord:
+        raise NotImplementedError
+
+    async def share_calendar(
+        self, owner_id: uuid.UUID, calendar_id: uuid.UUID, user_id: uuid.UUID
+    ) -> bool:
+        """Share the owner's calendar with another member. False if they don't own it."""
+        raise NotImplementedError
+
+    async def unshare_calendar(
+        self, owner_id: uuid.UUID, calendar_id: uuid.UUID, user_id: uuid.UUID
+    ) -> bool:
+        raise NotImplementedError
+
+    async def list_shares(self, owner_id: uuid.UUID, calendar_id: uuid.UUID) -> list[ShareRecord]:
         raise NotImplementedError
 
     async def get_event(self, owner_id: uuid.UUID, event_id: uuid.UUID) -> EventRecord | None:
@@ -125,9 +151,30 @@ class CalendarRepository:
 
 async def list_calendars(repo: CalendarRepository, owner_id: uuid.UUID) -> list[CalendarRecord]:
     calendars = await repo.list_calendars(owner_id)
-    if not calendars:
-        return [await repo.ensure_default_calendar(owner_id)]
+    # Ensure the user has at least one calendar of their own (shared ones don't count).
+    if not any(not c.is_shared for c in calendars):
+        return [await repo.ensure_default_calendar(owner_id), *calendars]
     return calendars
+
+
+async def share_calendar(
+    repo: CalendarRepository, owner_id: uuid.UUID, calendar_id: uuid.UUID, user_id: uuid.UUID
+) -> None:
+    if not await repo.share_calendar(owner_id, calendar_id, user_id):
+        raise CalendarNotFound(str(calendar_id))
+
+
+async def unshare_calendar(
+    repo: CalendarRepository, owner_id: uuid.UUID, calendar_id: uuid.UUID, user_id: uuid.UUID
+) -> None:
+    if not await repo.unshare_calendar(owner_id, calendar_id, user_id):
+        raise CalendarNotFound(str(calendar_id))
+
+
+async def list_shares(
+    repo: CalendarRepository, owner_id: uuid.UUID, calendar_id: uuid.UUID
+) -> list[ShareRecord]:
+    return await repo.list_shares(owner_id, calendar_id)
 
 
 async def get_event(
@@ -194,6 +241,7 @@ async def get_agenda(
                     calendar_id=src.calendar_id,
                     event_id=src.id,
                     content=src.content,
+                    read_only=src.read_only,
                 )
             )
 
@@ -216,10 +264,14 @@ __all__ = [
     "EventInput",
     "EventNotFound",
     "EventRecord",
+    "ShareRecord",
     "create_event",
     "delete_event",
     "get_agenda",
     "get_event",
     "list_calendars",
+    "list_shares",
+    "share_calendar",
+    "unshare_calendar",
     "update_event",
 ]

@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import delete, insert, or_, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ghostcal.application.calendar import (
@@ -14,6 +15,7 @@ from ghostcal.application.calendar import (
     CalendarRepository,
     EventInput,
     EventRecord,
+    ShareRecord,
 )
 from ghostcal.infrastructure.db import models
 
@@ -24,7 +26,7 @@ class SqlCalendarRepository(CalendarRepository):
         self._org_id = organization_id
 
     async def list_calendars(self, owner_id: uuid.UUID) -> list[CalendarRecord]:
-        rows = (
+        owned = (
             (
                 await self._session.execute(
                     select(models.Calendar)
@@ -35,7 +37,71 @@ class SqlCalendarRepository(CalendarRepository):
             .scalars()
             .all()
         )
-        return [_calendar(r) for r in rows]
+        shared = (
+            await self._session.execute(
+                select(models.Calendar, models.User.name)
+                .join(models.CalendarShare, models.CalendarShare.calendar_id == models.Calendar.id)
+                .join(models.User, models.User.id == models.Calendar.owner_id)
+                .where(models.CalendarShare.shared_with_user_id == owner_id)
+                .order_by(models.Calendar.created_at)
+            )
+        ).all()
+        return [_calendar(c) for c in owned] + [
+            _calendar(c, is_shared=True, owner_name=name) for c, name in shared
+        ]
+
+    async def share_calendar(
+        self, owner_id: uuid.UUID, calendar_id: uuid.UUID, user_id: uuid.UUID
+    ) -> bool:
+        if not await self._owns(owner_id, calendar_id):
+            return False
+        await self._session.execute(
+            pg_insert(models.CalendarShare)
+            .values(
+                organization_id=self._org_id,
+                calendar_id=calendar_id,
+                shared_with_user_id=user_id,
+            )
+            .on_conflict_do_nothing(index_elements=["calendar_id", "shared_with_user_id"])
+        )
+        return True
+
+    async def unshare_calendar(
+        self, owner_id: uuid.UUID, calendar_id: uuid.UUID, user_id: uuid.UUID
+    ) -> bool:
+        if not await self._owns(owner_id, calendar_id):
+            return False
+        await self._session.execute(
+            delete(models.CalendarShare).where(
+                models.CalendarShare.calendar_id == calendar_id,
+                models.CalendarShare.shared_with_user_id == user_id,
+            )
+        )
+        return True
+
+    async def list_shares(self, owner_id: uuid.UUID, calendar_id: uuid.UUID) -> list[ShareRecord]:
+        if not await self._owns(owner_id, calendar_id):
+            return []
+        rows = (
+            await self._session.execute(
+                select(models.User.id, models.User.name)
+                .join(
+                    models.CalendarShare, models.CalendarShare.shared_with_user_id == models.User.id
+                )
+                .where(models.CalendarShare.calendar_id == calendar_id)
+                .order_by(models.User.name)
+            )
+        ).all()
+        return [ShareRecord(user_id=r.id, name=r.name) for r in rows]
+
+    async def _owns(self, owner_id: uuid.UUID, calendar_id: uuid.UUID) -> bool:
+        return (
+            await self._session.execute(
+                select(models.Calendar.id).where(
+                    models.Calendar.id == calendar_id, models.Calendar.owner_id == owner_id
+                )
+            )
+        ).scalar_one_or_none() is not None
 
     async def ensure_default_calendar(self, owner_id: uuid.UUID) -> CalendarRecord:
         existing = (
@@ -125,15 +191,24 @@ class SqlCalendarRepository(CalendarRepository):
     async def events_overlapping(
         self, owner_id: uuid.UUID, start: datetime, end: datetime
     ) -> list[EventRecord]:
+        # The viewer's own events plus events from calendars shared with them (read-only).
+        shared_calendars = (
+            select(models.CalendarShare.calendar_id)
+            .where(models.CalendarShare.shared_with_user_id == owner_id)
+            .scalar_subquery()
+        )
         rows = (
             (
                 await self._session.execute(
                     select(models.CalendarEvent).where(
-                        models.CalendarEvent.owner_id == owner_id,
                         models.CalendarEvent.start_at < end,
                         or_(
                             models.CalendarEvent.rrule.is_not(None),
                             models.CalendarEvent.end_at > start,
+                        ),
+                        or_(
+                            models.CalendarEvent.owner_id == owner_id,
+                            models.CalendarEvent.calendar_id.in_(shared_calendars),
                         ),
                     )
                 )
@@ -141,7 +216,7 @@ class SqlCalendarRepository(CalendarRepository):
             .scalars()
             .all()
         )
-        return [_event(r) for r in rows]
+        return [_event(r, read_only=r.owner_id != owner_id) for r in rows]
 
     async def bookings_in_range(
         self, owner_id: uuid.UUID, start: datetime, end: datetime
@@ -179,11 +254,20 @@ class SqlCalendarRepository(CalendarRepository):
         return [BusyBlock(start_at=r.start_at, end_at=r.end_at, title=r.summary) for r in rows]
 
 
-def _calendar(row: models.Calendar) -> CalendarRecord:
-    return CalendarRecord(id=row.id, name=row.name, color=row.color, is_default=row.is_default)
+def _calendar(
+    row: models.Calendar, *, is_shared: bool = False, owner_name: str | None = None
+) -> CalendarRecord:
+    return CalendarRecord(
+        id=row.id,
+        name=row.name,
+        color=row.color,
+        is_default=row.is_default,
+        is_shared=is_shared,
+        owner_name=owner_name,
+    )
 
 
-def _event(row: models.CalendarEvent) -> EventRecord:
+def _event(row: models.CalendarEvent, *, read_only: bool = False) -> EventRecord:
     return EventRecord(
         id=row.id,
         calendar_id=row.calendar_id,
@@ -195,6 +279,7 @@ def _event(row: models.CalendarEvent) -> EventRecord:
         exdates=tuple(row.exdates),
         content=row.content,
         reminder_minutes=row.reminder_minutes,
+        read_only=read_only,
     )
 
 
