@@ -66,11 +66,18 @@ Import decrypts/encrypts client-side; export is a client-side build from decrypt
 
 ## Delivery plan
 
-- **Phase 1 — foundation (this ADR's scope to implement):** `calendars` + `calendar_events`
-  (RLS, ZK content); the recurrence-expansion domain engine + property/DST tests; CRUD for
-  calendars and events; the unified agenda read endpoint; a minimal `/dashboard/calendar`
-  month view with create/edit, decrypting content in-browser.
-- **Phase 2 — sync & richness:** CalDAV bidirectional for personal events (opt-in, non-ZK to the
-  external server); recurring-occurrence overrides/exceptions; event reminders (Celery).
-- **Phase 3 — ghostmail hooks:** `.ics` import from email, "add to calendar", free-busy sharing,
+- **Phase 1 — foundation (done):** `calendars` + `calendar_events` (RLS, ZK content); the
+  recurrence-expansion domain engine + property/DST tests; CRUD for calendars and events; the
+  unified agenda read endpoint; a `/dashboard/calendar` month view with create/edit, decrypting
+  content in-browser.
+- **Phase 2 — sync & richness:** read external CalDAV events into the agenda (ZK preserved); event
+  reminders (Celery, time-only — the mail can't name the event); recurring-occurrence
+  overrides/exceptions; optional **non-ZK synced calendars** that *push* to a third-party CalDAV
+  server (clearly labelled, since their content must be server-readable to be written out).
+- **Phase 3 — shared calendars.** Share a calendar with other org members — and they can decrypt
+  it, because team key sharing ([ADR-0003](0003-team-zero-knowledge-key-sharing.md)) already gives
+  every member the org key the events are sealed to. Only a sharing/ACL model and agenda inclusion
+  are new; the zero-knowledge property holds (the server still can't read the content). Sharing
+  beyond the org reuses the invitation-fragment grant.
+- **Phase 4 — ghostmail hooks:** `.ics` import from email, "add to calendar", free-busy sharing,
   meeting invitations that land in the recipient's GhostCal calendar.
