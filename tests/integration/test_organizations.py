@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from ghostcal.application.auth import AuthConfig, AuthService
 from ghostcal.application.organizations import (
+    InvitationInvalid,
     LastOwner,
     NotAuthorized,
     OrgActor,
@@ -187,6 +188,52 @@ async def test_org_members_roles_and_invitations(admin_engine: AsyncEngine) -> N
         assert len(members) == 1
     finally:
         for uid in (invitee_id, owner_id):
+            if uid is not None:
+                await _delete_user(admin_engine, uid)
+
+
+async def test_invitation_rejects_mismatched_email(admin_engine: AsyncEngine) -> None:
+    """A leaked invitation link cannot be redeemed by an account with a different email.
+
+    Defence against link leakage: ``accept_organization_invitation`` binds acceptance to the
+    invited address (pentest finding), so only the verified owner of that email may join.
+    """
+    mailer = CapturingMailer()
+    suffix = uuid.uuid4().hex[:8]
+    owner_id = invited_id = attacker_id = None
+    try:
+        owner_id = await _register_verified(mailer, f"mowner-{suffix}@example.test", "Owner")
+        invited_id = await _register_verified(mailer, f"minvited-{suffix}@example.test", "Invited")
+        attacker_id = await _register_verified(
+            mailer, f"mattacker-{suffix}@example.test", "Mallory"
+        )
+
+        async with db_session() as s:
+            membership = await primary_membership(s, owner_id)
+        assert membership is not None
+        org_id, _ = membership
+        owner = OrgActor(organization_id=org_id, user_id=owner_id, role="owner")
+
+        # Owner invites the legitimate address as an admin (a juicy target if leaked).
+        async with org_session(org_id) as s:
+            await _org(s, org_id, mailer).invite(
+                owner, email=f"minvited-{suffix}@example.test", role="admin"
+            )
+        token = mailer.invite_token()
+
+        # The attacker (different email) intercepts the link — acceptance must be refused.
+        with pytest.raises(InvitationInvalid):
+            async with db_session() as s:
+                await accept_invitation(SqlInvitationGateway(s), token=token, user_id=attacker_id)
+
+        # The intended recipient can still accept.
+        async with db_session() as s:
+            joined = await accept_invitation(
+                SqlInvitationGateway(s), token=token, user_id=invited_id
+            )
+        assert joined == org_id
+    finally:
+        for uid in (attacker_id, invited_id, owner_id):
             if uid is not None:
                 await _delete_user(admin_engine, uid)
 
