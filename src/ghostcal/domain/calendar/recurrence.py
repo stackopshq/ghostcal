@@ -76,13 +76,15 @@ def _recurring_starts(
     after_local = (window_start - duration).astimezone(zone).replace(tzinfo=None)
     before_local = window_end.astimezone(zone).replace(tzinfo=None)
 
+    # ``xafter(count=...)`` bounds generation itself — unlike ``between``, which materializes every
+    # occurrence from dtstart to ``before`` first (a sub-daily RRULE over a wide window would OOM).
     starts: list[datetime] = []
-    for occ_local in rule.between(after_local, before_local, inc=True):
+    for occ_local in rule.xafter(after_local, count=MAX_OCCURRENCES, inc=True):
+        if occ_local > before_local:
+            break
         # Reattach the zone (fold=0 by default; a nonexistent spring-forward local time is nudged
         # forward by zoneinfo's offset rules) and convert to the UTC instant.
         starts.append(occ_local.replace(tzinfo=zone).astimezone(UTC))
-        if len(starts) >= MAX_OCCURRENCES:
-            break
     return starts
 
 
