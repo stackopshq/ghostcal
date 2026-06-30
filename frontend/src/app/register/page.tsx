@@ -13,6 +13,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [done, setDone] = useState(false);
+  const [recoveryPhrase, setRecoveryPhrase] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -21,7 +22,8 @@ export default function RegisterPage() {
     setSubmitting(true);
     setError(null);
     try {
-      await register(email, name, password);
+      const { recovery_phrase } = await register(email, name, password);
+      setRecoveryPhrase(recovery_phrase);
       setDone(true);
     } catch (err) {
       setError(
@@ -45,7 +47,25 @@ export default function RegisterPage() {
           </Link>
         }
       >
-        <p className="text-sm text-muted">{t("register.expires")}</p>
+        <div className="flex flex-col gap-4">
+          <div className="rounded-xl border border-accent/40 bg-surface-2/60 p-4">
+            <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-accent">
+              <span aria-hidden>🔑</span> {t("register.recoveryTitle")}
+            </p>
+            <p className="mb-3 text-xs text-muted">{t("register.recoverySub")}</p>
+            <code className="block break-all rounded-lg bg-base/80 px-3 py-2 font-mono text-sm text-foreground">
+              {recoveryPhrase}
+            </code>
+            <button
+              type="button"
+              onClick={() => void navigator.clipboard?.writeText(recoveryPhrase)}
+              className="mt-2 text-xs text-accent hover:underline"
+            >
+              {t("register.recoveryCopy")}
+            </button>
+          </div>
+          <p className="text-sm text-muted">{t("register.expires")}</p>
+        </div>
       </AuthCard>
     );
   }

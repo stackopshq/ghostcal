@@ -43,6 +43,10 @@ const en: Dict = {
   "register.errTaken": "That email is already registered.",
   "register.errGeneric": "Could not create the account. Check your details and try again.",
   "register.checkInbox": "Check your inbox",
+  "register.recoveryTitle": "Your recovery key",
+  "register.recoverySub":
+    "This unlocks your encrypted booking data if you ever forget your password. We can't recover it for you — store it somewhere safe. It's shown only once.",
+  "register.recoveryCopy": "Copy recovery key",
   "register.checkInboxSub": "We sent a verification link to {email}. Confirm it to activate your account.",
   "register.expires": "The link expires in 24 hours. You can close this tab.",
   "register.backToSignIn": "Back to sign in",
@@ -64,6 +68,9 @@ const en: Dict = {
   "booking.yourName": "Your name",
   "booking.yourEmail": "Your email",
   "booking.guests": "Add guests (emails, comma-separated)",
+  "booking.notes": "Anything you'd like to share? (optional)",
+  "booking.zkNotice":
+    "End-to-end encrypted — your name, answers and notes are sealed in your browser. The server can never read them.",
   "booking.confirm": "Confirm booking",
   "booking.confirming": "Confirming…",
   "booking.errTaken": "That slot was just taken. Pick another time.",
@@ -126,6 +133,9 @@ const en: Dict = {
   "common.edit": "Edit",
   // meetings
   "meetings.title": "Meetings",
+  "meetings.locked":
+    "Encrypted invitee details are locked. Log in again to unlock them in this browser.",
+  "meetings.privateDetails": "Decrypted details",
   "meetings.sub": "Your booked meetings. Times shown in {tz}.",
   "meetings.upcoming": "Upcoming",
   "meetings.past": "Past",
@@ -330,6 +340,10 @@ const fr: Dict = {
   "register.errTaken": "Cet e-mail est déjà enregistré.",
   "register.errGeneric": "Impossible de créer le compte. Vérifiez vos informations et réessayez.",
   "register.checkInbox": "Vérifiez votre boîte mail",
+  "register.recoveryTitle": "Votre clé de récupération",
+  "register.recoverySub":
+    "Elle déverrouille vos données de réservation chiffrées si vous oubliez votre mot de passe. Nous ne pouvons pas la récupérer pour vous — conservez-la en lieu sûr. Affichée une seule fois.",
+  "register.recoveryCopy": "Copier la clé de récupération",
   "register.checkInboxSub":
     "Nous avons envoyé un lien de vérification à {email}. Confirmez-le pour activer votre compte.",
   "register.expires": "Le lien expire dans 24 heures. Vous pouvez fermer cet onglet.",
@@ -350,6 +364,9 @@ const fr: Dict = {
   "booking.yourName": "Votre nom",
   "booking.yourEmail": "Votre e-mail",
   "booking.guests": "Ajouter des invités (e-mails, séparés par des virgules)",
+  "booking.notes": "Quelque chose à partager ? (facultatif)",
+  "booking.zkNotice":
+    "Chiffré de bout en bout — votre nom, vos réponses et vos notes sont scellés dans votre navigateur. Le serveur ne peut jamais les lire.",
   "booking.confirm": "Confirmer la réservation",
   "booking.confirming": "Confirmation…",
   "booking.errTaken": "Ce créneau vient d'être pris. Choisissez-en un autre.",
@@ -408,6 +425,9 @@ const fr: Dict = {
   "common.delete": "Supprimer",
   "common.edit": "Modifier",
   "meetings.title": "Rendez-vous",
+  "meetings.locked":
+    "Les détails chiffrés de l'invité sont verrouillés. Reconnectez-vous pour les déverrouiller dans ce navigateur.",
+  "meetings.privateDetails": "Détails déchiffrés",
   "meetings.sub": "Vos rendez-vous réservés. Horaires en {tz}.",
   "meetings.upcoming": "À venir",
   "meetings.past": "Passés",
@@ -605,6 +625,10 @@ const es: Dict = {
   "register.errTaken": "Ese correo ya está registrado.",
   "register.errGeneric": "No se pudo crear la cuenta. Revisa tus datos e inténtalo de nuevo.",
   "register.checkInbox": "Revisa tu bandeja de entrada",
+  "register.recoveryTitle": "Tu clave de recuperación",
+  "register.recoverySub":
+    "Desbloquea tus datos de reserva cifrados si olvidas tu contraseña. No podemos recuperarla por ti — guárdala en un lugar seguro. Se muestra solo una vez.",
+  "register.recoveryCopy": "Copiar clave de recuperación",
   "register.checkInboxSub":
     "Enviamos un enlace de verificación a {email}. Confírmalo para activar tu cuenta.",
   "register.expires": "El enlace caduca en 24 horas. Puedes cerrar esta pestaña.",
@@ -625,6 +649,9 @@ const es: Dict = {
   "booking.yourName": "Tu nombre",
   "booking.yourEmail": "Tu correo electrónico",
   "booking.guests": "Añadir invitados (correos, separados por comas)",
+  "booking.notes": "¿Algo que quieras compartir? (opcional)",
+  "booking.zkNotice":
+    "Cifrado de extremo a extremo: tu nombre, respuestas y notas se sellan en tu navegador. El servidor nunca puede leerlos.",
   "booking.confirm": "Confirmar reserva",
   "booking.confirming": "Confirmando…",
   "booking.errTaken": "Ese hueco se acaba de ocupar. Elige otra hora.",
@@ -683,6 +710,9 @@ const es: Dict = {
   "common.delete": "Eliminar",
   "common.edit": "Editar",
   "meetings.title": "Reuniones",
+  "meetings.locked":
+    "Los datos cifrados del invitado están bloqueados. Vuelve a iniciar sesión para desbloquearlos en este navegador.",
+  "meetings.privateDetails": "Detalles descifrados",
   "meetings.sub": "Tus reuniones reservadas. Horas en {tz}.",
   "meetings.upcoming": "Próximas",
   "meetings.past": "Pasadas",

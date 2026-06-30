@@ -27,6 +27,8 @@ export type EventType = {
   host_name: string;
   questions: BookingQuestion[];
   redirect_url: string | null;
+  // Org zero-knowledge public key — the booking page seals the invitee's details to it.
+  zk_public_key: string | null;
 };
 
 export type Slot = { start: string; end: string };
@@ -65,7 +67,7 @@ export type ManageBooking = {
   host_name: string;
   organization_slug: string;
   event_slug: string;
-  invitee_name: string;
+  invitee_name: string | null;
   invitee_timezone: string;
   duration_min: number;
   location_type: string;
@@ -164,11 +166,11 @@ export function createBooking(
   event: string,
   payload: {
     start_at: string;
-    invitee_name: string;
+    // No invitee_name/answers: they are sealed client-side into invitee_private (zero-knowledge).
     invitee_email: string;
     invitee_timezone: string;
     guest_emails?: string[];
-    answers?: Record<string, string>;
+    invitee_private?: string | null;
   },
 ): Promise<Booking> {
   return request<Booking>(`/v1/orgs/${org}/event-types/${event}/bookings`, {
