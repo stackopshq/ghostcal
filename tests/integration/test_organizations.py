@@ -26,6 +26,7 @@ from ghostcal.infrastructure.db.org_repository import SqlInvitationGateway, SqlO
 from ghostcal.infrastructure.db.session import db_session, org_session
 from ghostcal.infrastructure.security.passwords import Argon2PasswordHasher
 from ghostcal.infrastructure.security.tokens import JwtAccessTokenCodec
+from tests.integration.conftest import ZK_PLACEHOLDER
 
 pytestmark = pytest.mark.integration
 
@@ -77,7 +78,9 @@ def _org(session: object, org_id: uuid.UUID, mailer: CapturingMailer) -> Organiz
 
 async def _register_verified(mailer: CapturingMailer, email: str, name: str) -> uuid.UUID:
     async with db_session() as s:
-        user_id = await _auth(s, mailer).register(email=email, name=name, password=PASSWORD)
+        user_id = await _auth(s, mailer).register(
+            email=email, name=name, password=PASSWORD, zk_keys=ZK_PLACEHOLDER
+        )
     token = mailer.verify_token()
     async with db_session() as s:
         await _auth(s, mailer).verify_email(token=token)

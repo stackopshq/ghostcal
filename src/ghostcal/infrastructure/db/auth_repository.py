@@ -14,7 +14,13 @@ from sqlalchemy import func, insert, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ghostcal.application.auth import AuthRepository, AuthUserRecord, EmailAlreadyRegistered
+from ghostcal.application.auth import (
+    AuthRepository,
+    AuthUserRecord,
+    EmailAlreadyRegistered,
+    ZkKeyBundle,
+    ZkKeyMaterial,
+)
 from ghostcal.infrastructure.db import models
 
 
@@ -44,6 +50,48 @@ class SqlAuthRepository(AuthRepository):
         except IntegrityError as exc:
             raise EmailAlreadyRegistered(email) from exc
         return row.user_id  # type: ignore[no-any-return]
+
+    async def store_zk_keys(self, user_id: uuid.UUID, material: ZkKeyMaterial) -> None:
+        await self._session.execute(
+            text("SELECT store_zk_keys(:uid, :pub, :wsk, :wsalt, :rsk, :rsalt)"),
+            {
+                "uid": user_id,
+                "pub": material.public_key,
+                "wsk": material.wrapped_private_key,
+                "wsalt": material.wrap_salt,
+                "rsk": material.recovery_wrapped_private_key,
+                "rsalt": material.recovery_salt,
+            },
+        )
+
+    async def get_zk_keys(self, user_id: uuid.UUID) -> ZkKeyBundle | None:
+        row = (
+            await self._session.execute(
+                text(
+                    "SELECT organization_id, public_key, wrapped_private_key, wrap_salt, "
+                    "recovery_wrapped_private_key, recovery_salt FROM get_zk_keys(:uid)"
+                ),
+                {"uid": user_id},
+            )
+        ).first()
+        if row is None or row.public_key is None:
+            return None
+        return ZkKeyBundle(
+            organization_id=row.organization_id,
+            public_key=row.public_key,
+            wrapped_private_key=row.wrapped_private_key,
+            wrap_salt=row.wrap_salt,
+            recovery_wrapped_private_key=row.recovery_wrapped_private_key,
+            recovery_salt=row.recovery_salt,
+        )
+
+    async def rewrap_zk_key(
+        self, user_id: uuid.UUID, *, wrapped_private_key: str, wrap_salt: str
+    ) -> None:
+        await self._session.execute(
+            text("SELECT rewrap_zk_key(:uid, :wsk, :wsalt)"),
+            {"uid": user_id, "wsk": wrapped_private_key, "wsalt": wrap_salt},
+        )
 
     async def get_by_email(self, email: str) -> AuthUserRecord | None:
         stmt = (

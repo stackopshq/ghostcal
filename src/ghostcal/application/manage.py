@@ -39,7 +39,7 @@ class BookingDetail:
     host_timezone: str
     organization_slug: str
     event_slug: str
-    invitee_name: str
+    invitee_name: str | None
     invitee_email: str
     invitee_timezone: str
     duration_min: int

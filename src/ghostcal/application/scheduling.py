@@ -9,7 +9,7 @@ repository and a fixed clock.
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Protocol
 from zoneinfo import ZoneInfo
@@ -100,11 +100,14 @@ class EventContext:
 class BookingRequest:
     event_type_id: uuid.UUID
     start_at: datetime
-    invitee_name: str
+    # Zero-knowledge: the booking page sends None — the real name is inside ``invitee_private``.
+    invitee_name: str | None
     invitee_email: str
     invitee_timezone: str
     guest_emails: tuple[str, ...] = ()
-    answers: dict[str, str] = field(default_factory=dict)
+    # Sealed-box blob (base64) with the invitee's name + answers + notes, encrypted client-side to
+    # the org public key. Opaque to the server (zero-knowledge); None if nothing was submitted.
+    invitee_private: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,7 +118,8 @@ class BookingConfirmation:
     host_name: str
     host_email: str
     host_timezone: str
-    invitee_name: str
+    # None for booking-page bookings (zero-knowledge); the server never learns the invitee's name.
+    invitee_name: str | None
     invitee_email: str
     invitee_timezone: str
     location_type: str
@@ -132,6 +136,10 @@ class SchedulingRepository(Protocol):
     async def get_event_type_id_by_slug(self, slug: str) -> uuid.UUID | None: ...
 
     async def get_organization_name(self) -> str | None: ...
+
+    async def get_org_public_key(self) -> str | None:
+        """The org's zero-knowledge public key (booking pages seal answers to it)."""
+        ...
 
     async def list_active_event_types(self) -> list[PublicEventType]: ...
 
@@ -154,11 +162,11 @@ class SchedulingRepository(Protocol):
         host_id: uuid.UUID,
         start_at: datetime,
         end_at: datetime,
-        invitee_name: str,
+        invitee_name: str | None,
         invitee_email: str,
         invitee_timezone: str,
         guest_emails: tuple[str, ...] = (),
-        answers: dict[str, str] | None = None,
+        invitee_private: str | None = None,
         blocks_host: bool = True,
         max_at_slot: int | None = None,
     ) -> uuid.UUID:
@@ -173,11 +181,11 @@ class SchedulingRepository(Protocol):
         host_ids: tuple[uuid.UUID, ...],
         start_at: datetime,
         end_at: datetime,
-        invitee_name: str,
+        invitee_name: str | None,
         invitee_email: str,
         invitee_timezone: str,
         guest_emails: tuple[str, ...] = (),
-        answers: dict[str, str] | None = None,
+        invitee_private: str | None = None,
     ) -> uuid.UUID:
         """Insert one confirmed booking per required host, linked by a collective group id.
 
@@ -279,7 +287,7 @@ async def create_booking(
     if context is None:
         raise EventTypeNotFound(str(request.event_type_id))
 
-    answers = _clean_answers(context.questions, request.answers)
+    invitee_private = _require_private(context.questions, request.invitee_private)
     guests = _clean_guests(request.guest_emails)
 
     now = clock.now()
@@ -308,7 +316,7 @@ async def create_booking(
             invitee_email=request.invitee_email,
             invitee_timezone=request.invitee_timezone,
             guest_emails=guests,
-            answers=answers,
+            invitee_private=invitee_private,
         )
         primary = hosts[0]
         additional = tuple(h.email for h in hosts[1:])
@@ -326,7 +334,7 @@ async def create_booking(
             invitee_email=request.invitee_email,
             invitee_timezone=request.invitee_timezone,
             guest_emails=guests,
-            answers=answers,
+            invitee_private=invitee_private,
             blocks_host=not is_group,
             max_at_slot=context.capacity if is_group else None,
         )
@@ -350,16 +358,17 @@ async def create_booking(
     )
 
 
-def _clean_answers(
-    questions: tuple[BookingQuestion, ...], answers: dict[str, str]
-) -> dict[str, str]:
-    """Keep only answers to known questions; enforce that required ones are filled."""
-    by_id = {q.id: q for q in questions}
-    cleaned = {qid: str(value) for qid, value in answers.items() if qid in by_id}
-    for question in questions:
-        if question.required and not cleaned.get(question.id, "").strip():
-            raise InvalidBookingInput(f"question '{question.id}' is required")
-    return cleaned
+def _require_private(
+    questions: tuple[BookingQuestion, ...], invitee_private: str | None
+) -> str | None:
+    """Enforce that a sealed blob is present when the event type has required questions.
+
+    Answers are zero-knowledge (sealed client-side), so the server cannot validate individual
+    fields — the booking page enforces per-field requirements before sealing. The server only
+    checks that *something* was submitted when any question is required."""
+    if invitee_private is None and any(q.required for q in questions):
+        raise InvalidBookingInput("answers to the required questions are missing")
+    return invitee_private
 
 
 def _clean_guests(guest_emails: tuple[str, ...]) -> tuple[str, ...]:

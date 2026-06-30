@@ -33,6 +33,7 @@ from sqlalchemy.dialects.postgresql import JSONB, TSTZRANGE, ExcludeConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ghostcal.infrastructure.db.base import Base, TimestampMixin
+from ghostcal.infrastructure.db.types import EncryptedString, EncryptedStringList
 
 # Allowed string-enum values.
 MEMBERSHIP_ROLES = ("owner", "admin", "member")
@@ -54,6 +55,33 @@ class Organization(TimestampMixin, Base):
     id: Mapped[uuid.UUID] = _pk()
     name: Mapped[str] = mapped_column(String(200))
     slug: Mapped[str] = mapped_column(String(100), unique=True)
+    # Base64 X25519 public key invitees seal their answers to (zero-knowledge). The matching
+    # private key is never stored server-side; only per-member wrapped copies live in
+    # ``org_member_keys``. NULL only for legacy orgs created before zero-knowledge.
+    zk_public_key: Mapped[str | None] = mapped_column(Text)
+
+
+class OrgMemberKey(TimestampMixin, Base):
+    """A member's wrapped copy of their organization's zero-knowledge private key.
+
+    The org private key is wrapped (libsodium secretbox) under a key derived from the member's
+    password via Argon2id, and a second time under their one-time recovery phrase. The server
+    stores only these wrapped blobs and the KDF salts — never the private key or any derived key,
+    so it can never decrypt invitee answers.
+    """
+
+    __tablename__ = "org_member_keys"
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    wrapped_private_key: Mapped[str] = mapped_column(Text)
+    wrap_salt: Mapped[str] = mapped_column(Text)
+    recovery_wrapped_private_key: Mapped[str] = mapped_column(Text)
+    recovery_salt: Mapped[str] = mapped_column(Text)
 
 
 class User(TimestampMixin, Base):
@@ -311,8 +339,11 @@ class Booking(TimestampMixin, Base):
         ForeignKey("event_types.id", ondelete="RESTRICT")
     )
     host_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
-    invitee_name: Mapped[str] = mapped_column(String(200))
-    invitee_email: Mapped[str] = mapped_column(String(320))
+    # Zero-knowledge: the invitee's name lives in the sealed ``invitee_private`` blob, never here.
+    # The column stays only for legacy/None — the server never receives a name through booking.
+    invitee_name: Mapped[str | None] = mapped_column(String(200))
+    # Encrypted at rest (the server still needs it to send confirmation/reminder emails).
+    invitee_email: Mapped[str] = mapped_column(EncryptedString)
     invitee_timezone: Mapped[str] = mapped_column(String(64))
     start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     end_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
@@ -321,21 +352,22 @@ class Booking(TimestampMixin, Base):
         Computed("tstzrange(start_at, end_at, '[)')", persisted=True),
     )
     status: Mapped[str] = mapped_column(String(20), default="confirmed")
-    location: Mapped[str | None] = mapped_column(String(500))
-    meeting_url: Mapped[str | None] = mapped_column(String(2048))
+    # Encrypted at rest (they appear in confirmation/reminder emails and the host's calendar).
+    location: Mapped[str | None] = mapped_column(EncryptedString)
+    meeting_url: Mapped[str | None] = mapped_column(EncryptedString)
     # Collective bookings insert one row per required host, all sharing this id (so cancel/manage
     # act on the whole meeting). NULL for solo/round-robin/group bookings.
     collective_group_id: Mapped[uuid.UUID | None] = mapped_column(index=True)
     # Whether this booking occupies the host exclusively (the no-overlap guarantee). Group bookings
     # set this false so a slot can hold up to the event type's capacity.
     blocks_host: Mapped[bool] = mapped_column(default=True, server_default=text("true"))
-    # Additional guest emails and the invitee's answers to the event type's custom questions.
-    guest_emails: Mapped[list[str]] = mapped_column(
-        JSONB, nullable=False, server_default=text("'[]'::jsonb")
-    )
-    answers: Mapped[dict[str, str]] = mapped_column(
-        JSONB, nullable=False, server_default=text("'{}'::jsonb")
-    )
+    # Additional guest emails — encrypted at rest (the server emails them, so it holds the key).
+    guest_emails: Mapped[list[str]] = mapped_column(EncryptedStringList, default=list)
+    # The invitee's answers to the custom questions plus the free-text notes, sealed to the
+    # organization's zk_public_key (libsodium sealed box, base64). The server stores this opaque
+    # blob and can never read it; only the host decrypts it in-browser. NULL when the event type
+    # asks nothing and no notes were left.
+    invitee_private: Mapped[str | None] = mapped_column(Text)
     # Identifiers of the event mirrored onto the host's external (CalDAV) calendar, if any.
     external_event_uid: Mapped[str | None] = mapped_column(String(512))
     external_event_url: Mapped[str | None] = mapped_column(String(2048))

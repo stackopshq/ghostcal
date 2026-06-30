@@ -23,7 +23,7 @@ class DueReminder:
     booking_id: uuid.UUID
     organization_id: uuid.UUID
     minutes_before: int
-    invitee_name: str
+    # No invitee_name: it is zero-knowledge. Reminders are addressed to the invitee, not by name.
     invitee_email: str
     invitee_timezone: str
     event_title: str

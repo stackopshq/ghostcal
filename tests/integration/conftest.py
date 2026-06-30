@@ -14,7 +14,18 @@ import pytest_asyncio
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
+from ghostcal.application.auth import ZkKeyMaterial
 from ghostcal.config import get_settings
+
+# Opaque placeholder zero-knowledge key material for registration in tests. The server stores it
+# verbatim and never interprets it, so any base64 strings work.
+ZK_PLACEHOLDER = ZkKeyMaterial(
+    public_key="cHVibGljLWtleQ==",
+    wrapped_private_key="d3JhcHBlZC1zaw==",
+    wrap_salt="c2FsdA==",
+    recovery_wrapped_private_key="cmVjb3Zlcnktd3JhcHBlZA==",
+    recovery_salt="cmVjb3Zlcnktc2FsdA==",
+)
 
 
 @pytest_asyncio.fixture

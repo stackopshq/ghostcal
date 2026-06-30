@@ -17,6 +17,7 @@ from ghostcal.application.auth import (
     InvalidCredentials,
     InvalidToken,
     TokenPair,
+    ZkKeyMaterial,
 )
 from ghostcal.application.ports.clock import SystemClock
 from ghostcal.config import get_settings
@@ -33,6 +34,8 @@ from ghostcal.presentation.schemas import (
     TokenOut,
     UserOut,
     VerifyEmailIn,
+    ZkKeysOut,
+    ZkRewrapIn,
 )
 
 router = APIRouter(prefix="/v1/auth", tags=["auth"])
@@ -92,14 +95,52 @@ CurrentUser = Annotated[AuthenticatedUser, Depends(current_user)]
 
 @router.post("/register", response_model=RegisteredOut, status_code=201)
 async def register(payload: RegisterIn) -> RegisteredOut:
+    zk_keys = ZkKeyMaterial(
+        public_key=payload.zk_keys.public_key,
+        wrapped_private_key=payload.zk_keys.wrapped_private_key,
+        wrap_salt=payload.zk_keys.wrap_salt,
+        recovery_wrapped_private_key=payload.zk_keys.recovery_wrapped_private_key,
+        recovery_salt=payload.zk_keys.recovery_salt,
+    )
     async with db_session() as session:
         try:
             user_id = await _service(session).register(
-                email=payload.email, name=payload.name, password=payload.password
+                email=payload.email,
+                name=payload.name,
+                password=payload.password,
+                zk_keys=zk_keys,
             )
         except EmailAlreadyRegistered as exc:
             raise HTTPException(status_code=409, detail="email already registered") from exc
     return RegisteredOut(user_id=user_id)
+
+
+@router.get("/zk-keys", response_model=ZkKeysOut)
+async def zk_keys(user: CurrentUser) -> ZkKeysOut:
+    """The current user's wrapped zero-knowledge keys, so the browser can unlock the private key."""
+    async with db_session() as session:
+        bundle = await _service(session).get_zk_keys(user.id)
+    if bundle is None:
+        raise HTTPException(status_code=404, detail="no zero-knowledge keys for this account")
+    return ZkKeysOut(
+        organization_id=bundle.organization_id,
+        public_key=bundle.public_key,
+        wrapped_private_key=bundle.wrapped_private_key,
+        wrap_salt=bundle.wrap_salt,
+        recovery_wrapped_private_key=bundle.recovery_wrapped_private_key,
+        recovery_salt=bundle.recovery_salt,
+    )
+
+
+@router.post("/zk-rewrap", status_code=204)
+async def zk_rewrap(payload: ZkRewrapIn, user: CurrentUser) -> None:
+    """Store the private key re-wrapped under a new password (called after a password change)."""
+    async with db_session() as session:
+        await _service(session).rewrap_zk_key(
+            user.id,
+            wrapped_private_key=payload.wrapped_private_key,
+            wrap_salt=payload.wrap_salt,
+        )
 
 
 @router.post("/verify-email", status_code=204)

@@ -70,6 +70,33 @@ async def test_confirmation_emails_invitee_and_host() -> None:
         assert m.attachments[0].content_type == "text/calendar"
 
 
+async def test_zero_knowledge_name_never_leaks() -> None:
+    """A booking-page booking has invitee_name=None; no email or .ics may print "None"."""
+    conf = BookingConfirmation(
+        booking_id=BOOKING_ID,
+        host_id=uuid.uuid4(),
+        event_title="Intro call",
+        host_name="Kevin",
+        host_email="kevin@example.com",
+        host_timezone="Europe/Zurich",
+        invitee_name=None,
+        invitee_email="alice@example.com",
+        invitee_timezone="America/New_York",
+        location_type="google_meet",
+        start_at=datetime(2027, 6, 7, 13, 0, tzinfo=UTC),
+        end_at=datetime(2027, 6, 7, 13, 30, tzinfo=UTC),
+    )
+    ics = build_ics(conf)
+    assert "CN=None" not in ics
+    assert "ATTENDEE:mailto:alice@example.com" in ics  # no CN, just the address
+
+    mailer = FakeMailer()
+    await send_booking_confirmation(mailer, conf)
+    for m in mailer.sent:
+        assert "None" not in m.subject
+        assert "None" not in m.html
+
+
 async def test_cancellation_emails_invitee() -> None:
     mailer = FakeMailer()
     await send_booking_cancellation(
