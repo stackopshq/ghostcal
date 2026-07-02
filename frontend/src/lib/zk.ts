@@ -191,3 +191,21 @@ export async function sealContent(data: EventContent, orgPublicKeyB64: string): 
 export async function openContent(blob: string, orgPrivateKeyB64: string): Promise<EventContent> {
   return JSON.parse(dec.decode(await openSealed(orgPrivateKeyB64, blob))) as EventContent;
 }
+
+export type TaskContent = { title: string; notes: string };
+
+/** Seal a task's content (title/notes) to the org public key. */
+export async function sealTaskContent(
+  data: TaskContent,
+  orgPublicKeyB64: string,
+): Promise<string> {
+  return sealToPublicKey(orgPublicKeyB64, enc.encode(JSON.stringify(data)));
+}
+
+/** Open a sealed task content blob with the org private key. */
+export async function openTaskContent(
+  blob: string,
+  orgPrivateKeyB64: string,
+): Promise<TaskContent> {
+  return JSON.parse(dec.decode(await openSealed(orgPrivateKeyB64, blob))) as TaskContent;
+}
