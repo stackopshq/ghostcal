@@ -571,6 +571,7 @@ class AgendaItemOut(BaseModel):
     content: str | None = None
     title: str | None = None
     read_only: bool = False
+    reminder_minutes: int | None = None
 
 
 class ShareIn(BaseModel):

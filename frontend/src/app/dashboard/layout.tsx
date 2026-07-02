@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { DashboardUserContext } from "@/components/dashboard-context";
+import NotificationsManager from "@/components/NotificationsManager";
 import OrgSwitcher from "@/components/OrgSwitcher";
 import { getMe, isAuthenticated, logout, type User } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
@@ -152,6 +153,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="min-w-0 flex-1">
         <DashboardUserContext.Provider value={user}>{children}</DashboardUserContext.Provider>
       </div>
+      <NotificationsManager />
     </div>
   );
 }
