@@ -25,6 +25,7 @@ class TaskNotFound(TaskError):
 class TaskInput:
     content: str | None
     due_at: datetime | None
+    reminder_minutes: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,6 +36,7 @@ class TaskRecord:
     completed: bool
     completed_at: datetime | None
     created_at: datetime
+    reminder_minutes: int | None = None
 
 
 class TaskRepository:
