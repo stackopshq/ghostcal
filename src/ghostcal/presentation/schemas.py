@@ -649,3 +649,24 @@ class EventInvitePreviewOut(BaseModel):
 
 class EventInviteRespondIn(BaseModel):
     status: Literal["accepted", "declined", "tentative"]
+
+
+# --- Public calendar subscriptions (ICS) -----------------------------------------------------
+
+
+class SubscriptionIn(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    url: str = Field(min_length=1, max_length=2048)
+    color: str = Field(default="#00d68f", max_length=20)
+
+    _v_url = field_validator("url")(_validate_http_url)
+
+
+class SubscriptionOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    url: str
+    color: str
+    status: str
+    last_error: str | None = None
+    last_synced_at: datetime | None = None

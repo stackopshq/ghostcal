@@ -16,6 +16,7 @@ from ghostcal.application.calendar import (
     EventInput,
     EventRecord,
     ShareRecord,
+    SubEvent,
 )
 from ghostcal.infrastructure.db import models
 
@@ -252,6 +253,35 @@ class SqlCalendarRepository(CalendarRepository):
             )
         ).all()
         return [BusyBlock(start_at=r.start_at, end_at=r.end_at, title=r.summary) for r in rows]
+
+    async def subscription_events_in_range(
+        self, owner_id: uuid.UUID, start: datetime, end: datetime
+    ) -> list[SubEvent]:
+        rows = (
+            await self._session.execute(
+                select(
+                    models.SubscriptionEvent.subscription_id,
+                    models.SubscriptionEvent.start_at,
+                    models.SubscriptionEvent.end_at,
+                    models.SubscriptionEvent.all_day,
+                    models.SubscriptionEvent.summary,
+                ).where(
+                    models.SubscriptionEvent.owner_id == owner_id,
+                    models.SubscriptionEvent.start_at < end,
+                    models.SubscriptionEvent.end_at > start,
+                )
+            )
+        ).all()
+        return [
+            SubEvent(
+                subscription_id=r.subscription_id,
+                start_at=r.start_at,
+                end_at=r.end_at,
+                all_day=r.all_day,
+                summary=r.summary,
+            )
+            for r in rows
+        ]
 
 
 def _calendar(

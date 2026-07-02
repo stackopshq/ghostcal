@@ -52,6 +52,8 @@ class Settings(BaseSettings):
 
     # How often the worker re-syncs each connected CalDAV calendar's busy time.
     caldav_sync_interval_seconds: int = 900  # 15 min
+    # How often the worker refreshes subscribed public ICS feeds.
+    subscription_sync_interval_seconds: int = 3600  # 1 h
 
     # Booking reminders: how often the worker scans for due reminders, and the offsets (minutes
     # before the meeting) at which an invitee is reminded. Default: 24 h and 1 h before.

@@ -82,8 +82,17 @@ class BusyBlock:
 
 
 @dataclass(frozen=True, slots=True)
+class SubEvent:
+    subscription_id: uuid.UUID
+    start_at: datetime
+    end_at: datetime
+    all_day: bool
+    summary: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class AgendaItem:
-    source: str  # "event" | "booking" | "external"
+    source: str  # "event" | "booking" | "external" | "subscription"
     start: datetime
     end: datetime
     all_day: bool = False
@@ -150,6 +159,11 @@ class CalendarRepository:
     async def external_busy_in_range(
         self, owner_id: uuid.UUID, start: datetime, end: datetime
     ) -> list[BusyBlock]:
+        raise NotImplementedError
+
+    async def subscription_events_in_range(
+        self, owner_id: uuid.UUID, start: datetime, end: datetime
+    ) -> list[SubEvent]:
         raise NotImplementedError
 
 
@@ -256,6 +270,18 @@ async def get_agenda(
         items.append(AgendaItem(source="booking", start=b.start_at, end=b.end_at, title=b.title))
     for b in await repo.external_busy_in_range(owner_id, start, end):
         items.append(AgendaItem(source="external", start=b.start_at, end=b.end_at, title=b.title))
+    for se in await repo.subscription_events_in_range(owner_id, start, end):
+        items.append(
+            AgendaItem(
+                source="subscription",
+                start=se.start_at,
+                end=se.end_at,
+                all_day=se.all_day,
+                calendar_id=se.subscription_id,  # frontend colours/toggles it like a calendar
+                title=se.summary,
+                read_only=True,
+            )
+        )
 
     return sorted(items, key=lambda i: i.start)
 

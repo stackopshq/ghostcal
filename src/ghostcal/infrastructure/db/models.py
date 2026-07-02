@@ -572,6 +572,51 @@ class WebhookEndpoint(TimestampMixin, Base):
     active: Mapped[bool] = mapped_column(default=True, server_default=text("true"))
 
 
+class CalendarSubscription(TimestampMixin, Base):
+    """A subscribed public iCalendar (ICS) feed — holidays, a team's fixtures, etc. The server
+    fetches the URL periodically (SSRF-guarded) and caches its events in ``subscription_events``.
+    Read-only; shown as a coloured overlay in the calendar."""
+
+    __tablename__ = "calendar_subscriptions"
+
+    id: Mapped[uuid.UUID] = _pk()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(String(200))
+    url: Mapped[str] = mapped_column(String(2048))
+    color: Mapped[str] = mapped_column(String(20), default="#00d68f")
+    status: Mapped[str] = mapped_column(String(20), default="active", server_default="active")
+    last_error: Mapped[str | None] = mapped_column(Text)
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class SubscriptionEvent(Base):
+    """A cached event from a subscribed ICS feed. Public data, but the summary is encrypted at rest
+    (a dump shouldn't reveal what you follow)."""
+
+    __tablename__ = "subscription_events"
+    __table_args__ = (
+        UniqueConstraint("subscription_id", "uid"),
+        Index("ix_subscription_events_org_start", "organization_id", "start_at"),
+    )
+
+    id: Mapped[uuid.UUID] = _pk()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    subscription_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("calendar_subscriptions.id", ondelete="CASCADE")
+    )
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    uid: Mapped[str] = mapped_column(String(512))
+    start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    end_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    all_day: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
+    summary: Mapped[str | None] = mapped_column(EncryptedString)
+
+
 ATTENDEE_STATUSES = ("needs_action", "accepted", "declined", "tentative")
 
 

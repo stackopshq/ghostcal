@@ -15,6 +15,7 @@ from ghostcal.application.event_reminders import dispatch_event_reminders
 from ghostcal.application.ports.calendar import CalendarError
 from ghostcal.application.ports.clock import SystemClock
 from ghostcal.application.reminders import DueReminder, dispatch_reminders
+from ghostcal.application.subscriptions import FeedUnreachable, refresh_subscription
 from ghostcal.application.task_reminders import dispatch_task_reminders
 from ghostcal.application.webhooks import sign_payload
 from ghostcal.celery_app import celery_app
@@ -22,9 +23,10 @@ from ghostcal.config import get_settings
 from ghostcal.infrastructure.calendars import CaldavCalendarClient
 from ghostcal.infrastructure.db.caldav_repository import SqlCaldavConnectionRepository
 from ghostcal.infrastructure.db.event_reminders_repository import SqlEventReminderGateway
-from ghostcal.infrastructure.db.membership import active_caldav_connections
+from ghostcal.infrastructure.db.membership import active_caldav_connections, active_subscriptions
 from ghostcal.infrastructure.db.reminders_repository import SqlReminderGateway
 from ghostcal.infrastructure.db.session import db_session, org_session, reset_engine
+from ghostcal.infrastructure.db.subscriptions_repository import SqlSubscriptionRepository
 from ghostcal.infrastructure.db.task_reminders_repository import SqlTaskReminderGateway
 from ghostcal.infrastructure.db.webhooks_repository import SqlWebhookRepository
 from ghostcal.infrastructure.email import build_email_sender
@@ -132,6 +134,32 @@ async def _send_due_task_reminders() -> int:
     finally:
         await reset_engine()
     return sent
+
+
+@celery_app.task(name="ghostcal.sync_all_subscriptions")  # type: ignore[untyped-decorator]
+def sync_all_subscriptions() -> int:
+    """Refresh every active ICS subscription. Returns how many refreshed without error."""
+    return asyncio.run(_sync_all_subscriptions())
+
+
+async def _sync_all_subscriptions() -> int:
+    refreshed = 0
+    try:
+        async with db_session() as session:
+            subs = await active_subscriptions(session)
+        for organization_id, subscription_id in subs:
+            try:
+                async with org_session(organization_id) as session:
+                    await refresh_subscription(
+                        SqlSubscriptionRepository(session, organization_id), subscription_id
+                    )
+                refreshed += 1
+            except FeedUnreachable:
+                logger.warning("subscription refresh failed for %s", subscription_id)
+        logger.info("subscriptions refreshed: %d/%d ok", refreshed, len(subs))
+    finally:
+        await reset_engine()
+    return refreshed
 
 
 @celery_app.task(name="ghostcal.deliver_webhooks")  # type: ignore[untyped-decorator]

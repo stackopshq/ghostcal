@@ -77,3 +77,13 @@ async def active_caldav_connections(
         text("SELECT organization_id, user_id FROM caldav_active_connections()")
     )
     return [(row.organization_id, row.user_id) for row in result.all()]
+
+
+async def active_subscriptions(
+    session: AsyncSession,
+) -> list[tuple[uuid.UUID, uuid.UUID]]:
+    """All active ICS subscriptions as (organization_id, subscription_id) across tenants."""
+    result = await session.execute(
+        text("SELECT organization_id, subscription_id FROM active_subscriptions()")
+    )
+    return [(row.organization_id, row.subscription_id) for row in result.all()]

@@ -29,10 +29,20 @@ from ghostcal.application.calendar import (
     unshare_calendar,
     update_event,
 )
+from ghostcal.application.subscriptions import (
+    FeedUnreachable,
+    SubscriptionInput,
+    SubscriptionNotFound,
+    add_subscription,
+    delete_subscription,
+    list_subscriptions,
+    refresh_subscription,
+)
 from ghostcal.config import get_settings
 from ghostcal.infrastructure.db.attendees_repository import SqlAttendeeRepository
 from ghostcal.infrastructure.db.calendar_repository import SqlCalendarRepository
 from ghostcal.infrastructure.db.session import org_session
+from ghostcal.infrastructure.db.subscriptions_repository import SqlSubscriptionRepository
 from ghostcal.infrastructure.email import build_email_sender
 from ghostcal.presentation.dashboard_routes import Member, current_member
 from ghostcal.presentation.schemas import (
@@ -48,6 +58,8 @@ from ghostcal.presentation.schemas import (
     SendInvitationIn,
     ShareIn,
     ShareOut,
+    SubscriptionIn,
+    SubscriptionOut,
 )
 
 router = APIRouter(prefix="/v1/me", tags=["calendar"])
@@ -298,3 +310,64 @@ async def send_event_invitation_email(
         rsvp_url=rsvp_url,
     )
     return {"status": "sent"}
+
+
+# --- Public calendar subscriptions (ICS) -----------------------------------------------------
+
+
+@router.get("/subscriptions", response_model=list[SubscriptionOut])
+async def list_my_subscriptions(member: Member = Depends(current_member)) -> list[SubscriptionOut]:
+    async with org_session(member.organization_id) as session:
+        subs = await list_subscriptions(
+            SqlSubscriptionRepository(session, member.organization_id), member.user.id
+        )
+    return [SubscriptionOut.model_validate(s, from_attributes=True) for s in subs]
+
+
+@router.post("/subscriptions", response_model=CreatedOut, status_code=201)
+async def add_my_subscription(
+    payload: SubscriptionIn, member: Member = Depends(current_member)
+) -> CreatedOut:
+    async with org_session(member.organization_id) as session:
+        repo = SqlSubscriptionRepository(session, member.organization_id)
+        try:
+            sub_id = await add_subscription(
+                repo,
+                member.user.id,
+                SubscriptionInput(name=payload.name, url=payload.url, color=payload.color),
+            )
+        except FeedUnreachable as exc:
+            raise HTTPException(status_code=422, detail=f"could not fetch feed: {exc}") from exc
+        # Populate its events right away so it shows without waiting for the worker.
+        await refresh_subscription(repo, sub_id)
+    return CreatedOut(id=sub_id)
+
+
+@router.post("/subscriptions/{subscription_id}/refresh", status_code=204)
+async def refresh_my_subscription(
+    subscription_id: uuid.UUID, member: Member = Depends(current_member)
+) -> None:
+    async with org_session(member.organization_id) as session:
+        try:
+            await refresh_subscription(
+                SqlSubscriptionRepository(session, member.organization_id), subscription_id
+            )
+        except SubscriptionNotFound as exc:
+            raise HTTPException(status_code=404, detail="subscription not found") from exc
+        except FeedUnreachable as exc:
+            raise HTTPException(status_code=502, detail=f"feed error: {exc}") from exc
+
+
+@router.delete("/subscriptions/{subscription_id}", status_code=204)
+async def delete_my_subscription(
+    subscription_id: uuid.UUID, member: Member = Depends(current_member)
+) -> None:
+    async with org_session(member.organization_id) as session:
+        try:
+            await delete_subscription(
+                SqlSubscriptionRepository(session, member.organization_id),
+                subscription_id,
+                member.user.id,
+            )
+        except SubscriptionNotFound as exc:
+            raise HTTPException(status_code=404, detail="subscription not found") from exc
