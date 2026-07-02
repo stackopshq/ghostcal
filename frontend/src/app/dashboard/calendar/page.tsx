@@ -18,7 +18,8 @@ import {
   unshareCalendar,
   updateEvent,
 } from "@/lib/agenda";
-import { useT } from "@/lib/i18n";
+import { useI18n, useT } from "@/lib/i18n";
+import { parseQuickAdd, type QuickAddResult } from "@/lib/quickAdd";
 import { listMembers, type Member } from "@/lib/team";
 import { getUnlockedKeys, openContent, sealContent, type EventContent } from "@/lib/zk";
 
@@ -75,7 +76,7 @@ function monthGrid(year: number, month: number): Date[] {
 }
 
 export default function CalendarPage() {
-  const t = useT();
+  const { locale, t } = useI18n();
   const [cursor, setCursor] = useState(() => new Date());
   const [items, setItems] = useState<DecoratedItem[]>([]);
   const [calendars, setCalendars] = useState<CalendarRec[]>([]);
@@ -83,8 +84,15 @@ export default function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [quickText, setQuickText] = useState("");
+  const [quickBusy, setQuickBusy] = useState(false);
 
   const ownCalendar = useMemo(() => calendars.find((c) => !c.is_shared), [calendars]);
+  // Live natural-language parse of the quick-add box (pure — no effect, no network).
+  const quickParsed = useMemo(
+    () => (quickText.trim() ? parseQuickAdd(quickText, locale) : null),
+    [quickText, locale],
+  );
 
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
@@ -204,6 +212,63 @@ export default function CalendarPage() {
     };
   }
 
+  function draftFromQuick(p: QuickAddResult): Draft {
+    return {
+      id: null,
+      title: p.title,
+      description: "",
+      location: p.location,
+      date: p.date,
+      start: p.start,
+      end: p.end,
+      allDay: p.allDay,
+      rrule: p.rrule,
+      reminderMinutes: null,
+      master: null,
+      occStart: null,
+      scope: "series",
+    };
+  }
+
+  // Enter in the quick-add box: seal and create the parsed event directly (the Fantastical move).
+  async function quickCreate() {
+    if (!quickParsed) return;
+    const keys = getUnlockedKeys(getActiveOrg());
+    if (!keys?.publicKey) return;
+    setQuickBusy(true);
+    try {
+      const startAt = quickParsed.allDay
+        ? new Date(`${quickParsed.date}T00:00:00`)
+        : new Date(`${quickParsed.date}T${quickParsed.start}:00`);
+      const endAt = quickParsed.allDay
+        ? new Date(`${quickParsed.date}T00:00:00`)
+        : new Date(`${quickParsed.date}T${quickParsed.end}:00`);
+      if (quickParsed.allDay) endAt.setDate(endAt.getDate() + 1);
+      const content = await sealContent(
+        {
+          title: quickParsed.title || t("calendar.untitled"),
+          description: "",
+          location: quickParsed.location,
+        },
+        keys.publicKey,
+      );
+      await createEvent({
+        calendar_id: calendars[0]?.id ?? "",
+        start_at: startAt.toISOString(),
+        end_at: endAt.toISOString(),
+        timezone: TZ,
+        all_day: quickParsed.allDay,
+        rrule: quickParsed.rrule || null,
+        content,
+        reminder_minutes: null,
+      });
+      setQuickText("");
+      await load();
+    } finally {
+      setQuickBusy(false);
+    }
+  }
+
   async function save() {
     if (!draft) return;
     const keys = getUnlockedKeys(getActiveOrg());
@@ -263,6 +328,15 @@ export default function CalendarPage() {
 
   const monthLabel = cursor.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
+  const quickPreview = quickParsed
+    ? {
+        date: new Date(
+          `${quickParsed.date}T${quickParsed.allDay ? "00:00" : quickParsed.start}:00`,
+        ).toLocaleDateString(locale, { weekday: "short", month: "short", day: "numeric" }),
+        time: quickParsed.allDay ? t("calendar.allDay") : `${quickParsed.start}–${quickParsed.end}`,
+      }
+    : null;
+
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-5 p-6 sm:p-10">
       <div className="flex items-center justify-between">
@@ -303,6 +377,56 @@ export default function CalendarPage() {
           )}
         </div>
       </div>
+
+      {!locked && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void quickCreate();
+          }}
+          className="flex flex-col gap-2"
+        >
+          <div className="flex items-center gap-2">
+            <span aria-hidden className="text-lg text-accent">
+              ⌁
+            </span>
+            <input
+              value={quickText}
+              onChange={(e) => setQuickText(e.target.value)}
+              placeholder={t("calendar.quickAdd")}
+              className="flex-1 rounded-lg border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+            />
+            <button
+              type="submit"
+              disabled={!quickParsed || quickBusy}
+              className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-40"
+            >
+              {quickBusy ? t("common.saving") : t("calendar.quickAddCreate")}
+            </button>
+          </div>
+          {quickParsed && quickPreview ? (
+            <button
+              type="button"
+              onClick={() => {
+                setDraft(draftFromQuick(quickParsed));
+                setQuickText("");
+              }}
+              className="flex flex-wrap items-center gap-x-2 gap-y-1 self-start rounded-lg border border-border bg-surface-2/40 px-3 py-1.5 text-left text-xs"
+            >
+              <span className="font-medium text-foreground">
+                {quickParsed.title || t("calendar.untitled")}
+              </span>
+              <span className="text-accent">{quickPreview.date}</span>
+              <span className="text-muted">{quickPreview.time}</span>
+              {quickParsed.location && <span className="text-muted">· {quickParsed.location}</span>}
+              {quickParsed.rrule && <span className="text-muted">· ↻</span>}
+              <span className="text-muted/70">— {t("calendar.quickAddRefine")}</span>
+            </button>
+          ) : quickText.trim() ? (
+            <p className="px-1 text-xs text-muted">{t("calendar.quickAddHint")}</p>
+          ) : null}
+        </form>
+      )}
 
       {locked && (
         <p className="glass flex items-center gap-2 rounded-xl border-l-[3px] border-l-accent p-3 text-sm text-accent/90">
