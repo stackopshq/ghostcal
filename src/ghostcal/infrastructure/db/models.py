@@ -572,6 +572,26 @@ class WebhookEndpoint(TimestampMixin, Base):
     active: Mapped[bool] = mapped_column(default=True, server_default=text("true"))
 
 
+class Task(TimestampMixin, Base):
+    """A zero-knowledge to-do item (Fantastical-style). ``content`` ({title, notes}) is sealed to
+    the org key and never read by the server; the due date and completion state are cleartext so
+    due lists and (later) reminders work."""
+
+    __tablename__ = "tasks"
+    __table_args__ = (Index("ix_tasks_owner_due", "owner_id", "due_at"),)
+
+    id: Mapped[uuid.UUID] = _pk()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    # Sealed {title, notes} — encrypted to the org key, decrypted only in-browser.
+    content: Mapped[str | None] = mapped_column(Text)
+    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 RLS_TABLES: dict[str, str] = {
     "organizations": "id",
     "memberships": "organization_id",
