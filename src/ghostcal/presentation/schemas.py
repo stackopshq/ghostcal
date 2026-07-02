@@ -580,3 +580,22 @@ class ShareIn(BaseModel):
 class ShareOut(BaseModel):
     user_id: uuid.UUID
     name: str
+
+
+class TaskIn(BaseModel):
+    # Sealed {title, notes} blob (base64), or null. Due date is cleartext (server sorts/reminds).
+    content: str | None = Field(default=None, max_length=16384)
+    due_at: datetime | None = None
+
+
+class TaskOut(BaseModel):
+    id: uuid.UUID
+    content: str | None = None
+    due_at: datetime | None = None
+    completed: bool
+    completed_at: datetime | None = None
+    created_at: datetime
+
+
+class TaskCompleteIn(BaseModel):
+    completed: bool
