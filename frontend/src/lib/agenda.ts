@@ -56,6 +56,13 @@ export function listCalendars(): Promise<CalendarRec[]> {
   return authedFetch<CalendarRec[]>("/v1/me/calendars");
 }
 
+export function createCalendar(name: string, color: string): Promise<CalendarRec> {
+  return authedFetch<CalendarRec>("/v1/me/calendars", {
+    method: "POST",
+    body: JSON.stringify({ name, color }),
+  });
+}
+
 export function getAgenda(from: string, to: string): Promise<AgendaItem[]> {
   const qs = new URLSearchParams({ from, to });
   return authedFetch<AgendaItem[]>(`/v1/me/calendar/agenda?${qs}`);

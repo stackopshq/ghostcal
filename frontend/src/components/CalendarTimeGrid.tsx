@@ -1,11 +1,12 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import type { AgendaItem } from "@/lib/agenda";
 
 // Fantastical-style time grid for the week and day views: hour rows down the left, one column per
 // day, timed events positioned by start time and sized by duration; all-day items in a top strip.
 
-export type GridItem = AgendaItem & { label: string };
+export type GridItem = AgendaItem & { label: string; color?: string };
 
 const HOUR_PX = 44;
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
@@ -19,8 +20,18 @@ function hm(iso: string): string {
 
 function eventClasses(it: GridItem): string {
   if (it.source !== "event") return "bg-surface-2 text-muted";
+  if (it.color) return ""; // colored inline via eventStyle()
   if (it.read_only) return "border border-dashed border-accent/40 text-accent/70";
   return "bg-accent/20 text-accent";
+}
+
+// A calendar colour applied inline (Tailwind can't take dynamic colours). Read-only overlays get a
+// dashed border to signal they're shared.
+function eventStyle(it: GridItem): CSSProperties | undefined {
+  if (it.source !== "event" || !it.color) return undefined;
+  return it.read_only
+    ? { color: it.color, border: `1px dashed ${it.color}80` }
+    : { backgroundColor: `${it.color}2b`, color: it.color };
 }
 
 export default function CalendarTimeGrid({
@@ -95,6 +106,7 @@ export default function CalendarTimeGrid({
                   type="button"
                   title={it.read_only ? labels.sharedReadOnly : undefined}
                   onClick={() => onEventClick(it)}
+                  style={eventStyle(it)}
                   className={`truncate rounded px-1.5 py-0.5 text-left text-[11px] ${eventClasses(it)}`}
                 >
                   {it.label}
@@ -151,7 +163,7 @@ export default function CalendarTimeGrid({
                     type="button"
                     title={it.read_only ? labels.sharedReadOnly : undefined}
                     onClick={() => onEventClick(it)}
-                    style={{ top, height }}
+                    style={{ top, height, ...eventStyle(it) }}
                     className={`absolute inset-x-0.5 overflow-hidden rounded px-1.5 py-0.5 text-left text-[11px] leading-tight ${eventClasses(it)}`}
                   >
                     <span className="font-medium">{it.label}</span>
