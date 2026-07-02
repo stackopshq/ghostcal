@@ -8,6 +8,16 @@ import { ApiError } from "@/lib/api";
 import { login } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 
+// Where to land after login: honour a ?next= destination if it's a safe internal path, else the
+// dashboard. Only same-origin relative paths are allowed — reject protocol-relative or absolute
+// URLs so ?next= can't be turned into an open redirect.
+function safeNext(): string {
+  if (typeof window === "undefined") return "/dashboard";
+  const raw = new URLSearchParams(window.location.search).get("next");
+  if (raw && raw.startsWith("/") && !raw.startsWith("//") && !raw.startsWith("/\\")) return raw;
+  return "/dashboard";
+}
+
 export default function LoginPage() {
   const t = useT();
   const router = useRouter();
@@ -22,7 +32,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await login(email, password);
-      router.push("/dashboard");
+      router.push(safeNext());
     } catch (err) {
       if (err instanceof ApiError && err.status === 403) {
         setError(t("login.errVerify"));

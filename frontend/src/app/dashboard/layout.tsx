@@ -62,13 +62,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    // Preserve where the user was headed (path + query, e.g. a GhostMail ?add= deep link) so login
+    // can send them back there instead of dropping the intent on the floor.
+    const dest = window.location.pathname + window.location.search;
+    const loginUrl = `/login?next=${encodeURIComponent(dest)}`;
     if (!isAuthenticated()) {
-      router.replace("/login");
+      router.replace(loginUrl);
       return;
     }
     getMe()
       .then(setUser)
-      .catch(() => router.replace("/login"))
+      .catch(() => router.replace(loginUrl))
       .finally(() => setReady(true));
   }, [router]);
 
