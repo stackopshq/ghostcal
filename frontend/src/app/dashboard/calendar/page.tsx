@@ -217,9 +217,17 @@ export default function CalendarPage() {
     void load();
   }, [load]);
 
-  // Focus the quick-add when arriving via the command palette's "New event" (#new).
+  // Focus the quick-add when arriving via the command palette's "New event" (#new), and accept a
+  // deep-link prefill (?add=<natural-language text>) — e.g. "Add to calendar" from GhostMail. The
+  // text only pre-fills the quick-add box; the user still reviews and confirms (nothing auto-creates).
   useEffect(() => {
-    if (window.location.hash === "#new") {
+    const add = new URLSearchParams(window.location.search).get("add");
+    if (add) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setQuickText(add);
+      requestAnimationFrame(() => quickRef.current?.focus());
+      history.replaceState(null, "", window.location.pathname);
+    } else if (window.location.hash === "#new") {
       requestAnimationFrame(() => quickRef.current?.focus());
       history.replaceState(null, "", window.location.pathname);
     }
