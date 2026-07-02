@@ -15,7 +15,7 @@ export type CalendarRec = {
 export type Share = { user_id: string; name: string };
 
 export type AgendaItem = {
-  source: "event" | "booking" | "external";
+  source: "event" | "booking" | "external" | "subscription";
   start: string;
   end: string;
   all_day: boolean;
