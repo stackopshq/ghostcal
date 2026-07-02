@@ -20,6 +20,7 @@ import {
   updateEvent,
 } from "@/lib/agenda";
 import CalendarTimeGrid, { type GridItem } from "@/components/CalendarTimeGrid";
+import EventAttendees from "@/components/EventAttendees";
 import { useI18n, useT } from "@/lib/i18n";
 import { parseQuickAdd, type QuickAddResult } from "@/lib/quickAdd";
 import { listMembers, type Member } from "@/lib/team";
@@ -995,6 +996,24 @@ function EventModal({
               </option>
             ))}
           </select>
+          {draft.id && (
+            <EventAttendees
+              eventId={draft.id}
+              title={draft.title}
+              location={draft.location}
+              startISO={
+                draft.allDay
+                  ? new Date(`${draft.date}T00:00:00`).toISOString()
+                  : new Date(`${draft.date}T${draft.start}:00`).toISOString()
+              }
+              endISO={
+                draft.allDay
+                  ? new Date(`${draft.date}T23:59:00`).toISOString()
+                  : new Date(`${draft.date}T${draft.end}:00`).toISOString()
+              }
+              allDay={draft.allDay}
+            />
+          )}
           <p className="flex items-center gap-1.5 text-xs text-accent/80">
             <span aria-hidden>🔒</span> {t("calendar.zkNotice")}
           </p>
