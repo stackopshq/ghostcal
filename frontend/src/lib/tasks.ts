@@ -10,11 +10,13 @@ export type Task = {
   completed: boolean;
   completed_at: string | null;
   created_at: string;
+  reminder_minutes: number | null;
 };
 
 export type TaskInput = {
   content: string | null;
   due_at: string | null;
+  reminder_minutes?: number | null;
 };
 
 export function listTasks(): Promise<Task[]> {
