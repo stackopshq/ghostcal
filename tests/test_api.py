@@ -22,3 +22,19 @@ def test_scheduling_routes_are_mounted() -> None:
     assert "get" in paths[f"{base}/availability"]
     assert f"{base}/bookings" in paths
     assert "post" in paths[f"{base}/bookings"]
+
+
+def test_calendar_subscription_routes_are_mounted() -> None:
+    # Subscriptions live under /v1/me/calendar/* like the rest of the calendar API — the frontend
+    # client calls these exact paths, so a prefix drift here is a silent 404 in the browser.
+    paths = app.openapi()["paths"]
+    assert "get" in paths["/v1/me/calendar/subscriptions"]
+    assert "post" in paths["/v1/me/calendar/subscriptions"]
+    assert "post" in paths["/v1/me/calendar/subscriptions/{subscription_id}/refresh"]
+    assert "delete" in paths["/v1/me/calendar/subscriptions/{subscription_id}"]
+
+
+def test_weather_routes_are_mounted() -> None:
+    paths = app.openapi()["paths"]
+    assert "get" in paths["/v1/me/weather"]
+    assert "get" in paths["/v1/me/weather/geocode"]

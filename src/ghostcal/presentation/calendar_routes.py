@@ -315,7 +315,7 @@ async def send_event_invitation_email(
 # --- Public calendar subscriptions (ICS) -----------------------------------------------------
 
 
-@router.get("/subscriptions", response_model=list[SubscriptionOut])
+@router.get("/calendar/subscriptions", response_model=list[SubscriptionOut])
 async def list_my_subscriptions(member: Member = Depends(current_member)) -> list[SubscriptionOut]:
     async with org_session(member.organization_id) as session:
         subs = await list_subscriptions(
@@ -324,7 +324,7 @@ async def list_my_subscriptions(member: Member = Depends(current_member)) -> lis
     return [SubscriptionOut.model_validate(s, from_attributes=True) for s in subs]
 
 
-@router.post("/subscriptions", response_model=CreatedOut, status_code=201)
+@router.post("/calendar/subscriptions", response_model=CreatedOut, status_code=201)
 async def add_my_subscription(
     payload: SubscriptionIn, member: Member = Depends(current_member)
 ) -> CreatedOut:
@@ -343,7 +343,7 @@ async def add_my_subscription(
     return CreatedOut(id=sub_id)
 
 
-@router.post("/subscriptions/{subscription_id}/refresh", status_code=204)
+@router.post("/calendar/subscriptions/{subscription_id}/refresh", status_code=204)
 async def refresh_my_subscription(
     subscription_id: uuid.UUID, member: Member = Depends(current_member)
 ) -> None:
@@ -358,7 +358,7 @@ async def refresh_my_subscription(
             raise HTTPException(status_code=502, detail=f"feed error: {exc}") from exc
 
 
-@router.delete("/subscriptions/{subscription_id}", status_code=204)
+@router.delete("/calendar/subscriptions/{subscription_id}", status_code=204)
 async def delete_my_subscription(
     subscription_id: uuid.UUID, member: Member = Depends(current_member)
 ) -> None:
