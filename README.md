@@ -126,6 +126,19 @@ is parsed in your browser (EN/FR/ES) and sealed before it’s saved:
 | --- | --- |
 | ![Week view, dark](docs/assets/calendar-week-dark.png) | ![Week view, light](docs/assets/calendar-week-light.png) |
 
+**Public calendars & weather, right in the grid.** Subscribe to any public **iCal/ICS feed**
+(holidays, sports fixtures, a shared calendar) — it becomes a read-only, toggleable overlay. Add a
+location and the **daily forecast** overlays the month cells and week/day headers. The feed is
+fetched server-side (SSRF-guarded); the weather location stays on your device and is never persisted:
+
+| Month + weather + subscription — dark | Light |
+| --- | --- |
+| ![Calendar with weather and an ICS subscription, dark](docs/assets/calendar-weather-month-dark.png) | ![Calendar with weather and an ICS subscription, light](docs/assets/calendar-weather-month-light.png) |
+
+| Week view with forecast in the headers — dark | Light |
+| --- | --- |
+| ![Week view with weather, dark](docs/assets/calendar-weather-week-dark.png) | ![Week view with weather, light](docs/assets/calendar-weather-week-light.png) |
+
 **Tasks — a zero-knowledge to-do list.** The Fantastical companion you use daily: natural-language
 quick-add (*“Call the dentist tomorrow 3pm”* sets the due date), check to complete, due-date sort.
 Titles and notes are sealed client-side; only the due date is cleartext:
@@ -155,6 +168,11 @@ Titles and notes are sealed client-side; only the due date is cleartext:
 - **Notifications** — confirmation/cancellation emails with `.ics`; automated **reminders**
   (Celery). Server-sent mail never names the invitee — that stays encrypted.
 - **Calendar sync** — bidirectional **CalDAV** (read busy + write bookings).
+- **Public calendar subscriptions** — subscribe to any public **iCal/ICS feed** (holidays,
+  fixtures, a shared calendar); read-only, colour-coded, toggleable overlays, refreshed by a
+  background worker. Fetched server-side behind the SSRF guard; event summaries encrypted at rest.
+- **Weather** — an optional **daily forecast** (Open-Meteo, keyless) overlaid on the month cells
+  and week/day headers. Proxied server-side to keep the CSP strict; the location stays on-device.
 - **Integrations** — outbound **webhooks** (HMAC-signed) for booking/poll events.
 - **i18n** — full UI in English, French and Spanish, with a light/dark theme toggle.
 - **Ops** — per-IP rate limiting, Redis availability cache, booking **analytics** dashboard,
