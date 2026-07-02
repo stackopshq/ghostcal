@@ -91,7 +91,7 @@ async def test_subscription_events_surface_in_agenda(
     async def fake_fetch(url: str) -> list[FeedEvent]:
         return list(_FEED)
 
-    # Both add_subscription (validation) and refresh_subscription resolve fetch_feed via this module.
+    # add_subscription (validation) and refresh_subscription both resolve fetch_feed here.
     monkeypatch.setattr(subs_module, "fetch_feed", fake_fetch)
 
     mailer = CapturingMailer()
