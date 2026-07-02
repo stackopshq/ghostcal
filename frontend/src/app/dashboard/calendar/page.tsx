@@ -18,6 +18,7 @@ import {
   unshareCalendar,
   updateEvent,
 } from "@/lib/agenda";
+import CalendarTimeGrid, { type GridItem } from "@/components/CalendarTimeGrid";
 import { useI18n, useT } from "@/lib/i18n";
 import { parseQuickAdd, type QuickAddResult } from "@/lib/quickAdd";
 import { listMembers, type Member } from "@/lib/team";
@@ -75,6 +76,34 @@ function monthGrid(year: number, month: number): Date[] {
   return Array.from({ length: 42 }, (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
 }
 
+type CalView = "month" | "week" | "day";
+
+function addDays(d: Date, n: number): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+}
+function startOfWeek(d: Date): Date {
+  return addDays(d, -((d.getDay() + 6) % 7)); // Monday-first
+}
+/** The visible days for the current view (7 for week, 1 for day; month uses monthGrid). */
+function viewDays(view: CalView, cursor: Date): Date[] {
+  if (view === "day") return [new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate())];
+  const start = startOfWeek(cursor);
+  return Array.from({ length: 7 }, (_, i) => addDays(start, i));
+}
+/** The agenda query window [from, to) covering the visible range, with padding for recurrence. */
+function viewWindow(view: CalView, cursor: Date): [Date, Date] {
+  if (view === "day") {
+    const s = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate());
+    return [s, addDays(s, 1)];
+  }
+  if (view === "week") {
+    const s = startOfWeek(cursor);
+    return [s, addDays(s, 7)];
+  }
+  const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+  return [addDays(first, -7), new Date(cursor.getFullYear(), cursor.getMonth() + 1, 7)];
+}
+
 export default function CalendarPage() {
   const { locale, t } = useI18n();
   const [cursor, setCursor] = useState(() => new Date());
@@ -86,6 +115,18 @@ export default function CalendarPage() {
   const [shareOpen, setShareOpen] = useState(false);
   const [quickText, setQuickText] = useState("");
   const [quickBusy, setQuickBusy] = useState(false);
+  const [view, setView] = useState<CalView>("month");
+
+  // Restore the last-used view once on mount (client-only; avoids an SSR/hydration mismatch).
+  useEffect(() => {
+    const saved = localStorage.getItem("gc_cal_view");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (saved === "week" || saved === "day" || saved === "month") setView(saved);
+  }, []);
+  function pickView(v: CalView) {
+    setView(v);
+    localStorage.setItem("gc_cal_view", v);
+  }
 
   const ownCalendar = useMemo(() => calendars.find((c) => !c.is_shared), [calendars]);
   // Live natural-language parse of the quick-add box (pure — no effect, no network).
@@ -107,8 +148,9 @@ export default function CalendarPage() {
       return;
     }
     setLocked(false);
-    const from = new Date(year, month, 1 - 7).toISOString();
-    const to = new Date(year, month + 1, 7).toISOString();
+    const [fromDate, toDate] = viewWindow(view, cursor);
+    const from = fromDate.toISOString();
+    const to = toDate.toISOString();
     try {
       const [cals, agenda] = await Promise.all([listCalendars(), getAgenda(from, to)]);
       setCalendars(cals);
@@ -134,7 +176,7 @@ export default function CalendarPage() {
     } finally {
       setLoading(false);
     }
-  }, [year, month, t]);
+  }, [view, cursor, t]);
 
   useEffect(() => {
     // Data-loading effect: load() toggles the loading flag and fills state from the API.
@@ -142,16 +184,18 @@ export default function CalendarPage() {
     void load();
   }, [load]);
 
-  function openNew(date: Date) {
+  function openNew(date: Date, hour = 9) {
     if (locked) return;
+    const h = String(hour).padStart(2, "0");
+    const hEnd = String((hour + 1) % 24).padStart(2, "0");
     setDraft({
       id: null,
       title: "",
       description: "",
       location: "",
       date: ymd(date),
-      start: "09:00",
-      end: "10:00",
+      start: `${h}:00`,
+      end: `${hEnd}:00`,
       allDay: false,
       rrule: "",
       reminderMinutes: null,
@@ -159,6 +203,11 @@ export default function CalendarPage() {
       occStart: null,
       scope: "series",
     });
+  }
+
+  // A time-grid event/slot click: edit an event, or create at the clicked day+hour.
+  function onGridEvent(it: GridItem) {
+    if (it.source === "event" && it.event_id && !it.read_only) void openEdit(it.event_id, it.start);
   }
 
   async function openEdit(eventId: string, occStartIso: string) {
@@ -326,7 +375,21 @@ export default function CalendarPage() {
     await load();
   }
 
-  const monthLabel = cursor.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const days = useMemo(() => viewDays(view, cursor), [view, cursor]);
+  const headerLabel =
+    view === "month"
+      ? cursor.toLocaleDateString(locale, { month: "long", year: "numeric" })
+      : view === "day"
+        ? cursor.toLocaleDateString(locale, { weekday: "long", month: "long", day: "numeric" })
+        : `${days[0].toLocaleDateString(locale, { month: "short", day: "numeric" })} – ${days[6].toLocaleDateString(locale, { month: "short", day: "numeric" })}`;
+
+  function step(dir: -1 | 1) {
+    if (view === "month") setCursor(new Date(year, month + dir, 1));
+    else if (view === "week") setCursor(addDays(cursor, 7 * dir));
+    else setCursor(addDays(cursor, dir));
+  }
+
+  const gridItems = items as GridItem[];
 
   const quickPreview = quickParsed
     ? {
@@ -339,15 +402,32 @@ export default function CalendarPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-5 p-6 sm:p-10">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold capitalize text-foreground">{monthLabel}</h1>
+          <h1 className="text-2xl font-semibold capitalize text-foreground">{headerLabel}</h1>
           <p className="mt-1 text-sm text-muted">{t("calendar.sub")}</p>
         </div>
         <div className="flex items-center gap-2">
+          {/* View switcher */}
+          <div className="flex overflow-hidden rounded-lg border border-border-strong">
+            {(["month", "week", "day"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => pickView(v)}
+                className={`px-3 py-1.5 text-sm transition ${
+                  view === v
+                    ? "bg-accent text-accent-ink"
+                    : "text-muted hover:text-accent"
+                }`}
+              >
+                {t(`calendar.view${v[0].toUpperCase()}${v.slice(1)}`)}
+              </button>
+            ))}
+          </div>
           <button
             type="button"
-            onClick={() => setCursor(new Date(year, month - 1, 1))}
+            onClick={() => step(-1)}
             className="rounded-lg border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
           >
             ‹
@@ -361,7 +441,7 @@ export default function CalendarPage() {
           </button>
           <button
             type="button"
-            onClick={() => setCursor(new Date(year, month + 1, 1))}
+            onClick={() => step(1)}
             className="rounded-lg border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
           >
             ›
@@ -435,7 +515,18 @@ export default function CalendarPage() {
       )}
       {loading && <p className="text-sm text-muted">{t("common.loading")}</p>}
 
-      {!locked && (
+      {!locked && view !== "month" && (
+        <CalendarTimeGrid
+          days={days}
+          items={gridItems}
+          locale={locale}
+          onNewAt={(date, hour) => openNew(date, hour)}
+          onEventClick={onGridEvent}
+          labels={{ allDay: t("calendar.allDay"), sharedReadOnly: t("calendar.sharedReadOnly") }}
+        />
+      )}
+
+      {!locked && view === "month" && (
         <div className="glass overflow-hidden rounded-2xl">
           <div className="grid grid-cols-7 border-b border-border text-center text-xs text-muted">
             {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
