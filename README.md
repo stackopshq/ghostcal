@@ -118,6 +118,22 @@ and reminders still work). The foundation for ghostmail:
 | --- | --- |
 | ![Calendar, dark](docs/assets/calendar-dark.png) | ![Calendar, light](docs/assets/calendar-light.png) |
 
+**A free, open-source, privacy-first Fantastical.** Month / **week** / **day** views, plus
+**natural-language quick-add** — type *“Lunch with Sam tomorrow 12:30 for 1h at Café”* and the event
+is parsed in your browser (EN/FR/ES) and sealed before it’s saved:
+
+| Week view — dark | Week view — light |
+| --- | --- |
+| ![Week view, dark](docs/assets/calendar-week-dark.png) | ![Week view, light](docs/assets/calendar-week-light.png) |
+
+**Tasks — a zero-knowledge to-do list.** The Fantastical companion you use daily: natural-language
+quick-add (*“Call the dentist tomorrow 3pm”* sets the due date), check to complete, due-date sort.
+Titles and notes are sealed client-side; only the due date is cleartext:
+
+| Dark | Light |
+| --- | --- |
+| ![Tasks, dark](docs/assets/tasks-dark.png) | ![Tasks, light](docs/assets/tasks-light.png) |
+
 ## Features
 
 - **Event types** — solo, **round-robin** (least-loaded host), **collective** (all hosts attend),
