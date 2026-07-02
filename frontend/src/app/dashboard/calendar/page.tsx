@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getActiveOrg } from "@/lib/auth";
+import { type CalendarStatus, getCalendarStatus, syncCalendar } from "@/lib/calendar";
 import {
   type AgendaItem,
   type CalendarRec,
@@ -53,6 +55,10 @@ type Draft = {
   occStart: string | null;
   scope: "series" | "occurrence";
 };
+
+// External (CalDAV) events have no calendar_id, so they get a fixed overlay key + colour.
+const EXTERNAL_KEY = "__external__";
+const EXTERNAL_COLOR = "#8b5cff";
 
 const REMINDERS = [
   { value: "", key: "calendar.remindNone" },
@@ -142,6 +148,8 @@ export default function CalendarPage() {
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [newCalOpen, setNewCalOpen] = useState(false);
   const quickRef = useRef<HTMLInputElement>(null);
+  const [caldav, setCaldav] = useState<CalendarStatus | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     try {
@@ -160,6 +168,16 @@ export default function CalendarPage() {
       localStorage.setItem("gc_cal_hidden", JSON.stringify([...next]));
       return next;
     });
+  }
+
+  async function runSync() {
+    setSyncing(true);
+    try {
+      await syncCalendar();
+      await load();
+    } finally {
+      setSyncing(false);
+    }
   }
 
   // Live natural-language parse of the quick-add box (pure — no effect, no network).
@@ -185,7 +203,12 @@ export default function CalendarPage() {
     const from = fromDate.toISOString();
     const to = toDate.toISOString();
     try {
-      const [cals, agenda] = await Promise.all([listCalendars(), getAgenda(from, to)]);
+      const [cals, agenda, status] = await Promise.all([
+        listCalendars(),
+        getAgenda(from, to),
+        getCalendarStatus().catch(() => null),
+      ]);
+      setCaldav(status);
       setCalendars(cals);
       const cache = new Map<string, string>();
       const decorated: DecoratedItem[] = [];
@@ -213,7 +236,6 @@ export default function CalendarPage() {
 
   useEffect(() => {
     // Data-loading effect: load() toggles the loading flag and fills state from the API.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
 
@@ -464,15 +486,23 @@ export default function CalendarPage() {
     else setCursor(addDays(cursor, dir));
   }
 
-  // Hide toggled-off calendars; colour each event by its calendar (own calendars + shared).
+  // Hide toggled-off calendars (native by id, external via a fixed key); colour each event by its
+  // calendar (native colour, or the external overlay colour).
   const visibleItems = useMemo(
-    () => items.filter((it) => !it.calendar_id || !hidden.has(it.calendar_id)),
+    () =>
+      items.filter((it) => {
+        if (it.source === "external") return !hidden.has(EXTERNAL_KEY);
+        return !it.calendar_id || !hidden.has(it.calendar_id);
+      }),
     [items, hidden],
   );
-  const gridItems: GridItem[] = visibleItems.map((it) => ({
-    ...it,
-    color: it.calendar_id ? colorOf.get(it.calendar_id) : undefined,
-  }));
+  const colorFor = (it: DecoratedItem): string | undefined =>
+    it.source === "external"
+      ? EXTERNAL_COLOR
+      : it.calendar_id
+        ? colorOf.get(it.calendar_id)
+        : undefined;
+  const gridItems: GridItem[] = visibleItems.map((it) => ({ ...it, color: colorFor(it) }));
 
   const quickPreview = quickParsed
     ? {
@@ -631,6 +661,47 @@ export default function CalendarPage() {
           >
             + {t("calendar.newCalendar")}
           </button>
+
+          {/* External (CalDAV) calendar as a first-class, toggleable overlay. */}
+          {caldav?.connected ? (
+            <>
+              <button
+                type="button"
+                onClick={() => toggleCalendar(EXTERNAL_KEY)}
+                className={`flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs transition ${
+                  hidden.has(EXTERNAL_KEY) ? "opacity-40" : "hover:bg-surface-2/40"
+                }`}
+                title={caldav.username ?? undefined}
+              >
+                <span
+                  aria-hidden
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{
+                    backgroundColor: hidden.has(EXTERNAL_KEY) ? "transparent" : EXTERNAL_COLOR,
+                    boxShadow: `inset 0 0 0 1.5px ${EXTERNAL_COLOR}`,
+                  }}
+                />
+                <span className="text-foreground">
+                  {caldav.calendar_name || t("calendar.externalCalendar")}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={runSync}
+                disabled={syncing}
+                className="rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent disabled:opacity-50"
+              >
+                {syncing ? t("common.saving") : `↻ ${t("calendar.syncNow")}`}
+              </button>
+            </>
+          ) : (
+            <Link
+              href="/dashboard/settings"
+              className="rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent"
+            >
+              + {t("calendar.connectExternal")}
+            </Link>
+          )}
         </div>
       )}
 
@@ -679,8 +750,8 @@ export default function CalendarPage() {
                     {day.getDate()}
                   </span>
                   {dayItems.slice(0, 3).map((it, i) => {
-                    const c = it.calendar_id ? colorOf.get(it.calendar_id) : undefined;
-                    const colored = it.source === "event" && c;
+                    const c = colorFor(it);
+                    const outlined = it.read_only || it.source === "external";
                     return (
                       <span
                         key={i}
@@ -694,21 +765,19 @@ export default function CalendarPage() {
                           }
                         }}
                         style={
-                          colored
-                            ? it.read_only
+                          c
+                            ? outlined
                               ? { color: c, border: `1px dashed ${c}80` }
                               : { backgroundColor: `${c}2b`, color: c }
                             : undefined
                         }
                         className={[
                           "truncate rounded px-1.5 py-0.5 text-[11px]",
-                          colored
+                          c
                             ? ""
                             : it.source !== "event"
                               ? "bg-surface-2 text-muted"
-                              : it.read_only
-                                ? "border border-dashed border-accent/40 text-accent/70"
-                                : "bg-accent/20 text-accent",
+                              : "bg-accent/20 text-accent",
                         ].join(" ")}
                       >
                         {!it.all_day && `${hm(it.start)} `}

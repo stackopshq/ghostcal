@@ -19,17 +19,18 @@ function hm(iso: string): string {
 }
 
 function eventClasses(it: GridItem): string {
-  if (it.source !== "event") return "bg-surface-2 text-muted";
   if (it.color) return ""; // colored inline via eventStyle()
+  if (it.source !== "event") return "bg-surface-2 text-muted";
   if (it.read_only) return "border border-dashed border-accent/40 text-accent/70";
   return "bg-accent/20 text-accent";
 }
 
-// A calendar colour applied inline (Tailwind can't take dynamic colours). Read-only overlays get a
-// dashed border to signal they're shared.
+// A calendar colour applied inline (Tailwind can't take dynamic colours). Non-editable items —
+// shared read-only calendars and external (CalDAV) events — get a dashed border to signal it.
 function eventStyle(it: GridItem): CSSProperties | undefined {
-  if (it.source !== "event" || !it.color) return undefined;
-  return it.read_only
+  if (!it.color) return undefined;
+  const outlined = it.read_only || it.source === "external";
+  return outlined
     ? { color: it.color, border: `1px dashed ${it.color}80` }
     : { backgroundColor: `${it.color}2b`, color: it.color };
 }
