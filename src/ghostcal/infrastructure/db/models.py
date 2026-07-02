@@ -572,6 +572,37 @@ class WebhookEndpoint(TimestampMixin, Base):
     active: Mapped[bool] = mapped_column(default=True, server_default=text("true"))
 
 
+ATTENDEE_STATUSES = ("needs_action", "accepted", "declined", "tentative")
+
+
+class EventAttendee(TimestampMixin, Base):
+    """A guest invited to a personal calendar event. Email + RSVP status are cleartext (the server
+    needs them to send invitations and track responses); the event title/notes stay sealed. Inviting
+    a guest is an explicit choice to share those details — the organiser's browser supplies the
+    cleartext to build the ICS at send time, and the server never persists it."""
+
+    __tablename__ = "event_attendees"
+    __table_args__ = (
+        UniqueConstraint("event_id", "email"),
+        CheckConstraint(f"status IN {ATTENDEE_STATUSES}", name="attendee_status_allowed"),
+    )
+
+    id: Mapped[uuid.UUID] = _pk()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("calendar_events.id", ondelete="CASCADE")
+    )
+    email: Mapped[str] = mapped_column(String(320))
+    name: Mapped[str | None] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(
+        String(20), default="needs_action", server_default="needs_action"
+    )
+    # SHA-256 of the random RSVP token carried in the invitation link (only the hash is stored).
+    token_hash: Mapped[str] = mapped_column(String(128), unique=True)
+
+
 class Task(TimestampMixin, Base):
     """A zero-knowledge to-do item (Fantastical-style). ``content`` ({title, notes}) is sealed to
     the org key and never read by the server; the due date and completion state are cleartext so

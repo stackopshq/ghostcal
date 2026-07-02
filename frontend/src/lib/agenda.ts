@@ -104,3 +104,79 @@ export function shareCalendar(calendarId: string, userId: string): Promise<void>
 export function unshareCalendar(calendarId: string, userId: string): Promise<void> {
   return authedFetch<void>(`/v1/me/calendars/${calendarId}/shares/${userId}`, { method: "DELETE" });
 }
+
+// --- Event attendees (personal-calendar invitations) -----------------------------------------
+
+export type Attendee = {
+  id: string;
+  email: string;
+  name: string | null;
+  status: "needs_action" | "accepted" | "declined" | "tentative";
+};
+
+export function listAttendees(eventId: string): Promise<Attendee[]> {
+  return authedFetch<Attendee[]>(`/v1/me/calendar/events/${eventId}/attendees`);
+}
+
+export function addAttendee(
+  eventId: string,
+  email: string,
+  name: string | null,
+): Promise<{ id: string; email: string; token: string }> {
+  return authedFetch(`/v1/me/calendar/events/${eventId}/attendees`, {
+    method: "POST",
+    body: JSON.stringify({ email, name }),
+  });
+}
+
+export function removeAttendee(eventId: string, attendeeId: string): Promise<void> {
+  return authedFetch<void>(`/v1/me/calendar/events/${eventId}/attendees/${attendeeId}`, {
+    method: "DELETE",
+  });
+}
+
+// Send the invitation email. Cleartext title/location come from the browser (decrypted here) and
+// are used only to build the ICS email — the server never stores them.
+export function sendInvitation(
+  eventId: string,
+  body: {
+    email: string;
+    token: string;
+    title: string;
+    location: string;
+    organizer_name: string;
+    start_at: string;
+    end_at: string;
+    all_day: boolean;
+  },
+): Promise<{ status: string }> {
+  return authedFetch(`/v1/me/calendar/events/${eventId}/invite`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+// --- Public RSVP (no auth) -------------------------------------------------------------------
+
+export type InvitePreview = {
+  start_at: string;
+  end_at: string;
+  timezone: string;
+  all_day: boolean;
+  status: string;
+};
+
+export async function getEventInvite(token: string): Promise<InvitePreview | null> {
+  const res = await fetch(`/api/v1/invitations/event/${token}`, { cache: "no-store" });
+  if (!res.ok) return null;
+  return (await res.json()) as InvitePreview;
+}
+
+export async function respondEventInvite(token: string, status: string): Promise<boolean> {
+  const res = await fetch(`/api/v1/invitations/event/${token}/respond`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  return res.ok;
+}

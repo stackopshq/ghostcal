@@ -603,3 +603,49 @@ class TaskOut(BaseModel):
 
 class TaskCompleteIn(BaseModel):
     completed: bool
+
+
+# --- Event attendees (personal-calendar invitations) -----------------------------------------
+
+
+class AttendeeIn(BaseModel):
+    email: EmailStr
+    name: str | None = Field(default=None, max_length=200)
+
+
+class AttendeeOut(BaseModel):
+    id: uuid.UUID
+    email: str
+    name: str | None = None
+    status: str
+
+
+class AttendeeAddedOut(BaseModel):
+    id: uuid.UUID
+    email: str
+    # Plaintext RSVP token, returned once so the caller's browser can send the invitation link.
+    token: str
+
+
+class SendInvitationIn(BaseModel):
+    # Cleartext supplied by the organiser's browser to build the ICS email; never persisted.
+    email: EmailStr
+    token: str = Field(min_length=1)
+    title: str = Field(min_length=1, max_length=500)
+    location: str = Field(default="", max_length=500)
+    organizer_name: str = Field(min_length=1, max_length=200)
+    start_at: datetime
+    end_at: datetime
+    all_day: bool = False
+
+
+class EventInvitePreviewOut(BaseModel):
+    start_at: datetime
+    end_at: datetime
+    timezone: str
+    all_day: bool
+    status: str
+
+
+class EventInviteRespondIn(BaseModel):
+    status: Literal["accepted", "declined", "tentative"]
