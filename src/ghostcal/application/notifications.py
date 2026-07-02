@@ -251,6 +251,72 @@ async def send_task_reminder(
     )
 
 
+def _invitation_ics(
+    *,
+    uid: str,
+    title: str,
+    location: str,
+    organizer_name: str,
+    start_at: datetime,
+    end_at: datetime,
+) -> str:
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//GhostCal//Invitation//EN",
+        "METHOD:REQUEST",
+        "BEGIN:VEVENT",
+        f"UID:{uid}@ghostcal",
+        f"DTSTAMP:{_ics_dt(start_at)}",
+        f"DTSTART:{_ics_dt(start_at)}",
+        f"DTEND:{_ics_dt(end_at)}",
+        f"SUMMARY:{_ics(title)}",
+        *([f"LOCATION:{_ics(location)}"] if location else []),
+        f"ORGANIZER;CN={_ics(organizer_name)}:mailto:noreply@ghostcal",
+        "END:VEVENT",
+        "END:VCALENDAR",
+    ]
+    return "\r\n".join(lines)
+
+
+async def send_event_invitation(
+    mailer: EmailSender,
+    *,
+    to: str,
+    title: str,
+    location: str,
+    organizer_name: str,
+    start_at: datetime,
+    end_at: datetime,
+    all_day: bool,
+    rsvp_url: str,
+) -> None:
+    """Invite a guest to a personal event. The cleartext title/location come from the organiser's
+    browser and are used only to build this message; the server does not store them. The ICS is
+    inlined so the recipient can add it, and an RSVP link records accept/decline/tentative."""
+    when = _human(start_at, "UTC") if not all_day else start_at.strftime("%A, %d %B %Y")
+    ics = _invitation_ics(
+        uid=rsvp_url.rsplit("/", 1)[-1],
+        title=title,
+        location=location,
+        organizer_name=organizer_name,
+        start_at=start_at,
+        end_at=end_at,
+    )
+    location_line = f"<p><strong>Where:</strong> {_h(location)}</p>" if location else ""
+    await mailer.send(
+        to=to,
+        subject=f"Invitation: {_h(title)}",
+        html=(
+            f"<p>{_h(organizer_name)} invited you to <strong>{_h(title)}</strong>.</p>"
+            f"<p><strong>When:</strong> {_h(when)}</p>"
+            f"{location_line}"
+            f'<p>Respond: <a href="{rsvp_url}">accept, decline or maybe</a>.</p>'
+            f"<hr><pre>{_h(ics)}</pre>"
+        ),
+    )
+
+
 def _poll_ics(*, title: str, organizer: str, start_at: datetime, end_at: datetime) -> str:
     lines = [
         "BEGIN:VCALENDAR",

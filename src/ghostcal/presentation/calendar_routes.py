@@ -7,6 +7,13 @@ from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from ghostcal.application.attendees import (
+    EventNotOwned,
+    add_attendee,
+    list_attendees,
+    remove_attendee,
+    send_invitation,
+)
 from ghostcal.application.calendar import (
     CalendarError,
     CalendarNotFound,
@@ -22,21 +29,30 @@ from ghostcal.application.calendar import (
     unshare_calendar,
     update_event,
 )
+from ghostcal.config import get_settings
+from ghostcal.infrastructure.db.attendees_repository import SqlAttendeeRepository
 from ghostcal.infrastructure.db.calendar_repository import SqlCalendarRepository
 from ghostcal.infrastructure.db.session import org_session
+from ghostcal.infrastructure.email import build_email_sender
 from ghostcal.presentation.dashboard_routes import Member, current_member
 from ghostcal.presentation.schemas import (
     AgendaItemOut,
+    AttendeeAddedOut,
+    AttendeeIn,
+    AttendeeOut,
     CalendarIn,
     CalendarOut,
     CreatedOut,
     EventIn,
     EventOut,
+    SendInvitationIn,
     ShareIn,
     ShareOut,
 )
 
 router = APIRouter(prefix="/v1/me", tags=["calendar"])
+_settings = get_settings()
+_mailer = build_email_sender(_settings)
 
 
 def _repo(session: object, org_id: uuid.UUID) -> SqlCalendarRepository:
@@ -208,3 +224,77 @@ async def delete_my_event(event_id: uuid.UUID, member: Member = Depends(current_
             await delete_event(_repo(session, member.organization_id), member.user.id, event_id)
         except EventNotFound as exc:
             raise HTTPException(status_code=404, detail="event not found") from exc
+
+
+# --- Event attendees (personal-calendar invitations + RSVP) ----------------------------------
+
+
+@router.get("/calendar/events/{event_id}/attendees", response_model=list[AttendeeOut])
+async def list_event_attendees(
+    event_id: uuid.UUID, member: Member = Depends(current_member)
+) -> list[AttendeeOut]:
+    async with org_session(member.organization_id) as session:
+        try:
+            rows = await list_attendees(
+                SqlAttendeeRepository(session, member.organization_id), member.user.id, event_id
+            )
+        except EventNotOwned as exc:
+            raise HTTPException(status_code=404, detail="event not found") from exc
+    return [AttendeeOut(id=r.id, email=r.email, name=r.name, status=r.status) for r in rows]
+
+
+@router.post(
+    "/calendar/events/{event_id}/attendees", response_model=AttendeeAddedOut, status_code=201
+)
+async def add_event_attendee(
+    event_id: uuid.UUID, payload: AttendeeIn, member: Member = Depends(current_member)
+) -> AttendeeAddedOut:
+    async with org_session(member.organization_id) as session:
+        try:
+            added = await add_attendee(
+                SqlAttendeeRepository(session, member.organization_id),
+                member.user.id,
+                event_id,
+                email=payload.email,
+                name=payload.name,
+            )
+        except EventNotOwned as exc:
+            raise HTTPException(status_code=404, detail="event not found") from exc
+    return AttendeeAddedOut(id=added.id, email=added.email, token=added.token)
+
+
+@router.delete("/calendar/events/{event_id}/attendees/{attendee_id}", status_code=204)
+async def remove_event_attendee(
+    event_id: uuid.UUID, attendee_id: uuid.UUID, member: Member = Depends(current_member)
+) -> None:
+    async with org_session(member.organization_id) as session:
+        try:
+            await remove_attendee(
+                SqlAttendeeRepository(session, member.organization_id),
+                member.user.id,
+                event_id,
+                attendee_id,
+            )
+        except EventNotOwned as exc:
+            raise HTTPException(status_code=404, detail="event not found") from exc
+
+
+@router.post("/calendar/events/{event_id}/invite", status_code=202)
+async def send_event_invitation_email(
+    event_id: uuid.UUID, payload: SendInvitationIn, member: Member = Depends(current_member)
+) -> dict[str, str]:
+    # The organiser owns the event (checked when the attendee was added); here we only relay the
+    # invitation email built from browser-supplied cleartext (never persisted).
+    rsvp_url = f"{_settings.frontend_base_url}/invite/{payload.token}"
+    await send_invitation(
+        _mailer,
+        to=payload.email,
+        title=payload.title,
+        location=payload.location,
+        organizer_name=payload.organizer_name,
+        start_at=payload.start_at,
+        end_at=payload.end_at,
+        all_day=payload.all_day,
+        rsvp_url=rsvp_url,
+    )
+    return {"status": "sent"}
