@@ -5,6 +5,7 @@ import { getActiveOrg } from "@/lib/auth";
 import {
   type AgendaItem,
   type CalendarRec,
+  createCalendar,
   createEvent,
   deleteEvent,
   type EventDetail,
@@ -35,6 +36,7 @@ const REPEATS = [
 type DecoratedItem = AgendaItem & { label: string };
 type Draft = {
   id: string | null;
+  calendarId: string;
   title: string;
   description: string;
   location: string;
@@ -129,6 +131,35 @@ export default function CalendarPage() {
   }
 
   const ownCalendar = useMemo(() => calendars.find((c) => !c.is_shared), [calendars]);
+  const ownCalendars = useMemo(() => calendars.filter((c) => !c.is_shared), [calendars]);
+  const colorOf = useMemo(() => new Map(calendars.map((c) => [c.id, c.color])), [calendars]);
+  const defaultCalendarId = useMemo(
+    () => (ownCalendars.find((c) => c.is_default) ?? ownCalendars[0])?.id ?? "",
+    [ownCalendars],
+  );
+  // Calendars toggled off in the overlay (hidden from the views), persisted per device.
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const [newCalOpen, setNewCalOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("gc_cal_hidden") ?? "[]") as string[];
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (saved.length) setHidden(new Set(saved));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  function toggleCalendar(id: string) {
+    setHidden((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      localStorage.setItem("gc_cal_hidden", JSON.stringify([...next]));
+      return next;
+    });
+  }
+
   // Live natural-language parse of the quick-add box (pure — no effect, no network).
   const quickParsed = useMemo(
     () => (quickText.trim() ? parseQuickAdd(quickText, locale) : null),
@@ -190,6 +221,7 @@ export default function CalendarPage() {
     const hEnd = String((hour + 1) % 24).padStart(2, "0");
     setDraft({
       id: null,
+      calendarId: defaultCalendarId,
       title: "",
       description: "",
       location: "",
@@ -231,6 +263,7 @@ export default function CalendarPage() {
     const t24 = (d: Date) => d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
     setDraft({
       id: ev.id,
+      calendarId: ev.calendar_id,
       title: content.title,
       description: content.description,
       location: content.location,
@@ -264,6 +297,7 @@ export default function CalendarPage() {
   function draftFromQuick(p: QuickAddResult): Draft {
     return {
       id: null,
+      calendarId: defaultCalendarId,
       title: p.title,
       description: "",
       location: p.location,
@@ -302,7 +336,7 @@ export default function CalendarPage() {
         keys.publicKey,
       );
       await createEvent({
-        calendar_id: calendars[0]?.id ?? "",
+        calendar_id: defaultCalendarId,
         start_at: startAt.toISOString(),
         end_at: endAt.toISOString(),
         timezone: TZ,
@@ -334,7 +368,7 @@ export default function CalendarPage() {
       keys.publicKey,
     );
     const detached: EventInput = {
-      calendar_id: calendars[0]?.id ?? "",
+      calendar_id: draft.calendarId || defaultCalendarId,
       start_at: startAt.toISOString(),
       end_at: endAt.toISOString(),
       timezone: TZ,
@@ -389,7 +423,15 @@ export default function CalendarPage() {
     else setCursor(addDays(cursor, dir));
   }
 
-  const gridItems = items as GridItem[];
+  // Hide toggled-off calendars; colour each event by its calendar (own calendars + shared).
+  const visibleItems = useMemo(
+    () => items.filter((it) => !it.calendar_id || !hidden.has(it.calendar_id)),
+    [items, hidden],
+  );
+  const gridItems: GridItem[] = visibleItems.map((it) => ({
+    ...it,
+    color: it.calendar_id ? colorOf.get(it.calendar_id) : undefined,
+  }));
 
   const quickPreview = quickParsed
     ? {
@@ -515,6 +557,41 @@ export default function CalendarPage() {
       )}
       {loading && <p className="text-sm text-muted">{t("common.loading")}</p>}
 
+      {/* Calendar overlays: toggle each calendar's visibility; colours flow into every view. */}
+      {!locked && calendars.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {calendars.map((c) => {
+            const off = hidden.has(c.id);
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => toggleCalendar(c.id)}
+                className={`flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs transition ${
+                  off ? "opacity-40" : "hover:bg-surface-2/40"
+                }`}
+                title={c.is_shared ? (c.owner_name ?? undefined) : undefined}
+              >
+                <span
+                  aria-hidden
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: off ? "transparent" : c.color, boxShadow: `inset 0 0 0 1.5px ${c.color}` }}
+                />
+                <span className="text-foreground">{c.name}</span>
+                {c.is_shared && <span className="text-muted">·</span>}
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => setNewCalOpen(true)}
+            className="rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent"
+          >
+            + {t("calendar.newCalendar")}
+          </button>
+        </div>
+      )}
+
       {!locked && view !== "month" && (
         <CalendarTimeGrid
           days={days}
@@ -539,7 +616,7 @@ export default function CalendarPage() {
             {grid.map((day) => {
               const key = ymd(day);
               const inMonth = day.getMonth() === month;
-              const dayItems = items.filter((it) => localKey(it.start) === key);
+              const dayItems = visibleItems.filter((it) => localKey(it.start) === key);
               const isToday = key === ymd(new Date());
               return (
                 <button
@@ -559,31 +636,44 @@ export default function CalendarPage() {
                   >
                     {day.getDate()}
                   </span>
-                  {dayItems.slice(0, 3).map((it, i) => (
-                    <span
-                      key={i}
-                      title={it.read_only ? t("calendar.sharedReadOnly") : undefined}
-                      onClick={(e) => {
-                        if (it.source === "event" && it.event_id && !it.read_only) {
-                          e.stopPropagation();
-                          void openEdit(it.event_id, it.start);
-                        } else {
-                          e.stopPropagation();
+                  {dayItems.slice(0, 3).map((it, i) => {
+                    const c = it.calendar_id ? colorOf.get(it.calendar_id) : undefined;
+                    const colored = it.source === "event" && c;
+                    return (
+                      <span
+                        key={i}
+                        title={it.read_only ? t("calendar.sharedReadOnly") : undefined}
+                        onClick={(e) => {
+                          if (it.source === "event" && it.event_id && !it.read_only) {
+                            e.stopPropagation();
+                            void openEdit(it.event_id, it.start);
+                          } else {
+                            e.stopPropagation();
+                          }
+                        }}
+                        style={
+                          colored
+                            ? it.read_only
+                              ? { color: c, border: `1px dashed ${c}80` }
+                              : { backgroundColor: `${c}2b`, color: c }
+                            : undefined
                         }
-                      }}
-                      className={[
-                        "truncate rounded px-1.5 py-0.5 text-[11px]",
-                        it.source !== "event"
-                          ? "bg-surface-2 text-muted"
-                          : it.read_only
-                            ? "border border-dashed border-accent/40 text-accent/70"
-                            : "bg-accent/20 text-accent",
-                      ].join(" ")}
-                    >
-                      {!it.all_day && `${hm(it.start)} `}
-                      {it.label}
-                    </span>
-                  ))}
+                        className={[
+                          "truncate rounded px-1.5 py-0.5 text-[11px]",
+                          colored
+                            ? ""
+                            : it.source !== "event"
+                              ? "bg-surface-2 text-muted"
+                              : it.read_only
+                                ? "border border-dashed border-accent/40 text-accent/70"
+                                : "bg-accent/20 text-accent",
+                        ].join(" ")}
+                      >
+                        {!it.all_day && `${hm(it.start)} `}
+                        {it.label}
+                      </span>
+                    );
+                  })}
                   {dayItems.length > 3 && (
                     <span className="text-[10px] text-muted">+{dayItems.length - 3}</span>
                   )}
@@ -598,6 +688,7 @@ export default function CalendarPage() {
         <EventModal
           draft={draft}
           setDraft={setDraft}
+          calendars={ownCalendars}
           onSave={save}
           onDelete={remove}
           onClose={() => setDraft(null)}
@@ -607,7 +698,87 @@ export default function CalendarPage() {
       {shareOpen && ownCalendar && (
         <ShareModal calendarId={ownCalendar.id} onClose={() => setShareOpen(false)} />
       )}
+
+      {newCalOpen && (
+        <NewCalendarModal
+          onClose={() => setNewCalOpen(false)}
+          onCreated={() => {
+            setNewCalOpen(false);
+            void load();
+          }}
+        />
+      )}
     </main>
+  );
+}
+
+const CAL_COLORS = ["#00f0ff", "#a3ff00", "#ff2d95", "#ffb020", "#8b5cff", "#ff5c5c", "#00d68f"];
+
+function NewCalendarModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const t = useT();
+  const [name, setName] = useState("");
+  const [color, setColor] = useState(CAL_COLORS[0]);
+  const [busy, setBusy] = useState(false);
+
+  async function submit() {
+    if (!name.trim()) return;
+    setBusy(true);
+    try {
+      await createCalendar(name.trim(), color);
+      onCreated();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="glass w-full max-w-sm rounded-2xl p-6 shadow-2xl">
+        <h2 className="mb-4 text-lg font-semibold text-foreground">{t("calendar.newCalendar")}</h2>
+        <input
+          autoFocus
+          placeholder={t("calendar.calendarName")}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="w-full rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+        />
+        <div className="mt-4 flex flex-wrap gap-2">
+          {CAL_COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              aria-label={c}
+              onClick={() => setColor(c)}
+              className={`h-6 w-6 rounded-full transition ${color === c ? "ring-2 ring-offset-2 ring-offset-surface" : ""}`}
+              style={{ backgroundColor: c, boxShadow: color === c ? `0 0 0 2px ${c}` : undefined }}
+            />
+          ))}
+        </div>
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-border-strong px-4 py-2 text-sm text-muted hover:text-foreground"
+          >
+            {t("calendar.cancel")}
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={busy || !name.trim()}
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-60"
+          >
+            {t("calendar.save")}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -686,12 +857,14 @@ function ShareModal({ calendarId, onClose }: { calendarId: string; onClose: () =
 function EventModal({
   draft,
   setDraft,
+  calendars,
   onSave,
   onDelete,
   onClose,
 }: {
   draft: Draft;
   setDraft: (d: Draft) => void;
+  calendars: CalendarRec[];
   onSave: () => void;
   onDelete: () => void;
   onClose: () => void;
@@ -715,6 +888,19 @@ function EventModal({
             onChange={(e) => set({ title: e.target.value })}
             className={input}
           />
+          {calendars.length > 1 && (
+            <select
+              value={draft.calendarId}
+              onChange={(e) => set({ calendarId: e.target.value })}
+              className={input}
+            >
+              {calendars.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          )}
           <input
             placeholder={t("calendar.location")}
             value={draft.location}
