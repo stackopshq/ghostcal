@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getActiveOrg } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { parseQuickAdd } from "@/lib/quickAdd";
@@ -42,6 +42,7 @@ export default function TasksPage() {
   const [locked, setLocked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [quick, setQuick] = useState("");
+  const quickRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
 
   // Parse a due date out of the quick-add text (title is what's left once the date is removed).
@@ -85,6 +86,14 @@ export default function TasksPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, [load]);
+
+  // Focus the quick-add when arriving via the command palette's "New task" (#new).
+  useEffect(() => {
+    if (window.location.hash === "#new") {
+      requestAnimationFrame(() => quickRef.current?.focus());
+      history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
 
   async function add() {
     const keys = getUnlockedKeys(getActiveOrg());
@@ -172,6 +181,7 @@ export default function TasksPage() {
               ✓
             </span>
             <input
+              ref={quickRef}
               value={quick}
               onChange={(e) => setQuick(e.target.value)}
               placeholder={t("tasks.quickAdd")}

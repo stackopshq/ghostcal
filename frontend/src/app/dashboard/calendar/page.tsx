@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getActiveOrg } from "@/lib/auth";
 import {
   type AgendaItem,
@@ -140,6 +140,7 @@ export default function CalendarPage() {
   // Calendars toggled off in the overlay (hidden from the views), persisted per device.
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [newCalOpen, setNewCalOpen] = useState(false);
+  const quickRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     try {
@@ -214,6 +215,37 @@ export default function CalendarPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
+
+  // Focus the quick-add when arriving via the command palette's "New event" (#new).
+  useEffect(() => {
+    if (window.location.hash === "#new") {
+      requestAnimationFrame(() => quickRef.current?.focus());
+      history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
+
+  // Keyboard shortcuts (ignored while typing): m/w/d switch views, t today, ←/→ step, n quick-add.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const el = e.target as HTMLElement | null;
+      if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const k = e.key.toLowerCase();
+      if (k === "m") pickView("month");
+      else if (k === "w") pickView("week");
+      else if (k === "d") pickView("day");
+      else if (k === "t") setCursor(new Date());
+      else if (e.key === "ArrowLeft") step(-1);
+      else if (e.key === "ArrowRight") step(1);
+      else if (k === "n") {
+        e.preventDefault();
+        quickRef.current?.focus();
+      } else return;
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, cursor]);
 
   function openNew(date: Date, hour = 9) {
     if (locked) return;
@@ -513,6 +545,7 @@ export default function CalendarPage() {
               ⌁
             </span>
             <input
+              ref={quickRef}
               value={quickText}
               onChange={(e) => setQuickText(e.target.value)}
               placeholder={t("calendar.quickAdd")}
