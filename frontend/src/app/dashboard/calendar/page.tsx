@@ -21,6 +21,13 @@ import {
   unshareCalendar,
   updateEvent,
 } from "@/lib/agenda";
+import {
+  addSubscription,
+  deleteSubscription,
+  listSubscriptions,
+  refreshSubscription,
+  type Subscription,
+} from "@/lib/subscriptions";
 import CalendarTimeGrid, { type GridItem } from "@/components/CalendarTimeGrid";
 import EventAttendees from "@/components/EventAttendees";
 import { useI18n, useT } from "@/lib/i18n";
@@ -150,6 +157,12 @@ export default function CalendarPage() {
   const quickRef = useRef<HTMLInputElement>(null);
   const [caldav, setCaldav] = useState<CalendarStatus | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [subOpen, setSubOpen] = useState(false);
+  const subColorOf = useMemo(
+    () => new Map(subscriptions.map((s) => [s.id, s.color])),
+    [subscriptions],
+  );
 
   useEffect(() => {
     try {
@@ -180,6 +193,21 @@ export default function CalendarPage() {
     }
   }
 
+  async function removeSubscription(id: string) {
+    await deleteSubscription(id);
+    await load();
+  }
+
+  async function resyncSubscription(id: string) {
+    setSyncing(true);
+    try {
+      await refreshSubscription(id);
+      await load();
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   // Live natural-language parse of the quick-add box (pure — no effect, no network).
   const quickParsed = useMemo(
     () => (quickText.trim() ? parseQuickAdd(quickText, locale) : null),
@@ -203,13 +231,15 @@ export default function CalendarPage() {
     const from = fromDate.toISOString();
     const to = toDate.toISOString();
     try {
-      const [cals, agenda, status] = await Promise.all([
+      const [cals, agenda, status, subs] = await Promise.all([
         listCalendars(),
         getAgenda(from, to),
         getCalendarStatus().catch(() => null),
+        listSubscriptions().catch(() => []),
       ]);
       setCaldav(status);
       setCalendars(cals);
+      setSubscriptions(subs);
       const cache = new Map<string, string>();
       const decorated: DecoratedItem[] = [];
       for (const it of agenda) {
@@ -499,9 +529,11 @@ export default function CalendarPage() {
   const colorFor = (it: DecoratedItem): string | undefined =>
     it.source === "external"
       ? EXTERNAL_COLOR
-      : it.calendar_id
-        ? colorOf.get(it.calendar_id)
-        : undefined;
+      : it.source === "subscription"
+        ? (it.calendar_id ? subColorOf.get(it.calendar_id) : undefined)
+        : it.calendar_id
+          ? colorOf.get(it.calendar_id)
+          : undefined;
   const gridItems: GridItem[] = visibleItems.map((it) => ({ ...it, color: colorFor(it) }));
 
   const quickPreview = quickParsed
@@ -702,8 +734,66 @@ export default function CalendarPage() {
               + {t("calendar.connectExternal")}
             </Link>
           )}
+
+          {/* Public ICS subscriptions: each a toggleable, read-only overlay (holidays, fixtures…). */}
+          {subscriptions.map((s) => {
+            const off = hidden.has(s.id);
+            const errored = s.status === "error";
+            return (
+              <span
+                key={s.id}
+                className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
+                  errored ? "border-danger/50" : "border-border"
+                } ${off ? "opacity-40" : ""}`}
+                title={errored ? (s.last_error ?? undefined) : (s.last_synced_at ?? undefined)}
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleCalendar(s.id)}
+                  className="flex items-center gap-1.5 hover:text-accent"
+                >
+                  <span
+                    aria-hidden
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{
+                      backgroundColor: off ? "transparent" : s.color,
+                      boxShadow: `inset 0 0 0 1.5px ${s.color}`,
+                    }}
+                  />
+                  <span className="text-foreground">{s.name}</span>
+                  {errored && <span aria-hidden>⚠</span>}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void resyncSubscription(s.id)}
+                  disabled={syncing}
+                  title={t("calendar.syncNow")}
+                  className="text-muted hover:text-accent disabled:opacity-50"
+                >
+                  ↻
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void removeSubscription(s.id)}
+                  title={t("common.delete")}
+                  className="text-muted hover:text-danger"
+                >
+                  ×
+                </button>
+              </span>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => setSubOpen(true)}
+            className="rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent"
+          >
+            + {t("calendar.subscribe")}
+          </button>
         </div>
       )}
+
+      {subOpen && <SubscribeModal onClose={() => setSubOpen(false)} onDone={load} t={t} />}
 
       {!locked && view !== "month" && (
         <CalendarTimeGrid
@@ -886,6 +976,92 @@ function NewCalendarModal({
             className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-60"
           >
             {t("calendar.save")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SubscribeModal({
+  onClose,
+  onDone,
+  t,
+}: {
+  onClose: () => void;
+  onDone: () => Promise<void> | void;
+  t: (key: string) => string;
+}) {
+  const [name, setName] = useState("");
+  const [url, setUrl] = useState("");
+  const [color, setColor] = useState(CAL_COLORS[4]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit() {
+    if (!name.trim() || !url.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await addSubscription({ name: name.trim(), url: url.trim(), color });
+      await onDone();
+      onClose();
+    } catch {
+      // The feed is validated server-side; a bad/unreachable URL comes back as an error.
+      setError(t("calendar.subscribeError"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="glass w-full max-w-sm rounded-2xl p-6 shadow-2xl">
+        <h2 className="mb-1 text-lg font-semibold text-foreground">{t("calendar.subscribe")}</h2>
+        <p className="mb-4 text-xs text-muted">{t("calendar.subscribeHint")}</p>
+        <input
+          autoFocus
+          placeholder={t("calendar.calendarName")}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="w-full rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+        />
+        <input
+          type="url"
+          inputMode="url"
+          placeholder="https://example.com/calendar.ics"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          className="mt-3 w-full rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+        />
+        <div className="mt-4 flex flex-wrap gap-2">
+          {CAL_COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              aria-label={c}
+              onClick={() => setColor(c)}
+              className={`h-6 w-6 rounded-full transition ${color === c ? "ring-2 ring-offset-2 ring-offset-surface" : ""}`}
+              style={{ backgroundColor: c, boxShadow: color === c ? `0 0 0 2px ${c}` : undefined }}
+            />
+          ))}
+        </div>
+        {error && <p className="mt-3 text-xs text-danger">{error}</p>}
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-border-strong px-4 py-2 text-sm text-muted hover:text-foreground"
+          >
+            {t("calendar.cancel")}
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={busy || !name.trim() || !url.trim()}
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-60"
+          >
+            {busy ? t("common.saving") : t("calendar.save")}
           </button>
         </div>
       </div>
