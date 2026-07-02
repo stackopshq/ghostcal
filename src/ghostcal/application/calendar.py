@@ -92,6 +92,7 @@ class AgendaItem:
     content: str | None = None  # sealed blob (events) — decrypted in the browser
     title: str | None = None  # cleartext label (bookings/external)
     read_only: bool = False  # event from a calendar shared with the viewer
+    reminder_minutes: int | None = None  # minutes before start to alert (events only)
 
 
 class CalendarRepository:
@@ -247,6 +248,7 @@ async def get_agenda(
                     event_id=src.id,
                     content=src.content,
                     read_only=src.read_only,
+                    reminder_minutes=src.reminder_minutes,
                 )
             )
 
