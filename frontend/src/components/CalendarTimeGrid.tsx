@@ -42,6 +42,7 @@ export default function CalendarTimeGrid({
   onNewAt,
   onEventClick,
   labels,
+  weatherByDay,
 }: {
   days: Date[];
   items: GridItem[];
@@ -49,6 +50,7 @@ export default function CalendarTimeGrid({
   onNewAt: (date: Date, hour: number) => void;
   onEventClick: (it: GridItem) => void;
   labels: { allDay: string; sharedReadOnly: string };
+  weatherByDay?: Map<string, { glyph: string; tmax: number; tmin: number }>;
 }) {
   const todayKey = ymd(new Date());
 
@@ -77,6 +79,7 @@ export default function CalendarTimeGrid({
         <div />
         {days.map((day) => {
           const isToday = ymd(day) === todayKey;
+          const wx = weatherByDay?.get(ymd(day));
           return (
             <div key={ymd(day)} className="border-l border-border py-2 text-center">
               <div className="text-[11px] uppercase text-muted">
@@ -87,6 +90,14 @@ export default function CalendarTimeGrid({
               >
                 {day.getDate()}
               </div>
+              {wx && (
+                <div
+                  className="mt-0.5 text-[10px] text-muted"
+                  title={`${Math.round(wx.tmin)}° / ${Math.round(wx.tmax)}°`}
+                >
+                  <span aria-hidden>{wx.glyph}</span> {Math.round(wx.tmax)}°
+                </div>
+              )}
             </div>
           );
         })}

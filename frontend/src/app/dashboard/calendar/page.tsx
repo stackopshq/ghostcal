@@ -28,6 +28,16 @@ import {
   refreshSubscription,
   type Subscription,
 } from "@/lib/subscriptions";
+import {
+  geocode,
+  getForecast,
+  type Place,
+  saveLocation,
+  savedLocation,
+  type WeatherDay,
+  type WeatherLocation,
+  weatherGlyph,
+} from "@/lib/weather";
 import CalendarTimeGrid, { type GridItem } from "@/components/CalendarTimeGrid";
 import EventAttendees from "@/components/EventAttendees";
 import { useI18n, useT } from "@/lib/i18n";
@@ -163,6 +173,18 @@ export default function CalendarPage() {
     () => new Map(subscriptions.map((s) => [s.id, s.color])),
     [subscriptions],
   );
+  const [weatherLoc, setWeatherLoc] = useState<WeatherLocation | null>(null);
+  const [weather, setWeather] = useState<WeatherDay[]>([]);
+  const [weatherOpen, setWeatherOpen] = useState(false);
+
+  // A day → {glyph, tmax, tmin} lookup the month cells and time-grid headers read from.
+  const weatherByDay = useMemo(() => {
+    const m = new Map<string, { glyph: string; tmax: number; tmin: number }>();
+    for (const w of weather) {
+      m.set(w.day, { glyph: weatherGlyph(w.weather_code), tmax: w.temp_max, tmin: w.temp_min });
+    }
+    return m;
+  }, [weather]);
 
   useEffect(() => {
     try {
@@ -191,6 +213,36 @@ export default function CalendarPage() {
     } finally {
       setSyncing(false);
     }
+  }
+
+  // Restore the saved weather location once on mount (client-only; never persisted server-side).
+  useEffect(() => {
+    const loc = savedLocation();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (loc) setWeatherLoc(loc);
+  }, []);
+
+  // Fetch the forecast whenever a location is set (clearing is handled in the chooser).
+  useEffect(() => {
+    if (!weatherLoc) return;
+    let cancelled = false;
+    getForecast(weatherLoc.latitude, weatherLoc.longitude)
+      .then((days) => {
+        if (!cancelled) setWeather(days);
+      })
+      .catch(() => {
+        if (!cancelled) setWeather([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [weatherLoc]);
+
+  function chooseWeatherLocation(loc: WeatherLocation | null) {
+    saveLocation(loc);
+    setWeatherLoc(loc);
+    if (!loc) setWeather([]);
+    setWeatherOpen(false);
   }
 
   async function removeSubscription(id: string) {
@@ -790,10 +842,48 @@ export default function CalendarPage() {
           >
             + {t("calendar.subscribe")}
           </button>
+
+          {/* Weather: pick a location (client-side only) to overlay the daily forecast. */}
+          {weatherLoc ? (
+            <span className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setWeatherOpen(true)}
+                className="flex items-center gap-1 text-foreground hover:text-accent"
+              >
+                <span aria-hidden>📍</span>
+                {weatherLoc.name}
+              </button>
+              <button
+                type="button"
+                onClick={() => chooseWeatherLocation(null)}
+                title={t("common.delete")}
+                className="text-muted hover:text-danger"
+              >
+                ×
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setWeatherOpen(true)}
+              className="rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent"
+            >
+              + {t("calendar.weather")}
+            </button>
+          )}
         </div>
       )}
 
       {subOpen && <SubscribeModal onClose={() => setSubOpen(false)} onDone={load} t={t} />}
+      {weatherOpen && (
+        <WeatherModal
+          current={weatherLoc}
+          onClose={() => setWeatherOpen(false)}
+          onChoose={chooseWeatherLocation}
+          t={t}
+        />
+      )}
 
       {!locked && view !== "month" && (
         <CalendarTimeGrid
@@ -803,6 +893,7 @@ export default function CalendarPage() {
           onNewAt={(date, hour) => openNew(date, hour)}
           onEventClick={onGridEvent}
           labels={{ allDay: t("calendar.allDay"), sharedReadOnly: t("calendar.sharedReadOnly") }}
+          weatherByDay={weatherByDay}
         />
       )}
 
@@ -831,13 +922,24 @@ export default function CalendarPage() {
                     inMonth ? "" : "opacity-40",
                   ].join(" ")}
                 >
-                  <span
-                    className={[
-                      "text-xs",
-                      isToday ? "font-semibold text-accent" : "text-muted",
-                    ].join(" ")}
-                  >
-                    {day.getDate()}
+                  <span className="flex items-center justify-between">
+                    <span
+                      className={[
+                        "text-xs",
+                        isToday ? "font-semibold text-accent" : "text-muted",
+                      ].join(" ")}
+                    >
+                      {day.getDate()}
+                    </span>
+                    {weatherByDay.get(key) && (
+                      <span
+                        className="text-[10px] text-muted"
+                        title={`${Math.round(weatherByDay.get(key)!.tmin)}° / ${Math.round(weatherByDay.get(key)!.tmax)}°`}
+                      >
+                        <span aria-hidden>{weatherByDay.get(key)!.glyph}</span>{" "}
+                        {Math.round(weatherByDay.get(key)!.tmax)}°
+                      </span>
+                    )}
                   </span>
                   {dayItems.slice(0, 3).map((it, i) => {
                     const c = colorFor(it);
@@ -1063,6 +1165,131 @@ function SubscribeModal({
           >
             {busy ? t("common.saving") : t("calendar.save")}
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WeatherModal({
+  current,
+  onClose,
+  onChoose,
+  t,
+}: {
+  current: WeatherLocation | null;
+  onClose: () => void;
+  onChoose: (loc: WeatherLocation | null) => void;
+  t: (key: string) => string;
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<Place[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [geoBusy, setGeoBusy] = useState(false);
+
+  async function search() {
+    if (query.trim().length < 2) return;
+    setBusy(true);
+    try {
+      setResults(await geocode(query.trim()));
+    } catch {
+      setResults([]);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function useMyLocation() {
+    if (!navigator.geolocation) return;
+    setGeoBusy(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGeoBusy(false);
+        onChoose({
+          name: t("calendar.weatherMyLocation"),
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        });
+      },
+      () => setGeoBusy(false),
+      { timeout: 8000 },
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="glass w-full max-w-sm rounded-2xl p-6 shadow-2xl">
+        <h2 className="mb-1 text-lg font-semibold text-foreground">{t("calendar.weather")}</h2>
+        <p className="mb-4 text-xs text-muted">{t("calendar.weatherHint")}</p>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void search();
+          }}
+          className="flex gap-2"
+        >
+          <input
+            autoFocus
+            placeholder={t("calendar.weatherSearch")}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="flex-1 rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+          />
+          <button
+            type="submit"
+            disabled={busy || query.trim().length < 2}
+            className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-60"
+          >
+            {busy ? "…" : t("calendar.weatherSearchGo")}
+          </button>
+        </form>
+
+        {results.length > 0 && (
+          <ul className="mt-3 max-h-52 overflow-y-auto">
+            {results.map((p, i) => (
+              <li key={`${p.latitude},${p.longitude},${i}`}>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onChoose({ name: p.name, latitude: p.latitude, longitude: p.longitude })
+                  }
+                  className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm hover:bg-surface-2/40"
+                >
+                  <span className="text-foreground">{p.name}</span>
+                  {p.country && <span className="text-xs text-muted">{p.country}</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="mt-5 flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={useMyLocation}
+            disabled={geoBusy}
+            className="rounded-lg border border-border-strong px-3 py-2 text-xs text-muted hover:text-accent disabled:opacity-60"
+          >
+            {geoBusy ? "…" : `📍 ${t("calendar.weatherMyLocation")}`}
+          </button>
+          <div className="flex gap-2">
+            {current && (
+              <button
+                type="button"
+                onClick={() => onChoose(null)}
+                className="rounded-lg border border-border-strong px-3 py-2 text-xs text-muted hover:text-danger"
+              >
+                {t("calendar.weatherTurnOff")}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border border-border-strong px-3 py-2 text-xs text-muted hover:text-foreground"
+            >
+              {t("calendar.cancel")}
+            </button>
+          </div>
         </div>
       </div>
     </div>

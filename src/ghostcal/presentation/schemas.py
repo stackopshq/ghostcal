@@ -670,3 +670,18 @@ class SubscriptionOut(BaseModel):
     status: str
     last_error: str | None = None
     last_synced_at: datetime | None = None
+
+
+class WeatherDayOut(BaseModel):
+    day: date
+    weather_code: int
+    temp_max: float
+    temp_min: float
+    precipitation_probability: int | None = None
+
+
+class PlaceOut(BaseModel):
+    name: str
+    country: str | None = None
+    latitude: float
+    longitude: float
