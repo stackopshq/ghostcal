@@ -24,6 +24,7 @@ export type AgendaItem = {
   content: string | null; // sealed blob (events)
   title: string | null; // cleartext label (bookings/external)
   read_only: boolean;
+  reminder_minutes: number | null; // minutes before start to alert (events only)
 };
 
 export type EventInput = {
