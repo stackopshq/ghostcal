@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import CommandPalette from "@/components/CommandPalette";
 import { DashboardUserContext } from "@/components/dashboard-context";
 import NotificationsManager from "@/components/NotificationsManager";
 import OrgSwitcher from "@/components/OrgSwitcher";
@@ -102,6 +103,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <OrgSwitcher />
 
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event("gc:cmdk"))}
+          className="mb-3 flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm text-muted transition hover:text-accent"
+        >
+          <span>{t("cmd.open")}</span>
+          <kbd className="rounded border border-border-strong px-1.5 py-0.5 text-[10px]">⌘K</kbd>
+        </button>
+
         <Link
           href="/dashboard/event-types"
           className="mb-6 flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.35)] transition hover:brightness-110"
@@ -154,6 +164,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <DashboardUserContext.Provider value={user}>{children}</DashboardUserContext.Provider>
       </div>
       <NotificationsManager />
+      <CommandPalette />
     </div>
   );
 }
