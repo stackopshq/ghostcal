@@ -10,12 +10,15 @@ import { useT } from "@/lib/i18n";
 
 // Where to land after login: honour a ?next= destination if it's a safe internal path, else the
 // dashboard. Only same-origin relative paths are allowed — reject protocol-relative or absolute
-// URLs so ?next= can't be turned into an open redirect.
-function safeNext(): string {
-  if (typeof window === "undefined") return "/dashboard";
-  const raw = new URLSearchParams(window.location.search).get("next");
+// URLs so ?next= can't be turned into an open redirect. Exported for unit testing.
+export function safeNextPath(raw: string | null): string {
   if (raw && raw.startsWith("/") && !raw.startsWith("//") && !raw.startsWith("/\\")) return raw;
   return "/dashboard";
+}
+
+function safeNext(): string {
+  if (typeof window === "undefined") return "/dashboard";
+  return safeNextPath(new URLSearchParams(window.location.search).get("next"));
 }
 
 export default function LoginPage() {
