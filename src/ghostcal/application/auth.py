@@ -43,6 +43,10 @@ class InvalidToken(AuthError):
     pass
 
 
+class ZkKeysAlreadySet(AuthError):
+    """Refuse to overwrite existing zero-knowledge keys (would orphan encrypted data)."""
+
+
 @dataclass(frozen=True, slots=True)
 class AuthUserRecord:
     id: uuid.UUID
@@ -112,6 +116,21 @@ class AuthRepository:
     ) -> uuid.UUID:
         """Create user + credentials + org + owner membership atomically. Return the user id.
         Raise ``EmailAlreadyRegistered`` if the email is taken."""
+        raise NotImplementedError
+
+    async def upsert_oidc_identity(
+        self,
+        *,
+        provider: str,
+        issuer: str,
+        subject: str,
+        email: str,
+        name: str,
+        org_name: str,
+        org_slug: str,
+    ) -> uuid.UUID:
+        """Resolve an OIDC login to a local user id: return the linked user, link to an existing
+        account with the same email, or provision a fresh passwordless account. Return user id."""
         raise NotImplementedError
 
     async def store_zk_keys(self, user_id: uuid.UUID, material: ZkKeyMaterial) -> None:
@@ -229,6 +248,13 @@ class AuthService:
     async def get_zk_keys(self, user_id: uuid.UUID) -> list[ZkKeyBundle]:
         return await self._repo.get_zk_keys(user_id)
 
+    async def setup_zk_keys(self, user_id: uuid.UUID, material: ZkKeyMaterial) -> None:
+        """First-time key setup (e.g. an SSO user choosing an encryption passphrase). Refuses to
+        overwrite existing keys — that would orphan already-encrypted content."""
+        if await self._repo.get_zk_keys(user_id):
+            raise ZkKeysAlreadySet(str(user_id))
+        await self._repo.store_zk_keys(user_id, material)
+
     async def rewrap_zk_key(
         self,
         user_id: uuid.UUID,
@@ -274,6 +300,23 @@ class AuthService:
         if not user.email_verified:
             raise EmailNotVerified("email not verified")
         return await self._issue_pair(user.id)
+
+    async def authenticate_oidc(
+        self, *, provider: str, issuer: str, subject: str, email: str, name: str
+    ) -> TokenPair:
+        """Log a user in from a validated OIDC identity, provisioning on first login. No password
+        is involved; the zero-knowledge content is unlocked later by the encryption passphrase."""
+        email = email.strip().lower()
+        user_id = await self._repo.upsert_oidc_identity(
+            provider=provider,
+            issuer=issuer,
+            subject=subject,
+            email=email,
+            name=name or email,
+            org_name=name or email,
+            org_slug=_org_slug(email),
+        )
+        return await self._issue_pair(user_id)
 
     async def refresh(self, *, refresh_token: str) -> TokenPair:
         now = self._clock.now()

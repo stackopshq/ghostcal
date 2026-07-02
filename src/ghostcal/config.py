@@ -50,6 +50,17 @@ class Settings(BaseSettings):
     # Where the frontend lives — used to build links sent by email.
     frontend_base_url: str = "http://localhost:3001"
 
+    # SSO / OIDC (single operator-configured provider). Off by default: when disabled, the OIDC
+    # routes 404 and the frontend hides the SSO button. Authentication only — the zero-knowledge
+    # content is still unlocked by a separate encryption passphrase (the server never sees it).
+    oidc_enabled: bool = False
+    oidc_issuer: str | None = None  # e.g. https://accounts.google.com — discovery via .well-known
+    oidc_client_id: str | None = None
+    oidc_client_secret: SecretStr | None = None
+    # The provider redirects here after consent; must exactly match the app's callback URL and be
+    # registered with the IdP. Defaults to the API's own callback if unset.
+    oidc_redirect_uri: str | None = None
+
     # How often the worker re-syncs each connected CalDAV calendar's busy time.
     caldav_sync_interval_seconds: int = 900  # 15 min
     # How often the worker refreshes subscribed public ICS feeds.
@@ -89,6 +100,17 @@ class Settings(BaseSettings):
                 raise ValueError(
                     f"{name} is still a placeholder — set a real secret outside development"
                 )
+        return self
+
+    @model_validator(mode="after")
+    def _require_oidc_config_when_enabled(self) -> Settings:
+        # Fail fast: enabling OIDC without a full provider config would 500 on first login.
+        if self.oidc_enabled and not (
+            self.oidc_issuer and self.oidc_client_id and self.oidc_client_secret
+        ):
+            raise ValueError(
+                "oidc_enabled=true requires oidc_issuer, oidc_client_id and oidc_client_secret"
+            )
         return self
 
 

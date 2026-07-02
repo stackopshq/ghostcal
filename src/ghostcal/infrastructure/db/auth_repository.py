@@ -51,6 +51,36 @@ class SqlAuthRepository(AuthRepository):
             raise EmailAlreadyRegistered(email) from exc
         return row.user_id  # type: ignore[no-any-return]
 
+    async def upsert_oidc_identity(
+        self,
+        *,
+        provider: str,
+        issuer: str,
+        subject: str,
+        email: str,
+        name: str,
+        org_name: str,
+        org_slug: str,
+    ) -> uuid.UUID:
+        row = (
+            await self._session.execute(
+                text(
+                    "SELECT upsert_oidc_identity("
+                    ":provider, :issuer, :subject, :email, :name, :org_name, :org_slug) AS user_id"
+                ),
+                {
+                    "provider": provider,
+                    "issuer": issuer,
+                    "subject": subject,
+                    "email": email,
+                    "name": name,
+                    "org_name": org_name,
+                    "org_slug": org_slug,
+                },
+            )
+        ).one()
+        return row.user_id  # type: ignore[no-any-return]
+
     async def store_zk_keys(self, user_id: uuid.UUID, material: ZkKeyMaterial) -> None:
         await self._session.execute(
             text("SELECT store_zk_keys(:uid, :pub, :wsk, :wsalt, :rsk, :rsalt)"),

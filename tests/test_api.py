@@ -38,3 +38,18 @@ def test_weather_routes_are_mounted() -> None:
     paths = app.openapi()["paths"]
     assert "get" in paths["/v1/me/weather"]
     assert "get" in paths["/v1/me/weather/geocode"]
+
+
+def test_oidc_routes_are_mounted() -> None:
+    paths = app.openapi()["paths"]
+    assert "get" in paths["/v1/auth/oidc/login"]
+    assert "get" in paths["/v1/auth/oidc/callback"]
+    assert "get" in paths["/v1/auth/config"]
+    assert "post" in paths["/v1/auth/zk-keys"]  # first-time SSO key setup
+
+
+def test_oidc_routes_404_when_disabled() -> None:
+    # OIDC is off by default; the routes must behave as if absent (no info leak, no 500).
+    client = TestClient(app)
+    assert client.get("/v1/auth/oidc/login", follow_redirects=False).status_code == 404
+    assert client.get("/v1/auth/config").json() == {"oidc_enabled": False}
