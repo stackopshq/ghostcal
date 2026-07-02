@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from redis.asyncio import from_url as redis_from_url
 from sqlalchemy import text
+from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import Response
 
 from ghostcal import __version__
@@ -74,6 +75,15 @@ def create_app() -> FastAPI:
         allow_origins=get_settings().cors_allow_origins,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Content-Type"],
+    )
+
+    # Authlib stashes the OIDC state/nonce in a signed session cookie during the redirect handshake.
+    # SameSite=Lax so it survives the top-level GET redirect back from the identity provider.
+    app.add_middleware(
+        SessionMiddleware,
+        secret_key=settings.secret_key.get_secret_value(),
+        same_site="lax",
+        https_only=settings.is_production,
     )
 
     @app.get("/health", tags=["meta"])

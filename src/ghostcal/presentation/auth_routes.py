@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import timedelta
 from typing import Annotated
+from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from ghostcal.application.auth import (
@@ -18,6 +21,7 @@ from ghostcal.application.auth import (
     InvalidToken,
     TokenPair,
     ZkKeyMaterial,
+    ZkKeysAlreadySet,
 )
 from ghostcal.application.ports.clock import SystemClock
 from ghostcal.config import get_settings
@@ -25,6 +29,7 @@ from ghostcal.infrastructure.db.auth_repository import SqlAuthRepository
 from ghostcal.infrastructure.db.session import db_session
 from ghostcal.infrastructure.email import build_email_sender
 from ghostcal.infrastructure.ratelimit import rate_limit
+from ghostcal.infrastructure.security.oidc import OIDCNotConfigured, oidc_client
 from ghostcal.infrastructure.security.passwords import Argon2PasswordHasher
 from ghostcal.infrastructure.security.tokens import JwtAccessTokenCodec
 from ghostcal.presentation.schemas import (
@@ -35,9 +40,12 @@ from ghostcal.presentation.schemas import (
     TokenOut,
     UserOut,
     VerifyEmailIn,
+    ZkKeyMaterialIn,
     ZkKeysOut,
     ZkRewrapIn,
 )
+
+logger = logging.getLogger("ghostcal.auth")
 
 router = APIRouter(prefix="/v1/auth", tags=["auth"])
 _bearer = HTTPBearer(auto_error=False)
@@ -96,6 +104,12 @@ async def current_user(
 CurrentUser = Annotated[AuthenticatedUser, Depends(current_user)]
 
 
+@router.get("/config")
+async def auth_config() -> dict[str, bool]:
+    """Public auth capabilities the frontend needs at load time (e.g. whether to show SSO)."""
+    return {"oidc_enabled": _settings.oidc_enabled}
+
+
 @router.post("/register", response_model=RegisteredOut, status_code=201, dependencies=_AUTH_RL)
 async def register(payload: RegisterIn) -> RegisteredOut:
     zk_keys = ZkKeyMaterial(
@@ -136,6 +150,24 @@ async def zk_keys(user: CurrentUser) -> list[ZkKeysOut]:
     ]
 
 
+@router.post("/zk-keys", status_code=204, dependencies=_AUTH_RL)
+async def setup_zk_keys(payload: ZkKeyMaterialIn, user: CurrentUser) -> None:
+    """First-time zero-knowledge key setup — an SSO user choosing their encryption passphrase.
+    Refuses to overwrite existing keys (409)."""
+    material = ZkKeyMaterial(
+        public_key=payload.public_key,
+        wrapped_private_key=payload.wrapped_private_key,
+        wrap_salt=payload.wrap_salt,
+        recovery_wrapped_private_key=payload.recovery_wrapped_private_key,
+        recovery_salt=payload.recovery_salt,
+    )
+    async with db_session() as session:
+        try:
+            await _service(session).setup_zk_keys(user.id, material)
+        except ZkKeysAlreadySet as exc:
+            raise HTTPException(status_code=409, detail="keys already set") from exc
+
+
 @router.post("/zk-rewrap", status_code=204, dependencies=_AUTH_RL)
 async def zk_rewrap(payload: ZkRewrapIn, user: CurrentUser) -> None:
     """Store an org key re-wrapped under a new password (called after a password change)."""
@@ -146,6 +178,66 @@ async def zk_rewrap(payload: ZkRewrapIn, user: CurrentUser) -> None:
             wrapped_private_key=payload.wrapped_private_key,
             wrap_salt=payload.wrap_salt,
         )
+
+
+# --- SSO / OIDC (single provider; authentication only — the zk passphrase is separate) ---------
+
+
+def _require_oidc_enabled() -> None:
+    # When OIDC is off, the routes behave as if they don't exist.
+    if not _settings.oidc_enabled:
+        raise HTTPException(status_code=404, detail="not found")
+
+
+@router.get("/oidc/login")
+async def oidc_login(request: Request) -> RedirectResponse:
+    """Begin the OIDC flow: 302 to the provider's authorization endpoint (state/nonce/PKCE set)."""
+    _require_oidc_enabled()
+    redirect_uri = _settings.oidc_redirect_uri or str(request.url_for("oidc_callback"))
+    try:
+        response: RedirectResponse = await oidc_client().authorize_redirect(request, redirect_uri)
+    except OIDCNotConfigured as exc:
+        raise HTTPException(status_code=404, detail="not found") from exc
+    return response
+
+
+@router.get("/oidc/callback", name="oidc_callback")
+async def oidc_callback(request: Request) -> RedirectResponse:
+    """Provider redirect target: validate the ID token, resolve the user, hand tokens to the SPA."""
+    _require_oidc_enabled()
+    try:
+        token = await oidc_client().authorize_access_token(request)
+    except Exception:
+        # Never leak IdP/library internals (nonce mismatch, etc.) — just fail the sign-in.
+        logger.warning("OIDC token exchange failed", exc_info=True)
+        return RedirectResponse(f"{_settings.frontend_base_url}/login?sso_error=1")
+
+    userinfo = token.get("userinfo") or {}
+    subject = userinfo.get("sub")
+    email = userinfo.get("email")
+    if not subject or not email:
+        logger.warning("OIDC userinfo missing sub/email")
+        return RedirectResponse(f"{_settings.frontend_base_url}/login?sso_error=1")
+
+    issuer = str(_settings.oidc_issuer or userinfo.get("iss") or "")
+    async with db_session() as session:
+        tokens = await _service(session).authenticate_oidc(
+            provider="oidc",
+            issuer=issuer,
+            subject=str(subject),
+            email=str(email),
+            name=str(userinfo.get("name") or ""),
+        )
+    # Tokens go in the URL fragment (never sent to a server, not in Referer); the SPA reads them and
+    # immediately strips the fragment. This matches the app's existing localStorage token model.
+    fragment = urlencode(
+        {
+            "access_token": tokens.access_token,
+            "refresh_token": tokens.refresh_token,
+            "expires_in": tokens.expires_in,
+        }
+    )
+    return RedirectResponse(f"{_settings.frontend_base_url}/auth/callback#{fragment}")
 
 
 @router.post("/verify-email", status_code=204, dependencies=_AUTH_RL)
