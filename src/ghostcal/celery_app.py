@@ -34,6 +34,10 @@ def create_celery() -> Celery:
                 "task": "ghostcal.send_due_event_reminders",
                 "schedule": float(settings.reminder_scan_interval_seconds),
             },
+            "task-reminders": {
+                "task": "ghostcal.send_due_task_reminders",
+                "schedule": float(settings.reminder_scan_interval_seconds),
+            },
         },
     )
     app.autodiscover_tasks(["ghostcal.infrastructure"])

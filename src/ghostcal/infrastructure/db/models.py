@@ -590,6 +590,10 @@ class Task(TimestampMixin, Base):
     due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Minutes before due_at to email the owner a content-less reminder; NULL = none.
+    reminder_minutes: Mapped[int | None] = mapped_column()
+    # Set when the reminder was sent (idempotency — a task reminds at most once).
+    reminded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 RLS_TABLES: dict[str, str] = {

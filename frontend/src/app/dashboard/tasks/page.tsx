@@ -16,6 +16,15 @@ import { getUnlockedKeys, openTaskContent, sealTaskContent } from "@/lib/zk";
 
 type Decorated = Task & { title: string; notes: string };
 
+// Content-less email reminder offsets (minutes before the due date). "At time" = 0.
+const REMINDERS: { value: string; key: string }[] = [
+  { value: "", key: "tasks.remindNone" },
+  { value: "0", key: "tasks.remindAt" },
+  { value: "10", key: "tasks.remind10m" },
+  { value: "60", key: "tasks.remind1h" },
+  { value: "1440", key: "tasks.remind1d" },
+];
+
 function dueLabel(iso: string, locale: string): { text: string; overdue: boolean } {
   const d = new Date(iso);
   const now = new Date();
@@ -111,7 +120,21 @@ export default function TasksPage() {
     const next = window.prompt(t("tasks.rename"), task.title);
     if (next === null || next.trim() === task.title) return;
     const content = await sealTaskContent({ title: next.trim(), notes: task.notes }, keys.publicKey);
-    await updateTask(task.id, { content, due_at: task.due_at });
+    await updateTask(task.id, {
+      content,
+      due_at: task.due_at,
+      reminder_minutes: task.reminder_minutes,
+    });
+    await load();
+  }
+
+  // Set/clear the content-less email reminder (minutes before the due date). Re-seals the content
+  // because the update endpoint replaces the whole task.
+  async function setReminder(task: Decorated, minutes: number | null) {
+    const keys = getUnlockedKeys(getActiveOrg());
+    if (!keys?.publicKey) return;
+    const content = await sealTaskContent({ title: task.title, notes: task.notes }, keys.publicKey);
+    await updateTask(task.id, { content, due_at: task.due_at, reminder_minutes: minutes });
     await load();
   }
 
@@ -197,6 +220,29 @@ export default function TasksPage() {
                       <span className={`text-xs ${due.overdue ? "text-red-400" : "text-muted"}`}>
                         {due.text}
                       </span>
+                    )}
+                    {task.due_at && (
+                      <label
+                        className="flex items-center gap-1 text-xs text-muted"
+                        title={t("tasks.reminder")}
+                      >
+                        <span aria-hidden className={task.reminder_minutes != null ? "text-accent" : ""}>
+                          🔔
+                        </span>
+                        <select
+                          value={task.reminder_minutes ?? ""}
+                          onChange={(e) =>
+                            setReminder(task, e.target.value === "" ? null : Number(e.target.value))
+                          }
+                          className="cursor-pointer rounded border border-border bg-transparent py-0.5 text-xs text-muted outline-none focus:border-accent"
+                        >
+                          {REMINDERS.map((r) => (
+                            <option key={r.key} value={r.value}>
+                              {t(r.key)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
                     )}
                     <button
                       type="button"

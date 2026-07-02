@@ -41,6 +41,7 @@ async def list_my_tasks(member: Member = Depends(current_member)) -> list[TaskOu
             completed=task.completed,
             completed_at=task.completed_at,
             created_at=task.created_at,
+            reminder_minutes=task.reminder_minutes,
         )
         for task in tasks
     ]
@@ -52,7 +53,11 @@ async def create_my_task(payload: TaskIn, member: Member = Depends(current_membe
         task_id = await create_task(
             _repo(session, member.organization_id),
             member.user.id,
-            TaskInput(content=payload.content, due_at=payload.due_at),
+            TaskInput(
+                content=payload.content,
+                due_at=payload.due_at,
+                reminder_minutes=payload.reminder_minutes,
+            ),
         )
     return CreatedOut(id=task_id)
 
@@ -67,7 +72,11 @@ async def update_my_task(
                 _repo(session, member.organization_id),
                 member.user.id,
                 task_id,
-                TaskInput(content=payload.content, due_at=payload.due_at),
+                TaskInput(
+                    content=payload.content,
+                    due_at=payload.due_at,
+                    reminder_minutes=payload.reminder_minutes,
+                ),
             )
         except TaskNotFound as exc:
             raise HTTPException(status_code=404, detail="task not found") from exc

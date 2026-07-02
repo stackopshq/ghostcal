@@ -20,6 +20,7 @@ def _record(row: models.Task) -> TaskRecord:
         completed=row.completed,
         completed_at=row.completed_at,
         created_at=row.created_at,
+        reminder_minutes=row.reminder_minutes,
     )
 
 
@@ -37,6 +38,7 @@ class SqlTaskRepository(TaskRepository):
                     owner_id=owner_id,
                     content=data.content,
                     due_at=data.due_at,
+                    reminder_minutes=data.reminder_minutes,
                 )
                 .returning(models.Task.id)
             )
@@ -61,10 +63,16 @@ class SqlTaskRepository(TaskRepository):
         return [_record(r) for r in rows]
 
     async def update_task(self, owner_id: uuid.UUID, task_id: uuid.UUID, data: TaskInput) -> bool:
+        # Editing re-arms the reminder (clear reminded_at) so a moved due date fires again.
         result = await self._session.execute(
             update(models.Task)
             .where(models.Task.id == task_id, models.Task.owner_id == owner_id)
-            .values(content=data.content, due_at=data.due_at)
+            .values(
+                content=data.content,
+                due_at=data.due_at,
+                reminder_minutes=data.reminder_minutes,
+                reminded_at=None,
+            )
             .returning(models.Task.id)
         )
         return result.first() is not None

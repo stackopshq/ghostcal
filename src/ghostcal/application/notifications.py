@@ -228,6 +228,29 @@ async def send_event_reminder(
     )
 
 
+async def send_task_reminder(
+    mailer: EmailSender,
+    *,
+    to: str,
+    due_at: datetime,
+    timezone: str,
+    minutes_before: int,
+) -> None:
+    """Remind the owner of a task that's due soon. Zero-knowledge: the task is never named — the
+    server only knows the due time."""
+    when = _human(due_at, timezone)
+    lead = _lead_label(minutes_before)
+    await mailer.send(
+        to=to,
+        subject=f"Reminder: a task due {lead}",
+        html=(
+            f"<p>You have a task due {lead}.</p>"
+            f"<p><strong>Due:</strong> {when}</p>"
+            f"<p>Open GhostCal to see it — your tasks are end-to-end encrypted.</p>"
+        ),
+    )
+
+
 def _poll_ics(*, title: str, organizer: str, start_at: datetime, end_at: datetime) -> str:
     lines = [
         "BEGIN:VCALENDAR",

@@ -15,6 +15,7 @@ from ghostcal.application.event_reminders import dispatch_event_reminders
 from ghostcal.application.ports.calendar import CalendarError
 from ghostcal.application.ports.clock import SystemClock
 from ghostcal.application.reminders import DueReminder, dispatch_reminders
+from ghostcal.application.task_reminders import dispatch_task_reminders
 from ghostcal.application.webhooks import sign_payload
 from ghostcal.celery_app import celery_app
 from ghostcal.config import get_settings
@@ -24,6 +25,7 @@ from ghostcal.infrastructure.db.event_reminders_repository import SqlEventRemind
 from ghostcal.infrastructure.db.membership import active_caldav_connections
 from ghostcal.infrastructure.db.reminders_repository import SqlReminderGateway
 from ghostcal.infrastructure.db.session import db_session, org_session, reset_engine
+from ghostcal.infrastructure.db.task_reminders_repository import SqlTaskReminderGateway
 from ghostcal.infrastructure.db.webhooks_repository import SqlWebhookRepository
 from ghostcal.infrastructure.email import build_email_sender
 from ghostcal.infrastructure.security.egress import BlockedOutboundURL, assert_public_url
@@ -111,6 +113,22 @@ async def _send_due_event_reminders() -> int:
                 SqlEventReminderGateway(session), _mailer, now=_clock.now(), scan_window=window
             )
         logger.info("event reminders dispatched: %d", sent)
+    finally:
+        await reset_engine()
+    return sent
+
+
+@celery_app.task(name="ghostcal.send_due_task_reminders")  # type: ignore[untyped-decorator]
+def send_due_task_reminders() -> int:
+    """Send all due task reminders. Returns how many were sent."""
+    return asyncio.run(_send_due_task_reminders())
+
+
+async def _send_due_task_reminders() -> int:
+    try:
+        async with db_session() as session:
+            sent = await dispatch_task_reminders(SqlTaskReminderGateway(session), _mailer)
+        logger.info("task reminders dispatched: %d", sent)
     finally:
         await reset_engine()
     return sent

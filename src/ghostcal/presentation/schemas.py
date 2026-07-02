@@ -586,6 +586,8 @@ class TaskIn(BaseModel):
     # Sealed {title, notes} blob (base64), or null. Due date is cleartext (server sorts/reminds).
     content: str | None = Field(default=None, max_length=16384)
     due_at: datetime | None = None
+    # Minutes before due_at to email a content-less reminder; null = none.
+    reminder_minutes: int | None = Field(default=None, ge=0, le=40320)  # up to 28 days
 
 
 class TaskOut(BaseModel):
@@ -595,6 +597,7 @@ class TaskOut(BaseModel):
     completed: bool
     completed_at: datetime | None = None
     created_at: datetime
+    reminder_minutes: int | None = None
 
 
 class TaskCompleteIn(BaseModel):
