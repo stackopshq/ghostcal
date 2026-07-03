@@ -9,6 +9,7 @@ import {
   sendInvitation,
 } from "@/lib/agenda";
 import { getMe } from "@/lib/auth";
+import { openInGhostMail } from "@/lib/ghostmail";
 import { useT } from "@/lib/i18n";
 
 const STATUS_KEY: Record<string, string> = {
@@ -90,7 +91,23 @@ export default function EventAttendees({
 
   return (
     <div className="flex flex-col gap-2 border-t border-border pt-3">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted">{t("att.title")}</p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted">{t("att.title")}</p>
+        {attendees.length > 0 && (
+          <button
+            type="button"
+            onClick={() =>
+              openInGhostMail({
+                to: attendees.map((a) => a.email),
+                subject: title || t("calendar.untitled"),
+              })
+            }
+            className="flex items-center gap-1 text-xs text-accent hover:underline"
+          >
+            <span aria-hidden>✉️</span> {t("att.emailGuests")}
+          </button>
+        )}
+      </div>
       {attendees.map((a) => (
         <div key={a.id} className="group flex items-center justify-between text-sm">
           <span className="truncate text-foreground">{a.email}</span>
