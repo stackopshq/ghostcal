@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AuthCard, { inputClass, primaryButtonClass } from "@/components/AuthCard";
 import { ApiError } from "@/lib/api";
-import { login } from "@/lib/auth";
+import { beginOidcLogin, getAuthConfig, login } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 
 // Where to land after login: honour a ?next= destination if it's a safe internal path, else the
@@ -28,6 +28,19 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [ssoEnabled, setSsoEnabled] = useState(false);
+
+  useEffect(() => {
+    // Only offer SSO if the backend has a provider configured. Also surface a failed SSO round-trip.
+    getAuthConfig()
+      .then((c) => setSsoEnabled(c.oidc_enabled))
+      .catch(() => setSsoEnabled(false));
+    if (new URLSearchParams(window.location.search).get("sso_error")) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setError(t("login.errSso"));
+      history.replaceState(null, "", window.location.pathname);
+    }
+  }, [t]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -81,6 +94,22 @@ export default function LoginPage() {
         <button type="submit" disabled={submitting} className={primaryButtonClass}>
           {submitting ? t("login.submitting") : t("login.title")}
         </button>
+        {ssoEnabled && (
+          <>
+            <div className="flex items-center gap-3 py-1 text-xs text-muted">
+              <span className="h-px flex-1 bg-border" />
+              {t("common.or")}
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <button
+              type="button"
+              onClick={beginOidcLogin}
+              className="rounded-lg border border-border-strong px-4 py-2 text-sm font-medium text-foreground transition hover:border-accent hover:text-accent"
+            >
+              {t("login.sso")}
+            </button>
+          </>
+        )}
       </form>
     </AuthCard>
   );

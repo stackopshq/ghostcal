@@ -113,22 +113,39 @@ export function getZkKeys(): Promise<ZkKeysOut[]> {
   return authedFetch<ZkKeysOut[]>("/v1/auth/zk-keys");
 }
 
-// Unwrap every org private key with the password and stash them (keyed by org) in the per-tab
-// session store, so the dashboard can decrypt the active org's invitee details. A member of
-// several orgs holds a distinct key per org. Best-effort: a failure here never blocks login.
+// Unwrap every org private key with the given secret (login password, or an SSO user's encryption
+// passphrase — same wrap) and stash them (keyed by org) in the per-tab session store, so the
+// dashboard can decrypt the active org's content. Returns how many of the user's org keys unlocked,
+// so a caller (the unlock screen) can tell a wrong passphrase from an empty vault.
+export async function unlockZkKeys(
+  secret: string,
+): Promise<{ total: number; unlocked: number }> {
+  const keys = await getZkKeys();
+  let unlocked = 0;
+  for (const k of keys) {
+    try {
+      const privateKey = await unlockWithPassword(secret, k.wrapped_private_key, k.wrap_salt);
+      storeUnlockedKey(k.organization_id, { publicKey: k.public_key, privateKey });
+      unlocked += 1;
+    } catch {
+      /* skip an org whose key this secret can't unwrap (e.g. a granted key) */
+    }
+  }
+  return { total: keys.length, unlocked };
+}
+
+// Best-effort unlock used by password login — a failure here never blocks login.
 async function unlockZk(password: string): Promise<void> {
   try {
-    for (const k of await getZkKeys()) {
-      try {
-        const privateKey = await unlockWithPassword(password, k.wrapped_private_key, k.wrap_salt);
-        storeUnlockedKey(k.organization_id, { publicKey: k.public_key, privateKey });
-      } catch {
-        /* skip an org whose key this password can't unwrap (e.g. a granted key) */
-      }
-    }
+    await unlockZkKeys(password);
   } catch {
     /* leave locked; the dashboard will offer to unlock */
   }
+}
+
+/** Whether the user already has zero-knowledge keys (i.e. has set an encryption passphrase). */
+export async function hasZkKeys(): Promise<boolean> {
+  return (await getZkKeys()).length > 0;
 }
 
 export function verifyEmail(token: string): Promise<void> {
@@ -139,6 +156,47 @@ export async function login(email: string, password: string): Promise<void> {
   const tokens = await post<Tokens>("/v1/auth/login", { email, password });
   setTokens(tokens);
   await unlockZk(password);
+}
+
+// --- SSO / OIDC ---------------------------------------------------------------------------------
+
+export type AuthConfig = { oidc_enabled: boolean };
+
+export async function getAuthConfig(): Promise<AuthConfig> {
+  const res = await fetch(`${base()}/v1/auth/config`, { cache: "no-store" });
+  if (!res.ok) return { oidc_enabled: false };
+  return (await res.json()) as AuthConfig;
+}
+
+/** Send the browser to the backend OIDC start route, which 302s to the identity provider. */
+export function beginOidcLogin(): void {
+  window.location.assign(`${base()}/v1/auth/oidc/login`);
+}
+
+// The OIDC callback lands on /auth/callback with the session tokens in the URL *fragment* (never
+// sent to a server). Read them into storage and strip the fragment from the address bar/history.
+export function completeOidcSession(): boolean {
+  if (typeof window === "undefined") return false;
+  const hash = window.location.hash.replace(/^#/, "");
+  if (!hash) return false;
+  const params = new URLSearchParams(hash);
+  const access = params.get("access_token");
+  const refresh = params.get("refresh_token");
+  if (!access || !refresh) return false;
+  setTokens({ access_token: access, refresh_token: refresh });
+  history.replaceState(null, "", window.location.pathname);
+  return true;
+}
+
+// First-time SSO users have no zero-knowledge keys: they choose an encryption passphrase (separate
+// from SSO — the server never sees it), which wraps a fresh org keypair. Returns the one-time
+// recovery phrase to show once. The keys are unlocked into this tab immediately.
+export async function setupEncryptionPassphrase(passphrase: string): Promise<string> {
+  const recoveryPhrase = await generateRecoveryPhrase();
+  const zk_keys: ZkKeyMaterial = await generateKeyMaterial(passphrase, recoveryPhrase);
+  await authedFetch<void>("/v1/auth/zk-keys", { method: "POST", body: JSON.stringify(zk_keys) });
+  await unlockZkKeys(passphrase);
+  return recoveryPhrase;
 }
 
 // Re-wrap every unlocked org key under a new password and persist them. Call after a successful

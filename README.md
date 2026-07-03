@@ -89,6 +89,12 @@ server:
 
 ![Zero-knowledge recovery key at sign-up](docs/assets/register-recovery.png)
 
+**Optional SSO / OIDC.** Sign in with your identity provider (Authlib + PKCE). SSO proves *who* you
+are; a separate encryption passphrase — which the server never sees — is what decrypts your content,
+so single sign-on never weakens the zero-knowledge guarantee:
+
+![Sign in with password or SSO](docs/assets/login-sso-dark.png)
+
 **Host dashboard — decrypted in your browser.** The booking row's name and the "Decrypted details"
 panel (phone, topic, notes) are opened client-side; the server only ever held ciphertext:
 
@@ -164,6 +170,9 @@ Titles and notes are sealed client-side; only the due date is cleartext:
   booking path.
 - **Invitee self-service** — cancel / reschedule via a signed link (no account).
 - **Teams** — organizations, members & roles (owner/admin/member), token invitations.
+- **SSO / OIDC** — optional single-provider sign-in (Authlib, PKCE), off by default. Authentication
+  only: the zero-knowledge content stays sealed and is unlocked by a **separate encryption
+  passphrase** the server never sees (Proton/Bitwarden-style), so SSO never weakens the guarantee.
 - **Meeting polls** — propose times → invitees vote → host finalizes and everyone is emailed.
 - **Notifications** — confirmation/cancellation emails with `.ics`; automated **reminders**
   (Celery). Server-sent mail never names the invitee — that stays encrypted.
