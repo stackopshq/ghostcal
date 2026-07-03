@@ -7,6 +7,7 @@ import CommandPalette from "@/components/CommandPalette";
 import { DashboardUserContext } from "@/components/dashboard-context";
 import NotificationsManager from "@/components/NotificationsManager";
 import OrgSwitcher from "@/components/OrgSwitcher";
+import SuiteSwitcher from "@/components/SuiteSwitcher";
 import { getMe, isAuthenticated, logout, type User } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 
@@ -104,6 +105,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <span className="text-lg text-accent">●</span>
           <span className="text-lg font-semibold tracking-tight text-foreground">GhostCal</span>
         </Link>
+
+        <SuiteSwitcher />
 
         <OrgSwitcher />
 
