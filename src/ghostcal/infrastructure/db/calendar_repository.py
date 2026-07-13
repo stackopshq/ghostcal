@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import delete, insert, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -40,7 +41,7 @@ class SqlCalendarRepository(CalendarRepository):
         )
         shared = (
             await self._session.execute(
-                select(models.Calendar, models.User.name)
+                select(models.Calendar, models.User.name, models.CalendarShare.can_edit)
                 .join(models.CalendarShare, models.CalendarShare.calendar_id == models.Calendar.id)
                 .join(models.User, models.User.id == models.Calendar.owner_id)
                 .where(models.CalendarShare.shared_with_user_id == owner_id)
@@ -48,24 +49,63 @@ class SqlCalendarRepository(CalendarRepository):
             )
         ).all()
         return [_calendar(c) for c in owned] + [
-            _calendar(c, is_shared=True, owner_name=name) for c, name in shared
+            _calendar(c, is_shared=True, owner_name=name, can_edit=can_edit)
+            for c, name, can_edit in shared
         ]
 
     async def share_calendar(
-        self, owner_id: uuid.UUID, calendar_id: uuid.UUID, user_id: uuid.UUID
+        self, owner_id: uuid.UUID, calendar_id: uuid.UUID, user_id: uuid.UUID, *, can_edit: bool
     ) -> bool:
         if not await self._owns(owner_id, calendar_id):
             return False
+        # Upsert rather than do-nothing: re-sharing is how the owner changes read-only to read-write
+        # and back. A silent no-op would leave the owner believing they had granted edit.
         await self._session.execute(
             pg_insert(models.CalendarShare)
             .values(
                 organization_id=self._org_id,
                 calendar_id=calendar_id,
                 shared_with_user_id=user_id,
+                can_edit=can_edit,
             )
-            .on_conflict_do_nothing(index_elements=["calendar_id", "shared_with_user_id"])
+            .on_conflict_do_update(
+                index_elements=["calendar_id", "shared_with_user_id"],
+                set_={"can_edit": can_edit},
+            )
         )
         return True
+
+    # Access is a property of the CALENDAR, not of who happens to have created an event on it. That
+    # is the only rule that stays coherent once a shared calendar can be written to: an event an
+    # editor adds to someone else's calendar has to be visible to its owner, and an owner-keyed rule
+    # would hide it from them.
+
+    def _writable_calendar_ids(self, user_id: uuid.UUID) -> Any:
+        """Calendars the user may write to: their own, plus those shared with them *for editing*."""
+        own = select(models.Calendar.id).where(models.Calendar.owner_id == user_id)
+        shared = select(models.CalendarShare.calendar_id).where(
+            models.CalendarShare.shared_with_user_id == user_id,
+            models.CalendarShare.can_edit.is_(True),
+        )
+        return own.union(shared).subquery().select()
+
+    def _readable_calendar_ids(self, user_id: uuid.UUID) -> Any:
+        """Calendars the user may see: their own, plus every calendar shared with them."""
+        own = select(models.Calendar.id).where(models.Calendar.owner_id == user_id)
+        shared = select(models.CalendarShare.calendar_id).where(
+            models.CalendarShare.shared_with_user_id == user_id
+        )
+        return own.union(shared).subquery().select()
+
+    async def can_write(self, user_id: uuid.UUID, calendar_id: uuid.UUID) -> bool:
+        return (
+            await self._session.execute(
+                select(models.Calendar.id).where(
+                    models.Calendar.id == calendar_id,
+                    models.Calendar.id.in_(self._writable_calendar_ids(user_id)),
+                )
+            )
+        ).scalar_one_or_none() is not None
 
     async def unshare_calendar(
         self, owner_id: uuid.UUID, calendar_id: uuid.UUID, user_id: uuid.UUID
@@ -85,7 +125,7 @@ class SqlCalendarRepository(CalendarRepository):
             return []
         rows = (
             await self._session.execute(
-                select(models.User.id, models.User.name)
+                select(models.User.id, models.User.name, models.CalendarShare.can_edit)
                 .join(
                     models.CalendarShare, models.CalendarShare.shared_with_user_id == models.User.id
                 )
@@ -93,7 +133,7 @@ class SqlCalendarRepository(CalendarRepository):
                 .order_by(models.User.name)
             )
         ).all()
-        return [ShareRecord(user_id=r.id, name=r.name) for r in rows]
+        return [ShareRecord(user_id=r.id, name=r.name, can_edit=r.can_edit) for r in rows]
 
     async def _owns(self, owner_id: uuid.UUID, calendar_id: uuid.UUID) -> bool:
         return (
@@ -149,11 +189,14 @@ class SqlCalendarRepository(CalendarRepository):
             await self._session.execute(
                 select(models.CalendarEvent).where(
                     models.CalendarEvent.id == event_id,
-                    models.CalendarEvent.owner_id == owner_id,
+                    models.CalendarEvent.calendar_id.in_(self._readable_calendar_ids(owner_id)),
                 )
             )
         ).scalar_one_or_none()
-        return _event(row) if row is not None else None
+        if row is None:
+            return None
+        writable = await self.can_write(owner_id, row.calendar_id)
+        return _event(row, read_only=not writable)
 
     async def create_event(self, owner_id: uuid.UUID, data: EventInput) -> uuid.UUID:
         return (
@@ -171,7 +214,9 @@ class SqlCalendarRepository(CalendarRepository):
             update(models.CalendarEvent)
             .where(
                 models.CalendarEvent.id == event_id,
-                models.CalendarEvent.owner_id == owner_id,
+                # The event's *current* calendar must be writable too, or an editor could move an
+                # event off a calendar they may write to and onto one they may not.
+                models.CalendarEvent.calendar_id.in_(self._writable_calendar_ids(owner_id)),
             )
             .values(**_event_values(data))
             .returning(models.CalendarEvent.id)
@@ -183,7 +228,7 @@ class SqlCalendarRepository(CalendarRepository):
             delete(models.CalendarEvent)
             .where(
                 models.CalendarEvent.id == event_id,
-                models.CalendarEvent.owner_id == owner_id,
+                models.CalendarEvent.calendar_id.in_(self._writable_calendar_ids(owner_id)),
             )
             .returning(models.CalendarEvent.id)
         )
@@ -192,11 +237,20 @@ class SqlCalendarRepository(CalendarRepository):
     async def events_overlapping(
         self, owner_id: uuid.UUID, start: datetime, end: datetime
     ) -> list[EventRecord]:
-        # The viewer's own events plus events from calendars shared with them (read-only).
-        shared_calendars = (
-            select(models.CalendarShare.calendar_id)
-            .where(models.CalendarShare.shared_with_user_id == owner_id)
-            .scalar_subquery()
+        # Every event on a calendar the viewer may see — theirs, and those shared with them. Which
+        # of them are editable is a property of the calendar, not of who created the event: an event
+        # an editor added to someone else's calendar belongs to that calendar, and its owner must
+        # see it.
+        writable = set(
+            (
+                await self._session.execute(
+                    select(models.Calendar.id).where(
+                        models.Calendar.id.in_(self._writable_calendar_ids(owner_id))
+                    )
+                )
+            )
+            .scalars()
+            .all()
         )
         rows = (
             (
@@ -207,17 +261,14 @@ class SqlCalendarRepository(CalendarRepository):
                             models.CalendarEvent.rrule.is_not(None),
                             models.CalendarEvent.end_at > start,
                         ),
-                        or_(
-                            models.CalendarEvent.owner_id == owner_id,
-                            models.CalendarEvent.calendar_id.in_(shared_calendars),
-                        ),
+                        models.CalendarEvent.calendar_id.in_(self._readable_calendar_ids(owner_id)),
                     )
                 )
             )
             .scalars()
             .all()
         )
-        return [_event(r, read_only=r.owner_id != owner_id) for r in rows]
+        return [_event(r, read_only=r.calendar_id not in writable) for r in rows]
 
     async def bookings_in_range(
         self, owner_id: uuid.UUID, start: datetime, end: datetime
@@ -294,7 +345,11 @@ class SqlCalendarRepository(CalendarRepository):
 
 
 def _calendar(
-    row: models.Calendar, *, is_shared: bool = False, owner_name: str | None = None
+    row: models.Calendar,
+    *,
+    is_shared: bool = False,
+    owner_name: str | None = None,
+    can_edit: bool = False,
 ) -> CalendarRecord:
     return CalendarRecord(
         id=row.id,
@@ -303,6 +358,8 @@ def _calendar(
         is_default=row.is_default,
         is_shared=is_shared,
         owner_name=owner_name,
+        # A calendar you own is always writable; can_edit only means anything for a shared one.
+        can_edit=can_edit or not is_shared,
     )
 
 

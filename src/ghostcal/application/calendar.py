@@ -28,6 +28,10 @@ class EventNotFound(CalendarError):
     pass
 
 
+class CalendarForbidden(CalendarError):
+    """The caller may not write to that calendar — it is not theirs, and not shared with edit."""
+
+
 @dataclass(frozen=True, slots=True)
 class CalendarRecord:
     id: uuid.UUID
@@ -37,12 +41,17 @@ class CalendarRecord:
     # Set when this calendar belongs to another member and was shared with the viewer (read-only).
     is_shared: bool = False
     owner_name: str | None = None
+    # For a shared calendar: whether the viewer may write to it, not merely read it.
+    can_edit: bool = False
 
 
 @dataclass(frozen=True, slots=True)
 class ShareRecord:
     user_id: uuid.UUID
     name: str
+    # A read-write share. The zero-knowledge property holds either way: both parties are org members
+    # and already hold the org key, so an editor can unseal and re-seal exactly as the owner can.
+    can_edit: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,9 +130,13 @@ class CalendarRepository:
         raise NotImplementedError
 
     async def share_calendar(
-        self, owner_id: uuid.UUID, calendar_id: uuid.UUID, user_id: uuid.UUID
+        self, owner_id: uuid.UUID, calendar_id: uuid.UUID, user_id: uuid.UUID, *, can_edit: bool
     ) -> bool:
         """Share the owner's calendar with another member. False if they don't own it."""
+        raise NotImplementedError
+
+    async def can_write(self, user_id: uuid.UUID, calendar_id: uuid.UUID) -> bool:
+        """Whether the user may add to, change or remove from that calendar."""
         raise NotImplementedError
 
     async def unshare_calendar(
@@ -179,9 +192,14 @@ async def list_calendars(repo: CalendarRepository, owner_id: uuid.UUID) -> list[
 
 
 async def share_calendar(
-    repo: CalendarRepository, owner_id: uuid.UUID, calendar_id: uuid.UUID, user_id: uuid.UUID
+    repo: CalendarRepository,
+    owner_id: uuid.UUID,
+    calendar_id: uuid.UUID,
+    user_id: uuid.UUID,
+    *,
+    can_edit: bool = False,
 ) -> None:
-    if not await repo.share_calendar(owner_id, calendar_id, user_id):
+    if not await repo.share_calendar(owner_id, calendar_id, user_id, can_edit=can_edit):
         raise CalendarNotFound(str(calendar_id))
 
 
@@ -212,6 +230,10 @@ async def create_event(
 ) -> uuid.UUID:
     if data.end_at < data.start_at:
         raise CalendarError("end_at must not be before start_at")
+    # Nothing checked this before: the calendar id came straight off the request, so a member could
+    # drop an event onto a colleague's calendar. RLS scopes to the organization and stops there.
+    if not await repo.can_write(owner_id, data.calendar_id):
+        raise CalendarForbidden(str(data.calendar_id))
     return await repo.create_event(owner_id, data)
 
 
@@ -220,6 +242,8 @@ async def update_event(
 ) -> None:
     if data.end_at < data.start_at:
         raise CalendarError("end_at must not be before start_at")
+    if not await repo.can_write(owner_id, data.calendar_id):
+        raise CalendarForbidden(str(data.calendar_id))
     if not await repo.update_event(owner_id, event_id, data):
         raise EventNotFound(str(event_id))
 

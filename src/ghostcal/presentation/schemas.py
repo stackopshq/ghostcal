@@ -665,6 +665,9 @@ class CalendarOut(BaseModel):
     is_default: bool
     is_shared: bool = False
     owner_name: str | None = None
+    # Whether the viewer may write to it. Always true for a calendar they own; for a shared one it
+    # is what the owner granted.
+    can_edit: bool = True
 
 
 class CalendarIn(BaseModel):
@@ -717,11 +720,15 @@ class AgendaItemOut(BaseModel):
 
 class ShareIn(BaseModel):
     user_id: uuid.UUID
+    # Read-write share. Zero-knowledge holds either way: both are org members and already hold the
+    # org key, so an editor unseals and re-seals exactly as the owner does.
+    can_edit: bool = False
 
 
 class ShareOut(BaseModel):
     user_id: uuid.UUID
     name: str
+    can_edit: bool = False
 
 
 class TaskIn(BaseModel):
