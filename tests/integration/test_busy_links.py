@@ -126,7 +126,7 @@ async def test_an_unknown_token_is_not_a_calendar(admin_engine: AsyncEngine) -> 
 
 
 async def test_revoking_the_link_closes_the_door(admin_engine: AsyncEngine) -> None:
-    org, token = await _seed(admin_engine)
+    _org, token = await _seed(admin_engine)
 
     async with async_sessionmaker(admin_engine)() as s:
         await s.execute(
