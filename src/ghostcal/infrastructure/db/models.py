@@ -39,6 +39,10 @@ from ghostcal.infrastructure.db.types import EncryptedString, EncryptedStringLis
 MEMBERSHIP_ROLES = ("owner", "admin", "member")
 IDENTITY_PROVIDERS = ("google", "microsoft", "oidc")
 BOOKING_STATUSES = ("confirmed", "cancelled", "rescheduled")
+# The single global user that carries records anonymized by account deletion (ADR-0006). It has no
+# credentials, no identities and no memberships, so it can neither authenticate nor appear in a
+# member list. Seeded by migration a1c7e94b52f0.
+TOMBSTONE_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 # How an event type assigns hosts: the owner (solo), one host picked from a pool (round_robin),
 # every pooled host required (collective), or many invitees per slot up to capacity (group).
 EVENT_KINDS = ("solo", "round_robin", "collective", "group")
