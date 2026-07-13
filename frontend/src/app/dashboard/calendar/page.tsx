@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getActiveOrg } from "@/lib/auth";
 import {
-  type CalendarStatus,
-  getCalendarStatus,
-  syncCalendar,
+  type Connection,
+  listConnections,
+  syncAllCalendars,
 } from "@/lib/calendar";
 import {
   type AgendaItem,
@@ -85,10 +85,6 @@ type Draft = {
   occStart: string | null;
   scope: "series" | "occurrence";
 };
-
-// External (CalDAV) events have no calendar_id, so they get a fixed overlay key + colour.
-const EXTERNAL_KEY = "__external__";
-const EXTERNAL_COLOR = "#8b5cff";
 
 const REMINDERS = [
   { value: "", key: "calendar.remindNone" },
@@ -206,13 +202,20 @@ export default function CalendarPage() {
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [newCalOpen, setNewCalOpen] = useState(false);
   const quickRef = useRef<HTMLInputElement>(null);
-  const [caldav, setCaldav] = useState<CalendarStatus | null>(null);
+  // A member may have several external calendars connected. Each is its own overlay, with its own
+  // colour — external events carry their connection id in `calendar_id`, the same convention
+  // subscriptions use, so there is no special case left for "external" here.
+  const [connections, setConnections] = useState<Connection[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [subOpen, setSubOpen] = useState(false);
   const subColorOf = useMemo(
     () => new Map(subscriptions.map((s) => [s.id, s.color])),
     [subscriptions],
+  );
+  const connColorOf = useMemo(
+    () => new Map(connections.map((c) => [c.id, c.color])),
+    [connections],
   );
   const [weatherLoc, setWeatherLoc] = useState<WeatherLocation | null>(null);
   const [weather, setWeather] = useState<WeatherDay[]>([]);
@@ -255,7 +258,7 @@ export default function CalendarPage() {
   async function runSync() {
     setSyncing(true);
     try {
-      await syncCalendar();
+      await syncAllCalendars();
       await load();
     } finally {
       setSyncing(false);
@@ -330,13 +333,13 @@ export default function CalendarPage() {
     const from = fromDate.toISOString();
     const to = toDate.toISOString();
     try {
-      const [cals, agenda, status, subs] = await Promise.all([
+      const [cals, agenda, conns, subs] = await Promise.all([
         listCalendars(),
         getAgenda(from, to),
-        getCalendarStatus().catch(() => null),
+        listConnections().catch(() => []),
         listSubscriptions().catch(() => []),
       ]);
-      setCaldav(status);
+      setConnections(conns);
       setCalendars(cals);
       setSubscriptions(subs);
       const cache = new Map<string, string>();
@@ -638,26 +641,19 @@ export default function CalendarPage() {
     else setCursor(addDays(cursor, dir));
   }
 
-  // Hide toggled-off calendars (native by id, external via a fixed key); colour each event by its
-  // calendar (native colour, or the external overlay colour).
+  // Every source now identifies itself the same way — `calendar_id` carries the id of whatever it
+  // came from (a calendar, a connected account, a subscription) — so hiding and colouring are one
+  // rule rather than three.
   const visibleItems = useMemo(
-    () =>
-      items.filter((it) => {
-        if (it.source === "external") return !hidden.has(EXTERNAL_KEY);
-        return !it.calendar_id || !hidden.has(it.calendar_id);
-      }),
+    () => items.filter((it) => !it.calendar_id || !hidden.has(it.calendar_id)),
     [items, hidden],
   );
-  const colorFor = (it: DecoratedItem): string | undefined =>
-    it.source === "external"
-      ? EXTERNAL_COLOR
-      : it.source === "subscription"
-        ? it.calendar_id
-          ? subColorOf.get(it.calendar_id)
-          : undefined
-        : it.calendar_id
-          ? colorOf.get(it.calendar_id)
-          : undefined;
+  const colorFor = (it: DecoratedItem): string | undefined => {
+    if (!it.calendar_id) return undefined;
+    if (it.source === "external") return connColorOf.get(it.calendar_id);
+    if (it.source === "subscription") return subColorOf.get(it.calendar_id);
+    return colorOf.get(it.calendar_id);
+  };
   const gridItems: GridItem[] = visibleItems.map((it) => ({
     ...it,
     color: colorFor(it),
@@ -838,33 +834,34 @@ export default function CalendarPage() {
             + {t("calendar.newCalendar")}
           </button>
 
-          {/* External (CalDAV) calendar as a first-class, toggleable overlay. */}
-          {caldav?.connected ? (
+          {/* Each connected account is its own toggleable overlay. */}
+          {connections.length > 0 ? (
             <>
-              <button
-                type="button"
-                onClick={() => toggleCalendar(EXTERNAL_KEY)}
-                className={`flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs transition ${
-                  hidden.has(EXTERNAL_KEY)
-                    ? "opacity-40"
-                    : "hover:bg-surface-2/40"
-                }`}
-                title={caldav.username ?? undefined}
-              >
-                <span
-                  aria-hidden
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{
-                    backgroundColor: hidden.has(EXTERNAL_KEY)
-                      ? "transparent"
-                      : EXTERNAL_COLOR,
-                    boxShadow: `inset 0 0 0 1.5px ${EXTERNAL_COLOR}`,
-                  }}
-                />
-                <span className="text-foreground">
-                  {caldav.calendar_name || t("calendar.externalCalendar")}
-                </span>
-              </button>
+              {connections.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => toggleCalendar(c.id)}
+                  className={`flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs transition ${
+                    hidden.has(c.id) ? "opacity-40" : "hover:bg-surface-2/40"
+                  }`}
+                  title={`${c.username}@${c.server_url}`}
+                >
+                  <span
+                    aria-hidden
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{
+                      backgroundColor: hidden.has(c.id)
+                        ? "transparent"
+                        : c.color,
+                      boxShadow: `inset 0 0 0 1.5px ${c.color}`,
+                    }}
+                  />
+                  <span className="text-foreground">
+                    {c.calendar_name || t("calendar.externalCalendar")}
+                  </span>
+                </button>
+              ))}
               <button
                 type="button"
                 onClick={runSync}

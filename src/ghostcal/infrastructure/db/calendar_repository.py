@@ -245,6 +245,7 @@ class SqlCalendarRepository(CalendarRepository):
                     models.ExternalBusy.start_at,
                     models.ExternalBusy.end_at,
                     models.ExternalBusy.summary,
+                    models.ExternalBusy.connection_id,
                 ).where(
                     models.ExternalBusy.host_id == owner_id,
                     models.ExternalBusy.start_at < end,
@@ -252,7 +253,15 @@ class SqlCalendarRepository(CalendarRepository):
                 )
             )
         ).all()
-        return [BusyBlock(start_at=r.start_at, end_at=r.end_at, title=r.summary) for r in rows]
+        return [
+            BusyBlock(
+                start_at=r.start_at,
+                end_at=r.end_at,
+                title=r.summary,
+                connection_id=r.connection_id,
+            )
+            for r in rows
+        ]
 
     async def subscription_events_in_range(
         self, owner_id: uuid.UUID, start: datetime, end: datetime

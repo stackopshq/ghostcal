@@ -1,4 +1,10 @@
-"""Mirror bookings onto the host's external (CalDAV) calendar — best-effort write-back."""
+"""Mirror bookings onto the host's external (CalDAV) calendar — best-effort write-back.
+
+A host may have several calendars connected. Bookings go to exactly one of them — the mirror target
+— because writing each meeting to every connected calendar would duplicate it. Which one that is
+lives in the database (``caldav_connections.mirror_bookings``, a partial unique index), not in a
+guess made here.
+"""
 
 from __future__ import annotations
 
@@ -36,7 +42,7 @@ async def mirror_booking(
     start: datetime,
     end: datetime,
 ) -> None:
-    conn = await conn_repo.get(host_id)
+    conn = await conn_repo.mirror_target(host_id)
     if conn is None:
         return
     uid = mirror_uid(booking_id)
@@ -63,7 +69,7 @@ async def unmirror_booking(
 ) -> None:
     if external_event_uid is None:
         return
-    conn = await conn_repo.get(host_id)
+    conn = await conn_repo.mirror_target(host_id)
     if conn is None:
         return
     await client.delete_event(_credentials(conn, cipher), conn.calendar_url, external_event_uid)

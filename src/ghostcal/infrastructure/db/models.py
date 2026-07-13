@@ -416,11 +416,20 @@ class Booking(TimestampMixin, Base):
 
 
 class CaldavConnection(TimestampMixin, Base):
-    """A host's link to an external CalDAV calendar (one per member for now)."""
+    """A member's link to one external CalDAV calendar. Several per member: work, personal, family.
+
+    Two consequences of there being more than one, both settled in the schema rather than by
+    convention (migration a3d5f8e21c64):
+
+    - ``mirror_bookings`` marks the single calendar bookings are written back to. Mirroring onto
+      every connected calendar would duplicate each meeting; a partial unique index makes "single"
+      true rather than merely intended.
+    - ``color`` makes each account its own toggleable overlay in the calendar, instead of all of
+      them collapsing into one anonymous "External" chip.
+    """
 
     __tablename__ = "caldav_connections"
     __table_args__ = (
-        UniqueConstraint("organization_id", "user_id"),
         CheckConstraint("status IN ('active', 'needs_reauth')", name="status_allowed"),
     )
 
@@ -434,6 +443,10 @@ class CaldavConnection(TimestampMixin, Base):
     password_encrypted: Mapped[str] = mapped_column(Text)
     calendar_url: Mapped[str] = mapped_column(String(2048))
     calendar_name: Mapped[str | None] = mapped_column(String(255))
+    color: Mapped[str] = mapped_column(String(20), default="#7aa2f7", server_default="#7aa2f7")
+    # The one calendar bookings are mirrored onto. At most one per (org, user) — enforced by the
+    # partial unique index uq_caldav_one_mirror_per_user.
+    mirror_bookings: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
     status: Mapped[str] = mapped_column(String(20), default="active")
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

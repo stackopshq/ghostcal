@@ -490,13 +490,19 @@ class CalendarConnectIn(CalendarCredentialsIn):
     calendar_name: str | None = Field(default=None, max_length=255)
 
 
-class CalendarStatusOut(BaseModel):
-    connected: bool
-    server_url: str | None = None
-    username: str | None = None
-    calendar_name: str | None = None
-    status: str | None = None
-    last_synced_at: datetime | None = None
+class ConnectionOut(BaseModel):
+    """One connected external calendar. No credential leaves the server, ever — not even a username
+    would be worth hiding, but the password is not here and never will be."""
+
+    id: uuid.UUID
+    server_url: str
+    username: str
+    calendar_name: str | None
+    color: str
+    # The single calendar bookings are written back to. Exactly one of a user's connections has it.
+    mirror_bookings: bool
+    status: str
+    last_synced_at: datetime | None
 
 
 class SyncResultOut(BaseModel):

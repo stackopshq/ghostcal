@@ -546,6 +546,12 @@ const en: Dict = {
   "cal.findCalendars": "Find calendars",
   "cal.connecting": "Connecting…",
   "cal.connect": "Connect",
+  "cal.addAnother": "+ Connect another calendar",
+  "cal.mirrorTarget": "Bookings land here",
+  "cal.makeMirror": "Put bookings here",
+  "cal.mirrorHint":
+    "Meetings booked with you are written to one of these calendars. Writing them to all of them would show every meeting several times.",
+  "cal.tooMany": "You have connected as many calendars as we allow.",
   "cal.back": "Back",
 };
 
@@ -1077,6 +1083,13 @@ const fr: Dict = {
   "cal.findCalendars": "Trouver les calendriers",
   "cal.connecting": "Connexion…",
   "cal.connect": "Connecter",
+  "cal.addAnother": "+ Connecter un autre calendrier",
+  "cal.mirrorTarget": "Les réservations arrivent ici",
+  "cal.makeMirror": "Y envoyer les réservations",
+  "cal.mirrorHint":
+    "Les rendez-vous pris avec vous sont écrits sur l'un de ces calendriers. Les écrire sur tous ferait apparaître chaque réunion plusieurs fois.",
+  "cal.tooMany":
+    "Vous avez connecté autant de calendriers que nous l'autorisons.",
   "cal.back": "Retour",
 };
 
@@ -1606,6 +1619,12 @@ const es: Dict = {
   "cal.findCalendars": "Buscar calendarios",
   "cal.connecting": "Conectando…",
   "cal.connect": "Conectar",
+  "cal.addAnother": "+ Conectar otro calendario",
+  "cal.mirrorTarget": "Las reservas llegan aquí",
+  "cal.makeMirror": "Enviar aquí las reservas",
+  "cal.mirrorHint":
+    "Las reuniones reservadas contigo se escriben en uno de estos calendarios. Escribirlas en todos mostraría cada reunión varias veces.",
+  "cal.tooMany": "Has conectado tantos calendarios como permitimos.",
   "cal.back": "Atrás",
 };
 

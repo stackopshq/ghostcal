@@ -79,6 +79,9 @@ class BusyBlock:
     start_at: datetime
     end_at: datetime
     title: str | None  # cleartext label for bookings/external busy (None when unknown)
+    # Which connected calendar this came from (external busy only). A member may have several, and
+    # each is its own overlay — so the agenda has to say which, or they all collapse into one chip.
+    connection_id: uuid.UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -269,7 +272,17 @@ async def get_agenda(
     for b in await repo.bookings_in_range(owner_id, start, end):
         items.append(AgendaItem(source="booking", start=b.start_at, end=b.end_at, title=b.title))
     for b in await repo.external_busy_in_range(owner_id, start, end):
-        items.append(AgendaItem(source="external", start=b.start_at, end=b.end_at, title=b.title))
+        items.append(
+            AgendaItem(
+                source="external",
+                start=b.start_at,
+                end=b.end_at,
+                title=b.title,
+                # Same convention subscriptions already use: calendar_id carries the *source* id, so
+                # the frontend colours and toggles each connected account on its own.
+                calendar_id=b.connection_id,
+            )
+        )
     for se in await repo.subscription_events_in_range(owner_id, start, end):
         items.append(
             AgendaItem(

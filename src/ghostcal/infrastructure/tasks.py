@@ -10,7 +10,7 @@ from datetime import timedelta
 
 import httpx
 
-from ghostcal.application.calendars import NotConnected, sync_calendar
+from ghostcal.application.calendars import NotConnected, sync_connection
 from ghostcal.application.event_reminders import dispatch_event_reminders
 from ghostcal.application.ports.calendar import CalendarError
 from ghostcal.application.ports.clock import SystemClock
@@ -63,16 +63,23 @@ async def _sync_all() -> int:
         async with db_session() as session:
             connections = await active_caldav_connections(session)
 
-        for organization_id, user_id in connections:
+        for organization_id, user_id, connection_id in connections:
             try:
                 async with org_session(organization_id) as session:
                     repo = SqlCaldavConnectionRepository(session, organization_id)
-                    await sync_calendar(repo, _cipher, _client, _clock, user_id=user_id)
+                    await sync_connection(
+                        repo,
+                        _cipher,
+                        _client,
+                        _clock,
+                        connection_id=connection_id,
+                        user_id=user_id,
+                    )
                 synced += 1
             except CalendarError, NotConnected:
-                logger.warning("calendar sync failed for org=%s user=%s", organization_id, user_id)
+                logger.warning("calendar sync failed for connection=%s", connection_id)
             except Exception:
-                logger.exception("error syncing org=%s user=%s", organization_id, user_id)
+                logger.exception("error syncing connection=%s", connection_id)
 
         logger.info("calendar sync complete: %d/%d ok", synced, len(connections))
     finally:
