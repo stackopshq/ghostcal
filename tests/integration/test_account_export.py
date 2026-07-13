@@ -181,7 +181,9 @@ async def test_export_carries_no_credential(account: Fixture) -> None:
     assert CALDAV_PASSWORD not in repr(export)
 
 
-async def test_unknown_user_is_rejected() -> None:
+async def test_unknown_user_is_rejected(admin_engine: AsyncEngine) -> None:
+    # admin_engine is not used, but depending on it is what skips this test when no database is
+    # reachable (CI without infra) — every other test here gets that for free through a fixture.
     with pytest.raises(UnknownUser):
         async with db_session() as s:
             await _service(s).export(uuid.uuid4())
