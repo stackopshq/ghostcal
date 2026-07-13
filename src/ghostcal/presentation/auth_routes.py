@@ -134,13 +134,19 @@ async def register(payload: RegisterIn) -> RegisteredOut:
 
 @router.get("/zk-keys", response_model=list[ZkKeysOut])
 async def zk_keys(user: CurrentUser) -> list[ZkKeysOut]:
-    """The user's wrapped zero-knowledge keys (one per org), so the browser can unlock them all."""
+    """Every org key the user holds — one row per (org, generation), newest first (ADR-0007).
+
+    More than one generation per org after a rotation: records sealed under an older generation and
+    not yet re-sealed still need it.
+    """
     async with db_session() as session:
         bundles = await _service(session).get_zk_keys(user.id)
     return [
         ZkKeysOut(
             organization_id=b.organization_id,
             public_key=b.public_key,
+            generation=b.generation,
+            sealed_org_key=b.sealed_org_key,
             wrapped_private_key=b.wrapped_private_key,
             wrap_salt=b.wrap_salt,
             recovery_wrapped_private_key=b.recovery_wrapped_private_key,

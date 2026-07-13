@@ -146,7 +146,42 @@ export async function unwrapKeyFromGrant(
 
 const KEYS = "gc_zk_keys";
 
-export type UnlockedKeys = { publicKey: string; privateKey: string };
+export type UnlockedKeys = {
+  /** The org's CURRENT public key. Everything new is sealed to this one. */
+  publicKey: string;
+  /** The CURRENT generation's private key. */
+  privateKey: string;
+  /**
+   * Private keys of retired generations, newest first (ADR-0007). A record sealed before a rotation
+   * and not yet re-sealed still needs the key it was sealed under, so we keep them all and open by
+   * trying in turn — a sealed blob carries no key id.
+   */
+  previousPrivateKeys?: string[];
+};
+
+/**
+ * Open a sealed blob with whichever generation of the org key actually sealed it.
+ *
+ * Tries the current key first (the common case) and falls back through the retired ones. AES-GCM
+ * authenticates, so a wrong key throws rather than returning plausible garbage: the cost of guessing
+ * is a failed decryption, never a wrong answer.
+ */
+export async function openWithOrgKeys<T>(
+  keys: UnlockedKeys,
+  blob: string,
+  open: (blob: string, privateKey: string) => Promise<T>,
+): Promise<T> {
+  const candidates = [keys.privateKey, ...(keys.previousPrivateKeys ?? [])];
+  let lastError: unknown = new Error("no org key available");
+  for (const privateKey of candidates) {
+    try {
+      return await open(blob, privateKey);
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError;
+}
 
 function readMap(): Record<string, UnlockedKeys> {
   if (typeof window === "undefined") return {};
@@ -239,6 +274,15 @@ export function getUserKeys(): UnlockedKeys | null {
   } catch {
     return null;
   }
+}
+
+/** A fresh org keypair for a rotation. Unlike sign-up, nothing is wrapped under a password: the new
+ * private key reaches each member sealed to *their* public key instead (ADR-0007). */
+export async function generateOrgKeypair(): Promise<{
+  publicKey: string;
+  privateKey: string;
+}> {
+  return generateKeypair();
 }
 
 /** Seal an org private key TO a member's public key — the move a rotation is built on. */

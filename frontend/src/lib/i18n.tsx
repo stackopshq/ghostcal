@@ -365,6 +365,20 @@ const en: Dict = {
     "Handle must be lowercase letters, digits and single hyphens (3–100 chars).",
   "settings.errGeneric": "Could not save. Please try again.",
   // privacy (GDPR: export, retention, erasure)
+  "rotation.title": "Rotate the encryption key",
+  "rotation.sub":
+    "Generates a new organization key and hands it to every member. Do this after removing someone: until you do, the key they may have kept still opens everything — including what you create from now on.",
+  "rotation.rotate": "Rotate the key",
+  "rotation.confirm":
+    "Everything created from now on will be sealed to the new key. Existing records stay readable and are re-sealed afterwards — nothing is lost, and you can stop halfway.",
+  "rotation.confirmRotate": "Rotate now",
+  "rotation.rotating": "Rotating…",
+  "rotation.done": "Rotated. The organization is now on key generation {n}.",
+  "rotation.notReady":
+    "These members have no encryption key yet and must sign in once first, or rotating would lock them out of your organization's data: {names}",
+  "rotation.errNotReady":
+    "Cannot rotate — these members must sign in once first: {names}",
+  "rotation.errFailed": "The rotation failed. Nothing was changed.",
   "privacy.title": "Privacy & data",
   "privacy.sub":
     "Export what we hold, decide how long we keep it, or erase it for good.",
@@ -866,6 +880,21 @@ const fr: Dict = {
     "L'identifiant doit contenir des minuscules, des chiffres et des tirets simples (3 à 100 caractères).",
   "settings.errGeneric": "Impossible d'enregistrer. Réessayez.",
   // privacy (RGPD : export, rétention, effacement)
+  "rotation.title": "Faire tourner la clé de chiffrement",
+  "rotation.sub":
+    "Génère une nouvelle clé d'organisation et la remet à chaque membre. À faire après avoir retiré quelqu'un : tant que ce n'est pas fait, la clé qu'il a pu conserver ouvre encore tout — y compris ce que vous créez désormais.",
+  "rotation.rotate": "Faire tourner la clé",
+  "rotation.confirm":
+    "Tout ce qui sera créé désormais sera scellé à la nouvelle clé. Les enregistrements existants restent lisibles et seront re-scellés ensuite — rien n'est perdu, et vous pouvez interrompre en cours de route.",
+  "rotation.confirmRotate": "Faire tourner maintenant",
+  "rotation.rotating": "Rotation…",
+  "rotation.done":
+    "Rotation effectuée. L'organisation est en génération de clé {n}.",
+  "rotation.notReady":
+    "Ces membres n'ont pas encore de clé de chiffrement et doivent se connecter une fois d'abord, sinon la rotation les verrouillerait hors des données de votre organisation : {names}",
+  "rotation.errNotReady":
+    "Rotation impossible — ces membres doivent se connecter une fois d'abord : {names}",
+  "rotation.errFailed": "La rotation a échoué. Rien n'a été modifié.",
   "privacy.title": "Confidentialité & données",
   "privacy.sub":
     "Exportez ce que nous détenons, décidez combien de temps, ou effacez tout.",
@@ -1365,6 +1394,21 @@ const es: Dict = {
     "El identificador debe tener minúsculas, dígitos y guiones simples (3 a 100 caracteres).",
   "settings.errGeneric": "No se pudo guardar. Inténtalo de nuevo.",
   // privacidad (RGPD: exportación, retención, borrado)
+  "rotation.title": "Rotar la clave de cifrado",
+  "rotation.sub":
+    "Genera una nueva clave de organización y la entrega a cada miembro. Hazlo tras retirar a alguien: hasta entonces, la clave que pueda haber conservado sigue abriéndolo todo, incluido lo que crees a partir de ahora.",
+  "rotation.rotate": "Rotar la clave",
+  "rotation.confirm":
+    "Todo lo que se cree a partir de ahora se sellará con la nueva clave. Los registros existentes siguen siendo legibles y se vuelven a sellar después: no se pierde nada y puedes detenerte a mitad.",
+  "rotation.confirmRotate": "Rotar ahora",
+  "rotation.rotating": "Rotando…",
+  "rotation.done":
+    "Rotación hecha. La organización está en la generación de clave {n}.",
+  "rotation.notReady":
+    "Estos miembros aún no tienen clave de cifrado y deben iniciar sesión una vez primero; de lo contrario, la rotación los dejaría fuera de los datos de tu organización: {names}",
+  "rotation.errNotReady":
+    "No se puede rotar: estos miembros deben iniciar sesión una vez primero: {names}",
+  "rotation.errFailed": "La rotación falló. No se cambió nada.",
   "privacy.title": "Privacidad y datos",
   "privacy.sub":
     "Exporta lo que guardamos, decide cuánto tiempo, o bórralo para siempre.",

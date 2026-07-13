@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { inputClass, primaryButtonClass } from "@/components/AuthCard";
+import KeyRotationSettings from "@/components/KeyRotationSettings";
 import {
   deleteAccount,
   downloadExport,
@@ -190,6 +191,8 @@ export default function PrivacySettings() {
           </p>
         </section>
       )}
+
+      {canManage && <KeyRotationSettings />}
 
       <section className="rounded-xl border border-red-500/40 bg-red-500/5 p-5">
         <h2 className="text-lg font-semibold text-red-400">

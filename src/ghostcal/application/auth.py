@@ -99,12 +99,21 @@ class ZkKeyMaterial:
 
 @dataclass(frozen=True, slots=True)
 class ZkKeyBundle:
-    """What the browser needs to unlock the org private key (recovery copy included for resets)."""
+    """One generation of one org key, as the browser needs it to unlock (ADR-0007).
+
+    A user gets one of these per (org, generation), newest first. Exactly one route in is set:
+    ``sealed_org_key`` (sealed to the user's own public key — generation >= 1), or the
+    password-wrapped pair (generation 0). ``public_key`` is always the org's *current* one.
+    """
 
     organization_id: uuid.UUID
     public_key: str
-    wrapped_private_key: str
-    wrap_salt: str
+    generation: int
+    # Generation >= 1: the org private key sealed to the user's own public key.
+    sealed_org_key: str | None
+    # Generation 0: wrapped under a key derived from the user's password.
+    wrapped_private_key: str | None
+    wrap_salt: str | None
     # NULL for keys received via a team grant (no recovery copy — re-grantable). See ADR-0003.
     recovery_wrapped_private_key: str | None
     recovery_salt: str | None

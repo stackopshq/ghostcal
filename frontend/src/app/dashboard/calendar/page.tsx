@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getActiveOrg } from "@/lib/auth";
-import { type CalendarStatus, getCalendarStatus, syncCalendar } from "@/lib/calendar";
+import {
+  type CalendarStatus,
+  getCalendarStatus,
+  syncCalendar,
+} from "@/lib/calendar";
 import {
   type AgendaItem,
   type CalendarRec,
@@ -43,9 +47,18 @@ import EventAttendees from "@/components/EventAttendees";
 import { useI18n, useT } from "@/lib/i18n";
 import { parseQuickAdd, type QuickAddResult } from "@/lib/quickAdd";
 import { listMembers, type Member } from "@/lib/team";
-import { getUnlockedKeys, openContent, sealContent, type EventContent } from "@/lib/zk";
+import {
+  getUnlockedKeys,
+  openContent,
+  openWithOrgKeys,
+  sealContent,
+  type EventContent,
+} from "@/lib/zk";
 
-const TZ = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
+const TZ =
+  typeof Intl !== "undefined"
+    ? Intl.DateTimeFormat().resolvedOptions().timeZone
+    : "UTC";
 const REPEATS = [
   { value: "", key: "calendar.repeatNone" },
   { value: "FREQ=DAILY", key: "calendar.repeatDaily" },
@@ -91,7 +104,10 @@ function localKey(iso: string): string {
   return ymd(new Date(iso));
 }
 function hm(iso: string): string {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 /** The 42-cell (6×7) grid starting on the Monday on/before the 1st of the month. */
@@ -99,7 +115,11 @@ function monthGrid(year: number, month: number): Date[] {
   const first = new Date(year, month, 1);
   const offset = (first.getDay() + 6) % 7; // Monday-first
   const start = new Date(year, month, 1 - offset);
-  return Array.from({ length: 42 }, (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
+  return Array.from(
+    { length: 42 },
+    (_, i) =>
+      new Date(start.getFullYear(), start.getMonth(), start.getDate() + i),
+  );
 }
 
 type CalView = "month" | "week" | "day";
@@ -112,14 +132,21 @@ function startOfWeek(d: Date): Date {
 }
 /** The visible days for the current view (7 for week, 1 for day; month uses monthGrid). */
 function viewDays(view: CalView, cursor: Date): Date[] {
-  if (view === "day") return [new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate())];
+  if (view === "day")
+    return [
+      new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate()),
+    ];
   const start = startOfWeek(cursor);
   return Array.from({ length: 7 }, (_, i) => addDays(start, i));
 }
 /** The agenda query window [from, to) covering the visible range, with padding for recurrence. */
 function viewWindow(view: CalView, cursor: Date): [Date, Date] {
   if (view === "day") {
-    const s = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate());
+    const s = new Date(
+      cursor.getFullYear(),
+      cursor.getMonth(),
+      cursor.getDate(),
+    );
     return [s, addDays(s, 1)];
   }
   if (view === "week") {
@@ -127,7 +154,10 @@ function viewWindow(view: CalView, cursor: Date): [Date, Date] {
     return [s, addDays(s, 7)];
   }
   const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
-  return [addDays(first, -7), new Date(cursor.getFullYear(), cursor.getMonth() + 1, 7)];
+  return [
+    addDays(first, -7),
+    new Date(cursor.getFullYear(), cursor.getMonth() + 1, 7),
+  ];
 }
 
 export default function CalendarPage() {
@@ -146,17 +176,28 @@ export default function CalendarPage() {
   // Restore the last-used view once on mount (client-only; avoids an SSR/hydration mismatch).
   useEffect(() => {
     const saved = localStorage.getItem("gc_cal_view");
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (saved === "week" || saved === "day" || saved === "month") setView(saved);
+    if (saved === "week" || saved === "day" || saved === "month") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setView(saved);
+    }
   }, []);
   function pickView(v: CalView) {
     setView(v);
     localStorage.setItem("gc_cal_view", v);
   }
 
-  const ownCalendar = useMemo(() => calendars.find((c) => !c.is_shared), [calendars]);
-  const ownCalendars = useMemo(() => calendars.filter((c) => !c.is_shared), [calendars]);
-  const colorOf = useMemo(() => new Map(calendars.map((c) => [c.id, c.color])), [calendars]);
+  const ownCalendar = useMemo(
+    () => calendars.find((c) => !c.is_shared),
+    [calendars],
+  );
+  const ownCalendars = useMemo(
+    () => calendars.filter((c) => !c.is_shared),
+    [calendars],
+  );
+  const colorOf = useMemo(
+    () => new Map(calendars.map((c) => [c.id, c.color])),
+    [calendars],
+  );
   const defaultCalendarId = useMemo(
     () => (ownCalendars.find((c) => c.is_default) ?? ownCalendars[0])?.id ?? "",
     [ownCalendars],
@@ -181,14 +222,20 @@ export default function CalendarPage() {
   const weatherByDay = useMemo(() => {
     const m = new Map<string, { glyph: string; tmax: number; tmin: number }>();
     for (const w of weather) {
-      m.set(w.day, { glyph: weatherGlyph(w.weather_code), tmax: w.temp_max, tmin: w.temp_min });
+      m.set(w.day, {
+        glyph: weatherGlyph(w.weather_code),
+        tmax: w.temp_max,
+        tmin: w.temp_min,
+      });
     }
     return m;
   }, [weather]);
 
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem("gc_cal_hidden") ?? "[]") as string[];
+      const saved = JSON.parse(
+        localStorage.getItem("gc_cal_hidden") ?? "[]",
+      ) as string[];
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (saved.length) setHidden(new Set(saved));
     } catch {
@@ -300,7 +347,9 @@ export default function CalendarPage() {
           let title = cache.get(it.content);
           if (title === undefined) {
             try {
-              title = (await openContent(it.content, keys.privateKey)).title || t("calendar.untitled");
+              title =
+                (await openWithOrgKeys(keys, it.content, openContent)).title ||
+                t("calendar.untitled");
             } catch {
               title = t("calendar.locked");
             }
@@ -384,7 +433,8 @@ export default function CalendarPage() {
 
   // A time-grid event/slot click: edit an event, or create at the clicked day+hour.
   function onGridEvent(it: GridItem) {
-    if (it.source === "event" && it.event_id && !it.read_only) void openEdit(it.event_id, it.start);
+    if (it.source === "event" && it.event_id && !it.read_only)
+      void openEdit(it.event_id, it.start);
   }
 
   async function openEdit(eventId: string, occStartIso: string) {
@@ -394,7 +444,7 @@ export default function CalendarPage() {
     let content: EventContent = { title: "", description: "", location: "" };
     if (ev.content) {
       try {
-        content = await openContent(ev.content, keys.privateKey);
+        content = await openWithOrgKeys(keys, ev.content, openContent);
       } catch {
         /* leave blank if we cannot open it */
       }
@@ -405,7 +455,12 @@ export default function CalendarPage() {
     const masterEnd = new Date(ev.end_at);
     const durationMs = masterEnd.getTime() - masterStart.getTime();
     const occEnd = new Date(occ.getTime() + durationMs);
-    const t24 = (d: Date) => d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
+    const t24 = (d: Date) =>
+      d.toLocaleTimeString(undefined, {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
     setDraft({
       id: ev.id,
       calendarId: ev.calendar_id,
@@ -509,7 +564,11 @@ export default function CalendarPage() {
       : new Date(`${draft.date}T${draft.end}:00`);
     if (draft.allDay) endAt.setDate(endAt.getDate() + 1);
     const content = await sealContent(
-      { title: draft.title, description: draft.description, location: draft.location },
+      {
+        title: draft.title,
+        description: draft.description,
+        location: draft.location,
+      },
       keys.publicKey,
     );
     const detached: EventInput = {
@@ -523,12 +582,16 @@ export default function CalendarPage() {
       reminder_minutes: draft.reminderMinutes,
     };
 
-    const editingOneOccurrence = draft.id && draft.master?.rrule && draft.scope === "occurrence";
+    const editingOneOccurrence =
+      draft.id && draft.master?.rrule && draft.scope === "occurrence";
     if (!draft.id) {
       await createEvent({ ...detached, rrule: draft.rrule || null });
     } else if (editingOneOccurrence && draft.master && draft.occStart) {
       // Exclude this occurrence from the series, then add the edited standalone event.
-      await updateEvent(draft.id, masterWithExdate(draft.master, draft.occStart));
+      await updateEvent(
+        draft.id,
+        masterWithExdate(draft.master, draft.occStart),
+      );
       await createEvent(detached);
     } else {
       // Whole series (or a non-recurring event): update the master in place.
@@ -546,7 +609,10 @@ export default function CalendarPage() {
     if (!draft?.id) return;
     if (draft.master?.rrule && draft.scope === "occurrence" && draft.occStart) {
       // Delete just this occurrence: exclude it from the series.
-      await updateEvent(draft.id, masterWithExdate(draft.master, draft.occStart));
+      await updateEvent(
+        draft.id,
+        masterWithExdate(draft.master, draft.occStart),
+      );
     } else {
       await deleteEvent(draft.id);
     }
@@ -559,7 +625,11 @@ export default function CalendarPage() {
     view === "month"
       ? cursor.toLocaleDateString(locale, { month: "long", year: "numeric" })
       : view === "day"
-        ? cursor.toLocaleDateString(locale, { weekday: "long", month: "long", day: "numeric" })
+        ? cursor.toLocaleDateString(locale, {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+          })
         : `${days[0].toLocaleDateString(locale, { month: "short", day: "numeric" })} – ${days[6].toLocaleDateString(locale, { month: "short", day: "numeric" })}`;
 
   function step(dir: -1 | 1) {
@@ -582,18 +652,29 @@ export default function CalendarPage() {
     it.source === "external"
       ? EXTERNAL_COLOR
       : it.source === "subscription"
-        ? (it.calendar_id ? subColorOf.get(it.calendar_id) : undefined)
+        ? it.calendar_id
+          ? subColorOf.get(it.calendar_id)
+          : undefined
         : it.calendar_id
           ? colorOf.get(it.calendar_id)
           : undefined;
-  const gridItems: GridItem[] = visibleItems.map((it) => ({ ...it, color: colorFor(it) }));
+  const gridItems: GridItem[] = visibleItems.map((it) => ({
+    ...it,
+    color: colorFor(it),
+  }));
 
   const quickPreview = quickParsed
     ? {
         date: new Date(
           `${quickParsed.date}T${quickParsed.allDay ? "00:00" : quickParsed.start}:00`,
-        ).toLocaleDateString(locale, { weekday: "short", month: "short", day: "numeric" }),
-        time: quickParsed.allDay ? t("calendar.allDay") : `${quickParsed.start}–${quickParsed.end}`,
+        ).toLocaleDateString(locale, {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        }),
+        time: quickParsed.allDay
+          ? t("calendar.allDay")
+          : `${quickParsed.start}–${quickParsed.end}`,
       }
     : null;
 
@@ -601,7 +682,9 @@ export default function CalendarPage() {
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-5 p-6 sm:p-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold capitalize text-foreground">{headerLabel}</h1>
+          <h1 className="text-2xl font-semibold capitalize text-foreground">
+            {headerLabel}
+          </h1>
           <p className="mt-1 text-sm text-muted">{t("calendar.sub")}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -696,12 +779,18 @@ export default function CalendarPage() {
               </span>
               <span className="text-accent">{quickPreview.date}</span>
               <span className="text-muted">{quickPreview.time}</span>
-              {quickParsed.location && <span className="text-muted">· {quickParsed.location}</span>}
+              {quickParsed.location && (
+                <span className="text-muted">· {quickParsed.location}</span>
+              )}
               {quickParsed.rrule && <span className="text-muted">· ↻</span>}
-              <span className="text-muted/70">— {t("calendar.quickAddRefine")}</span>
+              <span className="text-muted/70">
+                — {t("calendar.quickAddRefine")}
+              </span>
             </button>
           ) : quickText.trim() ? (
-            <p className="px-1 text-xs text-muted">{t("calendar.quickAddHint")}</p>
+            <p className="px-1 text-xs text-muted">
+              {t("calendar.quickAddHint")}
+            </p>
           ) : null}
         </form>
       )}
@@ -731,7 +820,10 @@ export default function CalendarPage() {
                 <span
                   aria-hidden
                   className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: off ? "transparent" : c.color, boxShadow: `inset 0 0 0 1.5px ${c.color}` }}
+                  style={{
+                    backgroundColor: off ? "transparent" : c.color,
+                    boxShadow: `inset 0 0 0 1.5px ${c.color}`,
+                  }}
                 />
                 <span className="text-foreground">{c.name}</span>
                 {c.is_shared && <span className="text-muted">·</span>}
@@ -753,7 +845,9 @@ export default function CalendarPage() {
                 type="button"
                 onClick={() => toggleCalendar(EXTERNAL_KEY)}
                 className={`flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs transition ${
-                  hidden.has(EXTERNAL_KEY) ? "opacity-40" : "hover:bg-surface-2/40"
+                  hidden.has(EXTERNAL_KEY)
+                    ? "opacity-40"
+                    : "hover:bg-surface-2/40"
                 }`}
                 title={caldav.username ?? undefined}
               >
@@ -761,7 +855,9 @@ export default function CalendarPage() {
                   aria-hidden
                   className="h-2.5 w-2.5 rounded-full"
                   style={{
-                    backgroundColor: hidden.has(EXTERNAL_KEY) ? "transparent" : EXTERNAL_COLOR,
+                    backgroundColor: hidden.has(EXTERNAL_KEY)
+                      ? "transparent"
+                      : EXTERNAL_COLOR,
                     boxShadow: `inset 0 0 0 1.5px ${EXTERNAL_COLOR}`,
                   }}
                 />
@@ -797,7 +893,11 @@ export default function CalendarPage() {
                 className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
                   errored ? "border-danger/50" : "border-border"
                 } ${off ? "opacity-40" : ""}`}
-                title={errored ? (s.last_error ?? undefined) : (s.last_synced_at ?? undefined)}
+                title={
+                  errored
+                    ? (s.last_error ?? undefined)
+                    : (s.last_synced_at ?? undefined)
+                }
               >
                 <button
                   type="button"
@@ -875,7 +975,9 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {subOpen && <SubscribeModal onClose={() => setSubOpen(false)} onDone={load} t={t} />}
+      {subOpen && (
+        <SubscribeModal onClose={() => setSubOpen(false)} onDone={load} t={t} />
+      )}
       {weatherOpen && (
         <WeatherModal
           current={weatherLoc}
@@ -892,7 +994,10 @@ export default function CalendarPage() {
           locale={locale}
           onNewAt={(date, hour) => openNew(date, hour)}
           onEventClick={onGridEvent}
-          labels={{ allDay: t("calendar.allDay"), sharedReadOnly: t("calendar.sharedReadOnly") }}
+          labels={{
+            allDay: t("calendar.allDay"),
+            sharedReadOnly: t("calendar.sharedReadOnly"),
+          }}
           weatherByDay={weatherByDay}
         />
       )}
@@ -910,7 +1015,9 @@ export default function CalendarPage() {
             {grid.map((day) => {
               const key = ymd(day);
               const inMonth = day.getMonth() === month;
-              const dayItems = visibleItems.filter((it) => localKey(it.start) === key);
+              const dayItems = visibleItems.filter(
+                (it) => localKey(it.start) === key,
+              );
               const isToday = key === ymd(new Date());
               return (
                 <button
@@ -947,9 +1054,17 @@ export default function CalendarPage() {
                     return (
                       <span
                         key={i}
-                        title={it.read_only ? t("calendar.sharedReadOnly") : undefined}
+                        title={
+                          it.read_only
+                            ? t("calendar.sharedReadOnly")
+                            : undefined
+                        }
                         onClick={(e) => {
-                          if (it.source === "event" && it.event_id && !it.read_only) {
+                          if (
+                            it.source === "event" &&
+                            it.event_id &&
+                            !it.read_only
+                          ) {
                             e.stopPropagation();
                             void openEdit(it.event_id, it.start);
                           } else {
@@ -978,7 +1093,9 @@ export default function CalendarPage() {
                     );
                   })}
                   {dayItems.length > 3 && (
-                    <span className="text-[10px] text-muted">+{dayItems.length - 3}</span>
+                    <span className="text-[10px] text-muted">
+                      +{dayItems.length - 3}
+                    </span>
                   )}
                 </button>
               );
@@ -999,7 +1116,10 @@ export default function CalendarPage() {
       )}
 
       {shareOpen && ownCalendar && (
-        <ShareModal calendarId={ownCalendar.id} onClose={() => setShareOpen(false)} />
+        <ShareModal
+          calendarId={ownCalendar.id}
+          onClose={() => setShareOpen(false)}
+        />
       )}
 
       {newCalOpen && (
@@ -1015,7 +1135,15 @@ export default function CalendarPage() {
   );
 }
 
-const CAL_COLORS = ["#00f0ff", "#a3ff00", "#ff2d95", "#ffb020", "#8b5cff", "#ff5c5c", "#00d68f"];
+const CAL_COLORS = [
+  "#00f0ff",
+  "#a3ff00",
+  "#ff2d95",
+  "#ffb020",
+  "#8b5cff",
+  "#ff5c5c",
+  "#00d68f",
+];
 
 function NewCalendarModal({
   onClose,
@@ -1043,7 +1171,9 @@ function NewCalendarModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="glass w-full max-w-sm rounded-2xl p-6 shadow-2xl">
-        <h2 className="mb-4 text-lg font-semibold text-foreground">{t("calendar.newCalendar")}</h2>
+        <h2 className="mb-4 text-lg font-semibold text-foreground">
+          {t("calendar.newCalendar")}
+        </h2>
         <input
           autoFocus
           placeholder={t("calendar.calendarName")}
@@ -1059,7 +1189,10 @@ function NewCalendarModal({
               aria-label={c}
               onClick={() => setColor(c)}
               className={`h-6 w-6 rounded-full transition ${color === c ? "ring-2 ring-offset-2 ring-offset-surface" : ""}`}
-              style={{ backgroundColor: c, boxShadow: color === c ? `0 0 0 2px ${c}` : undefined }}
+              style={{
+                backgroundColor: c,
+                boxShadow: color === c ? `0 0 0 2px ${c}` : undefined,
+              }}
             />
           ))}
         </div>
@@ -1119,7 +1252,9 @@ function SubscribeModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="glass w-full max-w-sm rounded-2xl p-6 shadow-2xl">
-        <h2 className="mb-1 text-lg font-semibold text-foreground">{t("calendar.subscribe")}</h2>
+        <h2 className="mb-1 text-lg font-semibold text-foreground">
+          {t("calendar.subscribe")}
+        </h2>
         <p className="mb-4 text-xs text-muted">{t("calendar.subscribeHint")}</p>
         <input
           autoFocus
@@ -1144,7 +1279,10 @@ function SubscribeModal({
               aria-label={c}
               onClick={() => setColor(c)}
               className={`h-6 w-6 rounded-full transition ${color === c ? "ring-2 ring-offset-2 ring-offset-surface" : ""}`}
-              style={{ backgroundColor: c, boxShadow: color === c ? `0 0 0 2px ${c}` : undefined }}
+              style={{
+                backgroundColor: c,
+                boxShadow: color === c ? `0 0 0 2px ${c}` : undefined,
+              }}
             />
           ))}
         </div>
@@ -1219,7 +1357,9 @@ function WeatherModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="glass w-full max-w-sm rounded-2xl p-6 shadow-2xl">
-        <h2 className="mb-1 text-lg font-semibold text-foreground">{t("calendar.weather")}</h2>
+        <h2 className="mb-1 text-lg font-semibold text-foreground">
+          {t("calendar.weather")}
+        </h2>
         <p className="mb-4 text-xs text-muted">{t("calendar.weatherHint")}</p>
         <form
           onSubmit={(e) => {
@@ -1251,12 +1391,18 @@ function WeatherModal({
                 <button
                   type="button"
                   onClick={() =>
-                    onChoose({ name: p.name, latitude: p.latitude, longitude: p.longitude })
+                    onChoose({
+                      name: p.name,
+                      latitude: p.latitude,
+                      longitude: p.longitude,
+                    })
                   }
                   className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm hover:bg-surface-2/40"
                 >
                   <span className="text-foreground">{p.name}</span>
-                  {p.country && <span className="text-xs text-muted">{p.country}</span>}
+                  {p.country && (
+                    <span className="text-xs text-muted">{p.country}</span>
+                  )}
                 </button>
               </li>
             ))}
@@ -1296,7 +1442,13 @@ function WeatherModal({
   );
 }
 
-function ShareModal({ calendarId, onClose }: { calendarId: string; onClose: () => void }) {
+function ShareModal({
+  calendarId,
+  onClose,
+}: {
+  calendarId: string;
+  onClose: () => void;
+}) {
   const t = useT();
   const [members, setMembers] = useState<Member[]>([]);
   const [shared, setShared] = useState<Set<string>>(new Set());
@@ -1331,7 +1483,9 @@ function ShareModal({ calendarId, onClose }: { calendarId: string; onClose: () =
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="glass w-full max-w-md rounded-2xl p-6 shadow-2xl">
-        <h2 className="mb-1 text-lg font-semibold text-foreground">{t("calendar.shareTitle")}</h2>
+        <h2 className="mb-1 text-lg font-semibold text-foreground">
+          {t("calendar.shareTitle")}
+        </h2>
         <p className="mb-4 text-xs text-muted">{t("calendar.shareSub")}</p>
         {loading ? (
           <p className="text-sm text-muted">{t("common.loading")}</p>
@@ -1428,11 +1582,26 @@ function EventModal({
             rows={2}
             className={input}
           />
-          <input type="date" value={draft.date} onChange={(e) => set({ date: e.target.value })} className={input} />
+          <input
+            type="date"
+            value={draft.date}
+            onChange={(e) => set({ date: e.target.value })}
+            className={input}
+          />
           {!draft.allDay && (
             <div className="flex gap-3">
-              <input type="time" value={draft.start} onChange={(e) => set({ start: e.target.value })} className={input} />
-              <input type="time" value={draft.end} onChange={(e) => set({ end: e.target.value })} className={input} />
+              <input
+                type="time"
+                value={draft.start}
+                onChange={(e) => set({ start: e.target.value })}
+                className={input}
+              />
+              <input
+                type="time"
+                value={draft.end}
+                onChange={(e) => set({ end: e.target.value })}
+                className={input}
+              />
             </div>
           )}
           <label className="flex items-center gap-2 text-sm text-muted">
@@ -1452,12 +1621,20 @@ function EventModal({
                     checked={draft.scope === s}
                     onChange={() => set({ scope: s })}
                   />
-                  {t(s === "occurrence" ? "calendar.thisOccurrence" : "calendar.wholeSeries")}
+                  {t(
+                    s === "occurrence"
+                      ? "calendar.thisOccurrence"
+                      : "calendar.wholeSeries",
+                  )}
                 </label>
               ))}
             </div>
           ) : (
-            <select value={draft.rrule} onChange={(e) => set({ rrule: e.target.value })} className={input}>
+            <select
+              value={draft.rrule}
+              onChange={(e) => set({ rrule: e.target.value })}
+              className={input}
+            >
               {REPEATS.map((r) => (
                 <option key={r.value} value={r.value}>
                   {t(r.key)}
@@ -1467,7 +1644,11 @@ function EventModal({
           )}
           <select
             value={draft.reminderMinutes ?? ""}
-            onChange={(e) => set({ reminderMinutes: e.target.value ? Number(e.target.value) : null })}
+            onChange={(e) =>
+              set({
+                reminderMinutes: e.target.value ? Number(e.target.value) : null,
+              })
+            }
             className={input}
           >
             {REMINDERS.map((r) => (
@@ -1500,7 +1681,11 @@ function EventModal({
         </div>
         <div className="mt-5 flex items-center justify-between">
           {draft.id ? (
-            <button type="button" onClick={onDelete} className="text-sm text-red-400 hover:underline">
+            <button
+              type="button"
+              onClick={onDelete}
+              className="text-sm text-red-400 hover:underline"
+            >
               {t("calendar.delete")}
             </button>
           ) : (
