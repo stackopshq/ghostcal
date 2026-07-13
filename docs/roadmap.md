@@ -35,9 +35,11 @@ webhooks; analytics. Multi-tenant Postgres RLS throughout. Full UI in EN/FR/ES.
 - **Phase 2 — sync & richness.** Event reminders (Celery, time-only); recurrence
   overrides/exceptions (edit/delete one occurrence); external CalDAV event titles in the agenda
   (encrypted at rest, read-only).
-- **Phase 3 — shared calendars.** Share a calendar with org members, who decrypt it with the org
-  key they already hold; a sharing/ACL model + agenda inclusion, read-only. The zero-knowledge
-  property holds. *(see [ADR-0005](adr/0005-shared-calendars.md))*
+- **Phase 3 — shared calendars, read-only or read-write.** Share a calendar with org members, who
+  decrypt it with the org key they already hold — so an editor unseals and re-seals exactly as the
+  owner does, and the server sees ciphertext either way. Access is a property of the *calendar*, not
+  of who created an event on it: that is the only rule under which an event an editor adds to your
+  calendar is visible to you. *(see [ADR-0005](adr/0005-shared-calendars.md))*
 
 ### Personal calendar client (the Fantastical layer)
 
@@ -115,8 +117,8 @@ build, security scan).
 ## Later
 
 - **Calendar push & cross-org sharing.** Optional non-ZK **synced** calendars that push to a
-  third-party CalDAV server (clearly labelled — booking write-back already exists); read-write
-  shared calendars; sharing beyond the org via the invitation-fragment grant.
+  third-party CalDAV server (clearly labelled — booking write-back already exists); sharing beyond
+  the org via the invitation-fragment grant.
 - **Remaining ghostmail hooks.** `.ics` import from an email, free-busy sharing, and meeting
   invitations that land directly in the recipient's GhostCal calendar.
 

@@ -211,6 +211,12 @@ export default function CalendarPage() {
     () => calendars.filter((c) => !c.is_shared),
     [calendars],
   );
+  // Where an event can actually be put: calendars you own, plus any shared with you for editing.
+  // Offering a calendar you cannot write to would be an affordance that ends in a 403.
+  const writableCalendars = useMemo(
+    () => calendars.filter((c) => c.can_edit),
+    [calendars],
+  );
   const colorOf = useMemo(
     () => new Map(calendars.map((c) => [c.id, c.color])),
     [calendars],
@@ -860,7 +866,11 @@ export default function CalendarPage() {
                   }}
                 />
                 <span className="text-foreground">{c.name}</span>
-                {c.is_shared && <span className="text-muted">·</span>}
+                {/* A bare dot said nothing. Two people's default calendars are both "My calendar",
+                    so a shared one has to name its owner to be tellable apart at a glance. */}
+                {c.is_shared && (
+                  <span className="text-muted">· {c.owner_name}</span>
+                )}
               </button>
             );
           })}
@@ -1169,7 +1179,7 @@ export default function CalendarPage() {
         <EventModal
           draft={draft}
           setDraft={setDraft}
-          calendars={ownCalendars}
+          calendars={writableCalendars}
           onSave={save}
           onDelete={remove}
           onClose={() => setDraft(null)}
@@ -1503,6 +1513,9 @@ function WeatherModal({
   );
 }
 
+/** What a colleague may do with a shared calendar. */
+type Access = "none" | "read" | "edit";
+
 function ShareModal({
   calendarId,
   onClose,
@@ -1512,7 +1525,8 @@ function ShareModal({
 }) {
   const t = useT();
   const [members, setMembers] = useState<Member[]>([]);
-  const [shared, setShared] = useState<Set<string>>(new Set());
+  // Three states per colleague, not two: not shared, read-only, read-write.
+  const [access, setAccess] = useState<Map<string, Access>>(new Map());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -1521,7 +1535,13 @@ function ShareModal({
       .then(([m, s]) => {
         if (!active) return;
         setMembers(m);
-        setShared(new Set(s.map((x: Share) => x.user_id)));
+        setAccess(
+          new Map(
+            s.map(
+              (x: Share) => [x.user_id, x.can_edit ? "edit" : "read"] as const,
+            ),
+          ),
+        );
       })
       .catch(() => undefined)
       .finally(() => active && setLoading(false));
@@ -1530,15 +1550,17 @@ function ShareModal({
     };
   }, [calendarId]);
 
-  async function toggle(userId: string, on: boolean) {
-    setShared((prev) => {
-      const next = new Set(prev);
-      if (on) next.add(userId);
-      else next.delete(userId);
-      return next;
+  async function setAccessFor(userId: string, next: Access) {
+    setAccess((prev) => {
+      const map = new Map(prev);
+      if (next === "none") map.delete(userId);
+      else map.set(userId, next);
+      return map;
     });
-    if (on) await shareCalendar(calendarId, userId);
-    else await unshareCalendar(calendarId, userId);
+    // Re-sharing is how a grant is changed: the server upserts, so a downgrade to read-only takes
+    // effect rather than quietly doing nothing.
+    if (next === "none") await unshareCalendar(calendarId, userId);
+    else await shareCalendar(calendarId, userId, next === "edit");
   }
 
   return (
@@ -1553,19 +1575,25 @@ function ShareModal({
         ) : (
           <div className="flex max-h-72 flex-col gap-1 overflow-y-auto">
             {members.map((m) => (
-              <label
+              <div
                 key={m.user_id}
-                className="flex items-center justify-between rounded-lg px-2 py-2 text-sm hover:bg-surface-2/50"
+                className="flex items-center justify-between gap-3 rounded-lg px-2 py-2 text-sm"
               >
-                <span className="text-foreground">
+                <span className="min-w-0 flex-1 truncate text-foreground">
                   {m.name} <span className="text-muted">· {m.email}</span>
                 </span>
-                <input
-                  type="checkbox"
-                  checked={shared.has(m.user_id)}
-                  onChange={(e) => void toggle(m.user_id, e.target.checked)}
-                />
-              </label>
+                <select
+                  value={access.get(m.user_id) ?? "none"}
+                  onChange={(e) =>
+                    void setAccessFor(m.user_id, e.target.value as Access)
+                  }
+                  className="rounded-lg border border-border bg-surface-2 px-2 py-1 text-xs text-foreground"
+                >
+                  <option value="none">{t("calendar.shareNone")}</option>
+                  <option value="read">{t("calendar.shareRead")}</option>
+                  <option value="edit">{t("calendar.shareEdit")}</option>
+                </select>
+              </div>
             ))}
           </div>
         )}
@@ -1625,7 +1653,9 @@ function EventModal({
             >
               {calendars.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {/* Two people's default calendars are both called "My calendar". Once a shared one
+                      can be written to, the picker has to say whose it is. */}
+                  {c.is_shared ? `${c.name} · ${c.owner_name}` : c.name}
                 </option>
               ))}
             </select>

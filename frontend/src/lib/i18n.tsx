@@ -273,7 +273,10 @@ const en: Dict = {
   "calendar.share": "Share",
   "calendar.shareTitle": "Share your calendar",
   "calendar.shareSub":
-    "Pick teammates who can see this calendar. They decrypt it with the team key they already hold — read-only.",
+    "Choose what each teammate may do with this calendar. They decrypt it with the team key they already hold — the server never sees any of it, whether they can edit or not.",
+  "calendar.shareNone": "No access",
+  "calendar.shareRead": "Can view",
+  "calendar.shareEdit": "Can edit",
   "calendar.sharedReadOnly": "Shared with you (read-only)",
   "calendar.zkNotice":
     "End-to-end encrypted — the title, location and notes are sealed in your browser.",
@@ -813,7 +816,10 @@ const fr: Dict = {
   "calendar.share": "Partager",
   "calendar.shareTitle": "Partager votre calendrier",
   "calendar.shareSub":
-    "Choisissez les coéquipiers qui peuvent voir ce calendrier. Ils le déchiffrent avec la clé d'équipe qu'ils possèdent déjà — lecture seule.",
+    "Choisissez ce que chaque coéquipier peut faire de ce calendrier. Ils le déchiffrent avec la clé d'équipe qu'ils possèdent déjà — le serveur n'en voit rien, qu'ils puissent éditer ou non.",
+  "calendar.shareNone": "Aucun accès",
+  "calendar.shareRead": "Peut voir",
+  "calendar.shareEdit": "Peut modifier",
   "calendar.sharedReadOnly": "Partagé avec vous (lecture seule)",
   "calendar.zkNotice":
     "Chiffré de bout en bout — le titre, le lieu et les notes sont scellés dans votre navigateur.",
@@ -1352,7 +1358,10 @@ const es: Dict = {
   "calendar.share": "Compartir",
   "calendar.shareTitle": "Compartir tu calendario",
   "calendar.shareSub":
-    "Elige compañeros que pueden ver este calendario. Lo descifran con la clave de equipo que ya tienen — solo lectura.",
+    "Elige qué puede hacer cada compañero con este calendario. Lo descifran con la clave de equipo que ya tienen: el servidor no ve nada, puedan editar o no.",
+  "calendar.shareNone": "Sin acceso",
+  "calendar.shareRead": "Puede ver",
+  "calendar.shareEdit": "Puede editar",
   "calendar.sharedReadOnly": "Compartido contigo (solo lectura)",
   "calendar.zkNotice":
     "Cifrado de extremo a extremo — el título, el lugar y las notas se sellan en tu navegador.",

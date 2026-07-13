@@ -37,3 +37,34 @@ org key**. So a member can already open any event sealed to their org — sharin
   is not retroactive against a cached key — the standing org-key-rotation caveat applies.
 - The agenda's "owner_id == me" filter becomes "mine OR in a calendar shared with me"; RLS still
   guarantees same-org isolation.
+
+
+## Addendum (2026-07-13): read-write sharing
+
+`can_edit` is now real. A share is granted read-only or read-write, and the owner can move it either
+way — re-sharing upserts, so a downgrade takes effect rather than silently doing nothing.
+
+The crypto story is still untouched, and for the same reason as before: both parties are members of
+the same organization and already hold the org key, so an editor unseals and re-seals exactly as the
+owner does. The server sees ciphertext whichever way the grant points.
+
+**What did change is the access model, and it had to.** Visibility was keyed on *who created an
+event* ("events I own, plus calendars shared with me"). That rule collapses the moment an editor can
+add an event to someone else's calendar: the event would be owned by the editor and live on the
+owner's calendar, so the **owner would not see it** — not created by them, and their own calendar is
+not "shared with" them. It would sit on their calendar and they would never know.
+
+So access is now a property of the **calendar**:
+
+- **visible** = events on calendars you own, plus every calendar shared with you;
+- **writable** = calendars you own, plus those shared with you *for editing*;
+- `read_only` on an event = its calendar is not writable by the viewer.
+
+The event's `owner_id` stays as "who created it" — reminders still go to them, which is right: the
+person who put a thing in a calendar is the person who wants to be reminded of it.
+
+**A hole this exposed.** Nothing had ever checked that the calendar an event is created on belongs to
+the caller: the calendar id came straight off the request, and RLS scopes writes to the organization
+and stops there. A colleague could put an event on your calendar — and under the owner-keyed rule you
+would not even have seen it. `create_event`/`update_event` now refuse (403) unless the target
+calendar is writable by the caller.

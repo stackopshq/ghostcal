@@ -10,9 +10,16 @@ export type CalendarRec = {
   is_default: boolean;
   is_shared: boolean;
   owner_name: string | null;
+  /** Whether the viewer may write to it. Always true for a calendar they own. */
+  can_edit: boolean;
 };
 
-export type Share = { user_id: string; name: string };
+export type Share = {
+  user_id: string;
+  name: string;
+  /** A read-write share: they may add to, change and remove from the calendar, not merely read it. */
+  can_edit: boolean;
+};
 
 export type AgendaItem = {
   source: "event" | "booking" | "external" | "subscription";
@@ -56,7 +63,10 @@ export function listCalendars(): Promise<CalendarRec[]> {
   return authedFetch<CalendarRec[]>("/v1/me/calendars");
 }
 
-export function createCalendar(name: string, color: string): Promise<CalendarRec> {
+export function createCalendar(
+  name: string,
+  color: string,
+): Promise<CalendarRec> {
   return authedFetch<CalendarRec>("/v1/me/calendars", {
     method: "POST",
     body: JSON.stringify({ name, color }),
@@ -87,22 +97,42 @@ export function updateEvent(id: string, body: EventInput): Promise<void> {
 }
 
 export function deleteEvent(id: string): Promise<void> {
-  return authedFetch<void>(`/v1/me/calendar/events/${id}`, { method: "DELETE" });
+  return authedFetch<void>(`/v1/me/calendar/events/${id}`, {
+    method: "DELETE",
+  });
 }
 
 export function listShares(calendarId: string): Promise<Share[]> {
   return authedFetch<Share[]>(`/v1/me/calendars/${calendarId}/shares`);
 }
 
-export function shareCalendar(calendarId: string, userId: string): Promise<void> {
+/**
+ * Share a calendar with a colleague, read-only or read-write.
+ *
+ * Re-posting an existing share is how the owner changes their mind about which — the server upserts,
+ * so a downgrade takes effect rather than silently doing nothing.
+ *
+ * Zero-knowledge holds either way: both are members of the same org and already hold the org key, so
+ * an editor unseals and re-seals exactly as the owner does. The server sees ciphertext throughout.
+ */
+export function shareCalendar(
+  calendarId: string,
+  userId: string,
+  canEdit = false,
+): Promise<void> {
   return authedFetch<void>(`/v1/me/calendars/${calendarId}/shares`, {
     method: "POST",
-    body: JSON.stringify({ user_id: userId }),
+    body: JSON.stringify({ user_id: userId, can_edit: canEdit }),
   });
 }
 
-export function unshareCalendar(calendarId: string, userId: string): Promise<void> {
-  return authedFetch<void>(`/v1/me/calendars/${calendarId}/shares/${userId}`, { method: "DELETE" });
+export function unshareCalendar(
+  calendarId: string,
+  userId: string,
+): Promise<void> {
+  return authedFetch<void>(`/v1/me/calendars/${calendarId}/shares/${userId}`, {
+    method: "DELETE",
+  });
 }
 
 // --- Event attendees (personal-calendar invitations) -----------------------------------------
@@ -129,10 +159,16 @@ export function addAttendee(
   });
 }
 
-export function removeAttendee(eventId: string, attendeeId: string): Promise<void> {
-  return authedFetch<void>(`/v1/me/calendar/events/${eventId}/attendees/${attendeeId}`, {
-    method: "DELETE",
-  });
+export function removeAttendee(
+  eventId: string,
+  attendeeId: string,
+): Promise<void> {
+  return authedFetch<void>(
+    `/v1/me/calendar/events/${eventId}/attendees/${attendeeId}`,
+    {
+      method: "DELETE",
+    },
+  );
 }
 
 // Send the invitation email. Cleartext title/location come from the browser (decrypted here) and
@@ -166,13 +202,20 @@ export type InvitePreview = {
   status: string;
 };
 
-export async function getEventInvite(token: string): Promise<InvitePreview | null> {
-  const res = await fetch(`/api/v1/invitations/event/${token}`, { cache: "no-store" });
+export async function getEventInvite(
+  token: string,
+): Promise<InvitePreview | null> {
+  const res = await fetch(`/api/v1/invitations/event/${token}`, {
+    cache: "no-store",
+  });
   if (!res.ok) return null;
   return (await res.json()) as InvitePreview;
 }
 
-export async function respondEventInvite(token: string, status: string): Promise<boolean> {
+export async function respondEventInvite(
+  token: string,
+  status: string,
+): Promise<boolean> {
   const res = await fetch(`/api/v1/invitations/event/${token}/respond`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

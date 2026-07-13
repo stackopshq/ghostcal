@@ -16,6 +16,7 @@ from ghostcal.application.attendees import (
 )
 from ghostcal.application.calendar import (
     CalendarError,
+    CalendarForbidden,
     CalendarNotFound,
     EventInput,
     EventNotFound,
@@ -97,6 +98,7 @@ async def list_my_calendars(member: Member = Depends(current_member)) -> list[Ca
             is_default=c.is_default,
             is_shared=c.is_shared,
             owner_name=c.owner_name,
+            can_edit=c.can_edit,
         )
         for c in calendars
     ]
@@ -110,7 +112,7 @@ async def list_calendar_shares(
         shares = await list_shares(
             _repo(session, member.organization_id), member.user.id, calendar_id
         )
-    return [ShareOut(user_id=s.user_id, name=s.name) for s in shares]
+    return [ShareOut(user_id=s.user_id, name=s.name, can_edit=s.can_edit) for s in shares]
 
 
 @router.post("/calendars/{calendar_id}/shares", status_code=204)
@@ -119,8 +121,14 @@ async def share_my_calendar(
 ) -> None:
     async with org_session(member.organization_id) as session:
         try:
+            # Re-posting an existing share is how the owner flips it between read-only and
+            # read-write, so this upserts rather than refusing.
             await share_calendar(
-                _repo(session, member.organization_id), member.user.id, calendar_id, payload.user_id
+                _repo(session, member.organization_id),
+                member.user.id,
+                calendar_id,
+                payload.user_id,
+                can_edit=payload.can_edit,
             )
         except CalendarNotFound as exc:
             raise HTTPException(status_code=404, detail="calendar not found") from exc
@@ -188,6 +196,10 @@ async def create_my_event(payload: EventIn, member: Member = Depends(current_mem
             event_id = await create_event(
                 _repo(session, member.organization_id), member.user.id, _to_input(payload)
             )
+        except CalendarForbidden as exc:
+            raise HTTPException(
+                status_code=403, detail="you may not write to that calendar"
+            ) from exc
         except CalendarError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
     return CreatedOut(id=event_id)
@@ -223,6 +235,10 @@ async def update_my_event(
             await update_event(
                 _repo(session, member.organization_id), member.user.id, event_id, _to_input(payload)
             )
+        except CalendarForbidden as exc:
+            raise HTTPException(
+                status_code=403, detail="you may not write to that calendar"
+            ) from exc
         except EventNotFound as exc:
             raise HTTPException(status_code=404, detail="event not found") from exc
         except CalendarError as exc:
