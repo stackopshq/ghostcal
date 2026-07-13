@@ -19,10 +19,10 @@ because there is nothing in the background that can read an event. Hence the que
 the event as needing a push, and the next tab that opens with the key unlocked drains it. So the tab
 does not have to be open at the moment of the change — only at some moment after it.
 
-The queue is filled by a **trigger**, not by the application: every write path gets it, including the
-ones written later by someone who never read this file. Deletes are why the queue has to exist at all
-— once the row is gone there is nothing left to mark, so the UID is computed from the event id and
-survives it.
+The queue is filled by a **trigger**, not by the application: every write path gets it, including
+the ones written later by someone who never read this file. Deletes are why the queue has to exist
+at all — once the row is gone there is nothing left to mark, so the UID is computed from the event
+id and survives it.
 
 Revision ID: b5e93a2f7c18
 Revises: a3d5f8e21c64
@@ -77,7 +77,10 @@ def upgrade() -> None:
         sa.Column("external_uid", sa.String(512), nullable=False),
         sa.Column("op", sa.String(10), nullable=False),
         sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
         ),
         sa.CheckConstraint("op IN ('upsert', 'delete')", name="op_allowed"),
         # One pending operation per event: an upsert followed by a delete is a delete, not both.
