@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     # The provider redirects here after consent; must exactly match the app's callback URL and be
     # registered with the IdP. Defaults to the API's own callback if unset.
     oidc_redirect_uri: str | None = None
+    # Expected ``aud`` on a GhostAuth access token presented by the ghostboard portal. Defaults to
+    # the client id — the common case, where GhostAuth mints tokens whose audience is the requesting
+    # client. Set this when the realm issues a distinct resource identifier instead.
+    oidc_audience: str | None = None
 
     # How often the worker re-syncs each connected CalDAV calendar's busy time.
     caldav_sync_interval_seconds: int = 900  # 15 min

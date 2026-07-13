@@ -27,7 +27,17 @@ const SECURITY_HEADERS = [
 const nextConfig: NextConfig = {
   allowedDevOrigins: devOrigins,
   async rewrites() {
-    return [{ source: "/api/:path*", destination: `${API_INTERNAL_URL}/:path*` }];
+    return [
+      { source: "/api/:path*", destination: `${API_INTERNAL_URL}/:path*` },
+      // The ghostboard portal discovers this app at <base_url>/.well-known/ghostapp.yaml, and
+      // base_url is this origin — but the manifest is served by the backend, which is the single
+      // place it is defined. Without this rewrite the portal gets a 404 from Next and the app is
+      // simply invisible to the suite.
+      {
+        source: "/.well-known/ghostapp.yaml",
+        destination: `${API_INTERNAL_URL}/.well-known/ghostapp.yaml`,
+      },
+    ];
   },
   async headers() {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];

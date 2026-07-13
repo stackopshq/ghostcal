@@ -1,0 +1,46 @@
+# GhostApp manifest — published for the ghostboard portal.
+#
+# ghostboard re-validates this whole document and then overlays only its presentation fields onto its
+# local stub; identity/base_url/auth stay pinned by the portal, so those values are informational
+# here. `icon` is intentionally omitted so the portal keeps its own same-origin icon — its CSP blocks
+# cross-origin images.
+#
+# Note what is NOT declared: a `list` widget. GhostCal's server holds event titles, task titles and
+# invitee answers as ciphertext sealed to an organization key it does not have. A "your next
+# meetings" list is not a widget we chose not to build — it is one we *cannot* build, and a design
+# that appears to allow it is a design where the encryption has quietly stopped being real. What the
+# server legitimately knows is times, and therefore counts. Hence: stats, and only stats.
+apiVersion: ghostsuite.io/v1
+kind: GhostApp
+metadata:
+  id: ghostcal
+  name: GhostCal
+  description: Private scheduling and calendar
+  version: 0.1.0
+spec:
+  base_url: https://ghostcal.ghost.local
+  health_endpoint: /healthz
+  auth:
+    required_scopes:
+      - ghostsuite:ghostcal
+  switcher:
+    visible: true
+    order: 20
+    category: productivity
+  widgets:
+    - id: upcoming_meetings
+      kind: stat
+      title: Upcoming meetings
+      size: small
+      data_url: /api/v1/widgets/upcoming
+      refresh_interval: 300
+      required_scopes:
+        - ghostsuite:ghostcal
+    - id: open_tasks
+      kind: stat
+      title: Open tasks
+      size: small
+      data_url: /api/v1/widgets/tasks
+      refresh_interval: 300
+      required_scopes:
+        - ghostsuite:ghostcal

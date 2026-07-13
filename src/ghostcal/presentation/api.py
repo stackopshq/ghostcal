@@ -29,6 +29,7 @@ from ghostcal.presentation.keypair_routes import router as keypair_router
 from ghostcal.presentation.manage_routes import router as manage_router
 from ghostcal.presentation.org_routes import router as org_router
 from ghostcal.presentation.poll_routes import router as poll_router
+from ghostcal.presentation.portal_routes import router as portal_router
 from ghostcal.presentation.profile_routes import router as profile_router
 from ghostcal.presentation.public_poll_routes import router as public_poll_router
 from ghostcal.presentation.reseal_routes import router as reseal_router
@@ -111,6 +112,7 @@ def create_app() -> FastAPI:
     app.include_router(export_router)
     app.include_router(keypair_router)
     app.include_router(reseal_router)
+    app.include_router(portal_router)
     app.include_router(org_router)
     app.include_router(invitations_router)
     app.include_router(poll_router)
