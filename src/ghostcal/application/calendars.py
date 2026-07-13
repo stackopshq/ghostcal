@@ -1,4 +1,16 @@
-"""CalDAV connection management and busy-sync use cases (host dashboard)."""
+"""CalDAV connection management and busy-sync use cases (host dashboard).
+
+A member may connect **several** external calendars — work, personal, a shared family one. That is
+ordinary for a calendar client, and it is why everything here is keyed by *connection*, not by user.
+
+Two things stop being obvious once there is more than one calendar, and both are decided rather than
+left to whichever code path happens to run first:
+
+- bookings mirror onto **one** calendar (``mirror_bookings``), because writing each meeting to every
+  connected calendar would duplicate it;
+- each connection carries its own **colour**, so it is its own overlay in the calendar rather than
+  vanishing into a single anonymous "External" bucket.
+"""
 
 from __future__ import annotations
 
@@ -18,7 +30,19 @@ from ghostcal.application.ports.clock import Clock
 
 
 class NotConnected(Exception):
-    pass
+    """No such connection for this user."""
+
+
+class TooManyConnections(Exception):
+    """A cap on connected calendars — each one is a credential we hold and a URL we poll."""
+
+
+# Enough for work + personal + family + a spare, and low enough that a runaway client cannot turn an
+# account into a crawler pointed at someone else's server.
+MAX_CONNECTIONS = 8
+
+# Cycled through when connecting a calendar, so two accounts do not land on the same overlay colour.
+PALETTE = ("#7aa2f7", "#bb9af7", "#7dcfff", "#9ece6a", "#e0af68", "#f7768e", "#2ac3de", "#c0caf5")
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +54,8 @@ class ConnectionRecord:
     password_encrypted: str
     calendar_url: str
     calendar_name: str | None
+    color: str
+    mirror_bookings: bool
     status: str
     last_synced_at: datetime | None
 
@@ -43,10 +69,17 @@ class SecretCipher(Protocol):
 
 
 class CaldavConnectionRepository:
-    async def get(self, user_id: uuid.UUID) -> ConnectionRecord | None:
+    async def list_for_user(self, user_id: uuid.UUID) -> list[ConnectionRecord]:
         raise NotImplementedError
 
-    async def save(
+    async def get(self, connection_id: uuid.UUID, user_id: uuid.UUID) -> ConnectionRecord | None:
+        raise NotImplementedError
+
+    async def mirror_target(self, user_id: uuid.UUID) -> ConnectionRecord | None:
+        """The one calendar bookings are written back to, if any."""
+        raise NotImplementedError
+
+    async def create(
         self,
         user_id: uuid.UUID,
         *,
@@ -55,10 +88,16 @@ class CaldavConnectionRepository:
         password_encrypted: str,
         calendar_url: str,
         calendar_name: str | None,
+        color: str,
+        mirror_bookings: bool,
     ) -> uuid.UUID:
         raise NotImplementedError
 
-    async def delete(self, user_id: uuid.UUID) -> bool:
+    async def delete(self, connection_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+        raise NotImplementedError
+
+    async def set_mirror_target(self, connection_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+        """Make this the calendar bookings mirror onto, clearing whichever one was."""
         raise NotImplementedError
 
     async def replace_busy(
@@ -78,6 +117,12 @@ async def list_available_calendars(
     )
 
 
+async def list_connections(
+    repo: CaldavConnectionRepository, user_id: uuid.UUID
+) -> list[ConnectionRecord]:
+    return await repo.list_for_user(user_id)
+
+
 async def connect_calendar(
     repo: CaldavConnectionRepository,
     cipher: SecretCipher,
@@ -89,31 +134,54 @@ async def connect_calendar(
     calendar_url: str,
     calendar_name: str | None,
 ) -> uuid.UUID:
-    return await repo.save(
+    """Connect another external calendar.
+
+    The first one connected becomes the booking mirror target — with nothing else to be, it is the
+    only sensible default; the user can move it afterwards. Later ones do not, because silently
+    re-pointing where a host's meetings are written is not a thing to do on their behalf.
+    """
+    existing = await repo.list_for_user(user_id)
+    if len(existing) >= MAX_CONNECTIONS:
+        raise TooManyConnections(f"at most {MAX_CONNECTIONS} calendars can be connected")
+
+    return await repo.create(
         user_id,
         server_url=server_url,
         username=username,
         password_encrypted=cipher.encrypt(password),
         calendar_url=calendar_url,
         calendar_name=calendar_name,
+        color=PALETTE[len(existing) % len(PALETTE)],
+        mirror_bookings=not existing,
     )
 
 
-async def disconnect_calendar(repo: CaldavConnectionRepository, user_id: uuid.UUID) -> None:
-    await repo.delete(user_id)
+async def disconnect_calendar(
+    repo: CaldavConnectionRepository, connection_id: uuid.UUID, user_id: uuid.UUID
+) -> None:
+    if not await repo.delete(connection_id, user_id):
+        raise NotConnected()
 
 
-async def sync_calendar(
+async def choose_mirror_target(
+    repo: CaldavConnectionRepository, connection_id: uuid.UUID, user_id: uuid.UUID
+) -> None:
+    if not await repo.set_mirror_target(connection_id, user_id):
+        raise NotConnected()
+
+
+async def sync_connection(
     repo: CaldavConnectionRepository,
     cipher: SecretCipher,
     client: CalendarClient,
     clock: Clock,
     *,
+    connection_id: uuid.UUID,
     user_id: uuid.UUID,
     window_days: int = 60,
 ) -> int:
-    """Pull busy intervals into ``external_busy``. Returns the number of busy blocks synced."""
-    record = await repo.get(user_id)
+    """Pull one connection's busy intervals into ``external_busy``. Returns how many synced."""
+    record = await repo.get(connection_id, user_id)
     if record is None:
         raise NotConnected()
 
@@ -134,3 +202,31 @@ async def sync_calendar(
     await repo.replace_busy(record.id, user_id, busy)
     await repo.mark_synced(record.id, now, status="active")
     return len(busy)
+
+
+async def sync_all_for_user(
+    repo: CaldavConnectionRepository,
+    cipher: SecretCipher,
+    client: CalendarClient,
+    clock: Clock,
+    *,
+    user_id: uuid.UUID,
+    window_days: int = 60,
+) -> int:
+    """Sync every calendar the user has connected. One failing account does not stop the others —
+    a stale password on the work calendar must not silently freeze the personal one."""
+    synced = 0
+    for record in await repo.list_for_user(user_id):
+        try:
+            synced += await sync_connection(
+                repo,
+                cipher,
+                client,
+                clock,
+                connection_id=record.id,
+                user_id=user_id,
+                window_days=window_days,
+            )
+        except CalendarAuthError, NotConnected:
+            continue
+    return synced

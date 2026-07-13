@@ -71,12 +71,16 @@ async def poll_organization_by_slug(session: AsyncSession, slug: str) -> uuid.UU
 
 async def active_caldav_connections(
     session: AsyncSession,
-) -> list[tuple[uuid.UUID, uuid.UUID]]:
-    """All active connections as (organization_id, user_id) across tenants (for the worker)."""
+) -> list[tuple[uuid.UUID, uuid.UUID, uuid.UUID]]:
+    """All active connections as (organization_id, user_id, connection_id), across tenants.
+
+    Per *connection*, not per user: a member may have several calendars, and one of them failing to
+    sync must not stop the others.
+    """
     result = await session.execute(
-        text("SELECT organization_id, user_id FROM caldav_active_connections()")
+        text("SELECT id, organization_id, user_id FROM caldav_active_connections()")
     )
-    return [(row.organization_id, row.user_id) for row in result.all()]
+    return [(row.organization_id, row.user_id, row.id) for row in result.all()]
 
 
 async def active_subscriptions(
