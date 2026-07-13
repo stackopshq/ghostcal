@@ -17,6 +17,7 @@ from zoneinfo import ZoneInfo
 from ghostcal.application.event_types import BookingQuestion
 from ghostcal.application.ports.clock import Clock
 from ghostcal.domain.availability import EventType, Schedule, compute_slots
+from ghostcal.domain.calendar import RecurringEvent, expand
 from ghostcal.domain.time import TimeRange
 
 MAX_GUESTS = 10
@@ -147,6 +148,12 @@ class SchedulingRepository(Protocol):
         self, host_id: uuid.UUID, start: datetime, end: datetime
     ) -> list[TimeRange]: ...
 
+    async def busy_events(
+        self, host_id: uuid.UUID, start: datetime, end: datetime
+    ) -> list[RecurringEvent]:
+        """The host's own calendar events, unexpanded. Times only — the content stays sealed."""
+        ...
+
     async def host_loads(self, host_ids: tuple[uuid.UUID, ...]) -> dict[uuid.UUID, int]:
         """Confirmed-booking counts per host (for round-robin load balancing)."""
         ...
@@ -212,6 +219,31 @@ async def get_booking_page(repo: SchedulingRepository) -> BookingPage:
     return BookingPage(organization_name=name, event_types=await repo.list_active_event_types())
 
 
+async def busy_for(
+    repo: SchedulingRepository, host_id: uuid.UUID, start: datetime, end: datetime
+) -> list[TimeRange]:
+    """What "busy" means. One definition, and this is it.
+
+    Three sources, and the third is the one that was missing:
+
+    - confirmed bookings that occupy the host (a group booking does not: invitees share a slot);
+    - busy time synced from the host's external (CalDAV) calendar;
+    - **the host's own GhostCal events.**
+
+    Without the third, "Dentist, 14:00" in your own calendar did not stop a stranger booking you at
+    14:00 through your booking page — the engine simply could not see it. The agenda view has always
+    shown all three together; the scheduler only ever looked at two, and so the product held two
+    contradictory answers to "am I free?".
+
+    Times only. The events' contents stay sealed and are never opened here — the scheduler does not
+    need to know *what* you are doing to know that you are doing something.
+    """
+    busy = await repo.get_busy(host_id, start, end)
+    for event in await repo.busy_events(host_id, start, end):
+        busy.extend(TimeRange(occ.start, occ.end) for occ in expand(event, start, end))
+    return busy
+
+
 async def _host_day_slots(
     repo: SchedulingRepository,
     host: HostRef,
@@ -220,7 +252,7 @@ async def _host_day_slots(
     from_date: date,
     to_date: date,
 ) -> list[TimeRange]:
-    busy = await repo.get_busy(host.host_id, *_busy_bounds(from_date, to_date))
+    busy = await busy_for(repo, host.host_id, *_busy_bounds(from_date, to_date))
     return compute_slots(
         schedule=host.schedule,
         event=event,

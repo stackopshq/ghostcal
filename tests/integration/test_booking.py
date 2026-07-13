@@ -187,3 +187,119 @@ async def test_external_busy_blocks_availability(
         repo = SqlSchedulingRepository(session, org)
         slots = await get_availability(repo, CLOCK, event_type_id=event, from_date=DAY, to_date=DAY)
     assert FIRST_SLOT not in {slot.start for slot in slots}
+
+
+async def test_my_own_event_blocks_availability(
+    bookable: dict[str, uuid.UUID], admin_engine: AsyncEngine
+) -> None:
+    """ "Dentist, 09:00" in your own calendar must stop a stranger booking you at 09:00.
+
+    It did not. The scheduler saw confirmed bookings and CalDAV busy time, and nothing else — so the
+    agenda showed you occupied while the booking page sold the same half hour.
+    """
+    org, host, event = bookable["org"], bookable["host"], bookable["event"]
+
+    async with async_sessionmaker(admin_engine)() as s:
+        calendar = models.Calendar(organization_id=org, owner_id=host, name="Personal")
+        s.add(calendar)
+        await s.flush()
+        s.add(
+            models.CalendarEvent(
+                organization_id=org,
+                owner_id=host,
+                calendar_id=calendar.id,
+                start_at=FIRST_SLOT,
+                end_at=FIRST_SLOT + timedelta(minutes=30),
+                timezone="UTC",
+                content="sealed-and-none-of-the-scheduler's-business",
+            )
+        )
+        await s.commit()
+
+    async with org_session(org) as session:
+        repo = SqlSchedulingRepository(session, org)
+        slots = await get_availability(repo, CLOCK, event_type_id=event, from_date=DAY, to_date=DAY)
+
+    starts = {slot.start for slot in slots}
+    assert FIRST_SLOT not in starts
+    assert FIRST_SLOT + timedelta(minutes=30) in starts  # and only that half hour is taken
+
+
+async def test_a_recurring_event_blocks_every_occurrence(
+    bookable: dict[str, uuid.UUID], admin_engine: AsyncEngine
+) -> None:
+    """A weekly stand-up created months ago is what makes you busy today.
+
+    Its master row starts long before the window being asked about, so a query that only fetches
+    events overlapping the window would miss it entirely — and the recurrence would block nothing.
+    """
+    org, host, event = bookable["org"], bookable["host"], bookable["event"]
+    weeks_earlier = FIRST_SLOT - timedelta(weeks=8)
+
+    async with async_sessionmaker(admin_engine)() as s:
+        calendar = models.Calendar(organization_id=org, owner_id=host, name="Work")
+        s.add(calendar)
+        await s.flush()
+        s.add(
+            models.CalendarEvent(
+                organization_id=org,
+                owner_id=host,
+                calendar_id=calendar.id,
+                start_at=weeks_earlier,  # DAY is a Monday, and so is this
+                end_at=weeks_earlier + timedelta(minutes=30),
+                timezone="UTC",
+                rrule="FREQ=WEEKLY;BYDAY=MO",
+                content="sealed",
+            )
+        )
+        await s.commit()
+
+    async with org_session(org) as session:
+        repo = SqlSchedulingRepository(session, org)
+        slots = await get_availability(repo, CLOCK, event_type_id=event, from_date=DAY, to_date=DAY)
+    assert FIRST_SLOT not in {slot.start for slot in slots}
+
+
+async def test_someone_elses_calendar_does_not_occupy_you(
+    bookable: dict[str, uuid.UUID], admin_engine: AsyncEngine
+) -> None:
+    """A colleague's calendar, shared with you, is *their* time. It must not eat your slots."""
+    org, host, event = bookable["org"], bookable["host"], bookable["event"]
+
+    async with async_sessionmaker(admin_engine)() as s:
+        colleague = models.User(
+            email=f"colleague-{uuid.uuid4().hex[:8]}@example.test",
+            name="Colleague",
+            email_verified_at=datetime.now(UTC),
+        )
+        s.add(colleague)
+        await s.flush()
+        s.add(models.Membership(organization_id=org, user_id=colleague.id, role="member"))
+        calendar = models.Calendar(organization_id=org, owner_id=colleague.id, name="Theirs")
+        s.add(calendar)
+        await s.flush()
+        s.add(
+            models.CalendarShare(
+                organization_id=org,
+                calendar_id=calendar.id,
+                shared_with_user_id=host,
+                can_edit=False,
+            )
+        )
+        s.add(
+            models.CalendarEvent(
+                organization_id=org,
+                owner_id=colleague.id,
+                calendar_id=calendar.id,
+                start_at=FIRST_SLOT,
+                end_at=FIRST_SLOT + timedelta(minutes=30),
+                timezone="UTC",
+                content="sealed",
+            )
+        )
+        await s.commit()
+
+    async with org_session(org) as session:
+        repo = SqlSchedulingRepository(session, org)
+        slots = await get_availability(repo, CLOCK, event_type_id=event, from_date=DAY, to_date=DAY)
+    assert FIRST_SLOT in {slot.start for slot in slots}
