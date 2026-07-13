@@ -276,6 +276,23 @@ export function getUserKeys(): UnlockedKeys | null {
   }
 }
 
+/**
+ * Re-seal a blob from whichever retired key opened it to the org's current key (ADR-0007).
+ *
+ * Note what this does NOT do: parse the plaintext. It moves bytes from one envelope to another, so
+ * it works for an invitee blob, an event's content and a task's content alike, and it keeps working
+ * if what is inside them ever changes. The re-seal pass has no business knowing what it is carrying.
+ */
+export async function reseal(
+  blob: string,
+  keys: UnlockedKeys,
+): Promise<string> {
+  const plaintext = await openWithOrgKeys(keys, blob, (b, privateKey) =>
+    openSealed(privateKey, b),
+  );
+  return sealToPublicKey(keys.publicKey, plaintext);
+}
+
 /** A fresh org keypair for a rotation. Unlike sign-up, nothing is wrapped under a password: the new
  * private key reaches each member sealed to *their* public key instead (ADR-0007). */
 export async function generateOrgKeypair(): Promise<{
