@@ -168,6 +168,21 @@ async def test_sealed_content_stays_sealed(account: Fixture) -> None:
     assert export.bookings[0].invitee_private_sealed == SEALED_INVITEE
 
 
+async def test_every_sealed_record_says_which_organization_seals_it(account: Fixture) -> None:
+    """Sealing is per-organization, so a sealed record must carry its org or it cannot be opened.
+
+    A user may belong to several organizations, each with its own keypair. Without this, the browser
+    would hold a pile of ciphertext and no way to tell which key opens which blob — the export would
+    be undecryptable exactly where it matters most.
+    """
+    async with db_session() as s:
+        export = await _service(s).export(account.user)
+
+    assert export.calendars[0].organization_id == account.org
+    assert export.tasks[0].organization_id == account.org
+    assert export.bookings[0].organization_id == account.org
+
+
 async def test_export_carries_no_credential(account: Fixture) -> None:
     """An export ends up in a Downloads folder. Nothing secret may ride along."""
     async with db_session() as s:
