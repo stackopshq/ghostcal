@@ -99,7 +99,8 @@ class SqlAuthRepository(AuthRepository):
             await self._session.execute(
                 text(
                     "SELECT organization_id, public_key, wrapped_private_key, wrap_salt, "
-                    "recovery_wrapped_private_key, recovery_salt FROM get_zk_keys(:uid)"
+                    "recovery_wrapped_private_key, recovery_salt, generation, sealed_org_key "
+                    "FROM get_zk_keys(:uid)"
                 ),
                 {"uid": user_id},
             )
@@ -108,6 +109,8 @@ class SqlAuthRepository(AuthRepository):
             ZkKeyBundle(
                 organization_id=row.organization_id,
                 public_key=row.public_key,
+                generation=row.generation,
+                sealed_org_key=row.sealed_org_key,
                 wrapped_private_key=row.wrapped_private_key,
                 wrap_salt=row.wrap_salt,
                 recovery_wrapped_private_key=row.recovery_wrapped_private_key,

@@ -12,7 +12,12 @@ import {
   type Task,
   updateTask,
 } from "@/lib/tasks";
-import { getUnlockedKeys, openTaskContent, sealTaskContent } from "@/lib/zk";
+import {
+  getUnlockedKeys,
+  openTaskContent,
+  openWithOrgKeys,
+  sealTaskContent,
+} from "@/lib/zk";
 
 type Decorated = Task & { title: string; notes: string };
 
@@ -25,14 +30,21 @@ const REMINDERS: { value: string; key: string }[] = [
   { value: "1440", key: "tasks.remind1d" },
 ];
 
-function dueLabel(iso: string, locale: string): { text: string; overdue: boolean } {
+function dueLabel(
+  iso: string,
+  locale: string,
+): { text: string; overdue: boolean } {
   const d = new Date(iso);
   const now = new Date();
   const overdue = d.getTime() < now.getTime();
   const sameDay = d.toDateString() === now.toDateString();
   const text = sameDay
     ? d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })
-    : d.toLocaleDateString(locale, { weekday: "short", month: "short", day: "numeric" });
+    : d.toLocaleDateString(locale, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      });
   return { text, overdue };
 }
 
@@ -46,7 +58,10 @@ export default function TasksPage() {
   const [busy, setBusy] = useState(false);
 
   // Parse a due date out of the quick-add text (title is what's left once the date is removed).
-  const parsed = useMemo(() => (quick.trim() ? parseQuickAdd(quick, locale) : null), [quick, locale]);
+  const parsed = useMemo(
+    () => (quick.trim() ? parseQuickAdd(quick, locale) : null),
+    [quick, locale],
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -65,7 +80,11 @@ export default function TasksPage() {
           let notes = "";
           if (task.content) {
             try {
-              const c = await openTaskContent(task.content, keys.privateKey);
+              const c = await openWithOrgKeys(
+                keys,
+                task.content,
+                openTaskContent,
+              );
               title = c.title;
               notes = c.notes;
             } catch {
@@ -109,7 +128,10 @@ export default function TasksPage() {
           : parsed?.allDay
             ? new Date(`${parsed.date}T09:00:00`).toISOString()
             : null;
-      const content = await sealTaskContent({ title, notes: "" }, keys.publicKey);
+      const content = await sealTaskContent(
+        { title, notes: "" },
+        keys.publicKey,
+      );
       await createTask({ content, due_at: dueAt });
       setQuick("");
       await load();
@@ -128,7 +150,10 @@ export default function TasksPage() {
     if (!keys?.publicKey) return;
     const next = window.prompt(t("tasks.rename"), task.title);
     if (next === null || next.trim() === task.title) return;
-    const content = await sealTaskContent({ title: next.trim(), notes: task.notes }, keys.publicKey);
+    const content = await sealTaskContent(
+      { title: next.trim(), notes: task.notes },
+      keys.publicKey,
+    );
     await updateTask(task.id, {
       content,
       due_at: task.due_at,
@@ -142,8 +167,15 @@ export default function TasksPage() {
   async function setReminder(task: Decorated, minutes: number | null) {
     const keys = getUnlockedKeys(getActiveOrg());
     if (!keys?.publicKey) return;
-    const content = await sealTaskContent({ title: task.title, notes: task.notes }, keys.publicKey);
-    await updateTask(task.id, { content, due_at: task.due_at, reminder_minutes: minutes });
+    const content = await sealTaskContent(
+      { title: task.title, notes: task.notes },
+      keys.publicKey,
+    );
+    await updateTask(task.id, {
+      content,
+      due_at: task.due_at,
+      reminder_minutes: minutes,
+    });
     await load();
   }
 
@@ -158,7 +190,9 @@ export default function TasksPage() {
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-col gap-5 p-6 sm:p-10">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">{t("tasks.title")}</h1>
+        <h1 className="text-2xl font-semibold text-foreground">
+          {t("tasks.title")}
+        </h1>
         <p className="mt-1 text-sm text-muted">{t("tasks.sub")}</p>
       </div>
 
@@ -197,15 +231,20 @@ export default function TasksPage() {
           </form>
           {parsed && !parsed.allDay && (
             <p className="px-1 text-xs text-muted">
-              {t("tasks.duePreview")}: <span className="text-accent">{`${parsed.date} ${parsed.start}`}</span>
+              {t("tasks.duePreview")}:{" "}
+              <span className="text-accent">{`${parsed.date} ${parsed.start}`}</span>
             </p>
           )}
 
-          {loading && <p className="text-sm text-muted">{t("common.loading")}</p>}
+          {loading && (
+            <p className="text-sm text-muted">{t("common.loading")}</p>
+          )}
 
           {!loading && (
             <ul className="flex flex-col gap-1">
-              {active.length === 0 && <li className="text-sm text-muted">{t("tasks.empty")}</li>}
+              {active.length === 0 && (
+                <li className="text-sm text-muted">{t("tasks.empty")}</li>
+              )}
               {active.map((task) => {
                 const due = task.due_at ? dueLabel(task.due_at, locale) : null;
                 return (
@@ -227,7 +266,9 @@ export default function TasksPage() {
                       {task.title || t("calendar.untitled")}
                     </button>
                     {due && (
-                      <span className={`text-xs ${due.overdue ? "text-red-400" : "text-muted"}`}>
+                      <span
+                        className={`text-xs ${due.overdue ? "text-red-400" : "text-muted"}`}
+                      >
                         {due.text}
                       </span>
                     )}
@@ -236,13 +277,23 @@ export default function TasksPage() {
                         className="flex items-center gap-1 text-xs text-muted"
                         title={t("tasks.reminder")}
                       >
-                        <span aria-hidden className={task.reminder_minutes != null ? "text-accent" : ""}>
+                        <span
+                          aria-hidden
+                          className={
+                            task.reminder_minutes != null ? "text-accent" : ""
+                          }
+                        >
                           🔔
                         </span>
                         <select
                           value={task.reminder_minutes ?? ""}
                           onChange={(e) =>
-                            setReminder(task, e.target.value === "" ? null : Number(e.target.value))
+                            setReminder(
+                              task,
+                              e.target.value === ""
+                                ? null
+                                : Number(e.target.value),
+                            )
                           }
                           className="cursor-pointer rounded border border-border bg-transparent py-0.5 text-xs text-muted outline-none focus:border-accent"
                         >

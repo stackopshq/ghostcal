@@ -14,12 +14,23 @@ from ghostcal.application.keypairs import (
     KeypairService,
     UserKeypair,
 )
+from ghostcal.application.rotation import (
+    MembersLeftBehind,
+    MembersWithoutKeypair,
+    NotAMember,
+    NotAuthorized,
+    RotationService,
+    SealedMemberKey,
+)
 from ghostcal.infrastructure.db.keypairs_repository import SqlKeypairRepository
+from ghostcal.infrastructure.db.rotation_repository import SqlRotationRepository
 from ghostcal.infrastructure.db.session import db_session
 from ghostcal.presentation.auth_routes import CurrentUser
 from ghostcal.presentation.dashboard_routes import Member, current_member
 from ghostcal.presentation.schemas import (
     MemberPublicKeyOut,
+    RotateKeyIn,
+    RotateKeyOut,
     UserKeypairIn,
     UserKeypairOut,
 )
@@ -77,3 +88,40 @@ async def member_public_keys(member: Member = Depends(current_member)) -> list[M
         MemberPublicKeyOut(user_id=k.user_id, name=k.name, email=k.email, public_key=k.public_key)
         for k in keys
     ]
+
+
+@router.post("/organization/rotate-key", response_model=RotateKeyOut)
+async def rotate_key(
+    payload: RotateKeyIn, member: Member = Depends(current_member)
+) -> RotateKeyOut:
+    """Rotate the organization's keypair — the act that makes removing a member revoke something.
+
+    The new pair is minted in the admin's browser (the only place the current org key lives) and the
+    new private key arrives already sealed to each member's public key. The server cannot check that
+    crypto. It checks what it can: that the rotation is **complete** (no member left behind — a
+    silent lockout is the failure mode that matters) and **closed** (no key for an outsider), and it
+    advances the public key and inserts the new per-member keys in one transaction.
+
+    It does NOT re-seal the existing records. Advancing the public key protects everything created
+    from now on, which is the urgent half; the backlog is already readable by whoever left, so
+    re-sealing it can proceed afterwards, progressively. See ADR-0007 §2.
+    """
+    async with db_session() as session:
+        service = RotationService(SqlRotationRepository(session))
+        try:
+            generation = await service.rotate(
+                member.organization_id,
+                member.user.id,
+                public_key=payload.public_key,
+                member_keys=[
+                    SealedMemberKey(user_id=k.user_id, sealed_org_key=k.sealed_org_key)
+                    for k in payload.member_keys
+                ],
+            )
+        except NotAuthorized as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        except (MembersWithoutKeypair, MembersLeftBehind) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except NotAMember as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return RotateKeyOut(generation=generation)

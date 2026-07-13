@@ -12,6 +12,8 @@ import {
   generateRecoveryPhrase,
   listUnlockedKeys,
   rewrapForPassword,
+  getUserKeys,
+  openOrgKeyForMe,
   storeUnlockedKey,
   storeUserKeys,
   unlockUserPrivateKey,
@@ -112,9 +114,14 @@ export async function register(
 
 export type ZkKeysOut = {
   organization_id: string;
+  /** The org's CURRENT public key, whatever generation this row is. */
   public_key: string;
-  wrapped_private_key: string;
-  wrap_salt: string;
+  generation: number;
+  /** Generation >= 1: the org key sealed to the user's own public key (ADR-0007). */
+  sealed_org_key: string | null;
+  /** Generation 0: wrapped under a key derived from the user's password. */
+  wrapped_private_key: string | null;
+  wrap_salt: string | null;
 };
 
 export function getZkKeys(): Promise<ZkKeysOut[]> {
@@ -128,26 +135,60 @@ export function getZkKeys(): Promise<ZkKeysOut[]> {
 export async function unlockZkKeys(
   secret: string,
 ): Promise<{ total: number; unlocked: number }> {
-  const keys = await getZkKeys();
+  // The user's own private key has to exist first: from generation 1 on, an org key reaches a member
+  // sealed to it, and without it those generations simply cannot be opened.
+  await ensureUserKeypair(secret);
+  const userKeys = getUserKeys();
+
+  const rows = await getZkKeys();
+  const byOrg = new Map<string, ZkKeysOut[]>();
+  for (const row of rows) {
+    byOrg.set(row.organization_id, [
+      ...(byOrg.get(row.organization_id) ?? []),
+      row,
+    ]);
+  }
+
   let unlocked = 0;
-  for (const k of keys) {
-    try {
-      const privateKey = await unlockWithPassword(
-        secret,
-        k.wrapped_private_key,
-        k.wrap_salt,
-      );
-      storeUnlockedKey(k.organization_id, {
-        publicKey: k.public_key,
-        privateKey,
+  for (const [organizationId, generations] of byOrg) {
+    // Newest generation first — that is the one everything new is sealed under, and the one the
+    // fallback chain starts from.
+    const ordered = [...generations].sort(
+      (a, b) => b.generation - a.generation,
+    );
+    const privateKeys: string[] = [];
+
+    for (const row of ordered) {
+      try {
+        if (row.sealed_org_key) {
+          if (!userKeys) continue; // no user key in this tab: this generation stays shut
+          privateKeys.push(
+            await openOrgKeyForMe(row.sealed_org_key, userKeys.privateKey),
+          );
+        } else if (row.wrapped_private_key && row.wrap_salt) {
+          privateKeys.push(
+            await unlockWithPassword(
+              secret,
+              row.wrapped_private_key,
+              row.wrap_salt,
+            ),
+          );
+        }
+      } catch {
+        /* a generation this secret or key cannot open (e.g. a granted key); skip it */
+      }
+    }
+
+    if (privateKeys.length > 0) {
+      storeUnlockedKey(organizationId, {
+        publicKey: ordered[0].public_key,
+        privateKey: privateKeys[0],
+        previousPrivateKeys: privateKeys.slice(1),
       });
       unlocked += 1;
-    } catch {
-      /* skip an org whose key this secret can't unwrap (e.g. a granted key) */
     }
   }
-  await ensureUserKeypair(secret);
-  return { total: keys.length, unlocked };
+  return { total: byOrg.size, unlocked };
 }
 
 // --- The user's own keypair (ADR-0007) ---------------------------------------------------------

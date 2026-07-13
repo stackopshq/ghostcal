@@ -2,9 +2,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/lib/i18n";
-import { cancelMeeting, listMeetings, type Meeting, type MeetingScope } from "@/lib/meetings";
+import {
+  cancelMeeting,
+  listMeetings,
+  type Meeting,
+  type MeetingScope,
+} from "@/lib/meetings";
 import { getActiveOrg } from "@/lib/auth";
-import { getUnlockedKeys, openInviteePrivate, type InviteePrivate } from "@/lib/zk";
+import {
+  getUnlockedKeys,
+  openInviteePrivate,
+  openWithOrgKeys,
+  type InviteePrivate,
+} from "@/lib/zk";
 
 function fmtDay(iso: string, tz: string): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -31,10 +41,15 @@ const TABS: { key: MeetingScope; labelKey: string }[] = [
 
 export default function MeetingsPage() {
   const t = useT();
-  const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
+  const tz = useMemo(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+    [],
+  );
   const [scope, setScope] = useState<MeetingScope>("upcoming");
   const [meetings, setMeetings] = useState<Meeting[]>([]);
-  const [decrypted, setDecrypted] = useState<Record<string, InviteePrivate>>({});
+  const [decrypted, setDecrypted] = useState<Record<string, InviteePrivate>>(
+    {},
+  );
   const [locked, setLocked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(0);
@@ -57,7 +72,11 @@ export default function MeetingsPage() {
         const out: Record<string, InviteePrivate> = {};
         for (const x of sealed) {
           try {
-            out[x.id] = await openInviteePrivate(x.invitee_private!, keys.publicKey, keys.privateKey);
+            out[x.id] = await openWithOrgKeys(
+              keys,
+              x.invitee_private!,
+              (blob, sk) => openInviteePrivate(blob, keys.publicKey, sk),
+            );
           } catch {
             /* skip blobs we cannot open */
           }
@@ -86,7 +105,9 @@ export default function MeetingsPage() {
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6 sm:p-10">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">{t("meetings.title")}</h1>
+        <h1 className="text-2xl font-semibold text-foreground">
+          {t("meetings.title")}
+        </h1>
         <p className="mt-1 text-sm text-muted">{t("meetings.sub", { tz })}</p>
       </div>
 
@@ -117,7 +138,9 @@ export default function MeetingsPage() {
       {loading && <p className="text-sm text-muted">{t("common.loading")}</p>}
       {!loading && meetings.length === 0 && (
         <p className="text-sm text-muted">
-          {scope === "upcoming" ? t("meetings.noneUpcoming") : t("meetings.nonePast")}
+          {scope === "upcoming"
+            ? t("meetings.noneUpcoming")
+            : t("meetings.nonePast")}
         </p>
       )}
 
@@ -130,10 +153,14 @@ export default function MeetingsPage() {
             <div>
               <p className="font-medium text-foreground">{m.event_title}</p>
               <p className="text-sm text-muted">
-                {(decrypted[m.id]?.name || m.invitee_name) ?? "—"} · {m.invitee_email}
+                {(decrypted[m.id]?.name || m.invitee_name) ?? "—"} ·{" "}
+                {m.invitee_email}
               </p>
               {decrypted[m.id] && (
-                <MeetingDetails details={decrypted[m.id]} label={t("meetings.privateDetails")} />
+                <MeetingDetails
+                  details={decrypted[m.id]}
+                  label={t("meetings.privateDetails")}
+                />
               )}
             </div>
             <div className="flex items-center gap-4">
@@ -160,7 +187,13 @@ export default function MeetingsPage() {
   );
 }
 
-function MeetingDetails({ details, label }: { details: InviteePrivate; label: string }) {
+function MeetingDetails({
+  details,
+  label,
+}: {
+  details: InviteePrivate;
+  label: string;
+}) {
   const entries = Object.entries(details.answers ?? {}).filter(([, v]) => v);
   if (entries.length === 0 && !details.notes) return null;
   return (
@@ -175,7 +208,11 @@ function MeetingDetails({ details, label }: { details: InviteePrivate; label: st
             <dd className="text-foreground">{v}</dd>
           </div>
         ))}
-        {details.notes && <p className="mt-1 whitespace-pre-wrap text-foreground">{details.notes}</p>}
+        {details.notes && (
+          <p className="mt-1 whitespace-pre-wrap text-foreground">
+            {details.notes}
+          </p>
+        )}
       </dl>
     </div>
   );

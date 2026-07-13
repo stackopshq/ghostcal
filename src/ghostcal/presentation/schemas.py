@@ -70,12 +70,39 @@ class RegisterIn(BaseModel):
 
 
 class ZkKeysOut(BaseModel):
+    """One generation of one org key. The browser receives every generation it holds, newest first:
+    a sealed blob carries no key id, so it opens by trying the current key and falling back."""
+
     organization_id: uuid.UUID
     public_key: str
-    wrapped_private_key: str
-    wrap_salt: str
+    generation: int = 0
+    sealed_org_key: str | None = None
+    wrapped_private_key: str | None = None
+    wrap_salt: str | None = None
     recovery_wrapped_private_key: str | None = None
     recovery_salt: str | None = None
+
+
+class SealedMemberKeyIn(BaseModel):
+    """The new org private key, sealed to one member's public key. Opaque to the server."""
+
+    user_id: uuid.UUID
+    sealed_org_key: str = Field(min_length=1, max_length=4096)
+
+
+class RotateKeyIn(BaseModel):
+    """A rotation, minted in the admin's browser (ADR-0007).
+
+    The server cannot verify the crypto. It verifies that the rotation is complete and closed: every
+    current member provided for, and nobody else slipped in.
+    """
+
+    public_key: str = Field(min_length=1, max_length=512)
+    member_keys: list[SealedMemberKeyIn] = Field(min_length=1, max_length=500)
+
+
+class RotateKeyOut(BaseModel):
+    generation: int
 
 
 class ZkRewrapIn(BaseModel):

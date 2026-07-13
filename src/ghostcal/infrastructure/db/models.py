@@ -63,6 +63,9 @@ class Organization(TimestampMixin, Base):
     # private key is never stored server-side; only per-member wrapped copies live in
     # ``org_member_keys``. NULL only for legacy orgs created before zero-knowledge.
     zk_public_key: Mapped[str | None] = mapped_column(Text)
+    # Which generation of the org keypair ``zk_public_key`` is (ADR-0007). Bumped by a rotation;
+    # members keep their copy of every past generation so records not yet re-sealed still open.
+    zk_key_generation: Mapped[int] = mapped_column(SmallInteger, default=0, server_default="0")
     # Opt-in retention: purge bookings that ended more than this many days ago. NULL = keep forever
     # (the default). Floored at MIN_RETENTION_DAYS by a check constraint — the purge is
     # irreversible, so a fat-fingered value must not be able to erase an organization's history.
@@ -70,12 +73,21 @@ class Organization(TimestampMixin, Base):
 
 
 class OrgMemberKey(TimestampMixin, Base):
-    """A member's wrapped copy of their organization's zero-knowledge private key.
+    """A member's copy of one generation of their organization's zero-knowledge private key.
 
-    The org private key is wrapped (libsodium secretbox) under a key derived from the member's
-    password via Argon2id, and a second time under their one-time recovery phrase. The server
-    stores only these wrapped blobs and the KDF salts — never the private key or any derived key,
-    so it can never decrypt invitee answers.
+    One row per (org, member, generation): a member keeps every org key the organization has ever
+    had, so records sealed under an older generation and not yet re-sealed still open. A departed
+    member already kept the old key, so retaining it for the remaining members costs nothing.
+
+    Two ways in, exactly one per row (enforced by ck_org_member_keys_one_way_in):
+
+    - **generation 0** — the key wrapped under an Argon2id key derived from the member's password
+      (and a second time under their recovery phrase, for the founder). The original scheme.
+    - **generation >= 1** — the key **sealed to the member's own public key** (ADR-0007). This is
+      what lets an admin hand a member a rotated key without their password, and therefore what
+      makes rotation possible at all.
+
+    The server stores only opaque blobs; it can never decrypt any of it.
     """
 
     __tablename__ = "org_member_keys"
@@ -86,8 +98,13 @@ class OrgMemberKey(TimestampMixin, Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
-    wrapped_private_key: Mapped[str] = mapped_column(Text)
-    wrap_salt: Mapped[str] = mapped_column(Text)
+    generation: Mapped[int] = mapped_column(
+        SmallInteger, primary_key=True, default=0, server_default="0"
+    )
+    # Sealed to the member's users.zk_public_key. Set from generation 1 on; NULL for generation 0.
+    sealed_org_key: Mapped[str | None] = mapped_column(Text)
+    wrapped_private_key: Mapped[str | None] = mapped_column(Text)
+    wrap_salt: Mapped[str | None] = mapped_column(Text)
     # Recovery copy — present for the founder, NULL for members who received the key via an
     # invitation grant (their access is re-grantable rather than recoverable). See ADR-0003.
     recovery_wrapped_private_key: Mapped[str | None] = mapped_column(Text)

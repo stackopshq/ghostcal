@@ -13,6 +13,7 @@ import {
   type TaskContent,
   getUnlockedKeys,
   openContent,
+  openWithOrgKeys,
   openInviteePrivate,
   openTaskContent,
 } from "@/lib/zk";
@@ -128,7 +129,9 @@ async function open<T>(
   const keys = getUnlockedKeys(organizationId);
   if (!keys) return null;
   try {
-    return await opener(blob, keys.privateKey);
+    // Retired generations included: a record sealed before a rotation and not yet re-sealed still
+    // needs the key it was sealed under (ADR-0007).
+    return await openWithOrgKeys(keys, blob, opener);
   } catch {
     // A blob we hold no working key for. Report it in the archive rather than losing the record:
     // a partial export the user can see the holes in beats a silent one.
