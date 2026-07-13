@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { inputClass, primaryButtonClass } from "@/components/AuthCard";
 import CalendarSettings from "@/components/CalendarSettings";
+import PrivacySettings from "@/components/PrivacySettings";
 import WebhookSettings from "@/components/WebhookSettings";
 import { ApiError } from "@/lib/api";
 import { isAuthenticated } from "@/lib/auth";
@@ -71,11 +72,16 @@ export default function SettingsPage() {
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6 sm:p-10">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">{t("settings.title")}</h1>
+        <h1 className="text-2xl font-semibold text-foreground">
+          {t("settings.title")}
+        </h1>
         <p className="mt-1 text-sm text-muted">{t("settings.sub")}</p>
       </div>
 
-      <form onSubmit={save} className="glass flex flex-col gap-5 rounded-2xl p-6 sm:p-8">
+      <form
+        onSubmit={save}
+        className="glass flex flex-col gap-5 rounded-2xl p-6 sm:p-8"
+      >
         <label className="flex flex-col gap-1 text-sm text-muted">
           {t("settings.orgName")}
           <input
@@ -110,10 +116,16 @@ export default function SettingsPage() {
 
         {error && <p className="text-sm text-red-400">{error}</p>}
         <div className="flex items-center gap-4">
-          <button type="submit" disabled={saving} className={primaryButtonClass}>
+          <button
+            type="submit"
+            disabled={saving}
+            className={primaryButtonClass}
+          >
             {saving ? t("common.saving") : t("common.save")}
           </button>
-          {status === "saved" && <span className="text-sm text-accent">{t("common.saved")}</span>}
+          {status === "saved" && (
+            <span className="text-sm text-accent">{t("common.saved")}</span>
+          )}
         </div>
       </form>
 
@@ -123,6 +135,16 @@ export default function SettingsPage() {
 
       <section className="glass rounded-2xl p-6 sm:p-8">
         <WebhookSettings />
+      </section>
+
+      <section className="glass rounded-2xl p-6 sm:p-8">
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold text-foreground">
+            {t("privacy.title")}
+          </h2>
+          <p className="mt-1 text-sm text-muted">{t("privacy.sub")}</p>
+        </div>
+        <PrivacySettings />
       </section>
     </main>
   );

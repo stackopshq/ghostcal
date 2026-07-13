@@ -109,6 +109,9 @@ class UserOut(BaseModel):
     email: str
     name: str
     email_verified: bool
+    # False for an SSO-only account. Account deletion asks such an account to confirm with its email
+    # address alone — there is no password to re-enter, and offering the field would be nonsense.
+    has_password: bool
 
 
 class ProfileOut(BaseModel):
