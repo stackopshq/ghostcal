@@ -60,6 +60,7 @@ import {
   listBusyLinks,
   revokeBusyLink,
 } from "@/lib/busy";
+import { openInGhostMail } from "@/lib/ghostmail";
 import { parseImportUrl, toDraftFields } from "@/lib/importEvent";
 import { drainPushQueue } from "@/lib/push";
 import { parseQuickAdd, type QuickAddResult } from "@/lib/quickAdd";
@@ -1775,15 +1776,36 @@ function ShareModal({
               <code className="mt-2 block break-all text-xs text-foreground">
                 {freshBusyLink}
               </code>
-              <button
-                type="button"
-                onClick={() =>
-                  void navigator.clipboard.writeText(freshBusyLink)
-                }
-                className="mt-2 rounded-lg border border-border px-3 py-1 text-xs text-muted transition hover:text-accent"
-              >
-                {t("calendar.linkCopy")}
-              </button>
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    void navigator.clipboard.writeText(freshBusyLink)
+                  }
+                  className="rounded-lg border border-border px-3 py-1 text-xs text-muted transition hover:text-accent"
+                >
+                  {t("calendar.linkCopy")}
+                </button>
+                {/* Only here, and only now: the token is shown exactly once, so this is the one
+                    moment at which a link exists to send. Offering it beside a saved link would be
+                    offering something we cannot produce. */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    openInGhostMail({
+                      to: [],
+                      subject: t("calendar.busyEmailSubject"),
+                      body: t("calendar.busyEmailBody").replace(
+                        "{url}",
+                        freshBusyLink,
+                      ),
+                    })
+                  }
+                  className="rounded-lg border border-border px-3 py-1 text-xs text-muted transition hover:text-accent"
+                >
+                  ✉ {t("calendar.busyEmail")}
+                </button>
+              </div>
             </div>
           )}
 
