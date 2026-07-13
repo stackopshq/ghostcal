@@ -12,6 +12,8 @@ export type CalendarRec = {
   owner_name: string | null;
   /** Whether the viewer may write to it. Always true for a calendar they own. */
   can_edit: boolean;
+  /** The connected CalDAV calendar this one publishes to, if any. */
+  push_connection_id: string | null;
 };
 
 export type Share = {

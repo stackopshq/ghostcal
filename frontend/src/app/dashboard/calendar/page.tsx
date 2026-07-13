@@ -47,6 +47,7 @@ import CalendarTimeGrid, { type GridItem } from "@/components/CalendarTimeGrid";
 import CalendarYearGrid from "@/components/CalendarYearGrid";
 import EventAttendees from "@/components/EventAttendees";
 import { useI18n, useT } from "@/lib/i18n";
+import { drainPushQueue } from "@/lib/push";
 import { parseQuickAdd, type QuickAddResult } from "@/lib/quickAdd";
 import { listMembers, type Member } from "@/lib/team";
 import {
@@ -356,6 +357,12 @@ export default function CalendarPage() {
       return;
     }
     setLocked(false);
+
+    // Nothing in the background can read an event, so publishing to CalDAV waits for a browser.
+    // This is that browser. Fire-and-forget: a phone's server being down is not a reason to hold up
+    // the page, and the queue keeps whatever did not land.
+    void drainPushQueue().catch(() => undefined);
+
     const [fromDate, toDate] = viewWindow(view, cursor);
     const from = fromDate.toISOString();
     const to = toDate.toISOString();

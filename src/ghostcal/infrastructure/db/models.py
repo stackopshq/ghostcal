@@ -490,6 +490,12 @@ class Calendar(TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(200))
     color: Mapped[str] = mapped_column(String(20), default="#00f0ff")
     is_default: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
+    # Publish this calendar to one of the member's connected CalDAV calendars, so their events show
+    # up on their phone. NULL = published nowhere. The server never reads the events to do it — the
+    # browser hands over cleartext at push time and the server relays it without storing any of it.
+    push_connection_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("caldav_connections.id", ondelete="SET NULL")
+    )
 
 
 class CalendarEvent(TimestampMixin, Base):
@@ -523,6 +529,38 @@ class CalendarEvent(TimestampMixin, Base):
     zk_generation: Mapped[int] = mapped_column(SmallInteger, default=0, server_default="0")
     # Minutes before each occurrence to email the owner a content-less reminder; NULL = none.
     reminder_minutes: Mapped[int | None] = mapped_column()
+
+
+class CalendarPushQueue(Base):
+    """One pending publication to an external CalDAV calendar (see migration b5e93a2f7c18).
+
+    Filled by a trigger on ``calendar_events``, drained by a browser: the server cannot read a
+    sealed event, so it cannot build the VEVENT itself. The browser does that, hands the cleartext
+    over at push time, and the server relays it onward without writing any of it down.
+
+    A queue exists at all because of **deletes**: once the event row is gone there is nothing left
+    to mark as needing a push, so the UID — derived from the event id — has to outlive it.
+    """
+
+    __tablename__ = "calendar_push_queue"
+    __table_args__ = (
+        CheckConstraint("op IN ('upsert', 'delete')", name="op_allowed"),
+        # One pending operation per event: an upsert followed by a delete is a delete, not both.
+        UniqueConstraint("organization_id", "external_uid", name="uq_push_queue_uid"),
+    )
+
+    id: Mapped[uuid.UUID] = _pk()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    calendar_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("calendars.id", ondelete="CASCADE"))
+    # NULL for a delete — by then the event is gone.
+    event_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("calendar_events.id", ondelete="CASCADE")
+    )
+    external_uid: Mapped[str] = mapped_column(String(512))
+    op: Mapped[str] = mapped_column(String(10))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class CalendarShare(TimestampMixin, Base):
