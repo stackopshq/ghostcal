@@ -35,6 +35,8 @@ export type User = {
   email: string;
   name: string;
   email_verified: boolean;
+  // False for an SSO-only account: it has no password, so deletion is confirmed by the email alone.
+  has_password: boolean;
 };
 
 type Tokens = { access_token: string; refresh_token: string };
@@ -92,7 +94,10 @@ export async function register(
   password: string,
 ): Promise<{ user_id: string; recovery_phrase: string }> {
   const recoveryPhrase = await generateRecoveryPhrase();
-  const zk_keys: ZkKeyMaterial = await generateKeyMaterial(password, recoveryPhrase);
+  const zk_keys: ZkKeyMaterial = await generateKeyMaterial(
+    password,
+    recoveryPhrase,
+  );
   const { user_id } = await post<{ user_id: string }>("/v1/auth/register", {
     email,
     name,
@@ -124,8 +129,15 @@ export async function unlockZkKeys(
   let unlocked = 0;
   for (const k of keys) {
     try {
-      const privateKey = await unlockWithPassword(secret, k.wrapped_private_key, k.wrap_salt);
-      storeUnlockedKey(k.organization_id, { publicKey: k.public_key, privateKey });
+      const privateKey = await unlockWithPassword(
+        secret,
+        k.wrapped_private_key,
+        k.wrap_salt,
+      );
+      storeUnlockedKey(k.organization_id, {
+        publicKey: k.public_key,
+        privateKey,
+      });
       unlocked += 1;
     } catch {
       /* skip an org whose key this secret can't unwrap (e.g. a granted key) */
@@ -191,17 +203,27 @@ export function completeOidcSession(): boolean {
 // First-time SSO users have no zero-knowledge keys: they choose an encryption passphrase (separate
 // from SSO — the server never sees it), which wraps a fresh org keypair. Returns the one-time
 // recovery phrase to show once. The keys are unlocked into this tab immediately.
-export async function setupEncryptionPassphrase(passphrase: string): Promise<string> {
+export async function setupEncryptionPassphrase(
+  passphrase: string,
+): Promise<string> {
   const recoveryPhrase = await generateRecoveryPhrase();
-  const zk_keys: ZkKeyMaterial = await generateKeyMaterial(passphrase, recoveryPhrase);
-  await authedFetch<void>("/v1/auth/zk-keys", { method: "POST", body: JSON.stringify(zk_keys) });
+  const zk_keys: ZkKeyMaterial = await generateKeyMaterial(
+    passphrase,
+    recoveryPhrase,
+  );
+  await authedFetch<void>("/v1/auth/zk-keys", {
+    method: "POST",
+    body: JSON.stringify(zk_keys),
+  });
   await unlockZkKeys(passphrase);
   return recoveryPhrase;
 }
 
 // Re-wrap every unlocked org key under a new password and persist them. Call after a successful
 // password change so the new password can unlock each org key next time.
-export async function rewrapAllForNewPassword(newPassword: string): Promise<void> {
+export async function rewrapAllForNewPassword(
+  newPassword: string,
+): Promise<void> {
   for (const { organizationId, keys } of listUnlockedKeys()) {
     const wrapped = await rewrapForPassword(keys.privateKey, newPassword);
     await authedFetch<void>("/v1/auth/zk-rewrap", {
@@ -220,7 +242,9 @@ export async function logout(): Promise<void> {
   clearTokens();
   clearUnlockedKeys();
   if (refresh) {
-    await post("/v1/auth/logout", { refresh_token: refresh }).catch(() => undefined);
+    await post("/v1/auth/logout", { refresh_token: refresh }).catch(
+      () => undefined,
+    );
   }
 }
 
@@ -228,7 +252,9 @@ async function tryRefresh(): Promise<boolean> {
   const refresh = getRefreshToken();
   if (!refresh) return false;
   try {
-    const tokens = await post<Tokens>("/v1/auth/refresh", { refresh_token: refresh });
+    const tokens = await post<Tokens>("/v1/auth/refresh", {
+      refresh_token: refresh,
+    });
     setTokens(tokens);
     return true;
   } catch {
@@ -238,7 +264,10 @@ async function tryRefresh(): Promise<boolean> {
 }
 
 /** Fetch an authenticated endpoint, transparently refreshing once on a 401. */
-export async function authedFetch<T>(path: string, init?: RequestInit): Promise<T> {
+export async function authedFetch<T>(
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
   const org = getActiveOrg();
   const run = async (): Promise<Response> =>
     fetch(`${base()}${path}`, {

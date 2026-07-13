@@ -279,4 +279,17 @@ async def logout(payload: RefreshIn) -> None:
 
 @router.get("/me", response_model=UserOut)
 async def me(user: CurrentUser) -> UserOut:
-    return UserOut(id=user.id, email=user.email, name=user.name, email_verified=user.email_verified)
+    # The access token carries identity but not whether a password exists, so this reads the record.
+    # ``has_password`` is what lets the UI ask an SSO-only account to confirm a deletion with its
+    # email address alone — it has no password, and offering the field would be nonsense.
+    async with db_session() as session:
+        record = await SqlAuthRepository(session).get_by_id(user.id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="unknown user")
+    return UserOut(
+        id=record.id,
+        email=record.email,
+        name=record.name,
+        email_verified=record.email_verified,
+        has_password=record.password_hash is not None,
+    )

@@ -40,10 +40,12 @@ const en: Dict = {
   // SSO callback (OIDC): capture session, then set or enter the encryption passphrase
   "callback.signingIn": "Signing you in…",
   "callback.unlockTitle": "Unlock your calendar",
-  "callback.unlockSub": "Enter your encryption passphrase to decrypt your content. It never leaves this device.",
+  "callback.unlockSub":
+    "Enter your encryption passphrase to decrypt your content. It never leaves this device.",
   "callback.unlockSubmit": "Unlock",
   "callback.setupTitle": "Set your encryption passphrase",
-  "callback.setupSub": "You're signed in. Choose a passphrase that encrypts your content — the server can never read it, so keep it safe.",
+  "callback.setupSub":
+    "You're signed in. Choose a passphrase that encrypts your content — the server can never read it, so keep it safe.",
   "callback.setupSubmit": "Set passphrase",
   "callback.passphrasePh": "Encryption passphrase",
   "callback.confirmPh": "Confirm passphrase",
@@ -51,7 +53,8 @@ const en: Dict = {
   "callback.errMismatch": "The passphrases don't match.",
   "callback.errGeneric": "Something went wrong. Please try again.",
   "callback.recoveryTitle": "Save your recovery key",
-  "callback.recoverySub": "This is the only way to recover your content if you forget your passphrase.",
+  "callback.recoverySub":
+    "This is the only way to recover your content if you forget your passphrase.",
   "callback.continue": "Continue to dashboard",
   // register
   "register.title": "Create your account",
@@ -61,13 +64,15 @@ const en: Dict = {
   "register.submit": "Create account",
   "register.submitting": "Creating…",
   "register.errTaken": "That email is already registered.",
-  "register.errGeneric": "Could not create the account. Check your details and try again.",
+  "register.errGeneric":
+    "Could not create the account. Check your details and try again.",
   "register.checkInbox": "Check your inbox",
   "register.recoveryTitle": "Your recovery key",
   "register.recoverySub":
     "This unlocks your encrypted booking data if you ever forget your password. We can't recover it for you — store it somewhere safe. It's shown only once.",
   "register.recoveryCopy": "Copy recovery key",
-  "register.checkInboxSub": "We sent a verification link to {email}. Confirm it to activate your account.",
+  "register.checkInboxSub":
+    "We sent a verification link to {email}. Confirm it to activate your account.",
   "register.expires": "The link expires in 24 hours. You can close this tab.",
   "register.backToSignIn": "Back to sign in",
   // verify
@@ -104,7 +109,8 @@ const en: Dict = {
   "manage.linkInvalidSub": "This management link is invalid or has expired.",
   "manage.notActive": "This booking is no longer active.",
   "manage.cancelled": "Your meeting has been cancelled.",
-  "manage.rescheduledTo": "Rescheduled to {when}. A new confirmation is on its way.",
+  "manage.rescheduledTo":
+    "Rescheduled to {when}. A new confirmation is on its way.",
   "manage.reschedule": "Reschedule",
   "manage.cancelMeeting": "Cancel meeting",
   "manage.pickNew": "Pick a new time",
@@ -128,12 +134,14 @@ const en: Dict = {
   "inv.expired": "This invitation is invalid or has expired.",
   "inv.invitedToJoin": "You've been invited to join",
   "inv.asRole": "as {role} · {email}",
-  "inv.errAccept": "Could not accept the invitation. Make sure you're signed in.",
+  "inv.errAccept":
+    "Could not accept the invitation. Make sure you're signed in.",
   "inv.joining": "Joining…",
   "inv.accept": "Accept invitation",
   "inv.unlockTitle": "This invite includes decryption access",
   "inv.unlockPasswordPh": "Your password (to secure your team access)",
-  "inv.signinPrompt": "Sign in or create an account with {email}, then reopen this link to join.",
+  "inv.signinPrompt":
+    "Sign in or create an account with {email}, then reopen this link to join.",
   "inv.signUp": "Sign up",
   // dashboard common + nav
   "nav.events": "Event types",
@@ -152,11 +160,13 @@ const en: Dict = {
   "att.accepted": "Accepted",
   "att.declined": "Declined",
   "att.tentative": "Maybe",
-  "att.zkNote": "Inviting shares this event's title with the guest; the server relays the email but never stores it.",
+  "att.zkNote":
+    "Inviting shares this event's title with the guest; the server relays the email but never stores it.",
   "invite.title": "You're invited",
   "invite.when": "When",
   "invite.notFound": "This invitation has expired or does not exist.",
-  "invite.detailsNote": "The full details are in the calendar invite you were emailed.",
+  "invite.detailsNote":
+    "The full details are in the calendar invite you were emailed.",
   "invite.accept": "Accept",
   "invite.maybe": "Maybe",
   "invite.decline": "Decline",
@@ -183,8 +193,9 @@ const en: Dict = {
   "cmd.themeDark": "Switch to dark theme",
   "cmd.themeLight": "Switch to light theme",
   "tasks.title": "Tasks",
-  "tasks.sub": "Your private to-do list — end-to-end encrypted, like your calendar.",
-  "tasks.quickAdd": "Add a task — e.g. \"Call the dentist tomorrow 3pm\"",
+  "tasks.sub":
+    "Your private to-do list — end-to-end encrypted, like your calendar.",
+  "tasks.quickAdd": 'Add a task — e.g. "Call the dentist tomorrow 3pm"',
   "tasks.add": "Add",
   "tasks.duePreview": "Due",
   "tasks.empty": "Nothing to do. Enjoy.",
@@ -207,12 +218,14 @@ const en: Dict = {
   "notify.taskPrefix": "Task due:",
   "notify.at": "at",
   "notify.due": "due",
-  "calendar.sub": "Your private calendar — the server knows when you're busy, never what about.",
+  "calendar.sub":
+    "Your private calendar — the server knows when you're busy, never what about.",
   "calendar.today": "Today",
   "calendar.viewMonth": "Month",
   "calendar.viewWeek": "Week",
   "calendar.viewDay": "Day",
-  "calendar.locked": "Locked. Log in again to unlock your calendar in this browser.",
+  "calendar.locked":
+    "Locked. Log in again to unlock your calendar in this browser.",
   "calendar.busy": "Busy",
   "calendar.untitled": "(untitled)",
   "calendar.newEvent": "New event",
@@ -220,20 +233,24 @@ const en: Dict = {
   "calendar.externalCalendar": "External",
   "calendar.connectExternal": "Connect a calendar",
   "calendar.subscribe": "Subscribe to a calendar",
-  "calendar.subscribeHint": "Paste a public iCal/ICS feed URL (holidays, sports fixtures, a shared calendar). It stays read-only and refreshes automatically.",
+  "calendar.subscribeHint":
+    "Paste a public iCal/ICS feed URL (holidays, sports fixtures, a shared calendar). It stays read-only and refreshes automatically.",
   "calendar.subscribeError": "Could not fetch that feed — check the URL.",
   "calendar.weather": "Weather",
-  "calendar.weatherHint": "Overlay the daily forecast on your calendar. The location stays on this device only.",
+  "calendar.weatherHint":
+    "Overlay the daily forecast on your calendar. The location stays on this device only.",
   "calendar.weatherSearch": "Search a city…",
   "calendar.weatherSearchGo": "Search",
   "calendar.weatherMyLocation": "My location",
   "calendar.weatherTurnOff": "Turn off",
   "calendar.syncNow": "Sync",
   "calendar.calendarName": "Calendar name",
-  "calendar.quickAdd": "Quick add — e.g. \"Lunch with Bob tomorrow 12:30 for 1h at Café\"",
+  "calendar.quickAdd":
+    'Quick add — e.g. "Lunch with Bob tomorrow 12:30 for 1h at Café"',
   "calendar.quickAddCreate": "Add",
   "calendar.quickAddRefine": "edit details",
-  "calendar.quickAddHint": "Add a date or time, e.g. \"tomorrow 3pm\" or \"every monday 9am\".",
+  "calendar.quickAddHint":
+    'Add a date or time, e.g. "tomorrow 3pm" or "every monday 9am".',
   "calendar.editEvent": "Edit event",
   "calendar.eventTitle": "Event title",
   "calendar.location": "Location",
@@ -251,9 +268,11 @@ const en: Dict = {
   "calendar.remind1d": "Remind 1 day before",
   "calendar.share": "Share",
   "calendar.shareTitle": "Share your calendar",
-  "calendar.shareSub": "Pick teammates who can see this calendar. They decrypt it with the team key they already hold — read-only.",
+  "calendar.shareSub":
+    "Pick teammates who can see this calendar. They decrypt it with the team key they already hold — read-only.",
   "calendar.sharedReadOnly": "Shared with you (read-only)",
-  "calendar.zkNotice": "End-to-end encrypted — the title, location and notes are sealed in your browser.",
+  "calendar.zkNotice":
+    "End-to-end encrypted — the title, location and notes are sealed in your browser.",
   "calendar.delete": "Delete",
   "calendar.cancel": "Cancel",
   "calendar.save": "Save",
@@ -281,10 +300,12 @@ const en: Dict = {
   "meetings.sub": "Your booked meetings. Times shown in {tz}.",
   "meetings.upcoming": "Upcoming",
   "meetings.past": "Past",
-  "meetings.noneUpcoming": "No upcoming meetings — share an event type link to get booked.",
+  "meetings.noneUpcoming":
+    "No upcoming meetings — share an event type link to get booked.",
   "meetings.nonePast": "No past meetings.",
   "meetings.cancel": "Cancel",
-  "meetings.confirmCancel": "Cancel this meeting? The invitee's slot will be freed.",
+  "meetings.confirmCancel":
+    "Cancel this meeting? The invitee's slot will be freed.",
   // team
   "team.title": "Team",
   "team.sub": "Manage members and invitations.",
@@ -293,13 +314,15 @@ const en: Dict = {
   "team.invite": "Invite a teammate",
   "team.inviteBtn": "Invite",
   "team.secureLinkTitle": "Secure invite link",
-  "team.secureLinkSub": "Send this link to your teammate — it carries their decryption access in the part after #, which never reaches the server. The emailed link grants membership only.",
+  "team.secureLinkSub":
+    "Send this link to your teammate — it carries their decryption access in the part after #, which never reaches the server. The emailed link grants membership only.",
   "team.secureLinkCopy": "Copy secure link",
   "team.pending": "pending",
   "team.revoke": "Revoke",
   "team.remove": "Remove",
   "team.confirmRemove": "Remove this member from the organization?",
-  "team.errInvite": "Could not send the invitation (already a member or invited?).",
+  "team.errInvite":
+    "Could not send the invitation (already a member or invited?).",
   "team.errRole": "You can't change that member's role.",
   "team.errRemove": "You can't remove that member.",
   // analytics
@@ -338,11 +361,47 @@ const en: Dict = {
   "settings.handle": "Handle",
   "settings.yourBookingPage": "Your booking page:",
   "settings.errTaken": "That handle is already taken — try another.",
-  "settings.errInvalid": "Handle must be lowercase letters, digits and single hyphens (3–100 chars).",
+  "settings.errInvalid":
+    "Handle must be lowercase letters, digits and single hyphens (3–100 chars).",
   "settings.errGeneric": "Could not save. Please try again.",
+  // privacy (GDPR: export, retention, erasure)
+  "privacy.title": "Privacy & data",
+  "privacy.sub":
+    "Export what we hold, decide how long we keep it, or erase it for good.",
+  "privacy.exportTitle": "Export your data",
+  "privacy.exportSub":
+    "Downloads everything: your profile, calendars, tasks, meetings and settings. Encrypted content is unsealed in your browser with your key — the server never could.",
+  "privacy.export": "Download my data",
+  "privacy.exporting": "Preparing…",
+  "privacy.exportDone": "Downloaded — a JSON file and an .ics calendar.",
+  "privacy.exportPartial":
+    "Downloaded, but {n} encrypted item(s) stayed sealed: unlock the organization's key and export again.",
+  "privacy.errExport": "Could not build the export. Please try again.",
+  "privacy.retentionTitle": "Booking retention",
+  "privacy.retentionSub":
+    "Automatically delete meetings once they are older than this. Off by default — bookings are kept forever until you set a window.",
+  "privacy.retentionDays": "Keep for (days)",
+  "privacy.retentionForever": "forever",
+  "privacy.retentionHint":
+    "Leave empty to keep bookings forever. Minimum 30 days. Deletion is permanent.",
+  "privacy.retentionCleared": "Cleared — bookings are kept forever.",
+  "privacy.errRetention": "Could not save the retention window.",
+  "privacy.errRetentionFloor": "A retention window must be at least {n} days.",
+  "privacy.deleteTitle": "Delete your account",
+  "privacy.deleteSub":
+    "Permanent, and immediate. Organizations where you are the only member are deleted with everything in them. Elsewhere, you are removed from the records you share with your team, and your upcoming meetings are cancelled — their invitees are told.",
+  "privacy.delete": "Delete my account",
+  "privacy.typeEmail": "Type {email} to confirm",
+  "privacy.deleteConfirm": "Delete for good",
+  "privacy.deleting": "Deleting…",
+  "privacy.errConfirm": "That address does not match this account.",
+  "privacy.errPassword": "Wrong password.",
+  "privacy.errSoleOwner":
+    "You are the last owner of an organization that has other members. Promote another owner first — someone has to be able to administer it.",
   // webhooks
   "webhooks.title": "Webhooks",
-  "webhooks.sub": "POST signed event payloads to your endpoints (X-GhostCal-Signature: HMAC-SHA256).",
+  "webhooks.sub":
+    "POST signed event payloads to your endpoints (X-GhostCal-Signature: HMAC-SHA256).",
   "webhooks.secretOnce": "Signing secret (shown once):",
   "webhooks.add": "Add webhook",
   "webhooks.pickEvent": "Pick at least one event.",
@@ -369,7 +428,8 @@ const en: Dict = {
   "pollsh.votesCount": "{n} votes",
   "pollsh.chosen": "· chosen",
   "pollsh.pickThis": "Pick this time",
-  "pollsh.confirmFinalize": "Lock in this time? Everyone who voted will be notified.",
+  "pollsh.confirmFinalize":
+    "Lock in this time? Everyone who voted will be notified.",
   "pollsh.voters": "Voters",
   "pollsh.timesCount": "{n} times",
   "pollsh.cancelPoll": "Cancel poll",
@@ -421,7 +481,8 @@ const en: Dict = {
   "et.none": "No event types yet. Create one to get a booking link.",
   // availability
   "avail.title": "Availability",
-  "avail.sub": "Set the weekly hours you can be booked. Times are in the schedule's timezone.",
+  "avail.sub":
+    "Set the weekly hours you can be booked. Times are in the schedule's timezone.",
   "avail.scheduleName": "Schedule name",
   "avail.timezone": "Timezone",
   "avail.unavailable": "Unavailable",
@@ -444,7 +505,8 @@ const en: Dict = {
   "cal.synced": "Synced {n} busy block(s).",
   "cal.confirmDisconnect": "Disconnect this calendar?",
   "cal.title": "Connected calendar",
-  "cal.sub": "Connect a CalDAV calendar (iCloud, Nextcloud, Fastmail…) so your busy times block availability and bookings appear on it.",
+  "cal.sub":
+    "Connect a CalDAV calendar (iCloud, Nextcloud, Fastmail…) so your busy times block availability and bookings appear on it.",
   "cal.calendarFallback": "Calendar",
   "cal.status": "Status:",
   "cal.lastSynced": "last synced {date}",
@@ -482,10 +544,12 @@ const fr: Dict = {
   "common.or": "ou",
   "callback.signingIn": "Connexion en cours…",
   "callback.unlockTitle": "Déverrouiller votre calendrier",
-  "callback.unlockSub": "Saisissez votre passphrase de chiffrement pour déchiffrer votre contenu. Elle ne quitte jamais cet appareil.",
+  "callback.unlockSub":
+    "Saisissez votre passphrase de chiffrement pour déchiffrer votre contenu. Elle ne quitte jamais cet appareil.",
   "callback.unlockSubmit": "Déverrouiller",
   "callback.setupTitle": "Définissez votre passphrase de chiffrement",
-  "callback.setupSub": "Vous êtes connecté. Choisissez une passphrase qui chiffre votre contenu — le serveur ne peut jamais la lire, gardez-la précieusement.",
+  "callback.setupSub":
+    "Vous êtes connecté. Choisissez une passphrase qui chiffre votre contenu — le serveur ne peut jamais la lire, gardez-la précieusement.",
   "callback.setupSubmit": "Définir la passphrase",
   "callback.passphrasePh": "Passphrase de chiffrement",
   "callback.confirmPh": "Confirmer la passphrase",
@@ -493,7 +557,8 @@ const fr: Dict = {
   "callback.errMismatch": "Les passphrases ne correspondent pas.",
   "callback.errGeneric": "Une erreur est survenue. Veuillez réessayer.",
   "callback.recoveryTitle": "Sauvegardez votre clé de récupération",
-  "callback.recoverySub": "C'est le seul moyen de récupérer votre contenu si vous oubliez votre passphrase.",
+  "callback.recoverySub":
+    "C'est le seul moyen de récupérer votre contenu si vous oubliez votre passphrase.",
   "callback.continue": "Continuer vers le tableau de bord",
   "register.title": "Créer votre compte",
   "register.haveAccount": "Vous avez déjà un compte ?",
@@ -502,7 +567,8 @@ const fr: Dict = {
   "register.submit": "Créer le compte",
   "register.submitting": "Création…",
   "register.errTaken": "Cet e-mail est déjà enregistré.",
-  "register.errGeneric": "Impossible de créer le compte. Vérifiez vos informations et réessayez.",
+  "register.errGeneric":
+    "Impossible de créer le compte. Vérifiez vos informations et réessayez.",
   "register.checkInbox": "Vérifiez votre boîte mail",
   "register.recoveryTitle": "Votre clé de récupération",
   "register.recoverySub":
@@ -510,7 +576,8 @@ const fr: Dict = {
   "register.recoveryCopy": "Copier la clé de récupération",
   "register.checkInboxSub":
     "Nous avons envoyé un lien de vérification à {email}. Confirmez-le pour activer votre compte.",
-  "register.expires": "Le lien expire dans 24 heures. Vous pouvez fermer cet onglet.",
+  "register.expires":
+    "Le lien expire dans 24 heures. Vous pouvez fermer cet onglet.",
   "register.backToSignIn": "Retour à la connexion",
   "verify.verifying": "Vérification de votre e-mail…",
   "verify.oneMoment": "Un instant.",
@@ -524,7 +591,8 @@ const fr: Dict = {
   "booking.selectTime": "Choisir un créneau",
   "booking.timezone": "Fuseau horaire",
   "booking.loading": "Chargement des disponibilités…",
-  "booking.noTimes": "Aucun créneau disponible dans les deux prochaines semaines.",
+  "booking.noTimes":
+    "Aucun créneau disponible dans les deux prochaines semaines.",
   "booking.yourName": "Votre nom",
   "booking.yourEmail": "Votre e-mail",
   "booking.guests": "Ajouter des invités (e-mails, séparés par des virgules)",
@@ -543,7 +611,8 @@ const fr: Dict = {
   "manage.linkInvalidSub": "Ce lien de gestion est invalide ou a expiré.",
   "manage.notActive": "Cette réservation n'est plus active.",
   "manage.cancelled": "Votre rendez-vous a été annulé.",
-  "manage.rescheduledTo": "Replanifié au {when}. Une nouvelle confirmation arrive.",
+  "manage.rescheduledTo":
+    "Replanifié au {when}. Une nouvelle confirmation arrive.",
   "manage.reschedule": "Replanifier",
   "manage.cancelMeeting": "Annuler le rendez-vous",
   "manage.pickNew": "Choisir un nouveau créneau",
@@ -551,7 +620,8 @@ const fr: Dict = {
   "manage.back": "Retour",
   "manage.errLoadTimes": "Impossible de charger les créneaux disponibles.",
   "manage.errCancel": "Impossible d'annuler. Réessayez.",
-  "manage.errReschedule": "Ce créneau n'est plus disponible. Choisissez-en un autre.",
+  "manage.errReschedule":
+    "Ce créneau n'est plus disponible. Choisissez-en un autre.",
   "poll.asking": "{owner} demande",
   "poll.minTimes": "{n} min · horaires en {tz}",
   "poll.confirmedTime": "Créneau confirmé",
@@ -565,11 +635,13 @@ const fr: Dict = {
   "inv.expired": "Cette invitation est invalide ou a expiré.",
   "inv.invitedToJoin": "Vous êtes invité à rejoindre",
   "inv.asRole": "en tant que {role} · {email}",
-  "inv.errAccept": "Impossible d'accepter l'invitation. Vérifiez que vous êtes connecté.",
+  "inv.errAccept":
+    "Impossible d'accepter l'invitation. Vérifiez que vous êtes connecté.",
   "inv.joining": "Adhésion…",
   "inv.accept": "Accepter l'invitation",
   "inv.unlockTitle": "Cette invitation inclut l'accès au déchiffrement",
-  "inv.unlockPasswordPh": "Votre mot de passe (pour sécuriser votre accès équipe)",
+  "inv.unlockPasswordPh":
+    "Votre mot de passe (pour sécuriser votre accès équipe)",
   "inv.signinPrompt":
     "Connectez-vous ou créez un compte avec {email}, puis rouvrez ce lien pour rejoindre.",
   "inv.signUp": "S'inscrire",
@@ -589,11 +661,13 @@ const fr: Dict = {
   "att.accepted": "Accepté",
   "att.declined": "Refusé",
   "att.tentative": "Peut-être",
-  "att.zkNote": "Inviter partage le titre de cet événement avec l'invité ; le serveur relaie l'e-mail mais ne le stocke jamais.",
+  "att.zkNote":
+    "Inviter partage le titre de cet événement avec l'invité ; le serveur relaie l'e-mail mais ne le stocke jamais.",
   "invite.title": "Vous êtes invité",
   "invite.when": "Quand",
   "invite.notFound": "Cette invitation a expiré ou n'existe pas.",
-  "invite.detailsNote": "Les détails complets sont dans l'invitation calendrier reçue par e-mail.",
+  "invite.detailsNote":
+    "Les détails complets sont dans l'invitation calendrier reçue par e-mail.",
   "invite.accept": "Accepter",
   "invite.maybe": "Peut-être",
   "invite.decline": "Refuser",
@@ -620,8 +694,10 @@ const fr: Dict = {
   "cmd.themeDark": "Passer au thème sombre",
   "cmd.themeLight": "Passer au thème clair",
   "tasks.title": "Tâches",
-  "tasks.sub": "Votre liste de tâches privée — chiffrée de bout en bout, comme votre calendrier.",
-  "tasks.quickAdd": "Ajouter une tâche — ex. « Appeler le dentiste demain 15h »",
+  "tasks.sub":
+    "Votre liste de tâches privée — chiffrée de bout en bout, comme votre calendrier.",
+  "tasks.quickAdd":
+    "Ajouter une tâche — ex. « Appeler le dentiste demain 15h »",
   "tasks.add": "Ajouter",
   "tasks.duePreview": "Échéance",
   "tasks.empty": "Rien à faire. Profitez-en.",
@@ -644,12 +720,14 @@ const fr: Dict = {
   "notify.taskPrefix": "Tâche due :",
   "notify.at": "à",
   "notify.due": "pour",
-  "calendar.sub": "Votre calendrier privé — le serveur sait quand vous êtes occupé, jamais pourquoi.",
+  "calendar.sub":
+    "Votre calendrier privé — le serveur sait quand vous êtes occupé, jamais pourquoi.",
   "calendar.today": "Aujourd'hui",
   "calendar.viewMonth": "Mois",
   "calendar.viewWeek": "Semaine",
   "calendar.viewDay": "Jour",
-  "calendar.locked": "Verrouillé. Reconnectez-vous pour déverrouiller votre calendrier dans ce navigateur.",
+  "calendar.locked":
+    "Verrouillé. Reconnectez-vous pour déverrouiller votre calendrier dans ce navigateur.",
   "calendar.busy": "Occupé",
   "calendar.untitled": "(sans titre)",
   "calendar.newEvent": "Nouvel événement",
@@ -657,20 +735,25 @@ const fr: Dict = {
   "calendar.externalCalendar": "Externe",
   "calendar.connectExternal": "Connecter un calendrier",
   "calendar.subscribe": "S'abonner à un calendrier",
-  "calendar.subscribeHint": "Collez l'URL d'un flux iCal/ICS public (jours fériés, matchs, calendrier partagé). Il reste en lecture seule et se met à jour automatiquement.",
-  "calendar.subscribeError": "Impossible de récupérer ce flux — vérifiez l'URL.",
+  "calendar.subscribeHint":
+    "Collez l'URL d'un flux iCal/ICS public (jours fériés, matchs, calendrier partagé). Il reste en lecture seule et se met à jour automatiquement.",
+  "calendar.subscribeError":
+    "Impossible de récupérer ce flux — vérifiez l'URL.",
   "calendar.weather": "Météo",
-  "calendar.weatherHint": "Superposez les prévisions quotidiennes sur votre calendrier. Le lieu reste uniquement sur cet appareil.",
+  "calendar.weatherHint":
+    "Superposez les prévisions quotidiennes sur votre calendrier. Le lieu reste uniquement sur cet appareil.",
   "calendar.weatherSearch": "Rechercher une ville…",
   "calendar.weatherSearchGo": "Rechercher",
   "calendar.weatherMyLocation": "Ma position",
   "calendar.weatherTurnOff": "Désactiver",
   "calendar.syncNow": "Synchroniser",
   "calendar.calendarName": "Nom du calendrier",
-  "calendar.quickAdd": "Ajout rapide — ex. « Déjeuner avec Bob demain 12h30 pendant 1h au Café »",
+  "calendar.quickAdd":
+    "Ajout rapide — ex. « Déjeuner avec Bob demain 12h30 pendant 1h au Café »",
   "calendar.quickAddCreate": "Ajouter",
   "calendar.quickAddRefine": "modifier les détails",
-  "calendar.quickAddHint": "Ajoutez une date ou une heure, ex. « demain 15h » ou « tous les lundis 9h ».",
+  "calendar.quickAddHint":
+    "Ajoutez une date ou une heure, ex. « demain 15h » ou « tous les lundis 9h ».",
   "calendar.editEvent": "Modifier l'événement",
   "calendar.eventTitle": "Titre de l'événement",
   "calendar.location": "Lieu",
@@ -688,9 +771,11 @@ const fr: Dict = {
   "calendar.remind1d": "Rappel 1 jour avant",
   "calendar.share": "Partager",
   "calendar.shareTitle": "Partager votre calendrier",
-  "calendar.shareSub": "Choisissez les coéquipiers qui peuvent voir ce calendrier. Ils le déchiffrent avec la clé d'équipe qu'ils possèdent déjà — lecture seule.",
+  "calendar.shareSub":
+    "Choisissez les coéquipiers qui peuvent voir ce calendrier. Ils le déchiffrent avec la clé d'équipe qu'ils possèdent déjà — lecture seule.",
   "calendar.sharedReadOnly": "Partagé avec vous (lecture seule)",
-  "calendar.zkNotice": "Chiffré de bout en bout — le titre, le lieu et les notes sont scellés dans votre navigateur.",
+  "calendar.zkNotice":
+    "Chiffré de bout en bout — le titre, le lieu et les notes sont scellés dans votre navigateur.",
   "calendar.delete": "Supprimer",
   "calendar.cancel": "Annuler",
   "calendar.save": "Enregistrer",
@@ -717,10 +802,12 @@ const fr: Dict = {
   "meetings.sub": "Vos rendez-vous réservés. Horaires en {tz}.",
   "meetings.upcoming": "À venir",
   "meetings.past": "Passés",
-  "meetings.noneUpcoming": "Aucun rendez-vous à venir — partagez un lien d'événement pour être réservé.",
+  "meetings.noneUpcoming":
+    "Aucun rendez-vous à venir — partagez un lien d'événement pour être réservé.",
   "meetings.nonePast": "Aucun rendez-vous passé.",
   "meetings.cancel": "Annuler",
-  "meetings.confirmCancel": "Annuler ce rendez-vous ? Le créneau de l'invité sera libéré.",
+  "meetings.confirmCancel":
+    "Annuler ce rendez-vous ? Le créneau de l'invité sera libéré.",
   "team.title": "Équipe",
   "team.sub": "Gérez les membres et les invitations.",
   "team.errLoad": "Impossible de charger l'équipe.",
@@ -728,13 +815,15 @@ const fr: Dict = {
   "team.invite": "Inviter un coéquipier",
   "team.inviteBtn": "Inviter",
   "team.secureLinkTitle": "Lien d'invitation sécurisé",
-  "team.secureLinkSub": "Envoyez ce lien à votre collègue — il porte son accès au déchiffrement dans la partie après #, qui n'atteint jamais le serveur. Le lien envoyé par e-mail ne donne que l'adhésion.",
+  "team.secureLinkSub":
+    "Envoyez ce lien à votre collègue — il porte son accès au déchiffrement dans la partie après #, qui n'atteint jamais le serveur. Le lien envoyé par e-mail ne donne que l'adhésion.",
   "team.secureLinkCopy": "Copier le lien sécurisé",
   "team.pending": "en attente",
   "team.revoke": "Révoquer",
   "team.remove": "Retirer",
   "team.confirmRemove": "Retirer ce membre de l'organisation ?",
-  "team.errInvite": "Impossible d'envoyer l'invitation (déjà membre ou déjà invité ?).",
+  "team.errInvite":
+    "Impossible d'envoyer l'invitation (déjà membre ou déjà invité ?).",
   "team.errRole": "Vous ne pouvez pas changer le rôle de ce membre.",
   "team.errRemove": "Vous ne pouvez pas retirer ce membre.",
   "analytics.title": "Statistiques",
@@ -756,16 +845,19 @@ const fr: Dict = {
   "profile.avatarUrl": "URL de l'avatar",
   "profile.save": "Enregistrer le profil",
   "profile.errLoad": "Impossible de charger votre profil.",
-  "profile.errSave": "Impossible d'enregistrer votre profil (vérifiez l'URL de l'avatar).",
+  "profile.errSave":
+    "Impossible d'enregistrer votre profil (vérifiez l'URL de l'avatar).",
   "profile.changePassword": "Changer le mot de passe",
   "profile.currentPassword": "Mot de passe actuel",
   "profile.newPassword": "Nouveau mot de passe (8 caractères min.)",
   "profile.updatePassword": "Mettre à jour le mot de passe",
   "profile.updated": "Mis à jour ✓",
   "profile.errCurrentWrong": "Le mot de passe actuel est incorrect.",
-  "profile.errPassword": "Impossible de changer votre mot de passe (8 caractères min.).",
+  "profile.errPassword":
+    "Impossible de changer votre mot de passe (8 caractères min.).",
   "settings.title": "Réglages",
-  "settings.sub": "Le nom de votre organisation et votre identifiant de réservation public.",
+  "settings.sub":
+    "Le nom de votre organisation et votre identifiant de réservation public.",
   "settings.orgName": "Nom de l'organisation",
   "settings.handle": "Identifiant",
   "settings.yourBookingPage": "Votre page de réservation :",
@@ -773,6 +865,42 @@ const fr: Dict = {
   "settings.errInvalid":
     "L'identifiant doit contenir des minuscules, des chiffres et des tirets simples (3 à 100 caractères).",
   "settings.errGeneric": "Impossible d'enregistrer. Réessayez.",
+  // privacy (RGPD : export, rétention, effacement)
+  "privacy.title": "Confidentialité & données",
+  "privacy.sub":
+    "Exportez ce que nous détenons, décidez combien de temps, ou effacez tout.",
+  "privacy.exportTitle": "Exporter vos données",
+  "privacy.exportSub":
+    "Télécharge tout : profil, calendriers, tâches, rendez-vous et réglages. Le contenu chiffré est déscellé dans votre navigateur avec votre clé — le serveur, lui, n'a jamais pu.",
+  "privacy.export": "Télécharger mes données",
+  "privacy.exporting": "Préparation…",
+  "privacy.exportDone": "Téléchargé — un fichier JSON et un calendrier .ics.",
+  "privacy.exportPartial":
+    "Téléchargé, mais {n} élément(s) chiffré(s) sont restés scellés : déverrouillez la clé de l'organisation et réexportez.",
+  "privacy.errExport": "Impossible de construire l'export. Réessayez.",
+  "privacy.retentionTitle": "Rétention des réservations",
+  "privacy.retentionSub":
+    "Supprime automatiquement les rendez-vous passés au-delà de ce délai. Désactivé par défaut — les réservations sont conservées indéfiniment tant que vous ne fixez rien.",
+  "privacy.retentionDays": "Conserver (jours)",
+  "privacy.retentionForever": "indéfiniment",
+  "privacy.retentionHint":
+    "Laissez vide pour conserver indéfiniment. Minimum 30 jours. La suppression est définitive.",
+  "privacy.retentionCleared":
+    "Effacé — les réservations sont conservées indéfiniment.",
+  "privacy.errRetention": "Impossible d'enregistrer le délai de rétention.",
+  "privacy.errRetentionFloor":
+    "Le délai de rétention doit être d'au moins {n} jours.",
+  "privacy.deleteTitle": "Supprimer votre compte",
+  "privacy.deleteSub":
+    "Définitif, et immédiat. Les organisations dont vous êtes le seul membre sont supprimées avec tout ce qu'elles contiennent. Ailleurs, vous êtes retiré des enregistrements partagés avec votre équipe, et vos rendez-vous à venir sont annulés — leurs invités en sont informés.",
+  "privacy.delete": "Supprimer mon compte",
+  "privacy.typeEmail": "Tapez {email} pour confirmer",
+  "privacy.deleteConfirm": "Supprimer définitivement",
+  "privacy.deleting": "Suppression…",
+  "privacy.errConfirm": "Cette adresse ne correspond pas à ce compte.",
+  "privacy.errPassword": "Mot de passe incorrect.",
+  "privacy.errSoleOwner":
+    "Vous êtes le dernier owner d'une organisation qui compte d'autres membres. Promouvez un autre owner d'abord — quelqu'un doit pouvoir l'administrer.",
   "webhooks.title": "Webhooks",
   "webhooks.sub":
     "Envoie des charges utiles signées à vos endpoints (X-GhostCal-Signature : HMAC-SHA256).",
@@ -782,7 +910,8 @@ const fr: Dict = {
   "webhooks.errCreate": "Impossible de créer le webhook (vérifiez l'URL).",
   "webhooks.errLoad": "Impossible de charger les webhooks.",
   "pollsh.title": "Sondages de créneaux",
-  "pollsh.sub": "Proposez plusieurs créneaux, laissez les invités voter, puis arrêtez-en un.",
+  "pollsh.sub":
+    "Proposez plusieurs créneaux, laissez les invités voter, puis arrêtez-en un.",
   "pollsh.new": "Nouveau sondage",
   "pollsh.titlePh": "Titre du sondage (ex. Rétro d'équipe)",
   "pollsh.duration": "Durée",
@@ -801,7 +930,8 @@ const fr: Dict = {
   "pollsh.votesCount": "{n} votes",
   "pollsh.chosen": "· choisi",
   "pollsh.pickThis": "Choisir ce créneau",
-  "pollsh.confirmFinalize": "Verrouiller ce créneau ? Tous les votants seront notifiés.",
+  "pollsh.confirmFinalize":
+    "Verrouiller ce créneau ? Tous les votants seront notifiés.",
   "pollsh.voters": "Votants",
   "pollsh.timesCount": "{n} créneaux",
   "pollsh.cancelPoll": "Annuler le sondage",
@@ -836,11 +966,13 @@ const fr: Dict = {
   "et.required": "obligatoire",
   "et.optionsPh": "Options, séparées par des virgules",
   "et.addQuestion": "+ Ajouter une question",
-  "et.errSave": "Vérifiez les champs — la durée et l'intervalle doivent être positifs.",
+  "et.errSave":
+    "Vérifiez les champs — la durée et l'intervalle doivent être positifs.",
   "et.errSaveGeneric": "Impossible d'enregistrer. Réessayez.",
-  "et.errDeleteInUse": "Ce type d'événement a des réservations et ne peut pas être supprimé.",
+  "et.errDeleteInUse":
+    "Ce type d'événement a des réservations et ne peut pas être supprimé.",
   "et.errDelete": "Impossible de supprimer. Réessayez.",
-  "et.confirmDelete": 'Supprimer « {title} » ?',
+  "et.confirmDelete": "Supprimer « {title} » ?",
   "et.inactive": "(inactif)",
   "et.questionsCount": "{n} questions",
   "et.open": "Ouvrir ↗",
@@ -849,16 +981,19 @@ const fr: Dict = {
   "et.copyEmbed": "Copier le code embed",
   "et.deactivate": "Désactiver",
   "et.activate": "Activer",
-  "et.none": "Aucun type d'événement. Créez-en un pour obtenir un lien de réservation.",
+  "et.none":
+    "Aucun type d'événement. Créez-en un pour obtenir un lien de réservation.",
   "avail.title": "Disponibilités",
-  "avail.sub": "Définissez vos heures hebdomadaires de réservation. Les horaires sont dans le fuseau du planning.",
+  "avail.sub":
+    "Définissez vos heures hebdomadaires de réservation. Les horaires sont dans le fuseau du planning.",
   "avail.scheduleName": "Nom du planning",
   "avail.timezone": "Fuseau horaire",
   "avail.unavailable": "Indisponible",
   "avail.addRange": "+ Ajouter une plage",
   "avail.save": "Enregistrer les disponibilités",
   "avail.removeRange": "Supprimer la plage horaire",
-  "avail.errSave": "Vérifiez vos heures — chaque fin doit être après son début.",
+  "avail.errSave":
+    "Vérifiez vos heures — chaque fin doit être après son début.",
   "avail.errGeneric": "Impossible d'enregistrer. Réessayez.",
   "day.0": "Lundi",
   "day.1": "Mardi",
@@ -873,7 +1008,8 @@ const fr: Dict = {
   "cal.synced": "{n} plage(s) occupée(s) synchronisée(s).",
   "cal.confirmDisconnect": "Déconnecter ce calendrier ?",
   "cal.title": "Calendrier connecté",
-  "cal.sub": "Connectez un calendrier CalDAV (iCloud, Nextcloud, Fastmail…) pour que vos créneaux occupés bloquent vos disponibilités et que les réservations y apparaissent.",
+  "cal.sub":
+    "Connectez un calendrier CalDAV (iCloud, Nextcloud, Fastmail…) pour que vos créneaux occupés bloquent vos disponibilités et que les réservations y apparaissent.",
   "cal.calendarFallback": "Calendrier",
   "cal.status": "Statut :",
   "cal.lastSynced": "dernière synchro {date}",
@@ -911,10 +1047,12 @@ const es: Dict = {
   "common.or": "o",
   "callback.signingIn": "Iniciando sesión…",
   "callback.unlockTitle": "Desbloquea tu calendario",
-  "callback.unlockSub": "Introduce tu frase de cifrado para descifrar tu contenido. Nunca sale de este dispositivo.",
+  "callback.unlockSub":
+    "Introduce tu frase de cifrado para descifrar tu contenido. Nunca sale de este dispositivo.",
   "callback.unlockSubmit": "Desbloquear",
   "callback.setupTitle": "Define tu frase de cifrado",
-  "callback.setupSub": "Has iniciado sesión. Elige una frase que cifre tu contenido — el servidor nunca puede leerla, así que guárdala bien.",
+  "callback.setupSub":
+    "Has iniciado sesión. Elige una frase que cifre tu contenido — el servidor nunca puede leerla, así que guárdala bien.",
   "callback.setupSubmit": "Definir frase",
   "callback.passphrasePh": "Frase de cifrado",
   "callback.confirmPh": "Confirmar frase",
@@ -922,7 +1060,8 @@ const es: Dict = {
   "callback.errMismatch": "Las frases no coinciden.",
   "callback.errGeneric": "Algo salió mal. Inténtalo de nuevo.",
   "callback.recoveryTitle": "Guarda tu clave de recuperación",
-  "callback.recoverySub": "Es la única forma de recuperar tu contenido si olvidas tu frase.",
+  "callback.recoverySub":
+    "Es la única forma de recuperar tu contenido si olvidas tu frase.",
   "callback.continue": "Continuar al panel",
   "register.title": "Crea tu cuenta",
   "register.haveAccount": "¿Ya tienes una cuenta?",
@@ -931,7 +1070,8 @@ const es: Dict = {
   "register.submit": "Crear cuenta",
   "register.submitting": "Creando…",
   "register.errTaken": "Ese correo ya está registrado.",
-  "register.errGeneric": "No se pudo crear la cuenta. Revisa tus datos e inténtalo de nuevo.",
+  "register.errGeneric":
+    "No se pudo crear la cuenta. Revisa tus datos e inténtalo de nuevo.",
   "register.checkInbox": "Revisa tu bandeja de entrada",
   "register.recoveryTitle": "Tu clave de recuperación",
   "register.recoverySub":
@@ -939,7 +1079,8 @@ const es: Dict = {
   "register.recoveryCopy": "Copiar clave de recuperación",
   "register.checkInboxSub":
     "Enviamos un enlace de verificación a {email}. Confírmalo para activar tu cuenta.",
-  "register.expires": "El enlace caduca en 24 horas. Puedes cerrar esta pestaña.",
+  "register.expires":
+    "El enlace caduca en 24 horas. Puedes cerrar esta pestaña.",
   "register.backToSignIn": "Volver a iniciar sesión",
   "verify.verifying": "Verificando tu correo…",
   "verify.oneMoment": "Un momento.",
@@ -948,7 +1089,8 @@ const es: Dict = {
   "verify.okBody": "Ya puedes iniciar sesión en GhostCal.",
   "verify.failTitle": "Verificación fallida",
   "verify.failSub": "Este enlace no es válido o ha caducado.",
-  "verify.failBody": "Solicita un nuevo enlace de verificación registrándote de nuevo.",
+  "verify.failBody":
+    "Solicita un nuevo enlace de verificación registrándote de nuevo.",
   "verify.createNew": "Crear una cuenta nueva",
   "booking.selectTime": "Elige una hora",
   "booking.timezone": "Zona horaria",
@@ -972,7 +1114,8 @@ const es: Dict = {
   "manage.linkInvalidSub": "Este enlace de gestión no es válido o ha caducado.",
   "manage.notActive": "Esta reserva ya no está activa.",
   "manage.cancelled": "Tu reunión ha sido cancelada.",
-  "manage.rescheduledTo": "Reprogramada para {when}. Llegará una nueva confirmación.",
+  "manage.rescheduledTo":
+    "Reprogramada para {when}. Llegará una nueva confirmación.",
   "manage.reschedule": "Reprogramar",
   "manage.cancelMeeting": "Cancelar reunión",
   "manage.pickNew": "Elige una hora nueva",
@@ -994,7 +1137,8 @@ const es: Dict = {
   "inv.expired": "Esta invitación no es válida o ha caducado.",
   "inv.invitedToJoin": "Te han invitado a unirte a",
   "inv.asRole": "como {role} · {email}",
-  "inv.errAccept": "No se pudo aceptar la invitación. Asegúrate de haber iniciado sesión.",
+  "inv.errAccept":
+    "No se pudo aceptar la invitación. Asegúrate de haber iniciado sesión.",
   "inv.joining": "Uniéndote…",
   "inv.accept": "Aceptar invitación",
   "inv.unlockTitle": "Esta invitación incluye acceso de descifrado",
@@ -1018,11 +1162,13 @@ const es: Dict = {
   "att.accepted": "Aceptado",
   "att.declined": "Rechazado",
   "att.tentative": "Quizás",
-  "att.zkNote": "Invitar comparte el título de este evento con el invitado; el servidor reenvía el correo pero nunca lo almacena.",
+  "att.zkNote":
+    "Invitar comparte el título de este evento con el invitado; el servidor reenvía el correo pero nunca lo almacena.",
   "invite.title": "Estás invitado",
   "invite.when": "Cuándo",
   "invite.notFound": "Esta invitación ha caducado o no existe.",
-  "invite.detailsNote": "Los detalles completos están en la invitación de calendario que recibiste por correo.",
+  "invite.detailsNote":
+    "Los detalles completos están en la invitación de calendario que recibiste por correo.",
   "invite.accept": "Aceptar",
   "invite.maybe": "Quizás",
   "invite.decline": "Rechazar",
@@ -1049,8 +1195,10 @@ const es: Dict = {
   "cmd.themeDark": "Cambiar al tema oscuro",
   "cmd.themeLight": "Cambiar al tema claro",
   "tasks.title": "Tareas",
-  "tasks.sub": "Tu lista de tareas privada — cifrada de extremo a extremo, como tu calendario.",
-  "tasks.quickAdd": "Añade una tarea — p. ej. «Llamar al dentista mañana 15:00»",
+  "tasks.sub":
+    "Tu lista de tareas privada — cifrada de extremo a extremo, como tu calendario.",
+  "tasks.quickAdd":
+    "Añade una tarea — p. ej. «Llamar al dentista mañana 15:00»",
   "tasks.add": "Añadir",
   "tasks.duePreview": "Vence",
   "tasks.empty": "Nada que hacer. Disfruta.",
@@ -1073,12 +1221,14 @@ const es: Dict = {
   "notify.taskPrefix": "Tarea:",
   "notify.at": "a las",
   "notify.due": "vence",
-  "calendar.sub": "Tu calendario privado — el servidor sabe cuándo estás ocupado, nunca de qué.",
+  "calendar.sub":
+    "Tu calendario privado — el servidor sabe cuándo estás ocupado, nunca de qué.",
   "calendar.today": "Hoy",
   "calendar.viewMonth": "Mes",
   "calendar.viewWeek": "Semana",
   "calendar.viewDay": "Día",
-  "calendar.locked": "Bloqueado. Vuelve a iniciar sesión para desbloquear tu calendario en este navegador.",
+  "calendar.locked":
+    "Bloqueado. Vuelve a iniciar sesión para desbloquear tu calendario en este navegador.",
   "calendar.busy": "Ocupado",
   "calendar.untitled": "(sin título)",
   "calendar.newEvent": "Nuevo evento",
@@ -1086,20 +1236,24 @@ const es: Dict = {
   "calendar.externalCalendar": "Externo",
   "calendar.connectExternal": "Conectar un calendario",
   "calendar.subscribe": "Suscribirse a un calendario",
-  "calendar.subscribeHint": "Pega la URL de un feed iCal/ICS público (festivos, partidos, un calendario compartido). Permanece en solo lectura y se actualiza automáticamente.",
+  "calendar.subscribeHint":
+    "Pega la URL de un feed iCal/ICS público (festivos, partidos, un calendario compartido). Permanece en solo lectura y se actualiza automáticamente.",
   "calendar.subscribeError": "No se pudo obtener ese feed — comprueba la URL.",
   "calendar.weather": "Clima",
-  "calendar.weatherHint": "Superpon el pronóstico diario en tu calendario. La ubicación permanece solo en este dispositivo.",
+  "calendar.weatherHint":
+    "Superpon el pronóstico diario en tu calendario. La ubicación permanece solo en este dispositivo.",
   "calendar.weatherSearch": "Buscar una ciudad…",
   "calendar.weatherSearchGo": "Buscar",
   "calendar.weatherMyLocation": "Mi ubicación",
   "calendar.weatherTurnOff": "Desactivar",
   "calendar.syncNow": "Sincronizar",
   "calendar.calendarName": "Nombre del calendario",
-  "calendar.quickAdd": "Añadir rápido — p. ej. «Comida con Bob mañana 12:30 durante 1h en el Café»",
+  "calendar.quickAdd":
+    "Añadir rápido — p. ej. «Comida con Bob mañana 12:30 durante 1h en el Café»",
   "calendar.quickAddCreate": "Añadir",
   "calendar.quickAddRefine": "editar detalles",
-  "calendar.quickAddHint": "Añade una fecha u hora, p. ej. «mañana 15:00» o «cada lunes 9:00».",
+  "calendar.quickAddHint":
+    "Añade una fecha u hora, p. ej. «mañana 15:00» o «cada lunes 9:00».",
   "calendar.editEvent": "Editar evento",
   "calendar.eventTitle": "Título del evento",
   "calendar.location": "Lugar",
@@ -1117,9 +1271,11 @@ const es: Dict = {
   "calendar.remind1d": "Recordar 1 día antes",
   "calendar.share": "Compartir",
   "calendar.shareTitle": "Compartir tu calendario",
-  "calendar.shareSub": "Elige compañeros que pueden ver este calendario. Lo descifran con la clave de equipo que ya tienen — solo lectura.",
+  "calendar.shareSub":
+    "Elige compañeros que pueden ver este calendario. Lo descifran con la clave de equipo que ya tienen — solo lectura.",
   "calendar.sharedReadOnly": "Compartido contigo (solo lectura)",
-  "calendar.zkNotice": "Cifrado de extremo a extremo — el título, el lugar y las notas se sellan en tu navegador.",
+  "calendar.zkNotice":
+    "Cifrado de extremo a extremo — el título, el lugar y las notas se sellan en tu navegador.",
   "calendar.delete": "Eliminar",
   "calendar.cancel": "Cancelar",
   "calendar.save": "Guardar",
@@ -1146,10 +1302,12 @@ const es: Dict = {
   "meetings.sub": "Tus reuniones reservadas. Horas en {tz}.",
   "meetings.upcoming": "Próximas",
   "meetings.past": "Pasadas",
-  "meetings.noneUpcoming": "No hay reuniones próximas — comparte un enlace de evento para que te reserven.",
+  "meetings.noneUpcoming":
+    "No hay reuniones próximas — comparte un enlace de evento para que te reserven.",
   "meetings.nonePast": "No hay reuniones pasadas.",
   "meetings.cancel": "Cancelar",
-  "meetings.confirmCancel": "¿Cancelar esta reunión? El hueco del invitado quedará libre.",
+  "meetings.confirmCancel":
+    "¿Cancelar esta reunión? El hueco del invitado quedará libre.",
   "team.title": "Equipo",
   "team.sub": "Gestiona miembros e invitaciones.",
   "team.errLoad": "No se pudo cargar el equipo.",
@@ -1157,13 +1315,15 @@ const es: Dict = {
   "team.invite": "Invitar a un compañero",
   "team.inviteBtn": "Invitar",
   "team.secureLinkTitle": "Enlace de invitación seguro",
-  "team.secureLinkSub": "Envía este enlace a tu compañero — lleva su acceso de descifrado en la parte tras #, que nunca llega al servidor. El enlace por correo solo concede la membresía.",
+  "team.secureLinkSub":
+    "Envía este enlace a tu compañero — lleva su acceso de descifrado en la parte tras #, que nunca llega al servidor. El enlace por correo solo concede la membresía.",
   "team.secureLinkCopy": "Copiar enlace seguro",
   "team.pending": "pendiente",
   "team.revoke": "Revocar",
   "team.remove": "Eliminar",
   "team.confirmRemove": "¿Eliminar a este miembro de la organización?",
-  "team.errInvite": "No se pudo enviar la invitación (¿ya es miembro o ya fue invitado?).",
+  "team.errInvite":
+    "No se pudo enviar la invitación (¿ya es miembro o ya fue invitado?).",
   "team.errRole": "No puedes cambiar el rol de ese miembro.",
   "team.errRemove": "No puedes eliminar a ese miembro.",
   "analytics.title": "Estadísticas",
@@ -1192,9 +1352,11 @@ const es: Dict = {
   "profile.updatePassword": "Actualizar contraseña",
   "profile.updated": "Actualizada ✓",
   "profile.errCurrentWrong": "La contraseña actual es incorrecta.",
-  "profile.errPassword": "No se pudo cambiar la contraseña (mín. 8 caracteres).",
+  "profile.errPassword":
+    "No se pudo cambiar la contraseña (mín. 8 caracteres).",
   "settings.title": "Ajustes",
-  "settings.sub": "El nombre de tu organización y tu identificador de reserva público.",
+  "settings.sub":
+    "El nombre de tu organización y tu identificador de reserva público.",
   "settings.orgName": "Nombre de la organización",
   "settings.handle": "Identificador",
   "settings.yourBookingPage": "Tu página de reserva:",
@@ -1202,6 +1364,43 @@ const es: Dict = {
   "settings.errInvalid":
     "El identificador debe tener minúsculas, dígitos y guiones simples (3 a 100 caracteres).",
   "settings.errGeneric": "No se pudo guardar. Inténtalo de nuevo.",
+  // privacidad (RGPD: exportación, retención, borrado)
+  "privacy.title": "Privacidad y datos",
+  "privacy.sub":
+    "Exporta lo que guardamos, decide cuánto tiempo, o bórralo para siempre.",
+  "privacy.exportTitle": "Exportar tus datos",
+  "privacy.exportSub":
+    "Descarga todo: perfil, calendarios, tareas, reuniones y ajustes. El contenido cifrado se abre en tu navegador con tu clave — el servidor nunca pudo.",
+  "privacy.export": "Descargar mis datos",
+  "privacy.exporting": "Preparando…",
+  "privacy.exportDone": "Descargado — un archivo JSON y un calendario .ics.",
+  "privacy.exportPartial":
+    "Descargado, pero {n} elemento(s) cifrado(s) siguen sellados: desbloquea la clave de la organización y vuelve a exportar.",
+  "privacy.errExport":
+    "No se pudo construir la exportación. Inténtalo de nuevo.",
+  "privacy.retentionTitle": "Retención de reservas",
+  "privacy.retentionSub":
+    "Elimina automáticamente las reuniones más antiguas que este plazo. Desactivado por defecto: las reservas se conservan para siempre hasta que fijes un plazo.",
+  "privacy.retentionDays": "Conservar (días)",
+  "privacy.retentionForever": "para siempre",
+  "privacy.retentionHint":
+    "Déjalo vacío para conservar para siempre. Mínimo 30 días. El borrado es definitivo.",
+  "privacy.retentionCleared":
+    "Borrado — las reservas se conservan para siempre.",
+  "privacy.errRetention": "No se pudo guardar el plazo de retención.",
+  "privacy.errRetentionFloor":
+    "El plazo de retención debe ser de al menos {n} días.",
+  "privacy.deleteTitle": "Eliminar tu cuenta",
+  "privacy.deleteSub":
+    "Permanente e inmediato. Las organizaciones donde eres el único miembro se eliminan con todo lo que contienen. En las demás, se te retira de los registros compartidos con tu equipo y tus reuniones futuras se cancelan — se avisa a sus invitados.",
+  "privacy.delete": "Eliminar mi cuenta",
+  "privacy.typeEmail": "Escribe {email} para confirmar",
+  "privacy.deleteConfirm": "Eliminar definitivamente",
+  "privacy.deleting": "Eliminando…",
+  "privacy.errConfirm": "Esa dirección no coincide con esta cuenta.",
+  "privacy.errPassword": "Contraseña incorrecta.",
+  "privacy.errSoleOwner":
+    "Eres el último owner de una organización con otros miembros. Promueve a otro owner primero — alguien tiene que poder administrarla.",
   "webhooks.title": "Webhooks",
   "webhooks.sub":
     "Envía cargas firmadas a tus endpoints (X-GhostCal-Signature: HMAC-SHA256).",
@@ -1211,7 +1410,8 @@ const es: Dict = {
   "webhooks.errCreate": "No se pudo crear el webhook (revisa la URL).",
   "webhooks.errLoad": "No se pudieron cargar los webhooks.",
   "pollsh.title": "Encuestas de horarios",
-  "pollsh.sub": "Propón varias horas, deja que voten los invitados y luego fija una.",
+  "pollsh.sub":
+    "Propón varias horas, deja que voten los invitados y luego fija una.",
   "pollsh.new": "Nueva encuesta",
   "pollsh.titlePh": "Título de la encuesta (p. ej. Retro de equipo)",
   "pollsh.duration": "Duración",
@@ -1230,7 +1430,8 @@ const es: Dict = {
   "pollsh.votesCount": "{n} votos",
   "pollsh.chosen": "· elegida",
   "pollsh.pickThis": "Elegir esta hora",
-  "pollsh.confirmFinalize": "¿Fijar esta hora? Se notificará a todos los que votaron.",
+  "pollsh.confirmFinalize":
+    "¿Fijar esta hora? Se notificará a todos los que votaron.",
   "pollsh.voters": "Votantes",
   "pollsh.timesCount": "{n} horas",
   "pollsh.cancelPoll": "Cancelar encuesta",
@@ -1265,9 +1466,11 @@ const es: Dict = {
   "et.required": "obligatoria",
   "et.optionsPh": "Opciones, separadas por comas",
   "et.addQuestion": "+ Añadir una pregunta",
-  "et.errSave": "Revisa los campos — la duración y el intervalo deben ser positivos.",
+  "et.errSave":
+    "Revisa los campos — la duración y el intervalo deben ser positivos.",
   "et.errSaveGeneric": "No se pudo guardar. Inténtalo de nuevo.",
-  "et.errDeleteInUse": "Este tipo de evento tiene reservas y no se puede eliminar.",
+  "et.errDeleteInUse":
+    "Este tipo de evento tiene reservas y no se puede eliminar.",
   "et.errDelete": "No se pudo eliminar. Inténtalo de nuevo.",
   "et.confirmDelete": '¿Eliminar "{title}"?',
   "et.inactive": "(inactivo)",
@@ -1278,16 +1481,19 @@ const es: Dict = {
   "et.copyEmbed": "Copiar código embed",
   "et.deactivate": "Desactivar",
   "et.activate": "Activar",
-  "et.none": "Aún no hay tipos de evento. Crea uno para obtener un enlace de reserva.",
+  "et.none":
+    "Aún no hay tipos de evento. Crea uno para obtener un enlace de reserva.",
   "avail.title": "Disponibilidad",
-  "avail.sub": "Define tus horas semanales para reservas. Las horas están en la zona horaria del horario.",
+  "avail.sub":
+    "Define tus horas semanales para reservas. Las horas están en la zona horaria del horario.",
   "avail.scheduleName": "Nombre del horario",
   "avail.timezone": "Zona horaria",
   "avail.unavailable": "No disponible",
   "avail.addRange": "+ Añadir un intervalo",
   "avail.save": "Guardar disponibilidad",
   "avail.removeRange": "Eliminar intervalo",
-  "avail.errSave": "Revisa tus horas — cada fin debe ser posterior a su inicio.",
+  "avail.errSave":
+    "Revisa tus horas — cada fin debe ser posterior a su inicio.",
   "avail.errGeneric": "No se pudo guardar. Inténtalo de nuevo.",
   "day.0": "Lunes",
   "day.1": "Martes",
@@ -1302,13 +1508,15 @@ const es: Dict = {
   "cal.synced": "{n} bloque(s) ocupado(s) sincronizado(s).",
   "cal.confirmDisconnect": "¿Desconectar este calendario?",
   "cal.title": "Calendario conectado",
-  "cal.sub": "Conecta un calendario CalDAV (iCloud, Nextcloud, Fastmail…) para que tus horas ocupadas bloqueen la disponibilidad y las reservas aparezcan en él.",
+  "cal.sub":
+    "Conecta un calendario CalDAV (iCloud, Nextcloud, Fastmail…) para que tus horas ocupadas bloqueen la disponibilidad y las reservas aparezcan en él.",
   "cal.calendarFallback": "Calendario",
   "cal.status": "Estado:",
   "cal.lastSynced": "última sincronización {date}",
   "cal.syncNow": "Sincronizar",
   "cal.disconnect": "Desconectar",
-  "cal.serverPh": "URL del servidor CalDAV (p. ej. https://caldav.fastmail.com/)",
+  "cal.serverPh":
+    "URL del servidor CalDAV (p. ej. https://caldav.fastmail.com/)",
   "cal.username": "Usuario",
   "cal.appPassword": "Contraseña de aplicación",
   "cal.checking": "Comprobando…",
@@ -1352,12 +1560,17 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   function t(key: string, params?: Record<string, string | number>): string {
     let s = messages[locale][key] ?? en[key] ?? key;
     if (params) {
-      for (const [k, v] of Object.entries(params)) s = s.replaceAll(`{${k}}`, String(v));
+      for (const [k, v] of Object.entries(params))
+        s = s.replaceAll(`{${k}}`, String(v));
     }
     return s;
   }
 
-  return <I18nContext.Provider value={{ locale, setLocale, t }}>{children}</I18nContext.Provider>;
+  return (
+    <I18nContext.Provider value={{ locale, setLocale, t }}>
+      {children}
+    </I18nContext.Provider>
+  );
 }
 
 export function useI18n(): Ctx {
