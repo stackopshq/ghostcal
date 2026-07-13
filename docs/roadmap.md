@@ -10,7 +10,7 @@ read. This roadmap tracks where that promise has reached and where it's going.
 
 Pure, property/DST-tested availability engine; booking pages (solo, round-robin, collective,
 group); database-guaranteed no-double-booking (`EXCLUDE`); meeting polls; CalDAV busy sync; HMAC
-webhooks; analytics. Multi-tenant Postgres RLS throughout. Full UI in EN/FR/ES.
+webhooks; analytics. Multi-tenant Postgres RLS throughout. Full UI in EN/FR.
 *(see [ADR-0001](adr/0001-stack-and-architecture.md))*
 
 ### Zero-knowledge
@@ -45,7 +45,7 @@ webhooks; analytics. Multi-tenant Postgres RLS throughout. Full UI in EN/FR/ES.
 
 The daily-use core of a calendar client, all zero-knowledge unless noted:
 
-- **Natural-language quick-add** (chrono-node, client-side, EN/FR/ES): date, time, duration,
+- **Natural-language quick-add** (chrono-node, client-side, EN/FR): date, time, duration,
   recurrence, location — sealed in the browser.
 - **Month, week and day views** (time grid), with multi-calendar overlays, per-calendar colours and
   visibility toggles.

@@ -126,7 +126,7 @@ and reminders still work). The foundation for ghostmail:
 
 **A free, open-source, privacy-first Fantastical.** Month / **week** / **day** views, plus
 **natural-language quick-add** — type *“Lunch with Sam tomorrow 12:30 for 1h at Café”* and the event
-is parsed in your browser (EN/FR/ES) and sealed before it’s saved:
+is parsed in your browser (EN/FR) and sealed before it’s saved:
 
 | Week view — dark | Week view — light |
 | --- | --- |
@@ -183,7 +183,7 @@ Titles and notes are sealed client-side; only the due date is cleartext:
 - **Weather** — an optional **daily forecast** (Open-Meteo, keyless) overlaid on the month cells
   and week/day headers. Proxied server-side to keep the CSP strict; the location stays on-device.
 - **Integrations** — outbound **webhooks** (HMAC-signed) for booking/poll events.
-- **i18n** — full UI in English, French and Spanish, with a light/dark theme toggle.
+- **i18n** — full UI in English and French, with a light/dark theme toggle.
 - **Ops** — per-IP rate limiting, Redis availability cache, booking **analytics** dashboard,
   structured JSON logs with request ids.
 
