@@ -60,6 +60,10 @@ async def db_session() -> AsyncIterator[AsyncSession]:
 
     For operations on global (non-RLS) tables — authentication, account provisioning — that run
     before or outside an organization context. Commits on clean exit, rolls back on exception.
+
+    Tenant tables stay default-deny here (they return nothing), including on a pooled connection
+    that has already served an org-scoped transaction — see migration b2d8f30c17ae, which is what
+    makes that true.
     """
     sessionmaker = get_sessionmaker()
     async with sessionmaker() as session, session.begin():

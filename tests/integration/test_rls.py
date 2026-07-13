@@ -16,7 +16,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from ghostcal.infrastructure.db.session import org_session
+from ghostcal.infrastructure.db.session import db_session, org_session
 
 pytestmark = pytest.mark.integration
 
@@ -77,6 +77,30 @@ async def test_other_org_is_invisible(two_orgs: dict[str, uuid.UUID]) -> None:
         seen = (await session.execute(text("SELECT id FROM organizations"))).scalars().all()
     assert two_orgs["org_a"] not in seen
     assert seen == [two_orgs["org_b"]]
+
+
+async def test_unbound_session_sees_nothing_on_a_reused_connection(
+    two_orgs: dict[str, uuid.UUID],
+) -> None:
+    """Default-deny must survive a connection that has already served an organization.
+
+    ``set_config(..., is_local => true)`` reverts the GUC at the end of the transaction, and
+    PostgreSQL reverts a custom GUC to the *empty string*, not to unset. A policy comparing against
+    a bare ``current_setting(...)::uuid`` therefore evaluated ``''::uuid`` on the next unbound
+    transaction and raised, instead of denying — which is what ``NULLIF(..., '')`` fixes.
+    """
+    # Bind an org first, so the pooled connection carries the reverted-to-empty GUC afterwards.
+    async with org_session(two_orgs["org_a"]) as session:
+        await session.execute(text("SELECT id FROM organizations"))
+
+    async with db_session() as session:
+        seen = (await session.execute(text("SELECT id FROM organizations"))).scalars().all()
+        members = (
+            (await session.execute(text("SELECT organization_id FROM memberships"))).scalars().all()
+        )
+
+    assert seen == []
+    assert members == []
 
 
 async def test_cannot_write_into_another_org(two_orgs: dict[str, uuid.UUID]) -> None:
