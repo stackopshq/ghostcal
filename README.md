@@ -189,18 +189,21 @@ Titles and notes are sealed client-side; only the due date is cleartext:
 
 ## Roadmap
 
-Shipped today: the scheduler, zero-knowledge invitee data, team key sharing, and the
-zero-knowledge calendar (Phases 1–3). Planned next — see **[docs/roadmap.md](docs/roadmap.md)**:
+Shipped today: the scheduler, zero-knowledge invitee data and team key sharing, the zero-knowledge
+calendar (Phases 1–3), the personal calendar client on top of it (natural-language quick-add,
+month/week/day views, tasks, attendees & RSVP, external CalDAV and ICS calendars, notifications,
+command palette), and the suite integration (SSO, GhostMail bridges, app switcher).
 
-- **Calendar push & richer sharing** — optional non-zero-knowledge **synced** calendars that
-  push to a third-party CalDAV server (clearly labelled); **read-write** shared calendars;
-  **cross-organization** sharing via the invitation-fragment grant.
-- **ghostmail hooks** — `.ics` import from email, "add to calendar", free-busy sharing, and
-  meeting invitations that land directly in the recipient's GhostCal calendar — making GhostCal
-  the private agenda behind **ghostmail**.
+Planned next — see **[docs/roadmap.md](docs/roadmap.md)**. The first two close gaps in promises the
+product already makes, so they come before any new feature:
+
 - **Account lifecycle / GDPR** — account deletion, data export, booking retention/auto-purge.
 - **Key rotation & revocation** — rotate an organization keypair (re-seal) to truly revoke a
-  removed member's cached access.
+  removed member's cached access. Today, removing a member does not revoke the org key they cached.
+- **Ghostboard portal integration** — accept GhostAuth access tokens as a resource server and serve
+  a widget (a count only: the server cannot read sealed events).
+- Then: multiple external accounts, year/agenda-list views, calendar push & read-write sharing, and
+  the remaining ghostmail hooks (`.ics` import, free-busy, invitations into the recipient's calendar).
 
 ## Stack
 
