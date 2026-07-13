@@ -75,11 +75,17 @@ async def org_session(organization_id: uuid.UUID) -> AsyncIterator[AsyncSession]
     """
     sessionmaker = get_sessionmaker()
     async with sessionmaker() as session, session.begin():
-        await _bind_org(session, organization_id)
+        await bind_org(session, organization_id)
         yield session
 
 
-async def _bind_org(session: AsyncSession, organization_id: uuid.UUID) -> None:
+async def bind_org(session: AsyncSession, organization_id: uuid.UUID) -> None:
+    """Bind (or re-bind) the tenant GUC on an open transaction.
+
+    ``org_session`` uses this once at the start. Account deletion re-binds it as it walks the
+    user's organizations, so a single transaction can act on several tenants in turn while every
+    statement stays under RLS.
+    """
     await session.execute(
         text("SELECT set_config('app.current_org_id', :oid, true)"),
         {"oid": str(organization_id)},

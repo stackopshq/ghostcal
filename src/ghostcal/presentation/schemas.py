@@ -132,6 +132,17 @@ class PasswordChangeIn(BaseModel):
     new_password: str = Field(min_length=8, max_length=200)
 
 
+class AccountDeleteIn(BaseModel):
+    """Confirmation of an irreversible erasure (ADR-0006).
+
+    The address is always typed back — it is the only confirmation an SSO-only account can give,
+    since it has no password. Accounts that do have a password must also supply it.
+    """
+
+    email_confirmation: str = Field(min_length=1, max_length=320)
+    password: str | None = Field(default=None, max_length=200)
+
+
 RoleName = Literal["owner", "admin", "member"]
 
 
