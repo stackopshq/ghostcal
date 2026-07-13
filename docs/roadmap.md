@@ -57,10 +57,20 @@ The daily-use core of a calendar client, all zero-knowledge unless noted:
   the personal views, with a "Sync now" action. *Not* zero-knowledge — the server holds the CalDAV
   credentials; an honest, labelled trade-off.
 - **Public ICS subscriptions** (fetch → cache) and a **daily weather forecast** in the calendar.
+- **Several CalDAV accounts** per member (work + personal + family), each its own coloured overlay.
+  Bookings mirror onto exactly one of them — a partial unique index makes "exactly one" true in the
+  database, not merely by convention.
+- **Five views**: month, week, day, **year** (twelve months, busy days marked — a year has no room
+  for titles, and the server could not read them anyway) and **list** ("what is next?", which is the
+  question people actually open a calendar to ask).
 
 ### Suite integration
 
 - **SSO / OIDC login** against GhostAuth (backend + frontend).
+- **Ghostboard portal**: a GhostAuth *resource server* on the portal-facing routes only (the app's
+  own API keeps its local session), a public `ghostapp.yaml`, and two widgets. They are `stat`
+  widgets and will stay `stat` widgets — the server holds event and task titles as ciphertext, so a
+  "your next meetings" list is not a widget we chose not to build but one we *cannot* build.
 - **GhostMail bridges**, both directions and fully decoupled deep-links (no cross-app backend
   calls, zero-knowledge preserved on both sides): "add to calendar" from a detected date in an
   email → GhostCal quick-add prefill; "email guests" from an event → GhostMail composer.
@@ -91,20 +101,19 @@ build, security scan).
 
 ## Next
 
-1. **Ghostboard portal integration.** GhostCal has SSO login but is not yet a GhostAuth *resource
-   server*: it accepts no GhostAuth access token on its API and serves no `ghostapp.yaml` or widget
-   `data_url`, so its portal widget stays hidden. Note the zero-knowledge constraint — the server
-   cannot read sealed events, so the widget can only ever be a **count**, never a list of titles.
-2. **Invitations without a key in the link.** A member who already has an account now receives the
+1. **Invitations without a key in the link.** A member who already has an account now receives the
    org key sealed to their public key. A brand-new invitee has no account and therefore no keypair,
    so that case still uses the ADR-0003 fragment grant — and still carries its trade-off. Closing it
    means granting the key only after the invitee has registered. *(see ADR-0007 §5)*
+2. **Self-hosted CalDAV is unreachable, by design.** The SSRF guard (`assert_public_url`) refuses
+   loopback *and every private range*. That is the right posture for a hosted deployment. But
+   GhostCal is self-hostable, and a self-hoster's Nextcloud or Radicale lives on their LAN at
+   `192.168.x.x` — so they can never connect their own calendar. Not a bug; a real tension between
+   SSRF protection and self-hosting. An opt-in allow-list of private CIDRs would resolve it, and
+   weakening a security control is a decision, not something to slip into a feature branch.
 
 ## Later
 
-- **Multiple external accounts.** `CaldavConnection` is still one per user; a calendar client needs
-  several (work + personal + iCloud).
-- **Year and agenda-list views.** Month/week/day exist; the remaining two Fantastical views do not.
 - **Calendar push & cross-org sharing.** Optional non-ZK **synced** calendars that push to a
   third-party CalDAV server (clearly labelled — booking write-back already exists); read-write
   shared calendars; sharing beyond the org via the invitation-fragment grant.
