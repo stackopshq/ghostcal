@@ -195,6 +195,49 @@ class MemberPublicKeyOut(BaseModel):
     public_key: str | None
 
 
+class SealedRecordOut(BaseModel):
+    """A record still sealed under a retired key. ``sealed`` is ciphertext; only the browser
+    can open it."""
+
+    kind: Literal["booking", "event", "task"]
+    id: uuid.UUID
+    sealed: str
+
+
+class BacklogOut(BaseModel):
+    """How much of the org's encrypted history is still sealed under a retired key (ADR-0007).
+
+    ``remaining == 0`` is the moment a rotation is actually finished: from there, the old key opens
+    nothing at all.
+    """
+
+    generation: int
+    remaining: int
+
+
+class ResealedRecordIn(BaseModel):
+    kind: Literal["booking", "event", "task"]
+    id: uuid.UUID
+    sealed: str = Field(min_length=1, max_length=65536)
+
+
+class ResealIn(BaseModel):
+    """A batch of records re-sealed in the browser to the current key.
+
+    ``generation`` is the one the caller sealed to. If the org has rotated again since, these blobs
+    are stale and writing them would stamp them as current and quietly strand them — so a mismatch
+    is refused, not written.
+    """
+
+    generation: int
+    records: list[ResealedRecordIn] = Field(min_length=1, max_length=200)
+
+
+class ResealOut(BaseModel):
+    applied: int
+    remaining: int
+
+
 class RetentionOut(BaseModel):
     """The organization's booking retention window. ``None`` = keep forever (the default)."""
 

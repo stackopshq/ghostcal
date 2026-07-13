@@ -365,6 +365,19 @@ const en: Dict = {
     "Handle must be lowercase letters, digits and single hyphens (3–100 chars).",
   "settings.errGeneric": "Could not save. Please try again.",
   // privacy (GDPR: export, retention, erasure)
+  "reseal.pending":
+    "{n} record(s) are still sealed with the old key — until they are re-sealed, whoever held it can still read them. Finish the job:",
+  "reseal.resume": "Re-seal the remaining records",
+  "reseal.starting": "Re-sealing…",
+  "reseal.progress": "Re-sealing… {done} of {total}",
+  "reseal.clear":
+    "Nothing is sealed with an old key any more. The rotation is complete.",
+  "reseal.errLocked":
+    "Your encryption key is locked in this tab. Sign in again, then re-seal.",
+  "reseal.errRotated":
+    "The key rotated again while this was running. Nothing was changed — reload and re-seal.",
+  "reseal.errFailed":
+    "Re-sealing stopped. Whatever was already done is kept — you can resume.",
   "rotation.title": "Rotate the encryption key",
   "rotation.sub":
     "Generates a new organization key and hands it to every member. Do this after removing someone: until you do, the key they may have kept still opens everything — including what you create from now on.",
@@ -880,6 +893,19 @@ const fr: Dict = {
     "L'identifiant doit contenir des minuscules, des chiffres et des tirets simples (3 à 100 caractères).",
   "settings.errGeneric": "Impossible d'enregistrer. Réessayez.",
   // privacy (RGPD : export, rétention, effacement)
+  "reseal.pending":
+    "{n} enregistrement(s) sont encore scellés avec l'ancienne clé — tant qu'ils ne sont pas re-scellés, celui qui la détenait peut encore les lire. Terminez le travail :",
+  "reseal.resume": "Re-sceller les enregistrements restants",
+  "reseal.starting": "Re-scellement…",
+  "reseal.progress": "Re-scellement… {done} sur {total}",
+  "reseal.clear":
+    "Plus rien n'est scellé avec une ancienne clé. La rotation est complète.",
+  "reseal.errLocked":
+    "Votre clé de chiffrement est verrouillée dans cet onglet. Reconnectez-vous, puis re-scellez.",
+  "reseal.errRotated":
+    "La clé a tourné à nouveau pendant l'opération. Rien n'a été modifié — rechargez et re-scellez.",
+  "reseal.errFailed":
+    "Le re-scellement s'est arrêté. Ce qui était déjà fait est conservé — vous pouvez reprendre.",
   "rotation.title": "Faire tourner la clé de chiffrement",
   "rotation.sub":
     "Génère une nouvelle clé d'organisation et la remet à chaque membre. À faire après avoir retiré quelqu'un : tant que ce n'est pas fait, la clé qu'il a pu conserver ouvre encore tout — y compris ce que vous créez désormais.",
@@ -1394,6 +1420,19 @@ const es: Dict = {
     "El identificador debe tener minúsculas, dígitos y guiones simples (3 a 100 caracteres).",
   "settings.errGeneric": "No se pudo guardar. Inténtalo de nuevo.",
   // privacidad (RGPD: exportación, retención, borrado)
+  "reseal.pending":
+    "{n} registro(s) siguen sellados con la clave antigua: hasta que se vuelvan a sellar, quien la tuviera aún puede leerlos. Termina el trabajo:",
+  "reseal.resume": "Volver a sellar los registros restantes",
+  "reseal.starting": "Volviendo a sellar…",
+  "reseal.progress": "Volviendo a sellar… {done} de {total}",
+  "reseal.clear":
+    "Ya nada está sellado con una clave antigua. La rotación está completa.",
+  "reseal.errLocked":
+    "Tu clave de cifrado está bloqueada en esta pestaña. Inicia sesión de nuevo y vuelve a sellar.",
+  "reseal.errRotated":
+    "La clave rotó otra vez durante la operación. No se cambió nada: recarga y vuelve a sellar.",
+  "reseal.errFailed":
+    "El resellado se detuvo. Lo ya hecho se conserva: puedes reanudar.",
   "rotation.title": "Rotar la clave de cifrado",
   "rotation.sub":
     "Genera una nueva clave de organización y la entrega a cada miembro. Hazlo tras retirar a alguien: hasta entonces, la clave que pueda haber conservado sigue abriéndolo todo, incluido lo que crees a partir de ahora.",

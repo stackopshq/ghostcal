@@ -10,6 +10,13 @@ import {
   membersWithoutKeys,
   rotateOrgKey,
 } from "@/lib/keypair";
+import {
+  type Backlog,
+  KeyLocked,
+  RotatedUnderneath,
+  getBacklog,
+  resealBacklog,
+} from "@/lib/reseal";
 import { useT } from "@/lib/i18n";
 
 /**
@@ -28,15 +35,25 @@ export default function KeyRotationSettings() {
   const [done, setDone] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // The backlog: records still sealed under a retired key. Until it reaches zero, the key a departed
+  // member may have kept still opens them — the rotation is not actually finished.
+  const [backlog, setBacklog] = useState<Backlog | null>(null);
+  const [sealing, setSealing] = useState(false);
+  const [progress, setProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
+
   useEffect(() => {
     let active = true;
     // The active org is only pinned in storage once you switch orgs or accept an invitation, so a
     // single-org account has none. Resolve it the way the rest of the dashboard does, or a rotation
     // would quietly do nothing for most people.
-    Promise.all([getMemberPublicKeys(), getMyOrganizations()])
-      .then(([m, orgs]) => {
+    Promise.all([getMemberPublicKeys(), getMyOrganizations(), getBacklog()])
+      .then(([m, orgs, b]) => {
         if (!active) return;
         setMembers(m);
+        setBacklog(b);
         const current = orgs.find((o) => o.id === getActiveOrg()) ?? orgs[0];
         setOrgId(current?.id ?? null);
       })
@@ -60,6 +77,9 @@ export default function KeyRotationSettings() {
       setDone(await rotateOrgKey(orgId));
       setArmed(false);
       setMembers(await getMemberPublicKeys());
+      setBacklog(await getBacklog());
+      // Straight into the backlog: a rotation whose backlog is never re-sealed only half-revokes.
+      await runReseal();
     } catch (err) {
       if (err instanceof MembersNotReady) {
         setError(
@@ -73,6 +93,23 @@ export default function KeyRotationSettings() {
       }
     } finally {
       setRotating(false);
+    }
+  }
+
+  async function runReseal() {
+    setSealing(true);
+    setError(null);
+    try {
+      await resealBacklog((d, total) => setProgress({ done: d, total }));
+      setBacklog(await getBacklog());
+    } catch (err) {
+      if (err instanceof KeyLocked) setError(t("reseal.errLocked"));
+      else if (err instanceof RotatedUnderneath)
+        setError(t("reseal.errRotated"));
+      else setError(t("reseal.errFailed"));
+    } finally {
+      setSealing(false);
+      setProgress(null);
     }
   }
 
@@ -131,6 +168,38 @@ export default function KeyRotationSettings() {
           {t("rotation.done").replace("{n}", String(done))}
         </p>
       )}
+
+      {sealing && (
+        <p className="mt-3 text-sm text-muted">
+          {progress
+            ? t("reseal.progress")
+                .replace("{done}", String(progress.done))
+                .replace("{total}", String(progress.total))
+            : t("reseal.starting")}
+        </p>
+      )}
+
+      {!sealing && backlog !== null && backlog.remaining > 0 && (
+        <div className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-3">
+          <p className="text-sm text-amber-300">
+            {t("reseal.pending").replace("{n}", String(backlog.remaining))}
+          </p>
+          <button
+            type="button"
+            onClick={runReseal}
+            className="mt-3 rounded-lg border border-amber-500/60 px-4 py-2 text-sm font-medium text-amber-300 transition hover:bg-amber-500/10"
+          >
+            {t("reseal.resume")}
+          </button>
+        </div>
+      )}
+
+      {!sealing &&
+        backlog !== null &&
+        backlog.remaining === 0 &&
+        backlog.generation > 0 && (
+          <p className="mt-3 text-sm text-accent">{t("reseal.clear")}</p>
+        )}
       {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
     </section>
   );

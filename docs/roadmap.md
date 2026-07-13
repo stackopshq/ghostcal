@@ -66,6 +66,24 @@ The daily-use core of a calendar client, all zero-knowledge unless noted:
   email → GhostCal quick-add prefill; "email guests" from an event → GhostMail composer.
 - **Ghost-suite app switcher** (Calendar ↔ Mail).
 
+### Account lifecycle
+
+Erasure, portability and storage limitation — the three things a privacy-first product cannot
+plausibly ship without. Account deletion (an org you are the sole member of goes with you; in a
+shared one you are anonymized out of the records you co-own), data export **assembled in the
+browser** (the server holds ciphertext it cannot open, so a server-side export would hand you
+base64), and an opt-in booking retention window with a purge job.
+*(see [ADR-0006](adr/0006-account-lifecycle-and-erasure.md))*
+
+### Key rotation & revocation
+
+Removing a member used to revoke *nothing*: they kept the org key, and the org's public key never
+changed, so everything created **after** they left was still sealed to a key they held. Now each
+user has their own keypair, an admin can rotate the org keypair — sealing the new key directly to
+every remaining member, who do nothing — and the backlog of already-sealed records is re-sealed in
+the browser, batch by batch, resumably. When the backlog reaches zero, the old key opens nothing at
+all. *(see [ADR-0007](adr/0007-org-key-rotation-and-revocation.md))*
+
 ### Engineering
 
 Ruff + mypy strict; pytest backend suite; Vitest frontend suite; CI (lint, format check, tests,
@@ -73,20 +91,14 @@ build, security scan).
 
 ## Next
 
-Ordered. The first two close gaps in promises the product already makes — they come before any new
-feature.
-
-1. **Account lifecycle / GDPR.** Account deletion (cascade across the RLS tables), data export
-   (JSON + ICS), booking retention and auto-purge. A privacy-first product cannot ship publicly
-   without the right to erasure and portability.
-2. **Key rotation & revocation.** Today the org private key is cached by every member who ever
-   received it, so removing a member from the org revokes *nothing* — they can still decrypt.
-   Rotate the org keypair, re-seal existing data, and re-distribute to the remaining members. This
-   is a hole in the zero-knowledge promise itself, not a convenience.
-3. **Ghostboard portal integration.** GhostCal has SSO login but is not yet a GhostAuth *resource
+1. **Ghostboard portal integration.** GhostCal has SSO login but is not yet a GhostAuth *resource
    server*: it accepts no GhostAuth access token on its API and serves no `ghostapp.yaml` or widget
    `data_url`, so its portal widget stays hidden. Note the zero-knowledge constraint — the server
    cannot read sealed events, so the widget can only ever be a **count**, never a list of titles.
+2. **Invitations without a key in the link.** A member who already has an account now receives the
+   org key sealed to their public key. A brand-new invitee has no account and therefore no keypair,
+   so that case still uses the ADR-0003 fragment grant — and still carries its trade-off. Closing it
+   means granting the key only after the invitee has registered. *(see ADR-0007 §5)*
 
 ## Later
 

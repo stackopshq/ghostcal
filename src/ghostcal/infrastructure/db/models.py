@@ -406,6 +406,10 @@ class Booking(TimestampMixin, Base):
     # blob and can never read it; only the host decrypts it in-browser. NULL when the event type
     # asks nothing and no notes were left.
     invitee_private: Mapped[str | None] = mapped_column(Text)
+    # Which generation of the org key sealed the blob above (ADR-0007). Stamped by a BEFORE
+    # INSERT trigger, so every write path gets it. A row behind its org's current generation
+    # is backlog waiting to be re-sealed.
+    zk_generation: Mapped[int] = mapped_column(SmallInteger, default=0, server_default="0")
     # Identifiers of the event mirrored onto the host's external (CalDAV) calendar, if any.
     external_event_uid: Mapped[str | None] = mapped_column(String(512))
     external_event_url: Mapped[str | None] = mapped_column(String(2048))
@@ -500,6 +504,10 @@ class CalendarEvent(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(20), default="confirmed")
     # Sealed {title, description, location} — encrypted to the org key, decrypted only in-browser.
     content: Mapped[str | None] = mapped_column(Text)
+    # Which generation of the org key sealed the blob above (ADR-0007). Stamped by a BEFORE
+    # INSERT trigger, so every write path gets it. A row behind its org's current generation
+    # is backlog waiting to be re-sealed.
+    zk_generation: Mapped[int] = mapped_column(SmallInteger, default=0, server_default="0")
     # Minutes before each occurrence to email the owner a content-less reminder; NULL = none.
     reminder_minutes: Mapped[int | None] = mapped_column()
 
@@ -696,6 +704,10 @@ class Task(TimestampMixin, Base):
     owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     # Sealed {title, notes} — encrypted to the org key, decrypted only in-browser.
     content: Mapped[str | None] = mapped_column(Text)
+    # Which generation of the org key sealed the blob above (ADR-0007). Stamped by a BEFORE
+    # INSERT trigger, so every write path gets it. A row behind its org's current generation
+    # is backlog waiting to be re-sealed.
+    zk_generation: Mapped[int] = mapped_column(SmallInteger, default=0, server_default="0")
     due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
