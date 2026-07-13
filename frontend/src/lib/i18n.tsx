@@ -224,6 +224,10 @@ const en: Dict = {
   "calendar.viewMonth": "Month",
   "calendar.viewWeek": "Week",
   "calendar.viewDay": "Day",
+  "calendar.viewYear": "Year",
+  "calendar.viewList": "List",
+  "calendar.upcoming": "Upcoming",
+  "calendar.nothingAhead": "Nothing in the next two months.",
   "calendar.locked":
     "Locked. Log in again to unlock your calendar in this browser.",
   "calendar.busy": "Busy",
@@ -759,6 +763,10 @@ const fr: Dict = {
   "calendar.viewMonth": "Mois",
   "calendar.viewWeek": "Semaine",
   "calendar.viewDay": "Jour",
+  "calendar.viewYear": "Année",
+  "calendar.viewList": "Liste",
+  "calendar.upcoming": "À venir",
+  "calendar.nothingAhead": "Rien dans les deux prochains mois.",
   "calendar.locked":
     "Verrouillé. Reconnectez-vous pour déverrouiller votre calendrier dans ce navigateur.",
   "calendar.busy": "Occupé",
@@ -1295,6 +1303,10 @@ const es: Dict = {
   "calendar.viewMonth": "Mes",
   "calendar.viewWeek": "Semana",
   "calendar.viewDay": "Día",
+  "calendar.viewYear": "Año",
+  "calendar.viewList": "Lista",
+  "calendar.upcoming": "Próximamente",
+  "calendar.nothingAhead": "Nada en los próximos dos meses.",
   "calendar.locked":
     "Bloqueado. Vuelve a iniciar sesión para desbloquear tu calendario en este navegador.",
   "calendar.busy": "Ocupado",

@@ -42,7 +42,9 @@ import {
   type WeatherLocation,
   weatherGlyph,
 } from "@/lib/weather";
+import CalendarAgendaList from "@/components/CalendarAgendaList";
 import CalendarTimeGrid, { type GridItem } from "@/components/CalendarTimeGrid";
+import CalendarYearGrid from "@/components/CalendarYearGrid";
 import EventAttendees from "@/components/EventAttendees";
 import { useI18n, useT } from "@/lib/i18n";
 import { parseQuickAdd, type QuickAddResult } from "@/lib/quickAdd";
@@ -118,7 +120,13 @@ function monthGrid(year: number, month: number): Date[] {
   );
 }
 
-type CalView = "month" | "week" | "day";
+type CalView = "month" | "week" | "day" | "year" | "list";
+
+const CAL_VIEWS: readonly CalView[] = ["month", "week", "day", "year", "list"];
+
+// How far ahead the list view looks. Long enough to be a real answer to "what is next?", short
+// enough that the agenda query stays one page.
+const LIST_DAYS = 60;
 
 function addDays(d: Date, n: number): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
@@ -137,6 +145,19 @@ function viewDays(view: CalView, cursor: Date): Date[] {
 }
 /** The agenda query window [from, to) covering the visible range, with padding for recurrence. */
 function viewWindow(view: CalView, cursor: Date): [Date, Date] {
+  if (view === "year") {
+    return [
+      new Date(cursor.getFullYear(), 0, 1),
+      new Date(cursor.getFullYear() + 1, 0, 1),
+    ];
+  }
+  if (view === "list") {
+    // From today, not from the cursor: a list of what is coming up starts now, whatever month the
+    // user was last looking at.
+    const today = new Date();
+    const s = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    return [s, addDays(s, LIST_DAYS)];
+  }
   if (view === "day") {
     const s = new Date(
       cursor.getFullYear(),
@@ -172,9 +193,9 @@ export default function CalendarPage() {
   // Restore the last-used view once on mount (client-only; avoids an SSR/hydration mismatch).
   useEffect(() => {
     const saved = localStorage.getItem("gc_cal_view");
-    if (saved === "week" || saved === "day" || saved === "month") {
+    if (CAL_VIEWS.includes(saved as CalView)) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setView(saved);
+      setView(saved as CalView);
     }
   }, []);
   function pickView(v: CalView) {
@@ -399,6 +420,8 @@ export default function CalendarPage() {
       if (k === "m") pickView("month");
       else if (k === "w") pickView("week");
       else if (k === "d") pickView("day");
+      else if (k === "y") pickView("year");
+      else if (k === "a") pickView("list");
       else if (k === "t") setCursor(new Date());
       else if (e.key === "ArrowLeft") step(-1);
       else if (e.key === "ArrowRight") step(1);
@@ -625,18 +648,27 @@ export default function CalendarPage() {
 
   const days = useMemo(() => viewDays(view, cursor), [view, cursor]);
   const headerLabel =
-    view === "month"
-      ? cursor.toLocaleDateString(locale, { month: "long", year: "numeric" })
-      : view === "day"
-        ? cursor.toLocaleDateString(locale, {
-            weekday: "long",
-            month: "long",
-            day: "numeric",
-          })
-        : `${days[0].toLocaleDateString(locale, { month: "short", day: "numeric" })} – ${days[6].toLocaleDateString(locale, { month: "short", day: "numeric" })}`;
+    view === "year"
+      ? String(cursor.getFullYear())
+      : view === "list"
+        ? t("calendar.upcoming")
+        : view === "month"
+          ? cursor.toLocaleDateString(locale, {
+              month: "long",
+              year: "numeric",
+            })
+          : view === "day"
+            ? cursor.toLocaleDateString(locale, {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+              })
+            : `${days[0].toLocaleDateString(locale, { month: "short", day: "numeric" })} – ${days[6].toLocaleDateString(locale, { month: "short", day: "numeric" })}`;
 
   function step(dir: -1 | 1) {
-    if (view === "month") setCursor(new Date(year, month + dir, 1));
+    if (view === "list") return; // "what is next?" has no previous page
+    if (view === "year") setCursor(new Date(cursor.getFullYear() + dir, 0, 1));
+    else if (view === "month") setCursor(new Date(year, month + dir, 1));
     else if (view === "week") setCursor(addDays(cursor, 7 * dir));
     else setCursor(addDays(cursor, dir));
   }
@@ -686,7 +718,7 @@ export default function CalendarPage() {
         <div className="flex items-center gap-2">
           {/* View switcher */}
           <div className="flex overflow-hidden rounded-lg border border-border-strong">
-            {(["month", "week", "day"] as const).map((v) => (
+            {CAL_VIEWS.map((v) => (
               <button
                 key={v}
                 type="button"
@@ -701,27 +733,33 @@ export default function CalendarPage() {
               </button>
             ))}
           </div>
-          <button
-            type="button"
-            onClick={() => step(-1)}
-            className="rounded-lg border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
-          >
-            ‹
-          </button>
-          <button
-            type="button"
-            onClick={() => setCursor(new Date())}
-            className="rounded-lg border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
-          >
-            {t("calendar.today")}
-          </button>
-          <button
-            type="button"
-            onClick={() => step(1)}
-            className="rounded-lg border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
-          >
-            ›
-          </button>
+          {/* The list view starts from today and runs forwards: paging it has no meaning, and a
+              control that does nothing is worse than no control. */}
+          {view !== "list" && (
+            <>
+              <button
+                type="button"
+                onClick={() => step(-1)}
+                className="rounded-lg border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                onClick={() => setCursor(new Date())}
+                className="rounded-lg border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
+              >
+                {t("calendar.today")}
+              </button>
+              <button
+                type="button"
+                onClick={() => step(1)}
+                className="rounded-lg border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
+              >
+                ›
+              </button>
+            </>
+          )}
           {ownCalendar && (
             <button
               type="button"
@@ -984,7 +1022,7 @@ export default function CalendarPage() {
         />
       )}
 
-      {!locked && view !== "month" && (
+      {!locked && (view === "week" || view === "day") && (
         <CalendarTimeGrid
           days={days}
           items={gridItems}
@@ -996,6 +1034,32 @@ export default function CalendarPage() {
             sharedReadOnly: t("calendar.sharedReadOnly"),
           }}
           weatherByDay={weatherByDay}
+        />
+      )}
+
+      {!locked && view === "year" && (
+        <CalendarYearGrid
+          year={cursor.getFullYear()}
+          items={gridItems}
+          locale={locale}
+          todayLabel={t("calendar.today")}
+          onPickDay={(day) => {
+            setCursor(day);
+            pickView("day");
+          }}
+        />
+      )}
+
+      {!locked && view === "list" && (
+        <CalendarAgendaList
+          items={gridItems}
+          locale={locale}
+          onEventClick={onGridEvent}
+          labels={{
+            allDay: t("calendar.allDay"),
+            empty: t("calendar.nothingAhead"),
+            sharedReadOnly: t("calendar.sharedReadOnly"),
+          }}
         />
       )}
 
