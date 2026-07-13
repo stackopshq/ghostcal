@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timedelta
 
-from sqlalchemy import func, insert, select, text, update
+from sqlalchemy import func, insert, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +21,7 @@ from ghostcal.application.scheduling import (
     SlotUnavailable,
 )
 from ghostcal.domain.availability import DateOverride, EventType, Schedule, WeeklyRule
+from ghostcal.domain.calendar import RecurringEvent
 from ghostcal.domain.time import TimeRange
 from ghostcal.infrastructure.db import models
 
@@ -236,6 +237,54 @@ class SqlSchedulingRepository:
             )
         ).all()
         return [TimeRange(row.start_at, row.end_at) for row in (*rows, *external)]
+
+    async def busy_events(
+        self, host_id: uuid.UUID, start: datetime, end: datetime
+    ) -> list[RecurringEvent]:
+        """The host's own events, unexpanded — the recurrence is expanded in the domain.
+
+        Scoped by **calendar ownership**, not by who created the event: an event a colleague put on
+        your calendar occupies you, and a calendar merely shared *with* you is someone else's time,
+        not yours.
+
+        A recurring event's master row usually starts long before the window it still occupies —
+        a weekly stand-up created in March is what makes you busy in July — so recurring masters are
+        fetched regardless of the window, and the domain decides which occurrences fall inside it.
+        Only times are selected here: ``content`` is sealed, and the scheduler has no use for it.
+        """
+        own_calendars = select(models.Calendar.id).where(models.Calendar.owner_id == host_id)
+        rows = (
+            await self._session.execute(
+                select(
+                    models.CalendarEvent.id,
+                    models.CalendarEvent.start_at,
+                    models.CalendarEvent.end_at,
+                    models.CalendarEvent.all_day,
+                    models.CalendarEvent.timezone,
+                    models.CalendarEvent.rrule,
+                    models.CalendarEvent.exdates,
+                ).where(
+                    models.CalendarEvent.calendar_id.in_(own_calendars),
+                    models.CalendarEvent.start_at < end,
+                    or_(
+                        models.CalendarEvent.rrule.is_not(None),
+                        models.CalendarEvent.end_at > start,
+                    ),
+                )
+            )
+        ).all()
+        return [
+            RecurringEvent(
+                id=str(r.id),
+                start_at=r.start_at,
+                end_at=r.end_at,
+                timezone=r.timezone,
+                all_day=r.all_day,
+                rrule=r.rrule,
+                exdates=tuple(datetime.fromisoformat(x) for x in (r.exdates or [])),
+            )
+            for r in rows
+        ]
 
     async def host_loads(self, host_ids: tuple[uuid.UUID, ...]) -> dict[uuid.UUID, int]:
         if not host_ids:
