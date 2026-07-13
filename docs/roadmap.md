@@ -70,6 +70,11 @@ The daily-use core of a calendar client, all zero-knowledge unless noted:
   cleartext over at push time, and the server relays it and stores none of it. The honest price is
   that a push waits for a browser; a queue makes that liveable.
   *(see [ADR-0008](adr/0008-calendar-publication-without-server-reads.md))*
+- **Share a calendar outside the organization**, by secret link — with someone who has no GhostCal
+  account at all. The link carries its own keypair; its private half lives in the URL fragment and
+  never reaches the server. ADR-0005 had parked this as "grant them the org key", which would have
+  handed an outsider the encrypted contents of the *entire organization* to show them one calendar.
+  *(see [ADR-0009](adr/0009-sharing-a-calendar-outside-the-organization.md))*
 
 ### Suite integration
 
@@ -121,8 +126,6 @@ build, security scan).
 
 ## Later
 
-- **Cross-org sharing.** Sharing a calendar beyond the organization, via the invitation-fragment
-  grant.
 - **True two-way CalDAV sync.** Publication is one-way; changes made on the phone come back through
   the busy-sync, not through a reconciliation. A real merge would need the server to read both
   sides — which is exactly what ADR-0008 declines to let it do.

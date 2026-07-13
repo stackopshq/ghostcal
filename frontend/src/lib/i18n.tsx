@@ -275,6 +275,17 @@ const en: Dict = {
   "calendar.shareSub":
     "Choose what each teammate may do with this calendar. They decrypt it with the team key they already hold — the server never sees any of it, whether they can edit or not.",
   "calendar.shareNone": "No access",
+  "calendar.linkTitle": "Share outside your team",
+  "calendar.linkSub":
+    "A secret link, for someone with no GhostCal account. The key that decrypts the calendar is in the link itself, after the #, and never reaches our servers — so we hold a calendar we cannot read and hand it to someone who can. Whoever has the link has the calendar.",
+  "calendar.linkCreate": "Create link",
+  "calendar.linkNamePh": "Who is it for?",
+  "calendar.linkUnnamed": "Untitled link",
+  "calendar.linkRevoke": "Revoke",
+  "calendar.linkPending": "· {n} still being sealed",
+  "calendar.linkOnce":
+    "Copy it now — this is the only time you will see it. We keep a hash of the link and never saw its key, so it cannot be shown again.",
+  "calendar.linkCopy": "Copy link",
   "calendar.shareRead": "Can view",
   "calendar.shareEdit": "Can edit",
   "calendar.sharedReadOnly": "Shared with you (read-only)",
@@ -823,6 +834,17 @@ const fr: Dict = {
   "calendar.shareSub":
     "Choisissez ce que chaque coéquipier peut faire de ce calendrier. Ils le déchiffrent avec la clé d'équipe qu'ils possèdent déjà — le serveur n'en voit rien, qu'ils puissent éditer ou non.",
   "calendar.shareNone": "Aucun accès",
+  "calendar.linkTitle": "Partager hors de votre équipe",
+  "calendar.linkSub":
+    "Un lien secret, pour quelqu'un qui n'a pas de compte GhostCal. La clé qui déchiffre le calendrier est dans le lien lui-même, après le #, et ne parvient jamais à nos serveurs — nous détenons donc un calendrier que nous ne pouvons pas lire, et nous le remettons à quelqu'un qui le peut. Qui a le lien a le calendrier.",
+  "calendar.linkCreate": "Créer un lien",
+  "calendar.linkNamePh": "Pour qui ?",
+  "calendar.linkUnnamed": "Lien sans nom",
+  "calendar.linkRevoke": "Révoquer",
+  "calendar.linkPending": "· {n} encore à sceller",
+  "calendar.linkOnce":
+    "Copiez-le maintenant — c'est la seule fois où vous le verrez. Nous ne gardons qu'une empreinte du lien et n'avons jamais vu sa clé : il ne peut pas être réaffiché.",
+  "calendar.linkCopy": "Copier le lien",
   "calendar.shareRead": "Peut voir",
   "calendar.shareEdit": "Peut modifier",
   "calendar.sharedReadOnly": "Partagé avec vous (lecture seule)",
@@ -1370,6 +1392,17 @@ const es: Dict = {
   "calendar.shareSub":
     "Elige qué puede hacer cada compañero con este calendario. Lo descifran con la clave de equipo que ya tienen: el servidor no ve nada, puedan editar o no.",
   "calendar.shareNone": "Sin acceso",
+  "calendar.linkTitle": "Compartir fuera de tu equipo",
+  "calendar.linkSub":
+    "Un enlace secreto, para alguien sin cuenta de GhostCal. La clave que descifra el calendario está en el propio enlace, tras el #, y nunca llega a nuestros servidores: guardamos un calendario que no podemos leer y se lo entregamos a quien sí puede. Quien tenga el enlace tiene el calendario.",
+  "calendar.linkCreate": "Crear enlace",
+  "calendar.linkNamePh": "¿Para quién?",
+  "calendar.linkUnnamed": "Enlace sin nombre",
+  "calendar.linkRevoke": "Revocar",
+  "calendar.linkPending": "· {n} por sellar",
+  "calendar.linkOnce":
+    "Cópialo ahora: es la única vez que lo verás. Solo guardamos un hash del enlace y nunca vimos su clave, así que no puede mostrarse de nuevo.",
+  "calendar.linkCopy": "Copiar enlace",
   "calendar.shareRead": "Puede ver",
   "calendar.shareEdit": "Puede editar",
   "calendar.sharedReadOnly": "Compartido contigo (solo lectura)",

@@ -26,6 +26,7 @@ from ghostcal.presentation.event_invite_routes import router as event_invite_rou
 from ghostcal.presentation.export_routes import router as export_router
 from ghostcal.presentation.invitations_routes import router as invitations_router
 from ghostcal.presentation.keypair_routes import router as keypair_router
+from ghostcal.presentation.link_routes import router as link_router
 from ghostcal.presentation.manage_routes import router as manage_router
 from ghostcal.presentation.org_routes import router as org_router
 from ghostcal.presentation.poll_routes import router as poll_router
@@ -115,6 +116,7 @@ def create_app() -> FastAPI:
     app.include_router(reseal_router)
     app.include_router(portal_router)
     app.include_router(push_router)
+    app.include_router(link_router)
     app.include_router(org_router)
     app.include_router(invitations_router)
     app.include_router(poll_router)

@@ -531,6 +531,57 @@ class CalendarEvent(TimestampMixin, Base):
     reminder_minutes: Mapped[int | None] = mapped_column()
 
 
+class CalendarLink(Base):
+    """A secret link that shares one calendar with anyone, GhostCal account or not (ADR-0009).
+
+    The link has its own X25519 keypair. Its **public** key is here — a public key is public. Its
+    **private** key never reaches the server: it lives in the URL fragment, which browsers do not
+    send. The owner's browser seals a copy of each event to the public key; the visitor's browser
+    opens those copies with the private key it read out of the fragment.
+
+    A keypair rather than a shared symmetric key, so the owner can keep adding events later without
+    holding the link's secret: sealing needs only the public half, and it is right here.
+
+    Whoever has the link has the calendar — the same bargain ghostbit makes, and the same one
+    ADR-0003 makes for team key grants. Revocation is deleting the link.
+    """
+
+    __tablename__ = "calendar_links"
+
+    id: Mapped[uuid.UUID] = _pk()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    calendar_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("calendars.id", ondelete="CASCADE"))
+    # Only the hash: the token is shown to the owner once and lives in the URL thereafter.
+    token_hash: Mapped[str] = mapped_column(String(128), unique=True)
+    public_key: Mapped[str] = mapped_column(Text)
+    name: Mapped[str] = mapped_column(String(200), default="", server_default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CalendarLinkEvent(Base):
+    """One event's content, re-sealed to a link's public key.
+
+    A second envelope, not a replacement: the org-sealed original stays exactly where it was. A
+    change to the event **deletes** these copies (by trigger) — they have become lies — and the
+    owner's browser re-seals them on its next visit.
+    """
+
+    __tablename__ = "calendar_link_events"
+
+    link_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("calendar_links.id", ondelete="CASCADE"), primary_key=True
+    )
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("calendar_events.id", ondelete="CASCADE"), primary_key=True
+    )
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    content_sealed: Mapped[str] = mapped_column(Text)
+
+
 class CalendarPushQueue(Base):
     """One pending publication to an external CalDAV calendar (see migration b5e93a2f7c18).
 

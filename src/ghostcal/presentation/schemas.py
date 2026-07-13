@@ -720,6 +720,67 @@ class AgendaItemOut(BaseModel):
     reminder_minutes: int | None = None
 
 
+class LinkCreateIn(BaseModel):
+    """The browser generated the link's keypair and sends only the PUBLIC half (ADR-0009).
+
+    The private key is not in this request, and never will be: it goes into the URL fragment, which
+    browsers do not transmit.
+    """
+
+    public_key: str = Field(min_length=1, max_length=512)
+    name: str = Field(default="", max_length=200)
+
+
+class LinkCreatedOut(BaseModel):
+    id: uuid.UUID
+    # Shown once. Only its hash is stored, so it cannot be handed out again.
+    token: str
+
+
+class LinkOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    public_key: str
+    created_at: datetime
+    # Events with no sealed copy for this link yet — what the owner's browser has left to do. A link
+    # whose copies are not made shows an empty calendar, which looks like a bug and is not one.
+    pending: int
+
+
+class PendingSealOut(BaseModel):
+    event_id: uuid.UUID
+    # Sealed to the ORG key. The owner's browser opens it with that, then re-seals to the link key.
+    content_sealed: str | None
+
+
+class SealedCopyIn(BaseModel):
+    event_id: uuid.UUID
+    # Sealed to the LINK's public key. Ciphertext the server cannot open, next to ciphertext the
+    # server already could not open.
+    content_sealed: str = Field(min_length=1, max_length=65536)
+
+
+class SealCopiesIn(BaseModel):
+    copies: list[SealedCopyIn] = Field(min_length=1, max_length=200)
+
+
+class PublicEventOut(BaseModel):
+    start_at: datetime
+    end_at: datetime
+    all_day: bool
+    timezone: str
+    rrule: str | None
+    exdates: list[str]
+    # Opens with the key from the URL fragment, and with nothing else on this server.
+    content_sealed: str
+
+
+class PublicCalendarOut(BaseModel):
+    calendar_name: str
+    owner_name: str
+    events: list[PublicEventOut]
+
+
 class PublishIn(BaseModel):
     """Publish a calendar to one of your connected CalDAV calendars, or to nowhere."""
 
