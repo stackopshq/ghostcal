@@ -93,6 +93,14 @@ The daily-use core of a calendar client, all zero-knowledge unless noted:
   a **structured** import link; GhostCal opens the event form, and nothing is saved until the user
   confirms. An invitation email *is* an `.ics`, so this is also how invitations land in the
   calendar — there was never a second feature to build there.
+- **Free-busy sharing** (ADR-0010): a link that shows *when* you are busy and never *what* you are
+  doing, plus "email it" straight into the GhostMail composer. It needs no sealing at all — busy
+  times are already cleartext on the server, because the booking engine has to reason about them —
+  so it carries no key and has no fragment, and whoever finds it learns strictly what the server
+  already knows.
+  Building it is what exposed that the scheduler **could not see your own events**: "Dentist, 14:00"
+  in your calendar did not stop a stranger booking you at 14:00. There is now one definition of
+  busy, and both the booking page and the free-busy link read it.
 - **Ghost-suite app switcher** (Calendar ↔ Mail).
 
 ### Account lifecycle
@@ -136,10 +144,6 @@ build, security scan).
 - **True two-way CalDAV sync.** Publication is one-way; changes made on the phone come back through
   the busy-sync, not through a reconciliation. A real merge would need the server to read both
   sides — which is exactly what ADR-0008 declines to let it do.
-- **Free-busy sharing.** The last of the ghostmail hooks (`.ics` import and invitations landed —
-  see Done). Worth noting that it needs no sealing at all: busy times are already cleartext on the
-  server (they have to be — the booking engine reasons about them), so a free-busy link is a link to
-  what the server can already see, and the ADR-0009 machinery is more than it needs.
 
 ## Exploring
 

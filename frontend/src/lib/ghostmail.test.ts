@@ -24,3 +24,29 @@ describe("openInGhostMail", () => {
     expect(open.mock.calls[0][2]).toBe("noopener");
   });
 });
+
+describe("sending an availability link", () => {
+  it("carries the link in the body — the link IS the message", () => {
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    openInGhostMail({
+      to: [],
+      subject: "When I am free",
+      body: "Here is when I am busy:\n\nhttps://cal.example.com/b/tok3n\n",
+    });
+    const url = new URL((open.mock.calls[0] as [string])[0]);
+    expect(url.searchParams.get("body")).toContain(
+      "https://cal.example.com/b/tok3n",
+    );
+    // No recipients: "who is this for" is a question for the composer, not for us.
+    expect(url.searchParams.get("to")).toBe("");
+  });
+
+  it("omits the body entirely when there is none", () => {
+    // "Email these guests about this event" needs no body — the subject carries it, and an empty
+    // body= in the URL would be noise GhostMail has to decide what to do with.
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    openInGhostMail({ to: ["a@b.co"], subject: "Design review" });
+    const url = new URL((open.mock.calls[0] as [string])[0]);
+    expect(url.searchParams.has("body")).toBe(false);
+  });
+});
