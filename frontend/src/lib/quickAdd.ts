@@ -1,7 +1,7 @@
 // Fantastical-style natural-language quick-add. Runs entirely in the browser (GhostCal is
 // zero-knowledge: the parsed title/location are sealed client-side before anything reaches the
 // server). Dates/times are parsed by chrono-node in the user's locale; duration, recurrence and
-// location are matched with small multilingual patterns (EN/FR/ES).
+// location are matched with small multilingual patterns (EN/FR).
 
 import * as chrono from "chrono-node";
 import type { Locale } from "@/lib/i18n";
@@ -20,23 +20,22 @@ const DEFAULT_DURATION_MIN = 60;
 
 function chronoFor(locale: Locale) {
   if (locale === "fr") return chrono.fr;
-  if (locale === "es") return chrono.es;
   return chrono.en;
 }
 
 // --- recurrence (returns an RRULE and the matched phrase to strip from the title) ---
 const RECUR: { rrule: string; re: RegExp }[] = [
-  { rrule: "FREQ=WEEKLY;BYDAY=MO", re: /\b(every monday|mondays|chaque lundi|tous les lundis|los lunes)\b/i },
-  { rrule: "FREQ=WEEKLY;BYDAY=TU", re: /\b(every tuesday|tuesdays|chaque mardi|tous les mardis|los martes)\b/i },
-  { rrule: "FREQ=WEEKLY;BYDAY=WE", re: /\b(every wednesday|wednesdays|chaque mercredi|tous les mercredis|los mi[ée]rcoles)\b/i },
-  { rrule: "FREQ=WEEKLY;BYDAY=TH", re: /\b(every thursday|thursdays|chaque jeudi|tous les jeudis|los jueves)\b/i },
-  { rrule: "FREQ=WEEKLY;BYDAY=FR", re: /\b(every friday|fridays|chaque vendredi|tous les vendredis|los viernes)\b/i },
-  { rrule: "FREQ=WEEKLY;BYDAY=SA", re: /\b(every saturday|saturdays|chaque samedi|tous les samedis|los s[áa]bados)\b/i },
-  { rrule: "FREQ=WEEKLY;BYDAY=SU", re: /\b(every sunday|sundays|chaque dimanche|tous les dimanches|los domingos)\b/i },
-  { rrule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR", re: /\b(every weekday|weekdays|en semaine|chaque jour ouvr\w*|entre semana)\b/i },
-  { rrule: "FREQ=DAILY", re: /\b(every day|everyday|daily|chaque jour|tous les jours|cada d[ií]a|a diario)\b/i },
-  { rrule: "FREQ=WEEKLY", re: /\b(every week|weekly|chaque semaine|toutes les semaines|cada semana|semanalmente)\b/i },
-  { rrule: "FREQ=MONTHLY", re: /\b(every month|monthly|chaque mois|tous les mois|cada mes|mensualmente)\b/i },
+  { rrule: "FREQ=WEEKLY;BYDAY=MO", re: /\b(every monday|mondays|chaque lundi|tous les lundis)\b/i },
+  { rrule: "FREQ=WEEKLY;BYDAY=TU", re: /\b(every tuesday|tuesdays|chaque mardi|tous les mardis)\b/i },
+  { rrule: "FREQ=WEEKLY;BYDAY=WE", re: /\b(every wednesday|wednesdays|chaque mercredi|tous les mercredis)\b/i },
+  { rrule: "FREQ=WEEKLY;BYDAY=TH", re: /\b(every thursday|thursdays|chaque jeudi|tous les jeudis)\b/i },
+  { rrule: "FREQ=WEEKLY;BYDAY=FR", re: /\b(every friday|fridays|chaque vendredi|tous les vendredis)\b/i },
+  { rrule: "FREQ=WEEKLY;BYDAY=SA", re: /\b(every saturday|saturdays|chaque samedi|tous les samedis)\b/i },
+  { rrule: "FREQ=WEEKLY;BYDAY=SU", re: /\b(every sunday|sundays|chaque dimanche|tous les dimanches)\b/i },
+  { rrule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR", re: /\b(every weekday|weekdays|en semaine|chaque jour ouvr\w*)\b/i },
+  { rrule: "FREQ=DAILY", re: /\b(every day|everyday|daily|chaque jour|tous les jours)\b/i },
+  { rrule: "FREQ=WEEKLY", re: /\b(every week|weekly|chaque semaine|toutes les semaines)\b/i },
+  { rrule: "FREQ=MONTHLY", re: /\b(every month|monthly|chaque mois|tous les mois)\b/i },
 ];
 
 function extractRecurrence(text: string): { rrule: string; text: string } {
@@ -46,9 +45,9 @@ function extractRecurrence(text: string): { rrule: string; text: string } {
   return { rrule: "", text };
 }
 
-// --- duration: "for 90 min", "pendant 2 heures", "durante 1 hora", "for 1h30" ---
+// --- duration: "for 90 min", "pendant 2 heures", "for 1h30" ---
 const DURATION_RE =
-  /\b(?:for|pendant|durante)\s+(\d+)\s*(h|hr|hrs|hour|hours|heure|heures|hora|horas|m|min|mins|minute|minutes|minuto|minutos|d|day|days|jour|jours|d[ií]a|d[ií]as)?\b/i;
+  /\b(?:for|pendant)\s+(\d+)\s*(h|hr|hrs|hour|hours|heure|heures|m|min|mins|minute|minutes|d|day|days|jour|jours)?\b/i;
 
 function extractDuration(text: string): { minutes: number | null; text: string } {
   const m = text.match(DURATION_RE);
@@ -56,12 +55,13 @@ function extractDuration(text: string): { minutes: number | null; text: string }
   const n = Number(m[1]);
   const unit = (m[2] ?? "h").toLowerCase();
   let minutes = n;
-  if (/^(h|hr|hrs|hour|hours|heure|heures|hora|horas)$/.test(unit)) minutes = n * 60;
-  else if (/^(d|day|days|jour|jours|d[ií]a|d[ií]as)$/.test(unit)) minutes = n * 60 * 24;
+  if (/^(h|hr|hrs|hour|hours|heure|heures)$/.test(unit)) minutes = n * 60;
+  else if (/^(d|day|days|jour|jours)$/.test(unit)) minutes = n * 60 * 24;
   return { minutes, text: text.replace(DURATION_RE, " ") };
 }
 
 // --- location: trailing "at/@/à/en <place>" (chrono already consumed "at <time>") ---
+// "en" stays: it is French too ("en salle 3"), not only Spanish.
 const LOCATION_RE = /(?:\s@\s?|\s(?:at|à|au|aux|chez|en)\s)([^@]+?)\s*$/i;
 
 function extractLocation(text: string): { location: string; text: string } {
