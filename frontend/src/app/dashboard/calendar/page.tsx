@@ -54,6 +54,7 @@ import {
   refreshLinks,
   revokeLink,
 } from "@/lib/links";
+import { parseImportUrl, toDraftFields } from "@/lib/importEvent";
 import { drainPushQueue } from "@/lib/push";
 import { parseQuickAdd, type QuickAddResult } from "@/lib/quickAdd";
 import { listMembers, type Member } from "@/lib/team";
@@ -422,13 +423,35 @@ export default function CalendarPage() {
     void load();
   }, [load]);
 
-  // Focus the quick-add when arriving via the command palette's "New event" (#new), and accept a
-  // deep-link prefill (?add=<natural-language text>) — e.g. "Add to calendar" from GhostMail. The
-  // text only pre-fills the quick-add box; the user still reviews and confirms (nothing auto-creates).
+  // Deep links from the sibling apps. Two doors, because they carry different things:
+  //
+  //   ?add=<text>   — a sentence spotted in an email. Pre-fills the quick-add box, which is exactly
+  //                   what a sentence deserves.
+  //   ?import=1&…   — a structured event (an .ics attachment, a meeting invitation). Opens the event
+  //                   form, because a sentence cannot carry an end time, a location and a recurrence
+  //                   rule, and re-parsing prose would throw away what the sender stated exactly.
+  //
+  // Neither saves anything. The user reviews, confirms, and the event is sealed in this browser.
   useEffect(() => {
+    const imported = parseImportUrl(window.location.search);
+    if (imported) {
+      const fields = toDraftFields(imported);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDraft({
+        id: null,
+        calendarId: defaultCalendarId,
+        ...fields,
+        reminderMinutes: null,
+        master: null,
+        occStart: null,
+        scope: "series",
+      });
+      history.replaceState(null, "", window.location.pathname);
+      return;
+    }
+
     const add = new URLSearchParams(window.location.search).get("add");
     if (add) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setQuickText(add);
       requestAnimationFrame(() => quickRef.current?.focus());
       history.replaceState(null, "", window.location.pathname);
@@ -436,7 +459,7 @@ export default function CalendarPage() {
       requestAnimationFrame(() => quickRef.current?.focus());
       history.replaceState(null, "", window.location.pathname);
     }
-  }, []);
+  }, [defaultCalendarId]);
 
   // Keyboard shortcuts (ignored while typing): m/w/d switch views, t today, ←/→ step, n quick-add.
   useEffect(() => {
