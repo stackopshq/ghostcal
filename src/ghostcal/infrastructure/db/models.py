@@ -103,6 +103,14 @@ class User(TimestampMixin, Base):
     avatar_url: Mapped[str | None] = mapped_column(String(2048))
     timezone: Mapped[str] = mapped_column(String(64), default="UTC")
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # The user's own X25519 keypair (ADR-0007). The public key is readable by the server — an org
+    # key can be sealed *to* it, which is what makes rotation invisible to the member. The private
+    # key is wrapped under an Argon2id key derived from their password and never reaches the server
+    # unwrapped. NULL until the user's next login: that is the only moment their password is in the
+    # browser.
+    zk_public_key: Mapped[str | None] = mapped_column(Text)
+    zk_wrapped_private_key: Mapped[str | None] = mapped_column(Text)
+    zk_wrap_salt: Mapped[str | None] = mapped_column(Text)
 
 
 class UserCredential(Base):
