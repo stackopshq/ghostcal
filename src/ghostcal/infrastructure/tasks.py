@@ -15,6 +15,7 @@ from ghostcal.application.event_reminders import dispatch_event_reminders
 from ghostcal.application.ports.calendar import CalendarError
 from ghostcal.application.ports.clock import SystemClock
 from ghostcal.application.reminders import DueReminder, dispatch_reminders
+from ghostcal.application.retention import purge_expired_bookings as purge_expired
 from ghostcal.application.subscriptions import FeedUnreachable, refresh_subscription
 from ghostcal.application.task_reminders import dispatch_task_reminders
 from ghostcal.application.webhooks import sign_payload
@@ -25,6 +26,7 @@ from ghostcal.infrastructure.db.caldav_repository import SqlCaldavConnectionRepo
 from ghostcal.infrastructure.db.event_reminders_repository import SqlEventReminderGateway
 from ghostcal.infrastructure.db.membership import active_caldav_connections, active_subscriptions
 from ghostcal.infrastructure.db.reminders_repository import SqlReminderGateway
+from ghostcal.infrastructure.db.retention_repository import SqlRetentionRepository
 from ghostcal.infrastructure.db.session import db_session, org_session, reset_engine
 from ghostcal.infrastructure.db.subscriptions_repository import SqlSubscriptionRepository
 from ghostcal.infrastructure.db.task_reminders_repository import SqlTaskReminderGateway
@@ -214,3 +216,27 @@ def emit_event(organization_id: uuid.UUID, event_type: str, payload: dict[str, o
         deliver_webhooks.delay(str(organization_id), event_type, payload)
     except Exception:
         logger.warning("could not enqueue webhook event %s", event_type)
+
+
+@celery_app.task(name="ghostcal.purge_expired_bookings")  # type: ignore[untyped-decorator]
+def purge_expired_bookings() -> int:
+    """Purge bookings past their org's retention window. Returns how many were destroyed."""
+    return asyncio.run(_purge_expired_bookings())
+
+
+async def _purge_expired_bookings() -> int:
+    total = 0
+    try:
+        async with db_session() as session:
+            results = await purge_expired(SqlRetentionRepository(session))
+        # Irreversible, so never silent: say which organization lost how many rows.
+        for result in results:
+            logger.info(
+                "purged %d expired bookings in organization %s",
+                result.purged,
+                result.organization_id,
+            )
+            total += result.purged
+    finally:
+        await reset_engine()
+    return total

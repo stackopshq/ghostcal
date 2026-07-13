@@ -71,6 +71,11 @@ class Settings(BaseSettings):
     reminder_scan_interval_seconds: int = 300  # 5 min
     reminder_offsets_minutes: list[int] = [1440, 60]
 
+    # How often the worker purges bookings past their organization's retention window. Daily: the
+    # window is measured in days, so scanning more often would only burn cycles — and this is the
+    # one periodic job that destroys data.
+    retention_purge_interval_seconds: int = 86400  # 24 h
+
     # Per-IP rate limits (requests/minute) on abuse-prone public endpoints.
     booking_rate_limit_per_minute: int = 20
     vote_rate_limit_per_minute: int = 60
