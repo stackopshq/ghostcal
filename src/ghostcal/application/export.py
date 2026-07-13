@@ -66,6 +66,9 @@ class CalendarEventExport:
 @dataclass(frozen=True)
 class CalendarExport:
     id: uuid.UUID
+    # Which organization's key seals this calendar's event content. Sealing is per-organization, so
+    # without this the browser cannot tell which key opens the blobs below.
+    organization_id: uuid.UUID
     name: str
     color: str
     is_default: bool
@@ -75,6 +78,7 @@ class CalendarExport:
 @dataclass(frozen=True)
 class TaskExport:
     id: uuid.UUID
+    organization_id: uuid.UUID
     due_at: datetime | None
     completed: bool
     completed_at: datetime | None
@@ -89,6 +93,7 @@ class BookingExport:
     already see on their own dashboard is exported — nothing is newly disclosed by exporting."""
 
     id: uuid.UUID
+    organization_id: uuid.UUID
     event_type_title: str
     start_at: datetime
     end_at: datetime

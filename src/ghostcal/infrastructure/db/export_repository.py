@@ -94,6 +94,7 @@ class SqlExportRepository(ExportRepository):
             exported.append(
                 CalendarExport(
                     id=calendar.id,
+                    organization_id=organization_id,
                     name=calendar.name,
                     color=calendar.color,
                     is_default=calendar.is_default,
@@ -129,6 +130,7 @@ class SqlExportRepository(ExportRepository):
         return [
             TaskExport(
                 id=t.id,
+                organization_id=organization_id,
                 due_at=t.due_at,
                 completed=t.completed,
                 completed_at=t.completed_at,
@@ -151,6 +153,7 @@ class SqlExportRepository(ExportRepository):
         return [
             BookingExport(
                 id=b.id,
+                organization_id=organization_id,
                 event_type_title=title,
                 start_at=b.start_at,
                 end_at=b.end_at,
