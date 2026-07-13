@@ -137,6 +137,37 @@ class PasswordChangeIn(BaseModel):
     new_password: str = Field(min_length=8, max_length=200)
 
 
+class UserKeypairIn(BaseModel):
+    """The user's own keypair, generated in their browser (ADR-0007). All base64.
+
+    The server stores these verbatim and can derive nothing from them: the private key arrives
+    already wrapped under a key derived from the user's password, which never reaches us.
+    """
+
+    public_key: str = Field(min_length=1, max_length=512)
+    wrapped_private_key: str = Field(min_length=1, max_length=2048)
+    wrap_salt: str = Field(min_length=1, max_length=512)
+
+
+class UserKeypairOut(BaseModel):
+    public_key: str
+    wrapped_private_key: str
+    wrap_salt: str
+
+
+class MemberPublicKeyOut(BaseModel):
+    """A fellow member's public key — what a rotating admin seals the new org key to.
+
+    ``public_key`` is None for a member who has not logged in since keypairs shipped. An org cannot
+    rotate past them: sealing the new key to nothing would lock them out of their own org's data.
+    """
+
+    user_id: uuid.UUID
+    name: str
+    email: str
+    public_key: str | None
+
+
 class RetentionOut(BaseModel):
     """The organization's booking retention window. ``None`` = keep forever (the default)."""
 

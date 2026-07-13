@@ -42,13 +42,23 @@ export type InviteePrivate = {
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 
-async function wrap(privateKeyBytes: Uint8Array<ArrayBuffer>, passphrase: string): Promise<WrappedKey> {
+async function wrap(
+  privateKeyBytes: Uint8Array<ArrayBuffer>,
+  passphrase: string,
+): Promise<WrappedKey> {
   const salt = crypto.getRandomValues(new Uint8Array(ARGON2_SALT_BYTES));
   const key = await deriveKey(passphrase, salt);
-  return { wrapped_private_key: await encryptSymmetric(key, privateKeyBytes), salt: toB64(salt) };
+  return {
+    wrapped_private_key: await encryptSymmetric(key, privateKeyBytes),
+    salt: toB64(salt),
+  };
 }
 
-async function unwrap(wrappedBlob: string, saltB64: string, passphrase: string): Promise<Uint8Array> {
+async function unwrap(
+  wrappedBlob: string,
+  saltB64: string,
+  passphrase: string,
+): Promise<Uint8Array> {
   const key = await deriveKey(passphrase, fromB64(saltB64));
   return decryptSymmetric(key, wrappedBlob); // AES-GCM auth fails (throws) on a wrong passphrase
 }
@@ -96,7 +106,10 @@ export async function unlockWithRecovery(
 }
 
 /** Re-wrap a known private key under a new password (after a password change/reset). */
-export async function rewrapForPassword(privateKeyB64: string, newPassword: string): Promise<WrappedKey> {
+export async function rewrapForPassword(
+  privateKeyB64: string,
+  newPassword: string,
+): Promise<WrappedKey> {
   return wrap(fromB64(privateKeyB64), newPassword);
 }
 
@@ -109,13 +122,21 @@ export async function wrapKeyForGrant(
   const grantKey = randomKey();
   return {
     grant_key: toB64Url(grantKey),
-    wrapped_org_key: await encryptSymmetric(grantKey, fromB64(orgPrivateKeyB64)),
+    wrapped_org_key: await encryptSymmetric(
+      grantKey,
+      fromB64(orgPrivateKeyB64),
+    ),
   };
 }
 
 /** Recover the org private key from a grant blob using the fragment grant key. */
-export async function unwrapKeyFromGrant(grantKeyB64Url: string, wrappedOrgKey: string): Promise<string> {
-  return toB64(await decryptSymmetric(fromB64Url(grantKeyB64Url), wrappedOrgKey));
+export async function unwrapKeyFromGrant(
+  grantKeyB64Url: string,
+  wrappedOrgKey: string,
+): Promise<string> {
+  return toB64(
+    await decryptSymmetric(fromB64Url(grantKeyB64Url), wrappedOrgKey),
+  );
 }
 
 // --- Unlocked-key session store ----------------------------------------------------------------
@@ -130,7 +151,10 @@ export type UnlockedKeys = { publicKey: string; privateKey: string };
 function readMap(): Record<string, UnlockedKeys> {
   if (typeof window === "undefined") return {};
   try {
-    return JSON.parse(sessionStorage.getItem(KEYS) ?? "{}") as Record<string, UnlockedKeys>;
+    return JSON.parse(sessionStorage.getItem(KEYS) ?? "{}") as Record<
+      string,
+      UnlockedKeys
+    >;
   } catch {
     return {};
   }
@@ -143,8 +167,14 @@ export function storeUnlockedKey(orgId: string, keys: UnlockedKeys): void {
 }
 
 /** Every unlocked org keypair, with its org id (e.g. to re-wrap all keys on a password change). */
-export function listUnlockedKeys(): Array<{ organizationId: string; keys: UnlockedKeys }> {
-  return Object.entries(readMap()).map(([organizationId, keys]) => ({ organizationId, keys }));
+export function listUnlockedKeys(): Array<{
+  organizationId: string;
+  keys: UnlockedKeys;
+}> {
+  return Object.entries(readMap()).map(([organizationId, keys]) => ({
+    organizationId,
+    keys,
+  }));
 }
 
 /** The keypair for an org (defaults to any unlocked org when no id is given). */
@@ -159,12 +189,81 @@ export function getUnlockedKeys(orgId?: string | null): UnlockedKeys | null {
 export function clearUnlockedKeys(): void {
   if (typeof window === "undefined") return;
   sessionStorage.removeItem(KEYS);
+  sessionStorage.removeItem(USER_KEY);
+}
+
+// --- The user's own keypair (ADR-0007) ---------------------------------------------------------
+//
+// Distinct from the ORG keypair above. An org key can be sealed *to* this public key, which is what
+// lets an admin rotate the org keypair without every member having to do anything: they log in, and
+// their browser opens the new org key with the private key below.
+
+const USER_KEY = "gc_zk_user";
+
+/** Generate the user's own keypair, wrapping the private key under their password. */
+export async function generateUserKeypair(
+  secret: string,
+): Promise<ZkKeyMaterial> {
+  const kp = await generateKeypair();
+  const wrapped = await wrap(fromB64(kp.privateKey), secret);
+  return {
+    public_key: kp.publicKey,
+    wrapped_private_key: wrapped.wrapped_private_key,
+    wrap_salt: wrapped.salt,
+    // A user keypair has no recovery copy: a forgotten password loses it, and the org keys sealed
+    // to it are simply re-granted — exactly as ADR-0003 already provides for a granted key.
+    recovery_wrapped_private_key: "",
+    recovery_salt: "",
+  };
+}
+
+/** Unwrap the user's own private key with their password. Throws on a wrong secret (AES-GCM auth). */
+export async function unlockUserPrivateKey(
+  secret: string,
+  wrappedB64: string,
+  saltB64: string,
+): Promise<string> {
+  return toB64(await unwrap(wrappedB64, saltB64, secret));
+}
+
+export function storeUserKeys(keys: UnlockedKeys): void {
+  sessionStorage.setItem(USER_KEY, JSON.stringify(keys));
+}
+
+export function getUserKeys(): UnlockedKeys | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return JSON.parse(
+      sessionStorage.getItem(USER_KEY) ?? "null",
+    ) as UnlockedKeys | null;
+  } catch {
+    return null;
+  }
+}
+
+/** Seal an org private key TO a member's public key — the move a rotation is built on. */
+export async function sealOrgKeyToMember(
+  orgPrivateKeyB64: string,
+  memberPublicKeyB64: string,
+): Promise<string> {
+  return sealToPublicKey(memberPublicKeyB64, fromB64(orgPrivateKeyB64));
+}
+
+/** Open an org private key that was sealed to my public key. */
+export async function openOrgKeyForMe(
+  sealed: string,
+  myPrivateKeyB64: string,
+): Promise<string> {
+  return toB64(await openSealed(myPrivateKeyB64, sealed));
 }
 
 // --- Invitee blob (booking page ⇄ dashboard) ---------------------------------------------------
 
 /** Seal the invitee's private details to the org public key (booking page). */
-export async function sealInviteePrivate(data: InviteePrivate, orgPublicKeyB64: string): Promise<string> {
+export async function sealInviteePrivate(
+  data: InviteePrivate,
+  orgPublicKeyB64: string,
+): Promise<string> {
   return sealToPublicKey(orgPublicKeyB64, enc.encode(JSON.stringify(data)));
 }
 
@@ -180,16 +279,28 @@ export async function openInviteePrivate(
 
 // --- Calendar event content (zero-knowledge calendar, ADR-0004) ---------------------------------
 
-export type EventContent = { title: string; description: string; location: string };
+export type EventContent = {
+  title: string;
+  description: string;
+  location: string;
+};
 
 /** Seal an event's content (title/description/location) to the org public key. */
-export async function sealContent(data: EventContent, orgPublicKeyB64: string): Promise<string> {
+export async function sealContent(
+  data: EventContent,
+  orgPublicKeyB64: string,
+): Promise<string> {
   return sealToPublicKey(orgPublicKeyB64, enc.encode(JSON.stringify(data)));
 }
 
 /** Open a sealed event content blob with the org private key. */
-export async function openContent(blob: string, orgPrivateKeyB64: string): Promise<EventContent> {
-  return JSON.parse(dec.decode(await openSealed(orgPrivateKeyB64, blob))) as EventContent;
+export async function openContent(
+  blob: string,
+  orgPrivateKeyB64: string,
+): Promise<EventContent> {
+  return JSON.parse(
+    dec.decode(await openSealed(orgPrivateKeyB64, blob)),
+  ) as EventContent;
 }
 
 export type TaskContent = { title: string; notes: string };
@@ -207,5 +318,7 @@ export async function openTaskContent(
   blob: string,
   orgPrivateKeyB64: string,
 ): Promise<TaskContent> {
-  return JSON.parse(dec.decode(await openSealed(orgPrivateKeyB64, blob))) as TaskContent;
+  return JSON.parse(
+    dec.decode(await openSealed(orgPrivateKeyB64, blob)),
+  ) as TaskContent;
 }

@@ -8,10 +8,13 @@ import { ApiError, resolveBaseUrl } from "@/lib/api";
 import {
   clearUnlockedKeys,
   generateKeyMaterial,
+  generateUserKeypair,
   generateRecoveryPhrase,
   listUnlockedKeys,
   rewrapForPassword,
   storeUnlockedKey,
+  storeUserKeys,
+  unlockUserPrivateKey,
   unlockWithPassword,
   type ZkKeyMaterial,
 } from "@/lib/zk";
@@ -143,7 +146,69 @@ export async function unlockZkKeys(
       /* skip an org whose key this secret can't unwrap (e.g. a granted key) */
     }
   }
+  await ensureUserKeypair(secret);
   return { total: keys.length, unlocked };
+}
+
+// --- The user's own keypair (ADR-0007) ---------------------------------------------------------
+//
+// Distinct from the ORG keypair: an org key can be sealed TO this one, which is what lets an admin
+// rotate an org keypair without any member lifting a finger. It can only be created while the
+// password is in the browser, so login is the moment — hence its home here rather than in
+// lib/keypair.ts, which keeps the rotation-facing half.
+
+export type UserKeypair = {
+  public_key: string;
+  wrapped_private_key: string;
+  wrap_salt: string;
+};
+
+export function getKeypair(): Promise<UserKeypair | null> {
+  return authedFetch<UserKeypair | null>("/v1/me/keypair");
+}
+
+export function putKeypair(keypair: UserKeypair): Promise<void> {
+  return authedFetch<void>("/v1/me/keypair", {
+    method: "PUT",
+    body: JSON.stringify(keypair),
+  });
+}
+
+// Make sure the account has a keypair, and stash it unlocked for this tab. Best-effort by design:
+// failing here must never keep someone out of their account. The worst case is that an org cannot
+// rotate past them yet, and their next login fixes it.
+export async function ensureUserKeypair(secret: string): Promise<void> {
+  try {
+    let keypair = await getKeypair();
+
+    if (keypair === null) {
+      const generated = await generateUserKeypair(secret);
+      keypair = {
+        public_key: generated.public_key,
+        wrapped_private_key: generated.wrapped_private_key,
+        wrap_salt: generated.wrap_salt,
+      };
+      try {
+        await putKeypair(keypair);
+      } catch {
+        // 409: another tab published one first. Theirs won — take it, or we would sit on a private
+        // key that nothing will ever be sealed to.
+        keypair = await getKeypair();
+        if (keypair === null) return;
+      }
+    }
+
+    storeUserKeys({
+      publicKey: keypair.public_key,
+      privateKey: await unlockUserPrivateKey(
+        secret,
+        keypair.wrapped_private_key,
+        keypair.wrap_salt,
+      ),
+    });
+  } catch {
+    /* a secret that cannot unwrap the stored keypair; leave it locked, nothing else breaks */
+  }
 }
 
 // Best-effort unlock used by password login — a failure here never blocks login.
