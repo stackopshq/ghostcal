@@ -560,6 +560,38 @@ class CalendarLink(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class BusyLink(Base):
+    """A link that shows *when* someone is busy, and never *what* they are doing.
+
+    A different animal from :class:`CalendarLink`, which is why it is a different table:
+
+    - it points at a **person**, not one of their calendars — "am I free?" cannot be answered by one
+      calendar while the others are ignored;
+    - it carries **no key**. There is nothing to decrypt, because there is nothing sealed to hand
+      over: busy times are already cleartext on the server (the scheduler has to reason about them).
+
+    That second point is the whole security story, and it is a good one: a busy link discloses
+    *strictly what the server already knows*. There is no fragment, so there is no secret to leak
+    beyond the token itself — and whoever finds the token learns when you are occupied, never once
+    what occupies you. Losing this link is not the same event as losing a calendar link, and the two
+    should not be made to look alike.
+
+    Revocation is deleting the row.
+    """
+
+    __tablename__ = "busy_links"
+
+    id: Mapped[uuid.UUID] = _pk()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    # Only the hash: the token is shown once, and lives in the URL thereafter.
+    token_hash: Mapped[str] = mapped_column(String(128), unique=True)
+    name: Mapped[str] = mapped_column(String(200), default="", server_default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class CalendarLinkEvent(Base):
     """One event's content, re-sealed to a link's public key.
 
@@ -836,6 +868,7 @@ RLS_TABLES: dict[str, str] = {
     "webhook_endpoints": "organization_id",
     "caldav_connections": "organization_id",
     "external_busy": "organization_id",
+    "busy_links": "organization_id",
 }
 
 # server-side timestamp default helper kept importable for migrations/tests

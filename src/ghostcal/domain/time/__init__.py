@@ -1,5 +1,5 @@
 """Time primitives for the availability engine."""
 
-from ghostcal.domain.time.range import TimeRange, subtract_all
+from ghostcal.domain.time.range import TimeRange, merge, subtract_all
 
-__all__ = ["TimeRange", "subtract_all"]
+__all__ = ["TimeRange", "merge", "subtract_all"]

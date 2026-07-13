@@ -277,6 +277,10 @@ const en: Dict = {
   "calendar.linkTitle": "Share outside your team",
   "calendar.linkSub":
     "A secret link, for someone with no GhostCal account. The key that decrypts the calendar is in the link itself, after the #, and never reaches our servers — so we hold a calendar we cannot read and hand it to someone who can. Whoever has the link has the calendar.",
+  "calendar.busyTitle": "Share when you are free",
+  "calendar.busySub":
+    "A link that shows when you are busy, and never what you are doing. It carries no key, because there is nothing to decrypt: your busy times are already in the clear on the server — the booking engine has to know them to offer slots at all. So whoever finds this link learns when you are occupied, and never once what occupies you.",
+  "calendar.busyNamePh": "Who is it for?",
   "calendar.linkCreate": "Create link",
   "calendar.linkNamePh": "Who is it for?",
   "calendar.linkUnnamed": "Untitled link",
@@ -836,6 +840,10 @@ const fr: Dict = {
   "calendar.linkTitle": "Partager hors de votre équipe",
   "calendar.linkSub":
     "Un lien secret, pour quelqu'un qui n'a pas de compte GhostCal. La clé qui déchiffre le calendrier est dans le lien lui-même, après le #, et ne parvient jamais à nos serveurs — nous détenons donc un calendrier que nous ne pouvons pas lire, et nous le remettons à quelqu'un qui le peut. Qui a le lien a le calendrier.",
+  "calendar.busyTitle": "Partager vos disponibilités",
+  "calendar.busySub":
+    "Un lien qui montre quand vous êtes occupé, et jamais ce que vous faites. Il ne porte aucune clé, parce qu'il n'y a rien à déchiffrer : vos créneaux occupés sont déjà en clair sur le serveur — le moteur de réservation doit les connaître pour proposer des créneaux. Qui trouve ce lien apprend donc quand vous êtes pris, et pas une seule fois ce qui vous prend.",
+  "calendar.busyNamePh": "Pour qui ?",
   "calendar.linkCreate": "Créer un lien",
   "calendar.linkNamePh": "Pour qui ?",
   "calendar.linkUnnamed": "Lien sans nom",
