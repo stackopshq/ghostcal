@@ -56,6 +56,29 @@ class TimeRange:
         return free
 
 
+def merge(ranges: Iterable[TimeRange]) -> list[TimeRange]:
+    """Collapse overlapping and touching ranges into the fewest disjoint ones that cover the same
+    instants.
+
+    Two reasons, and the second is the one that matters. It is tidier — and it is what a free-busy
+    view must publish, because the *shape* of unmerged blocks is itself information: three meetings
+    stacked on one hour say something about how in demand you are that a single "busy" does not.
+    Merging discloses that you are occupied, and nothing beyond it.
+
+    Touching ranges (``a.end == b.start``) are merged too. They do not overlap — half-open intervals
+    are deliberate — but as busy time they are one uninterrupted stretch, and reporting them
+    separately would say "there is a seam here", which is again more than "busy".
+    """
+    out: list[TimeRange] = []
+    for r in sorted(ranges):
+        if out and r.start <= out[-1].end:
+            if r.end > out[-1].end:
+                out[-1] = TimeRange(out[-1].start, r.end)
+        else:
+            out.append(r)
+    return out
+
+
 def subtract_all(working: Iterable[TimeRange], busy: Iterable[TimeRange]) -> list[TimeRange]:
     """Subtract every ``busy`` range from every ``working`` range.
 

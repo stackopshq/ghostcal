@@ -764,6 +764,35 @@ class SealCopiesIn(BaseModel):
     copies: list[SealedCopyIn] = Field(min_length=1, max_length=200)
 
 
+class BusyLinkCreateIn(BaseModel):
+    name: str = Field(default="", max_length=200)
+
+
+class BusyLinkCreatedOut(BaseModel):
+    id: uuid.UUID
+    # Shown once. Only its hash is stored, so it cannot be handed out again.
+    token: str
+
+
+class BusyLinkOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    created_at: datetime
+
+
+class BusyBlockOut(BaseModel):
+    """A stretch of occupied time. There is no title here, and there is no field for one."""
+
+    start_at: datetime
+    end_at: datetime
+
+
+class PublicBusyOut(BaseModel):
+    owner_name: str
+    owner_timezone: str
+    busy: list[BusyBlockOut]
+
+
 class PublicEventOut(BaseModel):
     start_at: datetime
     end_at: datetime

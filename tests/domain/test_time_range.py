@@ -13,7 +13,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from ghostcal.domain.time import TimeRange, subtract_all
+from ghostcal.domain.time import TimeRange, merge, subtract_all
 
 
 def _utc(y: int, mo: int, d: int, h: int = 0, mi: int = 0) -> datetime:
@@ -87,3 +87,34 @@ def test_results_are_ordered_and_disjoint(work: TimeRange, busy: list[TimeRange]
     free = subtract_all([work], busy)
     for earlier, later in pairwise(free):
         assert earlier.end <= later.start
+
+
+def test_merge_collapses_overlapping_and_touching_ranges() -> None:
+    """What a free-busy view publishes. The shape of unmerged blocks is itself information: three
+    meetings stacked on one hour say how in demand you are; one "busy" block does not."""
+    stacked = [
+        TimeRange(_utc(2027, 6, 7, 9), _utc(2027, 6, 7, 10)),
+        TimeRange(_utc(2027, 6, 7, 9, 30), _utc(2027, 6, 7, 11)),  # overlaps the first
+        TimeRange(
+            _utc(2027, 6, 7, 11), _utc(2027, 6, 7, 12)
+        ),  # merely touches — but it is the same unbroken stretch
+        TimeRange(_utc(2027, 6, 7, 14), _utc(2027, 6, 7, 15)),  # a real gap before this one
+    ]
+    assert merge(stacked) == [
+        TimeRange(_utc(2027, 6, 7, 9), _utc(2027, 6, 7, 12)),
+        TimeRange(_utc(2027, 6, 7, 14), _utc(2027, 6, 7, 15)),
+    ]
+
+
+def test_merge_swallows_a_range_contained_in_another() -> None:
+    # A short meeting inside a long one must not reopen the long one's tail.
+    assert merge(
+        [
+            TimeRange(_utc(2027, 6, 7, 9), _utc(2027, 6, 7, 17)),
+            TimeRange(_utc(2027, 6, 7, 10), _utc(2027, 6, 7, 11)),
+        ]
+    ) == [TimeRange(_utc(2027, 6, 7, 9), _utc(2027, 6, 7, 17))]
+
+
+def test_merge_of_nothing_is_nothing() -> None:
+    assert merge([]) == []

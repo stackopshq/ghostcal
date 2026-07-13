@@ -54,6 +54,12 @@ import {
   refreshLinks,
   revokeLink,
 } from "@/lib/links";
+import {
+  type BusyLink,
+  createBusyLink,
+  listBusyLinks,
+  revokeBusyLink,
+} from "@/lib/busy";
 import { parseImportUrl, toDraftFields } from "@/lib/importEvent";
 import { drainPushQueue } from "@/lib/push";
 import { parseQuickAdd, type QuickAddResult } from "@/lib/quickAdd";
@@ -1577,6 +1583,11 @@ function ShareModal({
   // Shown exactly once. The token is not retrievable (the server keeps a hash) and the key was never
   // sent anywhere — so if it is lost, the answer is a new link, not a recovery.
   const [freshLink, setFreshLink] = useState<string | null>(null);
+  // A free-busy link is a different promise, and the UI must not let the two blur: it shows WHEN
+  // this person is busy and never WHAT they are doing, so it carries no key and has no fragment.
+  const [busyLinks, setBusyLinks] = useState<BusyLink[]>([]);
+  const [busyName, setBusyName] = useState("");
+  const [freshBusyLink, setFreshBusyLink] = useState<string | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   // Three states per colleague, not two: not shared, read-only, read-write.
   const [access, setAccess] = useState<Map<string, Access>>(new Map());
@@ -1584,10 +1595,11 @@ function ShareModal({
 
   useEffect(() => {
     let active = true;
-    Promise.all([listMembers(), listShares(calendarId)])
-      .then(([m, s]) => {
+    Promise.all([listMembers(), listShares(calendarId), listBusyLinks()])
+      .then(([m, s, b]) => {
         if (!active) return;
         setMembers(m);
+        setBusyLinks(b);
         setAccess(
           new Map(
             s.map(
@@ -1630,6 +1642,19 @@ function ShareModal({
   async function dropLink(id: string) {
     await revokeLink(id);
     setLinks(await listLinks(calendarId));
+  }
+
+  // No keypair to generate, and nothing to seal afterwards: this link shows only what the server
+  // already knows. Minting it is one POST, and that is the whole story.
+  async function mintBusyLink() {
+    setFreshBusyLink(await createBusyLink(busyName.trim()));
+    setBusyName("");
+    setBusyLinks(await listBusyLinks());
+  }
+
+  async function dropBusyLink(id: string) {
+    await revokeBusyLink(id);
+    setBusyLinks(await listBusyLinks());
   }
 
   return (
@@ -1732,6 +1757,71 @@ function ShareModal({
               className="shrink-0 rounded-lg border border-border-strong px-3 py-2 text-sm text-muted transition hover:border-accent hover:text-accent disabled:opacity-50"
             >
               {minting ? t("common.saving") : t("calendar.linkCreate")}
+            </button>
+          </div>
+        </section>
+
+        {/* Availability. Not a calendar link with the titles left off — a different thing, sharing
+            strictly what the server already knows, and it should be presented as such. */}
+        <section className="mt-6 border-t border-border pt-5">
+          <h3 className="text-sm font-medium text-foreground">
+            {t("calendar.busyTitle")}
+          </h3>
+          <p className="mt-1 text-xs text-muted">{t("calendar.busySub")}</p>
+
+          {freshBusyLink && (
+            <div className="mt-3 rounded-lg border border-accent/40 bg-accent/5 p-3">
+              <p className="text-xs text-accent">{t("calendar.linkOnce")}</p>
+              <code className="mt-2 block break-all text-xs text-foreground">
+                {freshBusyLink}
+              </code>
+              <button
+                type="button"
+                onClick={() =>
+                  void navigator.clipboard.writeText(freshBusyLink)
+                }
+                className="mt-2 rounded-lg border border-border px-3 py-1 text-xs text-muted transition hover:text-accent"
+              >
+                {t("calendar.linkCopy")}
+              </button>
+            </div>
+          )}
+
+          {busyLinks.length > 0 && (
+            <ul className="mt-3 flex flex-col gap-1">
+              {busyLinks.map((link) => (
+                <li
+                  key={link.id}
+                  className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm"
+                >
+                  <span className="min-w-0 flex-1 truncate text-foreground">
+                    {link.name || t("calendar.linkUnnamed")}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void dropBusyLink(link.id)}
+                    className="shrink-0 text-xs text-muted transition hover:text-red-400"
+                  >
+                    {t("calendar.linkRevoke")}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div className="mt-3 flex gap-2">
+            <input
+              value={busyName}
+              onChange={(e) => setBusyName(e.target.value)}
+              placeholder={t("calendar.busyNamePh")}
+              className="flex-1 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-foreground placeholder:text-muted"
+            />
+            <button
+              type="button"
+              onClick={() => void mintBusyLink()}
+              className="shrink-0 rounded-lg border border-border-strong px-3 py-2 text-sm text-muted transition hover:border-accent hover:text-accent"
+            >
+              {t("calendar.linkCreate")}
             </button>
           </div>
         </section>
