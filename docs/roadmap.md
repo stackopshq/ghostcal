@@ -141,9 +141,39 @@ build, security scan).
 
 ## Later
 
+- **"This calendar counts towards my availability."** Your own events now block your booking page —
+  they always should have (see Shipped). But the toggle is all-or-nothing, and not every calendar is
+  a claim on your time: an "Anniversaries" calendar should not empty your booking page. The Cal.com
+  model is a `blocks_availability` flag per calendar, defaulting to on. Additive, no painful
+  migration — worth doing when someone actually complains, and not before.
+- **An expiry on shared links.** Neither a calendar link (ADR-0009) nor a free-busy link (ADR-0010)
+  ever dies on its own. Revocation is deletion, and that is honest, but "share my availability with
+  this recruiter for two weeks" is the normal case and today it means remembering to come back.
 - **True two-way CalDAV sync.** Publication is one-way; changes made on the phone come back through
   the busy-sync, not through a reconciliation. A real merge would need the server to read both
   sides — which is exactly what ADR-0008 declines to let it do.
+
+## Debt and traps
+
+Things a newcomer would otherwise rediscover the hard way. None of them is urgent; all of them are
+real.
+
+- **`alembic revision --autogenerate` proposes DROPs.** Run for a one-table addition, it also
+  proposed dropping `calendar_event_reminders`, five indexes and four columns. They are not drift:
+  they are created in **raw SQL** inside earlier migrations (RLS policies, SECURITY DEFINER
+  functions, triggers, partial and GiST indexes) and are not declared on the models, so autogenerate
+  reads them as things to delete. **Hand-write migrations**, or delete every operation you did not
+  intend. Defusing it properly means an `include_object` filter in `migrations/env.py`.
+- **CI does not run `tsc --noEmit`.** The frontend job runs eslint, vitest and `next build` — and a
+  type error inside a *test* file passes all three. There are two sitting in
+  `frontend/src/lib/subscriptions.test.ts` today (a badly typed `fetch` mock). A hole in the feedback
+  loop rather than a bug, which is exactly why it stayed.
+- **`radicale` is a dead dependency.** Declared in `pyproject.toml`, imported nowhere. CalDAV is
+  spoken over HTTP by hand.
+- **Ghostboard's registry promises a widget we cannot serve.** It declares an "upcoming events"
+  **list** widget for ghostcal. Event titles are ciphertext, so the server can serve a *count* and
+  never a list. The registry entry is a promise the architecture forbids keeping — fix the registry,
+  not the architecture.
 
 ## Exploring
 
