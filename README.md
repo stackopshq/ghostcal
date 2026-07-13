@@ -1,8 +1,9 @@
 <h1 align="center">GhostCal</h1>
 
 <p align="center">
-  Fast, correct scheduling — a <strong>privacy-first</strong> alternative to Calendly / Cal.com.<br>
-  What your invitees tell you is <strong>end-to-end encrypted</strong>: the server stores ciphertext it can <strong>never</strong> read.
+  A <strong>privacy-first</strong> calendar: the scheduling of Calendly, the daily client of Fantastical.<br>
+  What your invitees tell you — and what you put in your own calendar — is <strong>end-to-end encrypted</strong>.<br>
+  The server knows <strong>when</strong> you are busy. It can never know <strong>what</strong> you are doing.
 </p>
 
 <p align="center">
@@ -33,11 +34,12 @@
 
 ---
 
-> **Project status — v0.1.** GhostCal is a working scheduling backend (FastAPI) and booking
-> frontend (Next.js) built around a pure, exhaustively-tested availability engine: timezone- and
-> DST-correct slot computation with database-guaranteed no-double-booking. Multi-tenant
-> (organizations) from day one, **zero-knowledge** invitee data throughout, and a
-> **zero-knowledge personal calendar** — the foundation for ghostmail.
+> **Project status — v0.1.** A working scheduler (FastAPI) and booking frontend (Next.js) built on a
+> pure, exhaustively-tested availability engine: timezone- and DST-correct slot computation with
+> **no-double-booking guaranteed by the database**, not by the application. Multi-tenant from day one
+> (Postgres RLS), **zero-knowledge** invitee data and calendar content throughout, and part of the
+> [ghost suite](https://github.com/stackopshq) — it talks to GhostMail, and neither app ever calls the
+> other's backend.
 
 ## Privacy — the differentiator
 
@@ -124,6 +126,24 @@ and reminders still work). The foundation for ghostmail:
 | --- | --- |
 | ![Calendar, dark](docs/assets/calendar-dark.png) | ![Calendar, light](docs/assets/calendar-light.png) |
 
+**Share *when* you are free, never *what* you are doing.** Three ways to share, and they are not the
+same promise — the UI says so in as many words. A **calendar link** carries its decryption key in the
+URL fragment (the server never sees it). An **availability link** carries **no key at all**: your busy
+*times* are already cleartext on the server (the booking engine has to know them to offer slots), so
+there is nothing to hand over. Whoever finds it learns *when* you are occupied, and never once *what*
+occupies you — and "Email it" drops it straight into the GhostMail composer:
+
+| Sharing, three ways — dark | Light |
+| --- | --- |
+| ![Share panel with availability links, dark](docs/assets/busy-share-dark.png) | ![Share panel, light](docs/assets/busy-share-light.png) |
+
+**What the recipient sees.** No account, no key, no titles. The seven meetings behind this page are
+sealed; the server could not name them if it wanted to, and it was never asked to:
+
+| Availability, as a visitor sees it — dark | Light |
+| --- | --- |
+| ![Free-busy page, dark](docs/assets/busy-visitor-dark.png) | ![Free-busy page, light](docs/assets/busy-visitor-light.png) |
+
 **A free, open-source, privacy-first Fantastical.** Month / **week** / **day** views, plus
 **natural-language quick-add** — type *“Lunch with Sam tomorrow 12:30 for 1h at Café”* and the event
 is parsed in your browser (EN/FR) and sealed before it’s saved:
@@ -168,6 +188,18 @@ Titles and notes are sealed client-side; only the due date is cleartext:
   ECDH + AES-256-GCM, Argon2id-wrapped org key + recovery key); at-rest envelope encryption for
   emails and meeting links; multi-tenant Postgres RLS; no telemetry, no third-party calls on the
   booking path.
+- **Sharing** — inside the team (read-only or read-write, decrypted with the team key they already
+  hold); **outside** it by secret link, the key riding in the URL fragment so the server can serve a
+  calendar it cannot read ([ADR-0009](docs/adr/0009-sharing-a-calendar-outside-the-organization.md));
+  and **free-busy links** that show when you are busy and never what you are doing — no key, because
+  there is nothing to decrypt ([ADR-0010](docs/adr/0010-free-busy-links.md)).
+- **Meeting invitations** — an `.ics` in a GhostMail message is parsed in the browser and imported
+  *exactly*: end time, location and recurrence survive, where a natural-language guess would have
+  flattened a 90-minute weekly stand-up into a one-off hour. A cancellation offers no button.
+- **Account lifecycle** — deletion (with tombstoned shared bookings), data export, retention and
+  auto-purge ([ADR-0006](docs/adr/0006-account-lifecycle-and-erasure.md)).
+- **Key rotation** — rotate the organization keypair and re-seal, so removing a member truly revokes
+  the key they had cached ([ADR-0007](docs/adr/0007-per-user-keypairs-and-org-key-rotation.md)).
 - **Invitee self-service** — cancel / reschedule via a signed link (no account).
 - **Teams** — organizations, members & roles (owner/admin/member), token invitations.
 - **SSO / OIDC** — optional single-provider sign-in (Authlib, PKCE), off by default. Authentication
@@ -189,21 +221,17 @@ Titles and notes are sealed client-side; only the due date is cleartext:
 
 ## Roadmap
 
-Shipped today: the scheduler, zero-knowledge invitee data and team key sharing, the zero-knowledge
-calendar (Phases 1–3), the personal calendar client on top of it (natural-language quick-add,
-month/week/day views, tasks, attendees & RSVP, external CalDAV and ICS calendars, notifications,
-command palette), and the suite integration (SSO, GhostMail bridges, app switcher).
+**Shipped:** the scheduler; zero-knowledge invitee data and team key sharing; the zero-knowledge
+calendar and the personal client on top of it (natural-language quick-add, month/week/day/year views,
+tasks, attendees & RSVP, external CalDAV and ICS calendars, notifications, command palette); account
+lifecycle and GDPR erasure; organization **key rotation** (so removing a member revokes the key they
+cached); sharing **outside** the organization by secret link, and **free-busy** links; and the suite
+integration — SSO, the ghostboard portal widget, the app switcher, and the GhostMail bridges in both
+directions (`.ics` invitation import in, "email guests" and "email my availability" out).
 
-Planned next — see **[docs/roadmap.md](docs/roadmap.md)**. The first two close gaps in promises the
-product already makes, so they come before any new feature:
-
-- **Account lifecycle / GDPR** — account deletion, data export, booking retention/auto-purge.
-- **Key rotation & revocation** — rotate an organization keypair (re-seal) to truly revoke a
-  removed member's cached access. Today, removing a member does not revoke the org key they cached.
-- **Ghostboard portal integration** — accept GhostAuth access tokens as a resource server and serve
-  a widget (a count only: the server cannot read sealed events).
-- Then: multiple external accounts, year/agenda-list views, calendar push & read-write sharing, and
-  the remaining ghostmail hooks (`.ics` import, free-busy, invitations into the recipient's calendar).
+**Next** — see **[docs/roadmap.md](docs/roadmap.md)**: invitations without a key in the link, and
+CalDAV for self-hosters whose server lives on their own LAN (today the SSRF guard, correctly, refuses
+to fetch it — weakening a security control is a decision, not a bug fix).
 
 ## Stack
 
