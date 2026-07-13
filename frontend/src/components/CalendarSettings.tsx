@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import { inputClass, primaryButtonClass } from "@/components/AuthCard";
 import { ApiError } from "@/lib/api";
 import {
+  type CalendarRec,
+  listCalendars as listMyCalendars,
+} from "@/lib/agenda";
+import {
   type CalendarInfo,
   type Connection,
   connectCalendar,
@@ -14,6 +18,7 @@ import {
   syncConnection,
 } from "@/lib/calendar";
 import { useT } from "@/lib/i18n";
+import { drainPushQueue, publishCalendar } from "@/lib/push";
 
 type T = (key: string, params?: Record<string, string | number>) => string;
 
@@ -33,6 +38,8 @@ function errorText(e: unknown, t: T): string {
 export default function CalendarSettings() {
   const t = useT();
   const [connections, setConnections] = useState<Connection[]>([]);
+  // The user's own GhostCal calendars, each of which may publish to one connected calendar.
+  const [myCalendars, setMyCalendars] = useState<CalendarRec[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
 
@@ -47,11 +54,33 @@ export default function CalendarSettings() {
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    listConnections()
-      .then(setConnections)
-      .catch(() => setConnections([]))
+    Promise.all([listConnections(), listMyCalendars()])
+      .then(([conns, cals]) => {
+        setConnections(conns);
+        setMyCalendars(cals.filter((c) => !c.is_shared));
+      })
+      .catch(() => undefined)
       .finally(() => setLoading(false));
   }, []);
+
+  async function publish(calendarId: string, connectionId: string | null) {
+    setBusy(true);
+    setError(null);
+    try {
+      await publishCalendar(calendarId, connectionId);
+      setMyCalendars((await listMyCalendars()).filter((c) => !c.is_shared));
+      if (connectionId) {
+        // Nothing in the background can read an event, so the push happens here, now, in the tab
+        // that just asked for it. The queue keeps whatever does not land.
+        const pushed = await drainPushQueue();
+        setMessage(t("cal.published", { n: pushed }));
+      }
+    } catch {
+      setError(t("common.errGeneric"));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   function resetForm() {
     setAdding(false);
@@ -213,6 +242,45 @@ export default function CalendarSettings() {
 
       {connections.length > 0 && (
         <p className="text-xs text-muted">{t("cal.mirrorHint")}</p>
+      )}
+
+      {connections.length > 0 && myCalendars.length > 0 && (
+        <section className="border-t border-border pt-5">
+          <h3 className="text-sm font-medium text-foreground">
+            {t("cal.publishTitle")}
+          </h3>
+          <p className="mt-1 text-xs text-muted">{t("cal.publishSub")}</p>
+          <div className="mt-3 flex flex-col gap-2">
+            {myCalendars.map((c) => (
+              <div
+                key={c.id}
+                className="flex items-center justify-between gap-3 text-sm"
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <span
+                    aria-hidden
+                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: c.color }}
+                  />
+                  <span className="truncate text-foreground">{c.name}</span>
+                </span>
+                <select
+                  value={c.push_connection_id ?? ""}
+                  disabled={busy}
+                  onChange={(e) => void publish(c.id, e.target.value || null)}
+                  className="rounded-lg border border-border bg-surface-2 px-2 py-1 text-xs text-foreground"
+                >
+                  <option value="">{t("cal.publishNowhere")}</option>
+                  {connections.map((conn) => (
+                    <option key={conn.id} value={conn.id}>
+                      {conn.calendar_name ?? conn.username}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       {!adding ? (

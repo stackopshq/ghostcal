@@ -668,6 +668,8 @@ class CalendarOut(BaseModel):
     # Whether the viewer may write to it. Always true for a calendar they own; for a shared one it
     # is what the owner granted.
     can_edit: bool = True
+    # The connected CalDAV calendar this one publishes to, if any.
+    push_connection_id: uuid.UUID | None = None
 
 
 class CalendarIn(BaseModel):
@@ -716,6 +718,57 @@ class AgendaItemOut(BaseModel):
     title: str | None = None
     read_only: bool = False
     reminder_minutes: int | None = None
+
+
+class PublishIn(BaseModel):
+    """Publish a calendar to one of your connected CalDAV calendars, or to nowhere."""
+
+    connection_id: uuid.UUID | None = None
+
+
+class PendingPushOut(BaseModel):
+    """One thing waiting to be published. ``content_sealed`` is ciphertext — the browser opens it,
+    because nothing on the server can."""
+
+    id: uuid.UUID
+    op: Literal["upsert", "delete"]
+    external_uid: str
+    content_sealed: str | None = None
+    start_at: datetime | None = None
+    end_at: datetime | None = None
+    all_day: bool = False
+    rrule: str | None = None
+
+
+class PushItemIn(BaseModel):
+    """An event the browser has opened, on its way to somebody else's CalDAV server.
+
+    This is the only cleartext the server ever sees of a personal event, and it sees it for exactly
+    as long as the CalDAV request takes. Nothing here is stored.
+    """
+
+    id: uuid.UUID
+    op: Literal["upsert", "delete"]
+    external_uid: str = Field(min_length=1, max_length=512)
+    summary: str = Field(default="", max_length=1000)
+    description: str = Field(default="", max_length=8000)
+    location: str = Field(default="", max_length=1000)
+    start_at: datetime | None = None
+    end_at: datetime | None = None
+    rrule: str | None = Field(default=None, max_length=1000)
+
+    _v_rrule = field_validator("rrule")(_validate_rrule)
+
+
+class PushIn(BaseModel):
+    items: list[PushItemIn] = Field(min_length=1, max_length=100)
+
+
+class PushResultOut(BaseModel):
+    pushed: int
+    # Left in the queue: a stale password or an unreachable server is a reason to try again, not a
+    # reason to forget the change.
+    failed: int
 
 
 class ShareIn(BaseModel):

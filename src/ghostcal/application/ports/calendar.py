@@ -62,6 +62,7 @@ class CalendarClient(Protocol):
         location: str,
         start: datetime,
         end: datetime,
+        rrule: str | None = None,
     ) -> str:
         """Create an event and return its URL."""
         ...

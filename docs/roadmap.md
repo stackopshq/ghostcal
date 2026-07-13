@@ -65,6 +65,11 @@ The daily-use core of a calendar client, all zero-knowledge unless noted:
 - **Five views**: month, week, day, **year** (twelve months, busy days marked — a year has no room
   for titles, and the server could not read them anyway) and **list** ("what is next?", which is the
   question people actually open a calendar to ask).
+- **Publish a calendar to CalDAV** — your GhostCal events on your phone, with the server still unable
+  to read one. It cannot build the VEVENT, so the browser does: it opens each event and hands the
+  cleartext over at push time, and the server relays it and stores none of it. The honest price is
+  that a push waits for a browser; a queue makes that liveable.
+  *(see [ADR-0008](adr/0008-calendar-publication-without-server-reads.md))*
 
 ### Suite integration
 
@@ -116,9 +121,11 @@ build, security scan).
 
 ## Later
 
-- **Calendar push & cross-org sharing.** Optional non-ZK **synced** calendars that push to a
-  third-party CalDAV server (clearly labelled — booking write-back already exists); sharing beyond
-  the org via the invitation-fragment grant.
+- **Cross-org sharing.** Sharing a calendar beyond the organization, via the invitation-fragment
+  grant.
+- **True two-way CalDAV sync.** Publication is one-way; changes made on the phone come back through
+  the busy-sync, not through a reconciliation. A real merge would need the server to read both
+  sides — which is exactly what ADR-0008 declines to let it do.
 - **Remaining ghostmail hooks.** `.ics` import from an email, free-busy sharing, and meeting
   invitations that land directly in the recipient's GhostCal calendar.
 

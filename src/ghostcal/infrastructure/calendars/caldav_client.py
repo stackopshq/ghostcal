@@ -90,9 +90,19 @@ class CaldavCalendarClient:
         location: str,
         start: datetime,
         end: datetime,
+        rrule: str | None = None,
     ) -> str:
         return await asyncio.to_thread(
-            self._create_event, creds, calendar_url, uid, summary, description, location, start, end
+            self._create_event,
+            creds,
+            calendar_url,
+            uid,
+            summary,
+            description,
+            location,
+            start,
+            end,
+            rrule,
         )
 
     async def delete_event(self, creds: CalendarCredentials, calendar_url: str, uid: str) -> None:
@@ -160,24 +170,27 @@ class CaldavCalendarClient:
         location: str,
         start: datetime,
         end: datetime,
+        rrule: str | None = None,
     ) -> str:
-        ical = "\r\n".join(
-            [
-                "BEGIN:VCALENDAR",
-                "VERSION:2.0",
-                "PRODID:-//GhostCal//Booking//EN",
-                "BEGIN:VEVENT",
-                f"UID:{uid}",
-                f"DTSTAMP:{_ics_dt(start)}",
-                f"DTSTART:{_ics_dt(start)}",
-                f"DTEND:{_ics_dt(end)}",
-                f"SUMMARY:{_ics_text(summary)}",
-                f"DESCRIPTION:{_ics_text(description)}",
-                f"LOCATION:{_ics_text(location)}",
-                "END:VEVENT",
-                "END:VCALENDAR",
-            ]
-        )
+        lines = [
+            "BEGIN:VCALENDAR",
+            "VERSION:2.0",
+            "PRODID:-//GhostCal//EN",
+            "BEGIN:VEVENT",
+            f"UID:{uid}",
+            f"DTSTAMP:{_ics_dt(start)}",
+            f"DTSTART:{_ics_dt(start)}",
+            f"DTEND:{_ics_dt(end)}",
+            f"SUMMARY:{_ics_text(summary)}",
+            f"DESCRIPTION:{_ics_text(description)}",
+            f"LOCATION:{_ics_text(location)}",
+        ]
+        # Without this a weekly event lands on the phone once and never again. Publishing a
+        # recurrence as a single occurrence is worse than not publishing it: it looks right.
+        if rrule:
+            lines.append(f"RRULE:{rrule}")
+        lines += ["END:VEVENT", "END:VCALENDAR"]
+        ical = "\r\n".join(lines)
         try:
             assert_public_url(calendar_url)
             calendar = _client(creds).calendar(url=calendar_url)
