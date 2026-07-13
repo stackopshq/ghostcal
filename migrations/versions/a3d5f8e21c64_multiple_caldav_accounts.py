@@ -8,9 +8,9 @@ Dropping the constraint makes two things ambiguous, and both are settled here ra
 whichever code path runs first:
 
 - **Which account do bookings mirror onto?** Writing a booking to *every* connected calendar would
-  duplicate it. ``mirror_bookings`` marks the one, and a partial unique index makes "the one" true in
-  the database and not merely by convention. Existing connections inherit it — they were the only
-  calendar, so they were already the mirror target.
+  duplicate it. ``mirror_bookings`` marks the one, and a partial unique index makes "the one" true
+  in the database rather than merely by convention. Existing connections inherit it — they were the
+  only calendar, so they were already the mirror target.
 - **Which account is an external event from?** Each connection gets a ``color``, so it is its own
   toggleable overlay in the calendar rather than all of them collapsing into one "External" chip.
 
