@@ -47,6 +47,13 @@ import CalendarTimeGrid, { type GridItem } from "@/components/CalendarTimeGrid";
 import CalendarYearGrid from "@/components/CalendarYearGrid";
 import EventAttendees from "@/components/EventAttendees";
 import { useI18n, useT } from "@/lib/i18n";
+import {
+  type CalendarLink,
+  createLink,
+  listLinks,
+  refreshLinks,
+  revokeLink,
+} from "@/lib/links";
 import { drainPushQueue } from "@/lib/push";
 import { parseQuickAdd, type QuickAddResult } from "@/lib/quickAdd";
 import { listMembers, type Member } from "@/lib/team";
@@ -347,6 +354,14 @@ export default function CalendarPage() {
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
   const grid = useMemo(() => monthGrid(year, month), [year, month]);
+
+  // A changed event dropped every sealed copy a link held of it — they had become lies, and only
+  // this browser can remake them. Its own effect rather than part of `load`: it depends on the
+  // calendars that `load` itself sets, so folding it in would loop.
+  useEffect(() => {
+    if (!ownCalendar || locked) return;
+    void refreshLinks(ownCalendar.id).catch(() => undefined);
+  }, [ownCalendar, locked]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1531,6 +1546,14 @@ function ShareModal({
   onClose: () => void;
 }) {
   const t = useT();
+  // Sharing outside the organization is a different animal: the recipient has no account and no org
+  // key. A link carries its own key, in the URL fragment, which never reaches the server (ADR-0009).
+  const [links, setLinks] = useState<CalendarLink[]>([]);
+  const [linkName, setLinkName] = useState("");
+  const [minting, setMinting] = useState(false);
+  // Shown exactly once. The token is not retrievable (the server keeps a hash) and the key was never
+  // sent anywhere — so if it is lost, the answer is a new link, not a recovery.
+  const [freshLink, setFreshLink] = useState<string | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   // Three states per colleague, not two: not shared, read-only, read-write.
   const [access, setAccess] = useState<Map<string, Access>>(new Map());
@@ -1570,9 +1593,25 @@ function ShareModal({
     else await shareCalendar(calendarId, userId, next === "edit");
   }
 
+  async function mintLink() {
+    setMinting(true);
+    try {
+      setFreshLink(await createLink(calendarId, linkName.trim()));
+      setLinkName("");
+      setLinks(await listLinks(calendarId));
+    } finally {
+      setMinting(false);
+    }
+  }
+
+  async function dropLink(id: string) {
+    await revokeLink(id);
+    setLinks(await listLinks(calendarId));
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="glass w-full max-w-md rounded-2xl p-6 shadow-2xl">
+      <div className="glass max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl p-6 shadow-2xl">
         <h2 className="mb-1 text-lg font-semibold text-foreground">
           {t("calendar.shareTitle")}
         </h2>
@@ -1604,6 +1643,76 @@ function ShareModal({
             ))}
           </div>
         )}
+        <section className="mt-6 border-t border-border pt-5">
+          <h3 className="text-sm font-medium text-foreground">
+            {t("calendar.linkTitle")}
+          </h3>
+          <p className="mt-1 text-xs text-muted">{t("calendar.linkSub")}</p>
+
+          {freshLink && (
+            <div className="mt-3 rounded-lg border border-accent/40 bg-accent/5 p-3">
+              <p className="text-xs text-accent">{t("calendar.linkOnce")}</p>
+              <code className="mt-2 block break-all text-xs text-foreground">
+                {freshLink}
+              </code>
+              <button
+                type="button"
+                onClick={() => void navigator.clipboard.writeText(freshLink)}
+                className="mt-2 rounded-lg border border-border px-3 py-1 text-xs text-muted transition hover:text-accent"
+              >
+                {t("calendar.linkCopy")}
+              </button>
+            </div>
+          )}
+
+          {links.length > 0 && (
+            <ul className="mt-3 flex flex-col gap-1">
+              {links.map((link) => (
+                <li
+                  key={link.id}
+                  className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm"
+                >
+                  <span className="min-w-0 flex-1 truncate text-foreground">
+                    {link.name || t("calendar.linkUnnamed")}
+                    {link.pending > 0 && (
+                      <span className="ml-2 text-xs text-muted">
+                        {t("calendar.linkPending").replace(
+                          "{n}",
+                          String(link.pending),
+                        )}
+                      </span>
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void dropLink(link.id)}
+                    className="shrink-0 text-xs text-muted transition hover:text-red-400"
+                  >
+                    {t("calendar.linkRevoke")}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div className="mt-3 flex gap-2">
+            <input
+              value={linkName}
+              onChange={(e) => setLinkName(e.target.value)}
+              placeholder={t("calendar.linkNamePh")}
+              className="flex-1 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-foreground placeholder:text-muted"
+            />
+            <button
+              type="button"
+              onClick={() => void mintLink()}
+              disabled={minting}
+              className="shrink-0 rounded-lg border border-border-strong px-3 py-2 text-sm text-muted transition hover:border-accent hover:text-accent disabled:opacity-50"
+            >
+              {minting ? t("common.saving") : t("calendar.linkCreate")}
+            </button>
+          </div>
+        </section>
+
         <div className="mt-5 flex justify-end">
           <button
             type="button"

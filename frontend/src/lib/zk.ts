@@ -310,6 +310,22 @@ export async function sealOrgKeyToMember(
   return sealToPublicKey(memberPublicKeyB64, fromB64(orgPrivateKeyB64));
 }
 
+/**
+ * Encode a key for a URL fragment, and read it back.
+ *
+ * Standard base64 contains `+`, and a fragment parsed with URLSearchParams decodes `+` as a SPACE —
+ * so a key round-tripped naively comes back corrupted, and the failure looks like "the link does not
+ * work" rather than "the encoding is wrong". base64url has no `+`. ADR-0003's grant key already does
+ * this; so does this one.
+ */
+export function keyToFragment(privateKeyB64: string): string {
+  return toB64Url(fromB64(privateKeyB64));
+}
+
+export function keyFromFragment(fragment: string): string {
+  return toB64(fromB64Url(fragment));
+}
+
 /** Open an org private key that was sealed to my public key. */
 export async function openOrgKeyForMe(
   sealed: string,
