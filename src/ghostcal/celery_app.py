@@ -42,6 +42,10 @@ def create_celery() -> Celery:
                 "task": "ghostcal.sync_all_subscriptions",
                 "schedule": float(settings.subscription_sync_interval_seconds),
             },
+            "retention-purge": {
+                "task": "ghostcal.purge_expired_bookings",
+                "schedule": float(settings.retention_purge_interval_seconds),
+            },
         },
     )
     app.autodiscover_tasks(["ghostcal.infrastructure"])

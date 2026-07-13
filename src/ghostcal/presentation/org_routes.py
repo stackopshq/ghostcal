@@ -20,8 +20,13 @@ from ghostcal.application.organizations import (
     PendingInvitation,
 )
 from ghostcal.application.ports.clock import SystemClock
+from ghostcal.application.retention import (
+    InvalidRetentionWindow,
+    RetentionService,
+)
 from ghostcal.config import get_settings
 from ghostcal.infrastructure.db.org_repository import SqlOrgRepository
+from ghostcal.infrastructure.db.retention_repository import SqlRetentionRepository
 from ghostcal.infrastructure.db.session import org_session
 from ghostcal.infrastructure.email import build_email_sender
 from ghostcal.presentation.dashboard_routes import Member, current_member
@@ -29,8 +34,12 @@ from ghostcal.presentation.schemas import (
     InvitationOut,
     InviteIn,
     MemberOut,
+    RetentionIn,
+    RetentionOut,
     RoleUpdateIn,
 )
+
+MANAGER_ROLES = ("owner", "admin")
 
 router = APIRouter(prefix="/v1/me/organization", tags=["organization"])
 
@@ -157,3 +166,27 @@ async def revoke_invitation(
             raise HTTPException(status_code=403, detail=str(exc)) from exc
         except InvitationInvalid as exc:
             raise HTTPException(status_code=404, detail="invitation not found") from exc
+
+
+@router.get("/retention", response_model=RetentionOut)
+async def get_retention(member: Member = Depends(current_member)) -> RetentionOut:
+    """The organization's booking retention window. None = keep forever (the default)."""
+    async with org_session(member.organization_id) as session:
+        service = RetentionService(SqlRetentionRepository(session))
+        return RetentionOut(booking_retention_days=await service.get(member.organization_id))
+
+
+@router.put("/retention", response_model=RetentionOut)
+async def set_retention(
+    payload: RetentionIn, member: Member = Depends(current_member)
+) -> RetentionOut:
+    """Set (or clear) the retention window. Owners and admins only — the purge is irreversible."""
+    if member.role not in MANAGER_ROLES:
+        raise HTTPException(status_code=403, detail="only an owner or admin may set retention")
+    async with org_session(member.organization_id) as session:
+        service = RetentionService(SqlRetentionRepository(session))
+        try:
+            window = await service.set(member.organization_id, payload.booking_retention_days)
+        except InvalidRetentionWindow as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return RetentionOut(booking_retention_days=window)

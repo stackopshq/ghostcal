@@ -9,6 +9,8 @@ from zoneinfo import available_timezones
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
+from ghostcal.application.retention import MAX_RETENTION_DAYS, MIN_RETENTION_DAYS
+
 _TIMEZONES = available_timezones()
 # RRULE frequencies finer than daily can expand to enormous occurrence counts — reject them.
 _BLOCKED_FREQS = ("SECONDLY", "MINUTELY", "HOURLY")
@@ -130,6 +132,24 @@ class ProfileUpdateIn(BaseModel):
 class PasswordChangeIn(BaseModel):
     current_password: str = Field(min_length=1, max_length=200)
     new_password: str = Field(min_length=8, max_length=200)
+
+
+class RetentionOut(BaseModel):
+    """The organization's booking retention window. ``None`` = keep forever (the default)."""
+
+    booking_retention_days: int | None
+
+
+class RetentionIn(BaseModel):
+    """Set the retention window. ``None`` clears it (keep forever).
+
+    The floor is not a formality: the purge is irreversible, so the bound is enforced here, in the
+    application service, and by a database check constraint. See ADR-0006.
+    """
+
+    booking_retention_days: int | None = Field(
+        default=None, ge=MIN_RETENTION_DAYS, le=MAX_RETENTION_DAYS
+    )
 
 
 class AccountDeleteIn(BaseModel):

@@ -63,6 +63,10 @@ class Organization(TimestampMixin, Base):
     # private key is never stored server-side; only per-member wrapped copies live in
     # ``org_member_keys``. NULL only for legacy orgs created before zero-knowledge.
     zk_public_key: Mapped[str | None] = mapped_column(Text)
+    # Opt-in retention: purge bookings that ended more than this many days ago. NULL = keep forever
+    # (the default). Floored at MIN_RETENTION_DAYS by a check constraint — the purge is
+    # irreversible, so a fat-fingered value must not be able to erase an organization's history.
+    booking_retention_days: Mapped[int | None] = mapped_column(SmallInteger)
 
 
 class OrgMemberKey(TimestampMixin, Base):
