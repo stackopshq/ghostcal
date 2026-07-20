@@ -167,7 +167,30 @@ class SqlLinkRepository(LinkRepository):
         if link is None:
             return 0
 
+        # The link's ownership was checked above; the *events* were not. Without this, any
+        # `event_id` that exists could be sealed into the link — including a colleague's, read
+        # through a shared calendar — and the public endpoint would then publish its times and
+        # recurrence to an anonymous URL. "A link is one calendar" (ADR-0009) has to be enforced
+        # where the rows are written, not only where they are offered by `pending_seals`.
+        allowed = set(
+            (
+                await self._session.execute(
+                    select(models.CalendarEvent.id)
+                    .join(
+                        models.CalendarLink,
+                        models.CalendarLink.calendar_id == models.CalendarEvent.calendar_id,
+                    )
+                    .where(models.CalendarLink.id == link_id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        stored = 0
         for copy in copies:
+            if copy.event_id not in allowed:
+                continue
             await self._session.execute(
                 pg_insert(models.CalendarLinkEvent)
                 .values(
@@ -181,7 +204,8 @@ class SqlLinkRepository(LinkRepository):
                     set_={"content_sealed": copy.content_sealed},
                 )
             )
-        return len(copies)
+            stored += 1
+        return stored
 
     async def public_calendar(self, token_hash: str) -> PublicCalendar | None:
         rows = (
