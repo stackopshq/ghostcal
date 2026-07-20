@@ -102,6 +102,11 @@ class Settings(BaseSettings):
     # How long computed availability is cached (seconds). Short, so freshly-taken slots clear fast.
     availability_cache_ttl_seconds: int = 45
 
+    # Port the Celery worker serves its Prometheus metrics on. Counters incremented in a worker
+    # are invisible to the API's /metrics — a different process, a different registry — so the
+    # worker exposes its own. Set 0 to disable.
+    metrics_port: int = 9101
+
     # Transactional email (Resend). When the API key is unset, emails are logged instead of sent.
     resend_api_key: SecretStr | None = None
     email_from: str = "GhostCal <onboarding@resend.dev>"
