@@ -33,6 +33,11 @@ COPY --from=builder --chown=app:app /app/src /app/src
 COPY --chown=app:app migrations ./migrations
 COPY --chown=app:app alembic.ini ./alembic.ini
 
+# Where celery beat keeps its schedule file, mounted as a volume in compose. Created here, owned
+# by the runtime user: a named volume inherits the ownership of its mount point from the image, so
+# without this the non-root beat process cannot write to a fresh volume and exits at startup.
+RUN mkdir -p /var/lib/ghostcal && chown app:app /var/lib/ghostcal
+
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
