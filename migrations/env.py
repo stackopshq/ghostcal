@@ -12,6 +12,7 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
+from sqlalchemy.sql.schema import SchemaItem
 
 # Import models so their tables register on Base.metadata for autogenerate.
 import ghostcal.infrastructure.db.models  # noqa: F401
@@ -24,6 +25,33 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
+
+
+def _include_object(
+    obj: SchemaItem,
+    name: str | None,
+    type_: str,
+    reflected: bool,
+    compare_to: SchemaItem | None,
+) -> bool:
+    """Keep autogenerate additive: propose what the models gained, never what they never had.
+
+    A large part of this schema is created by hand-written SQL inside migrations — RLS policies,
+    SECURITY DEFINER functions, triggers, and the partial and GiST indexes the booking engine
+    relies on — and is deliberately not declared on any model. Autogenerate compares the models
+    against the database, sees those objects on only one side, and reads them as things to
+    delete. Run unfiltered against the current schema it proposes dropping the
+    ``calendar_event_reminders`` table, six indexes (including
+    ``uq_caldav_one_mirror_per_user``, which is what makes "exactly one mirror" true in the
+    database rather than by convention) and three trigger-maintained ``updated_at`` columns.
+    Accepting that output silently destroys the guarantees those objects exist to provide.
+
+    An object that is in the database but on no model (``reflected`` with nothing to compare to)
+    is therefore treated as hand-managed and left alone. The trade-off is that genuinely removing
+    a model no longer autogenerates its ``DROP`` — which is the intended posture here: removals
+    are written by hand, where the RLS and trigger fallout can be reasoned about.
+    """
+    return not (reflected and compare_to is None)
 
 
 def _database_url() -> str:
@@ -40,6 +68,7 @@ def do_run_migrations(connection: Connection) -> None:
         connection=connection,
         target_metadata=target_metadata,
         compare_type=True,
+        include_object=_include_object,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -62,6 +91,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_object=_include_object,
     )
     with context.begin_transaction():
         context.run_migrations()

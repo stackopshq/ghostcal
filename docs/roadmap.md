@@ -158,18 +158,18 @@ build, security scan).
 Things a newcomer would otherwise rediscover the hard way. None of them is urgent; all of them are
 real.
 
-- **`alembic revision --autogenerate` proposes DROPs.** Run for a one-table addition, it also
-  proposed dropping `calendar_event_reminders`, five indexes and four columns. They are not drift:
-  they are created in **raw SQL** inside earlier migrations (RLS policies, SECURITY DEFINER
-  functions, triggers, partial and GiST indexes) and are not declared on the models, so autogenerate
-  reads them as things to delete. **Hand-write migrations**, or delete every operation you did not
-  intend. Defusing it properly means an `include_object` filter in `migrations/env.py`.
+- **`alembic revision --autogenerate` no longer proposes DROPs, and here is why it did.** Half this
+  schema is created by hand-written SQL inside migrations — RLS policies, SECURITY DEFINER
+  functions, triggers, partial and GiST indexes — and is declared on no model, so autogenerate read
+  it as deletable. Unfiltered it proposed dropping the `calendar_event_reminders` table, six indexes
+  (including `uq_caldav_one_mirror_per_user`) and three trigger-maintained `updated_at` columns. An
+  `include_object` filter in `migrations/env.py` now ignores anything reflected that no model
+  claims, so autogenerate is **additive only**. The corollary: removing a model does not generate
+  its `DROP` either. Write removals by hand, where the RLS and trigger fallout is visible.
 - **CI does not run `tsc --noEmit`.** The frontend job runs eslint, vitest and `next build` — and a
   type error inside a *test* file passes all three. There are two sitting in
   `frontend/src/lib/subscriptions.test.ts` today (a badly typed `fetch` mock). A hole in the feedback
   loop rather than a bug, which is exactly why it stayed.
-- **`radicale` is a dead dependency.** Declared in `pyproject.toml`, imported nowhere. CalDAV is
-  spoken over HTTP by hand.
 - **Ghostboard's registry promises a widget we cannot serve.** It declares an "upcoming events"
   **list** widget for ghostcal. Event titles are ciphertext, so the server can serve a *count* and
   never a list. The registry entry is a promise the architecture forbids keeping — fix the registry,
