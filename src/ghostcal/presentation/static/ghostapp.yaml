@@ -19,7 +19,7 @@ metadata:
   version: 0.1.0
 spec:
   base_url: https://ghostcal.ghost.local
-  health_endpoint: /healthz
+  health_endpoint: /api/health
   auth:
     required_scopes:
       - ghostsuite:ghostcal

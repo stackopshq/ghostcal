@@ -176,10 +176,15 @@ real.
   type error inside a *test* file passes all three. There are two sitting in
   `frontend/src/lib/subscriptions.test.ts` today (a badly typed `fetch` mock). A hole in the feedback
   loop rather than a bug, which is exactly why it stayed.
-- **Ghostboard's registry promises a widget we cannot serve.** It declares an "upcoming events"
-  **list** widget for ghostcal. Event titles are ciphertext, so the server can serve a *count* and
-  never a list. The registry entry is a promise the architecture forbids keeping — fix the registry,
-  not the architecture.
+- **Ghostboard's registry stub still promises a widget we cannot serve.** Its local
+  `apps_registry/ghostcal.yaml` declares an "upcoming events" **list** widget. Event titles are
+  ciphertext, so the server can serve a *count* and never a list — fix the registry, not the
+  architecture. It is **inert in the normal case**: the portal fetches our published manifest and
+  replaces its stub's widgets wholesale. It goes live only when that fetch fails and the portal
+  falls back, at which point it renders a permanently empty card rather than an error. The fix
+  belongs in the ghostboard repo.
+  On our side the manifest is now pinned by a test asserting every path it declares resolves to a
+  route this app serves — added after finding it advertised a `/healthz` that never existed.
 
 ## Exploring
 
