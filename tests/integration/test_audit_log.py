@@ -116,3 +116,51 @@ async def test_an_account_level_event_needs_no_org_context(admin_engine: AsyncEn
 
     assert row.action == Action.LOGIN_FAILED
     assert row.organization_id is None
+
+
+async def test_a_pooled_connection_can_read_after_its_binding_reverted(org: uuid.UUID) -> None:
+    """`set_config(..., is_local => true)` reverts the GUC to the empty string, not to unset, so a
+    policy comparing `''::uuid` raises instead of matching nothing. Migration b2d8f30c17ae swept
+    every policy for exactly this; a policy added afterwards has to get it right on its own."""
+    async with org_session(org) as session:
+        await AuditLog(SqlAuditSink(session)).record(Action.ORG_KEY_ROTATED, organization_id=org)
+
+    # Bind and release, as a pooled connection does, then read with no binding at all.
+    async with db_session() as session:
+        await session.execute(
+            text("SELECT set_config('app.current_org_id', :o, true)"), {"o": str(org)}
+        )
+    async with db_session() as session:
+        visible = (await session.execute(text("SELECT count(*) FROM audit_events"))).scalar_one()
+
+    assert visible == 0  # empty, not an exception
+
+
+async def test_the_rotation_route_actually_lands_an_audit_row(
+    admin_engine: AsyncEngine, org: uuid.UUID
+) -> None:
+    """The bug this pins: the route opened an unbound `db_session`, so the org-scoped INSERT was
+    refused by RLS — and `AuditLog.record` swallows failures by design, so the rotation succeeded
+    while its audit entry silently vanished. Asserting through the *route's own* session shape is
+    the point; the earlier tests used `org_session` and therefore proved nothing about production.
+    """
+    from ghostcal.application.audit import AuditLog as _AuditLog
+
+    # Exactly what keypair_routes does now: org-bound session, org-scoped record.
+    async with org_session(org) as session:
+        await _AuditLog(SqlAuditSink(session)).record(
+            Action.ORG_KEY_ROTATED, organization_id=org, generation=1, members_resealed_to=2
+        )
+
+    maker = async_sessionmaker(admin_engine)
+    async with maker() as s:
+        count = (
+            await s.execute(
+                text(
+                    "SELECT count(*) FROM audit_events WHERE organization_id = :o AND action = :a"
+                ),
+                {"o": org, "a": Action.ORG_KEY_ROTATED},
+            )
+        ).scalar_one()
+
+    assert count == 1

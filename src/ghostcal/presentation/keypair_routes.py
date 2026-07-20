@@ -26,7 +26,7 @@ from ghostcal.application.rotation import (
 from ghostcal.infrastructure.db.audit_repository import SqlAuditSink
 from ghostcal.infrastructure.db.keypairs_repository import SqlKeypairRepository
 from ghostcal.infrastructure.db.rotation_repository import SqlRotationRepository
-from ghostcal.infrastructure.db.session import db_session
+from ghostcal.infrastructure.db.session import db_session, org_session
 from ghostcal.presentation.auth_routes import CurrentUser
 from ghostcal.presentation.dashboard_routes import Member, current_member
 from ghostcal.presentation.schemas import (
@@ -108,7 +108,11 @@ async def rotate_key(
     from now on, which is the urgent half; the backlog is already readable by whoever left, so
     re-sealing it can proceed afterwards, progressively. See ADR-0007 §2.
     """
-    async with db_session() as session:
+    # org_session, not db_session: the audit row is org-scoped, and `audit_events`' WITH CHECK
+    # compares against the tenant GUC. On an unbound session the INSERT is refused by RLS — and
+    # `AuditLog.record` swallows that by design, so the rotation would succeed while its audit
+    # entry vanished silently. Rotation itself is unaffected either way; the log is the reason.
+    async with org_session(member.organization_id) as session:
         service = RotationService(SqlRotationRepository(session), AuditLog(SqlAuditSink(session)))
         try:
             generation = await service.rotate(

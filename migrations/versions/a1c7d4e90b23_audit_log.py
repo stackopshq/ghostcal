@@ -84,11 +84,16 @@ def upgrade() -> None:
     op.execute("ALTER TABLE audit_events FORCE ROW LEVEL SECURITY")
     # Org-scoped reads, as everywhere else. Account-level rows (organization_id IS NULL) are
     # visible to nobody through the app connection — they are for the operator, via the admin role.
+    # NULLIF is not decoration — see migration b2d8f30c17ae, which swept every existing policy for
+    # exactly this. `set_config(..., is_local => true)` reverts the GUC to the empty string at
+    # commit, not to unset, so on a recycled connection `''::uuid` *raises* instead of matching
+    # nothing: an unbound read becomes a 500 rather than an empty result. That sweep ran nine
+    # revisions ago and will not run again, so a new policy has to get this right on its own.
     op.execute(
         "CREATE POLICY tenant_isolation ON audit_events USING "
-        "(organization_id = current_setting('app.current_org_id', true)::uuid) "
+        "(organization_id = NULLIF(current_setting('app.current_org_id', true), '')::uuid) "
         "WITH CHECK (organization_id IS NULL OR "
-        "organization_id = current_setting('app.current_org_id', true)::uuid)"
+        "organization_id = NULLIF(current_setting('app.current_org_id', true), '')::uuid)"
     )
 
     # Append-only, enforced by grants rather than hoped for. The app role never revises history.
@@ -108,12 +113,16 @@ def upgrade() -> None:
     # Account-level events have no org context, and the tenant policy would reject them on a
     # plain session. SECURITY DEFINER so the app can record a login or an account deletion
     # without being handed a way to write arbitrary org-scoped rows.
+    #
+    # `p_actor` is written as given: there is no session GUC carrying the authenticated user, so
+    # the function cannot verify it and the caller must pass a server-derived id, never one from
+    # a request body. Callers today satisfy that; it is stated because the next one has to too.
     op.execute(
         """
         CREATE FUNCTION record_account_audit_event(
             p_actor uuid, p_action text, p_target text, p_details jsonb
         ) RETURNS void
-        LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+        LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
             INSERT INTO audit_events (organization_id, actor_user_id, action, target, details)
             VALUES (NULL, p_actor, p_action, p_target, COALESCE(p_details, '{}'::jsonb));
         $$;
