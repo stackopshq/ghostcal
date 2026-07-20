@@ -14,6 +14,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 import pytest_asyncio
+import yaml
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
@@ -164,6 +165,33 @@ def test_the_manifest_is_public_and_served_verbatim() -> None:
     assert "id: ghostcal" in body
     assert "ghostsuite:ghostcal" in body
     assert "kind: list" not in body  # a zero-knowledge app has no titles to list
+
+
+def test_the_manifest_only_declares_paths_the_app_serves() -> None:
+    """The manifest is a contract with the portal, and nothing was checking it against reality.
+
+    It declared `health_endpoint: /healthz`, which this app has never served (it serves `/health`
+    and `/readyz`). Nothing broke, because ghostboard reads that field and does not call it — a
+    promise that happens to go unaudited. The widget `data_url`s carry the same risk, and those the
+    portal really does fetch.
+
+    Declared paths are frontend-origin paths: the Next rewrite `/api/:path*` -> backend `/:path*`
+    is what puts them in front of this app, so strip that prefix before matching.
+    """
+    app = create_app()
+    with TestClient(app) as client:
+        manifest = yaml.safe_load(client.get("/.well-known/ghostapp.yaml").text)
+
+    # Read the paths from the OpenAPI schema, not `app.routes`: included routers appear there
+    # unflattened, with no `path` at all, so walking `app.routes` silently finds nothing.
+    routes = set(app.openapi()["paths"])
+    declared = [manifest["spec"]["health_endpoint"]]
+    declared += [widget["data_url"] for widget in manifest["spec"]["widgets"]]
+
+    for path in declared:
+        assert path.startswith("/api/"), f"{path} is not reachable through the frontend rewrite"
+        served = path.removeprefix("/api")
+        assert served in routes, f"manifest declares {path}, which nothing serves"
 
 
 def test_widgets_refuse_a_request_with_no_token() -> None:
