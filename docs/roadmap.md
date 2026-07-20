@@ -26,6 +26,12 @@ webhooks; analytics. Multi-tenant Postgres RLS throughout. Full UI in EN/FR.
   heavyweight crypto dependency. CSP with `wasm-unsafe-eval`.
 - **Security.** Full pentest hardening pass; org invitations are only acceptable by the verified
   owner of the invited email.
+- **Self-hosting without weakening the egress guard.** The SSRF guard refuses every private
+  address, which is right for a hosted deployment and left self-hosters unable to reach their own
+  Nextcloud or Radicale on the LAN. `GHOSTCAL_CALENDAR_ALLOWED_PRIVATE_CIDRS` names ranges to open
+  — empty by default, calendars only (never webhooks), and link-local stays refused however it is
+  set, so no configuration can expose the cloud-metadata address.
+  *(see [ADR-0011](adr/0011-private-network-allow-list-for-self-hosting.md))*
 
 ### Private calendar
 
@@ -132,13 +138,6 @@ build, security scan).
    org key sealed to their public key. A brand-new invitee has no account and therefore no keypair,
    so that case still uses the ADR-0003 fragment grant — and still carries its trade-off. Closing it
    means granting the key only after the invitee has registered. *(see ADR-0007 §5)*
-2. **Self-hosted CalDAV is unreachable, by design.** The SSRF guard (`assert_public_url`) refuses
-   loopback *and every private range*. That is the right posture for a hosted deployment. But
-   GhostCal is self-hostable, and a self-hoster's Nextcloud or Radicale lives on their LAN at
-   `192.168.x.x` — so they can never connect their own calendar. Not a bug; a real tension between
-   SSRF protection and self-hosting. An opt-in allow-list of private CIDRs would resolve it, and
-   weakening a security control is a decision, not something to slip into a feature branch.
-
 ## Later
 
 - **"This calendar counts towards my availability."** Your own events now block your booking page —
