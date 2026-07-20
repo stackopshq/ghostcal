@@ -81,11 +81,34 @@ out of their own organization's data. They log in once, and the rotation proceed
 
 ### 5. What invitations still do
 
-Inviting someone who **already has an account** seals the org key to their user public key — no
-fragment, no key in a link. Inviting a **brand-new** email cannot: there is no account, so no
-keypair. That case keeps the ADR-0003 fragment grant, and keeps its trade-off. Closing it properly
-means granting the key only after the invitee has registered, which is a change to the invitation UX
-and belongs in its own change.
+> **Corrected 2026-07-20.** This section previously claimed that inviting someone who already has an
+> account seals the org key to their user public key, "no fragment, no key in a link", and that only
+> brand-new invitees fell back to ADR-0003. **That branch was never built.** The paragraph described
+> an intention as though it were behaviour, which in a document about key handling is worse than
+> describing no behaviour at all. What follows is what the code does.
+
+**Every invitation uses the ADR-0003 fragment grant**, whether or not the invitee already has an
+account. The inviter's browser wraps the org key under a random grant key, the wrapped copy goes on
+the invitation row, and the grant key travels in the URL fragment — so an invitation link emailed to
+someone carries, in that email, the means to open the organization's data. There is one code path
+and no conditional: `organization_invitations` has no column for a key sealed to a user, and there
+is no endpoint that looks up a public key by email.
+
+Rotation, by contrast, does seal to member public keys (§2). `sealOrgKeyToMember` exists and is
+correct; invitations simply never call it.
+
+Two things stand between here and an invitation that carries no key:
+
+- **The invitee has no keypair when they register.** It is generated at *first login*, not at
+  registration, so a freshly registered invitee still has `users.zk_public_key IS NULL` and there is
+  nothing to seal to.
+- **Only a member holding the org key unlocked can seal it.** The server cannot, by construction.
+  So the grant cannot happen at the moment the invitee arrives; someone who already holds the key
+  must perform a second, later step, and the invitee waits in a "pending access" state until they
+  do.
+
+That is a change to the invitation UX on both sides, and it needs its own ADR rather than a
+paragraph here.
 
 ## Consequences
 

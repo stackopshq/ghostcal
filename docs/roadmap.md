@@ -134,10 +134,17 @@ build, security scan).
 
 ## Next
 
-1. **Invitations without a key in the link.** A member who already has an account now receives the
-   org key sealed to their public key. A brand-new invitee has no account and therefore no keypair,
-   so that case still uses the ADR-0003 fragment grant — and still carries its trade-off. Closing it
-   means granting the key only after the invitee has registered. *(see ADR-0007 §5)*
+1. **Invitations without a key in the link.** *Every* invitation still uses the ADR-0003 fragment
+   grant — including invitations to people who already have an account, which ADR-0007 §5 wrongly
+   claimed were already sealed to their public key. (That section has been corrected; the branch it
+   described was never built.) So an invitation link emailed to someone carries, in that email, the
+   means to open the organization's data.
+
+   Closing it is a real redesign, not a patch. The invitee's keypair is generated at first *login*,
+   not at registration, and only a member holding the org key unlocked can seal it — never the
+   server. So the grant must happen after the invitee arrives, performed by someone who already
+   holds the key, with the invitee in a "pending access" state until they do. It needs its own ADR.
+
 ## Later
 
 - **"This calendar counts towards my availability."** Your own events now block your booking page —
