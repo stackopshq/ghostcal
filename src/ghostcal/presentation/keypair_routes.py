@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from ghostcal.application.audit import AuditLog
 from ghostcal.application.keypairs import (
     KeypairAlreadySet,
     KeypairService,
@@ -22,6 +23,7 @@ from ghostcal.application.rotation import (
     RotationService,
     SealedMemberKey,
 )
+from ghostcal.infrastructure.db.audit_repository import SqlAuditSink
 from ghostcal.infrastructure.db.keypairs_repository import SqlKeypairRepository
 from ghostcal.infrastructure.db.rotation_repository import SqlRotationRepository
 from ghostcal.infrastructure.db.session import db_session
@@ -107,7 +109,7 @@ async def rotate_key(
     re-sealing it can proceed afterwards, progressively. See ADR-0007 §2.
     """
     async with db_session() as session:
-        service = RotationService(SqlRotationRepository(session))
+        service = RotationService(SqlRotationRepository(session), AuditLog(SqlAuditSink(session)))
         try:
             generation = await service.rotate(
                 member.organization_id,

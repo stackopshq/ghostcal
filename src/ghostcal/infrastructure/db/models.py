@@ -851,6 +851,38 @@ class Task(TimestampMixin, Base):
     reminded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class AuditEvent(Base):
+    """An append-only record of a security-relevant action: who did what, to whom, when.
+
+    Deliberately *not* a ``TimestampMixin``: there is no ``updated_at`` because a row is never
+    updated. The application role is denied UPDATE and DELETE in the database (see migration
+    a1c7d4e90b23), so an attacker who reaches the app connection can add noise but cannot remove
+    the entry recording what they did.
+
+    ``details`` carries identifiers, role names and counts — never sealed content. An audit log is
+    the wrong place to start accumulating the plaintext this product exists not to hold.
+    """
+
+    __tablename__ = "audit_events"
+
+    id: Mapped[uuid.UUID] = _pk()
+    # Nullable: account-level actions belong to no org, and rows outlive the org they describe
+    # (ON DELETE SET NULL) so deleting an organization does not erase the record of the deletion.
+    organization_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("organizations.id", ondelete="SET NULL")
+    )
+    # Nullable: a failed login has no authenticated actor.
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    action: Mapped[str] = mapped_column(String(64))
+    target: Mapped[str | None] = mapped_column(String(255))
+    details: Mapped[dict[str, object]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 RLS_TABLES: dict[str, str] = {
     "organizations": "id",
     "memberships": "organization_id",
