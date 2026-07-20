@@ -114,6 +114,10 @@ jobs:
       - run: npm ci
       - name: Lint
         run: npm run lint
+      # `next build` type-checks only what the app imports, so an error inside a test file
+      # passes lint, vitest and build alike. This step is the one that sees them.
+      - name: Type check (tsc)
+        run: npm run type-check
       - name: Unit tests (Vitest)
         run: npm test
       - name: Build

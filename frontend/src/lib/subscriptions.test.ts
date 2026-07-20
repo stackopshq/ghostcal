@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 // Guard the client-side half of the API contract: these paths must match what the backend mounts
 // (a prefix drift here is exactly the silent 404 that shipped once). The backend half is pinned by
 // test_api.py's OpenAPI-path assertions.
-const authedFetch = vi.fn(async () => undefined);
+const authedFetch = vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => undefined);
 vi.mock("@/lib/auth", () => ({ authedFetch: (...args: unknown[]) => authedFetch(...args) }));
 
 import {

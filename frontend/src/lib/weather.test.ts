@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const authedFetch = vi.fn(async () => []);
+const authedFetch = vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => []);
 vi.mock("@/lib/auth", () => ({ authedFetch: (...args: unknown[]) => authedFetch(...args) }));
 
 import { geocode, getForecast, saveLocation, savedLocation, weatherGlyph } from "@/lib/weather";
