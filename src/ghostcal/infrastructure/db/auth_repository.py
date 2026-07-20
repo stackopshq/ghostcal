@@ -11,13 +11,14 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import func, insert, select, text, update
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ghostcal.application.auth import (
     AuthRepository,
     AuthUserRecord,
     EmailAlreadyRegistered,
+    OidcIdentityRefused,
     ZkKeyBundle,
     ZkKeyMaterial,
 )
@@ -61,24 +62,35 @@ class SqlAuthRepository(AuthRepository):
         name: str,
         org_name: str,
         org_slug: str,
+        email_verified: bool,
     ) -> uuid.UUID:
-        row = (
-            await self._session.execute(
-                text(
-                    "SELECT upsert_oidc_identity("
-                    ":provider, :issuer, :subject, :email, :name, :org_name, :org_slug) AS user_id"
-                ),
-                {
-                    "provider": provider,
-                    "issuer": issuer,
-                    "subject": subject,
-                    "email": email,
-                    "name": name,
-                    "org_name": org_name,
-                    "org_slug": org_slug,
-                },
-            )
-        ).one()
+        # The function raises `insufficient_privilege` when it refuses to link. Translated here so
+        # the application layer sees a domain error rather than a driver exception — and so a
+        # refusal cannot surface as a 500.
+        try:
+            row = (
+                await self._session.execute(
+                    text(
+                        "SELECT upsert_oidc_identity("
+                        ":provider, :issuer, :subject, :email, :name, :org_name, :org_slug, "
+                        ":email_verified) AS user_id"
+                    ),
+                    {
+                        "provider": provider,
+                        "issuer": issuer,
+                        "subject": subject,
+                        "email": email,
+                        "name": name,
+                        "org_name": org_name,
+                        "org_slug": org_slug,
+                        "email_verified": email_verified,
+                    },
+                )
+            ).one()
+        except DBAPIError as exc:
+            if getattr(getattr(exc, "orig", None), "sqlstate", None) == "42501":
+                raise OidcIdentityRefused(str(exc.orig)) from exc
+            raise
         return row.user_id  # type: ignore[no-any-return]
 
     async def store_zk_keys(self, user_id: uuid.UUID, material: ZkKeyMaterial) -> None:
