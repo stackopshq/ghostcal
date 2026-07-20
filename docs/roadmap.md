@@ -180,10 +180,10 @@ real.
   `include_object` filter in `migrations/env.py` now ignores anything reflected that no model
   claims, so autogenerate is **additive only**. The corollary: removing a model does not generate
   its `DROP` either. Write removals by hand, where the RLS and trigger fallout is visible.
-- **CI does not run `tsc --noEmit`.** The frontend job runs eslint, vitest and `next build` — and a
-  type error inside a *test* file passes all three. There are two sitting in
-  `frontend/src/lib/subscriptions.test.ts` today (a badly typed `fetch` mock). A hole in the feedback
-  loop rather than a bug, which is exactly why it stayed.
+- **`next build` does not type-check your tests.** It checks what the app imports, so a type error
+  in a test file passed eslint, vitest and build alike — five were sitting in two files, all from
+  `vi.fn(async () => ...)` inferring a zero-parameter mock. CI now runs `tsc --noEmit` as its own
+  step, which is the only one of the four that sees them.
 - **Ghostboard's registry stub still promises a widget we cannot serve.** Its local
   `apps_registry/ghostcal.yaml` declares an "upcoming events" **list** widget. Event titles are
   ciphertext, so the server can serve a *count* and never a list — fix the registry, not the

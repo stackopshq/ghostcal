@@ -7,6 +7,10 @@ export default defineConfig({
     environment: "jsdom",
     include: ["src/**/*.test.ts"],
     globals: false,
+    // The zero-knowledge tests derive real Argon2id keys — deliberately expensive work that
+    // takes seconds, not milliseconds. The 5s default put them close enough to the edge that
+    // they failed intermittently on a loaded machine; a slow test is fine, a flaky one is not.
+    testTimeout: 30_000,
   },
   resolve: {
     alias: { "@": new URL("./src", import.meta.url).pathname },
