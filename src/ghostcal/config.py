@@ -7,6 +7,7 @@ rather than failing deep inside a request.
 
 from __future__ import annotations
 
+import ipaddress
 from functools import lru_cache
 from typing import Literal
 
@@ -70,6 +71,18 @@ class Settings(BaseSettings):
     # How often the worker refreshes subscribed public ICS feeds.
     subscription_sync_interval_seconds: int = 3600  # 1 h
 
+    # Private networks the server may fetch calendars from, e.g. ["192.168.1.0/24"].
+    #
+    # Empty by default, which is the right posture for a hosted deployment: the SSRF guard refuses
+    # every private address. But GhostCal is self-hostable, and a self-hoster's Nextcloud or
+    # Radicale lives on their LAN, so under the default they could never connect their own
+    # calendar. Naming a range here opens exactly that range and nothing else.
+    #
+    # It applies to CalDAV connections and ICS subscriptions only — never to webhooks, whose
+    # target any org manager can set, and never to the link-local range, so the cloud-metadata
+    # address (169.254.169.254) stays unreachable however this is configured.
+    calendar_allowed_private_cidrs: list[str] = []
+
     # Booking reminders: how often the worker scans for due reminders, and the offsets (minutes
     # before the meeting) at which an invitee is reminded. Default: 24 h and 1 h before.
     reminder_scan_interval_seconds: int = 300  # 5 min
@@ -108,6 +121,24 @@ class Settings(BaseSettings):
             if "change-me" in value.lower():
                 raise ValueError(
                     f"{name} is still a placeholder — set a real secret outside development"
+                )
+        return self
+
+    @model_validator(mode="after")
+    def _parse_allowed_private_cidrs(self) -> Settings:
+        # Fail fast: a typo'd CIDR would otherwise surface as a calendar that silently never
+        # connects, which is indistinguishable from the guard doing its job.
+        for cidr in self.calendar_allowed_private_cidrs:
+            try:
+                network = ipaddress.ip_network(cidr, strict=False)
+            except ValueError as exc:
+                raise ValueError(
+                    f"calendar_allowed_private_cidrs: {cidr!r} is not a network"
+                ) from exc
+            if network.is_link_local:
+                raise ValueError(
+                    f"calendar_allowed_private_cidrs: {cidr!r} is link-local, which the egress "
+                    "guard never opens (it holds the cloud-metadata address)"
                 )
         return self
 

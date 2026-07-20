@@ -13,7 +13,10 @@ from datetime import UTC, date, datetime
 import httpx
 from icalendar import Calendar
 
-from ghostcal.infrastructure.security.egress import assert_public_url
+from ghostcal.infrastructure.security.egress import (
+    assert_public_url,
+    calendar_private_networks,
+)
 
 _MAX_BYTES = 8 * 1024 * 1024  # 8 MiB
 _MAX_EVENTS = 5000
@@ -45,7 +48,7 @@ def _to_dt(value: object) -> tuple[datetime, bool]:
 async def fetch_feed(url: str) -> list[FeedEvent]:
     """Fetch the ICS at ``url`` and return its VEVENTs. Raises ``IcsFeedError`` on any failure."""
     try:
-        assert_public_url(url)
+        assert_public_url(url, allowed_private_networks=calendar_private_networks())
     except Exception as exc:
         raise IcsFeedError(f"blocked url: {exc}") from exc
     try:

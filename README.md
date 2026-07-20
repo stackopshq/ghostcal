@@ -229,9 +229,12 @@ cached); sharing **outside** the organization by secret link, and **free-busy** 
 integration — SSO, the ghostboard portal widget, the app switcher, and the GhostMail bridges in both
 directions (`.ics` invitation import in, "email guests" and "email my availability" out).
 
-**Next** — see **[docs/roadmap.md](docs/roadmap.md)**: invitations without a key in the link, and
-CalDAV for self-hosters whose server lives on their own LAN (today the SSRF guard, correctly, refuses
-to fetch it — weakening a security control is a decision, not a bug fix).
+A self-hoster whose CalDAV server lives on their own LAN can now reach it: set
+`GHOSTCAL_CALENDAR_ALLOWED_PRIVATE_CIDRS` to the range it sits on. Empty by default, so a hosted
+deployment keeps refusing every private address, and the cloud-metadata address stays refused
+however it is set. *(see [ADR-0011](docs/adr/0011-private-network-allow-list-for-self-hosting.md))*
+
+**Next** — see **[docs/roadmap.md](docs/roadmap.md)**: invitations that carry no key in the link.
 
 ## Stack
 

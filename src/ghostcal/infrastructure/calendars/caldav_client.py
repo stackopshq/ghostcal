@@ -21,12 +21,16 @@ from ghostcal.application.ports.calendar import (
     CalendarInfo,
 )
 from ghostcal.domain.time import TimeRange
-from ghostcal.infrastructure.security.egress import assert_public_url
+from ghostcal.infrastructure.security.egress import (
+    assert_public_url,
+    calendar_private_networks,
+)
 
 
 def _client(creds: CalendarCredentials) -> Any:
-    # SSRF guard: never connect to a CalDAV server on an internal/loopback/metadata address.
-    assert_public_url(creds.server_url)
+    # SSRF guard: never connect to a CalDAV server on an internal or metadata address, except
+    # inside a private range the operator has explicitly opened for self-hosting.
+    assert_public_url(creds.server_url, allowed_private_networks=calendar_private_networks())
     # The caldav library ships incomplete type info; treat its objects as Any at this boundary.
     return caldav.DAVClient(  # type: ignore[operator]
         url=creds.server_url, username=creds.username, password=creds.password
@@ -133,7 +137,7 @@ class CaldavCalendarClient:
         self, creds: CalendarCredentials, calendar_url: str, start: datetime, end: datetime
     ) -> list[BusyEvent]:
         try:
-            assert_public_url(calendar_url)
+            assert_public_url(calendar_url, allowed_private_networks=calendar_private_networks())
             calendar = _client(creds).calendar(url=calendar_url)
             events = calendar.search(start=start, end=end, event=True, expand=True)
         except AuthorizationError as exc:
@@ -192,7 +196,7 @@ class CaldavCalendarClient:
         lines += ["END:VEVENT", "END:VCALENDAR"]
         ical = "\r\n".join(lines)
         try:
-            assert_public_url(calendar_url)
+            assert_public_url(calendar_url, allowed_private_networks=calendar_private_networks())
             calendar = _client(creds).calendar(url=calendar_url)
             event = calendar.save_event(ical)
         except AuthorizationError as exc:
@@ -203,7 +207,7 @@ class CaldavCalendarClient:
 
     def _delete_event(self, creds: CalendarCredentials, calendar_url: str, uid: str) -> None:
         try:
-            assert_public_url(calendar_url)
+            assert_public_url(calendar_url, allowed_private_networks=calendar_private_networks())
             calendar = _client(creds).calendar(url=calendar_url)
             event = calendar.event_by_uid(uid)
         except Exception:
