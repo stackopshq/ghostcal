@@ -130,3 +130,24 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build image (Podman)
         run: podman build -t ghostcal:ci .
+
+      # osv-scanner covers uv.lock and package-lock.json — our dependencies, not the operating
+      # system underneath them. Everything in the base layer (OpenSSL, zlib, the Debian userland)
+      # was unscanned, which is the largest surface in the deployed artefact.
+      #
+      # Fails on HIGH/CRITICAL with a fix available. Vulnerabilities with no upstream fix are
+      # reported but do not fail: a build that cannot be made green teaches people to ignore it.
+      #
+      # Scanned from an archive rather than by tag: the image lives in podman's store, and the
+      # Trivy action resolves an `image-ref` through the Docker daemon, where it does not exist.
+      - name: Export image for scanning
+        run: podman save -o /tmp/ghostcal-ci.tar ghostcal:ci
+
+      - name: Scan image (Trivy)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          input: /tmp/ghostcal-ci.tar
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
