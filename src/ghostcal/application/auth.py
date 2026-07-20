@@ -18,9 +18,14 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from ghostcal.application.passwords import NoBreachCheck, enforce_password_policy
 from ghostcal.application.ports.clock import Clock
 from ghostcal.application.ports.email import EmailSender
-from ghostcal.application.ports.security import AccessTokenCodec, PasswordHasher
+from ghostcal.application.ports.security import (
+    AccessTokenCodec,
+    BreachedPasswordChecker,
+    PasswordHasher,
+)
 
 
 class AuthError(Exception):
@@ -230,6 +235,7 @@ class AuthService:
         mailer: EmailSender,
         clock: Clock,
         config: AuthConfig,
+        breach_checker: BreachedPasswordChecker | None = None,
     ) -> None:
         self._repo = repo
         self._hasher = hasher
@@ -237,11 +243,13 @@ class AuthService:
         self._mailer = mailer
         self._clock = clock
         self._config = config
+        self._breach_checker = breach_checker or NoBreachCheck()
 
     async def register(
         self, *, email: str, name: str, password: str, zk_keys: ZkKeyMaterial
     ) -> uuid.UUID:
         email = email.strip().lower()
+        await enforce_password_policy(password, self._breach_checker)
         password_hash = self._hasher.hash(password)
         user_id = await self._repo.provision_account(
             email=email,

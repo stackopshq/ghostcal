@@ -5,6 +5,7 @@ import { inputClass, primaryButtonClass } from "@/components/AuthCard";
 import { ApiError } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { changePassword, getProfile, updateProfile } from "@/lib/profile";
+import { MIN_PASSWORD_LENGTH } from "@/lib/passwords";
 
 function timezones(fallback: string): string[] {
   const fn = (Intl as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf;
@@ -72,7 +73,9 @@ export default function ProfileSettings() {
       setPasswordError(
         err instanceof ApiError && err.status === 403
           ? t("profile.errCurrentWrong")
-          : t("profile.errPassword"),
+          : err instanceof ApiError && err.status === 422
+            ? err.detail || t("profile.errPassword")
+            : t("profile.errPassword"),
       );
     }
   }
@@ -140,7 +143,7 @@ export default function ProfileSettings() {
         <input
           type="password"
           required
-          minLength={8}
+          minLength={MIN_PASSWORD_LENGTH}
           placeholder={t("profile.newPassword")}
           value={next}
           onChange={(e) => setNext(e.target.value)}

@@ -102,6 +102,15 @@ class Settings(BaseSettings):
     # How long computed availability is cached (seconds). Short, so freshly-taken slots clear fast.
     availability_cache_ttl_seconds: int = 45
 
+    # Check new passwords against the Have I Been Pwned breach corpus.
+    #
+    # Uses the k-anonymity range API: five hex characters of the password's SHA-1 leave this
+    # server, nothing else — no account identifier, no cookies — and the comparison happens here
+    # among the several hundred hashes sharing that prefix. Small, but not nothing, which is why
+    # it is a switch: set false for a deployment that must make no third-party calls at all.
+    # The check fails open, so an unreachable HIBP never blocks a registration.
+    password_breach_check_enabled: bool = True
+
     # Transactional email (Resend). When the API key is unset, emails are logged instead of sent.
     resend_api_key: SecretStr | None = None
     email_from: str = "GhostCal <onboarding@resend.dev>"
