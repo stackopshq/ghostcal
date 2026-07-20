@@ -132,6 +132,14 @@ all. *(see [ADR-0007](adr/0007-org-key-rotation-and-revocation.md))*
 Ruff + mypy strict; pytest backend suite; Vitest frontend suite; CI (lint, format check, tests,
 build, security scan).
 
+CI runs the **whole** backend suite, integration included. It used to run 91 of 210 tests and
+report success: without a database the integration fixtures skip, and CI had no Postgres. Everything
+RLS, invitations, key rotation and reseal rely on was covered only by whoever happened to have a
+local database running. The job now provisions Postgres the way compose does — application role
+first, then schema, because the migrations' `GRANT EXECUTE` statements are guarded on that role
+existing — and `GHOSTCAL_TESTS_REQUIRE_DB=1` makes an unreachable database a failure instead of a
+silent skip.
+
 ## Next
 
 1. **Invitations without a key in the link.** *Every* invitation still uses the ADR-0003 fragment

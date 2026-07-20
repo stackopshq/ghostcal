@@ -11,6 +11,36 @@ permissions:
 jobs:
   quality:
     runs-on: ubuntu-latest
+
+    # Two thirds of the backend suite is integration tests, and without a database they skip —
+    # which CI reports as success. RLS, invitations and key rotation are only covered here.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ghostcal
+          POSTGRES_PASSWORD: ci-admin-password
+          POSTGRES_DB: ghostcal
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ghostcal"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      GHOSTCAL_DATABASE_ADMIN_URL: postgresql+asyncpg://ghostcal:ci-admin-password@localhost:5432/ghostcal
+      GHOSTCAL_DATABASE_URL: postgresql+asyncpg://ghostcal_app:ci-app-password@localhost:5432/ghostcal
+      GHOSTCAL_REDIS_URL: redis://localhost:6379/0
+      # Throwaway values for a throwaway database. `environment` stays development, so the
+      # placeholder-secret validator does not apply; these never leave the runner. Annotated
+      # line-by-line rather than allowlisting this file, so a real secret added here still fails.
+      GHOSTCAL_SECRET_KEY: ci-secret-key-at-least-32-characters-long # gitleaks:allow
+      GHOSTCAL_TOKEN_ENCRYPTION_KEY: ci-encryption-key-at-least-32-chars-long # gitleaks:allow
+      # Skipping the integration tests here would be a green build that tested none of them.
+      GHOSTCAL_TESTS_REQUIRE_DB: "1"
+
     steps:
       - uses: actions/checkout@v4
 
@@ -21,6 +51,20 @@ jobs:
 
       - name: Sync dependencies
         run: uv sync --frozen
+
+      # Order matters, and mirrors compose: the role exists before the schema does. Migrations
+      # grant EXECUTE on their SECURITY DEFINER functions conditionally — `IF EXISTS (role
+      # ghostcal_app)` — so migrating first silently skips every one of those grants and the app
+      # role then cannot call `provision_account` at all. The default privileges this sets cover
+      # the tables the migrations go on to create.
+      - name: Provision the application role
+        run: |
+          psql "postgresql://ghostcal:ci-admin-password@localhost:5432/ghostcal" \
+            -v app_password="ci-app-password" \
+            -f scripts/bootstrap_roles.sql
+
+      - name: Create the schema (admin role)
+        run: uv run alembic upgrade head
 
       - name: Lint (ruff)
         run: uv run ruff check .
