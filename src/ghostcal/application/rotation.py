@@ -25,6 +25,8 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
+from ghostcal.application.audit import Action, AuditLog
+
 
 class RotationError(Exception):
     """Base class for rotation errors."""
@@ -83,8 +85,9 @@ class RotationRepository:
 
 
 class RotationService:
-    def __init__(self, repo: RotationRepository) -> None:
+    def __init__(self, repo: RotationRepository, audit: AuditLog | None = None) -> None:
         self._repo = repo
+        self._audit = audit
 
     async def rotate(
         self,
@@ -100,6 +103,19 @@ class RotationService:
         if stragglers:
             raise MembersWithoutKeypair(stragglers)
 
-        return await self._repo.rotate(
+        generation = await self._repo.rotate(
             organization_id, actor_id, public_key=public_key, member_keys=member_keys
         )
+        # ADR-0007's whole promise is that a departed member loses access. "Who rotated the key,
+        # and when" is the first question after an incident, and the answer a revocation feature
+        # owes its users. Member count only — never the sealed keys themselves.
+        if self._audit is not None:
+            await self._audit.record(
+                Action.ORG_KEY_ROTATED,
+                organization_id=organization_id,
+                actor_user_id=actor_id,
+                target=str(organization_id),
+                generation=generation,
+                members_resealed_to=len(member_keys),
+            )
+        return generation
