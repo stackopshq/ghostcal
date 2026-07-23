@@ -23,7 +23,7 @@ whose contents are wrong is worth catching before it is served — but the two f
 on purpose: this one holds even if a future writer forgets.
 
 Revision ID: f4a1e83c02b9
-Revises: f2a4cec11a6c
+Revises: e7c2a95f31d0
 Create Date: 2026-07-20 17:20:00.000000
 
 """
@@ -33,7 +33,7 @@ from collections.abc import Sequence
 from alembic import op
 
 revision: str = "f4a1e83c02b9"
-down_revision: str | Sequence[str] | None = "f2a4cec11a6c"
+down_revision: str | Sequence[str] | None = "e7c2a95f31d0"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
