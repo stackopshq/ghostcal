@@ -35,9 +35,15 @@ export default function LoginPage() {
     getAuthConfig()
       .then((c) => setSsoEnabled(c.oidc_enabled))
       .catch(() => setSsoEnabled(false));
-    if (new URLSearchParams(window.location.search).get("sso_error")) {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("sso_error")) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setError(t("login.errSso"));
+      history.replaceState(null, "", window.location.pathname);
+    } else if (params.get("reason") === "password-changed") {
+      // Changing a password ends every session, this one included. Say so, or being bounced to
+      // the login page right after a successful save reads as the save having failed.
+      setError(t("login.passwordChanged"));
       history.replaceState(null, "", window.location.pathname);
     }
   }, [t]);
