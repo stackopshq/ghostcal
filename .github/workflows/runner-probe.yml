@@ -1,0 +1,69 @@
+# TEMPORARY — inventories the self-hosted runner so the Docker-free CI rewrite is designed
+# against facts rather than guesses. Delete once ci.yml is settled.
+name: Runner probe
+
+on:
+  push:
+    branches: [ci/self-hosted-runner]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: [self-hosted, linux, x64]
+    steps:
+      # No checkout: this job must not depend on anything the repo provides.
+      - name: Identity and OS
+        run: |
+          set +e
+          echo "whoami=$(whoami) uid=$(id -u)"
+          id
+          cat /etc/os-release | head -3
+          echo "arch=$(uname -m) kernel=$(uname -r)"
+          echo "cwd=$PWD  HOME=$HOME"
+          echo "getenforce=$(getenforce 2>/dev/null || echo n/a)"
+
+      - name: Container tooling
+        run: |
+          set +e
+          for b in podman docker buildah skopeo nerdctl; do
+            p=$(command -v $b 2>/dev/null)
+            echo "$b -> ${p:-MISSING}"
+          done
+          echo "--- podman version ---"
+          podman version 2>&1 | head -10
+          echo "--- podman info (store/graphDriver) ---"
+          podman info --format '{{.Store.GraphDriverName}} rootless={{.Host.Security.Rootless}}' 2>&1 | head -5
+          echo "--- can podman actually run something? ---"
+          podman run --rm docker.io/library/alpine:3.20 echo "podman-run-OK" 2>&1 | tail -5
+
+      - name: Postgres and Redis reachability
+        run: |
+          set +e
+          for b in psql pg_isready redis-cli; do
+            p=$(command -v $b 2>/dev/null)
+            echo "$b -> ${p:-MISSING}"
+          done
+          echo "--- already-listening services ---"
+          (ss -ltnp 2>/dev/null || netstat -ltn 2>/dev/null) | grep -E '5432|6379' || echo "nothing on 5432/6379"
+
+      - name: Language toolchains
+        run: |
+          set +e
+          for b in python3 uv node npm git curl tar; do
+            printf '%-8s -> %s\n' "$b" "$(command -v $b 2>/dev/null || echo MISSING)"
+          done
+          python3 --version 2>&1
+          node --version 2>&1
+          uv --version 2>&1
+
+      - name: Rootless prerequisites
+        run: |
+          set +e
+          echo "--- subuid/subgid for $(whoami) ---"
+          grep "^$(whoami):" /etc/subuid /etc/subgid 2>/dev/null || echo "no subuid/subgid entries"
+          echo "--- user systemd / lingering ---"
+          echo "XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-unset}"
+          ls -d /run/user/$(id -u) 2>/dev/null || echo "no /run/user/$(id -u)"
+          ls /run/user/$(id -u)/podman 2>/dev/null || echo "no podman socket dir"
