@@ -10,8 +10,9 @@ import uuid
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from ghostcal.application.auth import AuthRepository, AuthUserRecord, InvalidCredentials
+from ghostcal.application.passwords import NoBreachCheck, enforce_password_policy
 from ghostcal.application.ports.clock import Clock, SystemClock
-from ghostcal.application.ports.security import PasswordHasher
+from ghostcal.application.ports.security import BreachedPasswordChecker, PasswordHasher
 
 
 class ProfileError(Exception):
@@ -28,10 +29,15 @@ class InvalidTimezone(ProfileError):
 
 class ProfileService:
     def __init__(
-        self, repo: AuthRepository, hasher: PasswordHasher, clock: Clock | None = None
+        self,
+        repo: AuthRepository,
+        hasher: PasswordHasher,
+        breach_checker: BreachedPasswordChecker | None = None,
+        clock: Clock | None = None,
     ) -> None:
         self._repo = repo
         self._hasher = hasher
+        self._breach_checker = breach_checker or NoBreachCheck()
         self._clock = clock or SystemClock()
 
     async def get(self, user_id: uuid.UUID) -> AuthUserRecord:
@@ -72,5 +78,8 @@ class ProfileService:
             user.password_hash, current_password
         ):
             raise InvalidCredentials("current password is incorrect")
+        # The same policy as registration, from the same place. Enforcing it in only one of the
+        # two paths would make the weaker one the real policy.
+        await enforce_password_policy(new_password, self._breach_checker)
         await self._repo.set_password_hash(user_id, self._hasher.hash(new_password))
         return await self._repo.revoke_all_refresh_tokens(user_id, self._clock.now())

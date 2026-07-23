@@ -5,14 +5,17 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 
 from ghostcal.application.auth import AuthUserRecord, InvalidCredentials
+from ghostcal.application.passwords import PasswordRejected
 from ghostcal.application.profile import (
     InvalidTimezone,
     ProfileError,
     ProfileService,
     UnknownUser,
 )
+from ghostcal.config import get_settings
 from ghostcal.infrastructure.db.auth_repository import SqlAuthRepository
 from ghostcal.infrastructure.db.session import db_session
+from ghostcal.infrastructure.security.hibp import HibpBreachedPasswordChecker
 from ghostcal.infrastructure.security.passwords import Argon2PasswordHasher
 from ghostcal.presentation.auth_routes import CurrentUser
 from ghostcal.presentation.schemas import PasswordChangeIn, ProfileOut, ProfileUpdateIn
@@ -21,8 +24,11 @@ router = APIRouter(prefix="/v1/me/profile", tags=["profile"])
 _hasher = Argon2PasswordHasher()
 
 
+_breach_checker = HibpBreachedPasswordChecker(enabled=get_settings().password_breach_check_enabled)
+
+
 def _service(session: object) -> ProfileService:
-    return ProfileService(SqlAuthRepository(session), _hasher)  # type: ignore[arg-type]
+    return ProfileService(SqlAuthRepository(session), _hasher, _breach_checker)  # type: ignore[arg-type]
 
 
 def _out(record: AuthUserRecord) -> ProfileOut:
@@ -68,5 +74,7 @@ async def change_password(payload: PasswordChangeIn, user: CurrentUser) -> None:
                 current_password=payload.current_password,
                 new_password=payload.new_password,
             )
+        except PasswordRejected as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         except InvalidCredentials as exc:
             raise HTTPException(status_code=403, detail="current password is incorrect") from exc
