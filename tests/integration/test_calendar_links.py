@@ -269,3 +269,34 @@ async def test_a_member_cannot_link_a_colleagues_calendar(
             name="sneaky",
         )
     assert created is None
+
+
+async def test_an_event_from_another_calendar_cannot_be_sealed_into_a_link(
+    org: Fixture,
+) -> None:
+    """The dishonest path, which the test above does not exercise.
+
+    `test_a_link_shows_that_calendar_and_no_other` only ever seals an event that `pending_seals`
+    offered it, so it proves the honest client behaves — not that a dishonest one is stopped. A
+    member with read access to a colleague's shared calendar could otherwise mint a link on their
+    own calendar, seal the colleague's event into it, and publish its times and recurrence to an
+    anonymous URL.
+    """
+    async with org_session(org.org) as s:
+        elsewhere = await create_event(
+            SqlCalendarRepository(s, org.org),
+            org.owner,
+            _input(org.private_calendar, "not-on-the-linked-calendar"),
+        )
+    link_id, token = await _make_link(org)
+
+    # Seal an event that belongs to a different calendar than the link's.
+    async with org_session(org.org) as s:
+        stored = await SqlLinkRepository(s, org.org).store_copies(
+            org.owner, link_id, [SealedCopy(event_id=elsewhere, content_sealed=LINK_SEALED)]
+        )
+    assert stored == 0  # refused at the write
+
+    visited = await _visit(token)
+    assert visited is not None
+    assert visited.events == []  # and nothing to serve even if a row had slipped in
