@@ -148,6 +148,15 @@ class Settings(BaseSettings):
     # worker exposes its own. Set 0 to disable.
     metrics_port: int = 9101
 
+    # Celery task limits. Soft raises an exception the task can unwind from; hard kills it.
+    # Nothing in this app should legitimately run for minutes.
+    task_soft_time_limit_seconds: int = 300  # 5 min
+    task_time_limit_seconds: int = 360  # 6 min
+
+    # How many times a network-bound task retries, and the first backoff step (doubling, jittered).
+    task_max_retries: int = 3
+    task_retry_backoff_seconds: int = 10
+
     # Transactional email (Resend). When the API key is unset, emails are logged instead of sent.
     resend_api_key: SecretStr | None = None
     email_from: str = "GhostCal <onboarding@resend.dev>"
