@@ -6,6 +6,7 @@ import AuthCard, { inputClass, primaryButtonClass } from "@/components/AuthCard"
 import { ApiError } from "@/lib/api";
 import { register } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
+import { MIN_PASSWORD_LENGTH } from "@/lib/passwords";
 
 export default function RegisterPage() {
   const t = useT();
@@ -29,7 +30,11 @@ export default function RegisterPage() {
       setError(
         err instanceof ApiError && err.status === 409
           ? t("register.errTaken")
-          : t("register.errGeneric"),
+          : // 422 carries the password-policy reason (too short, or found in a breach corpus).
+            // Showing it verbatim beats a generic failure the user cannot act on.
+            err instanceof ApiError && err.status === 422
+            ? err.detail || t("register.errGeneric")
+            : t("register.errGeneric"),
       );
     } finally {
       setSubmitting(false);
@@ -101,7 +106,7 @@ export default function RegisterPage() {
         <input
           required
           type="password"
-          minLength={8}
+          minLength={MIN_PASSWORD_LENGTH}
           placeholder={t("register.passwordPh")}
           value={password}
           onChange={(e) => setPassword(e.target.value)}

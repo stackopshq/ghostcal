@@ -240,6 +240,20 @@ class SqlAuthRepository(AuthRepository):
             .values(revoked_at=now)
         )
 
+    async def revoke_all_refresh_tokens(self, user_id: uuid.UUID, now: datetime) -> int:
+        # RETURNING rather than rowcount: it is what the rest of this repository uses, and
+        # `Result.rowcount` is not part of the typed surface.
+        stmt = (
+            update(models.RefreshToken)
+            .where(
+                models.RefreshToken.user_id == user_id,
+                models.RefreshToken.revoked_at.is_(None),
+            )
+            .values(revoked_at=now)
+            .returning(models.RefreshToken.id)
+        )
+        return len((await self._session.execute(stmt)).scalars().all())
+
     async def update_profile(
         self, user_id: uuid.UUID, *, name: str, timezone: str, avatar_url: str | None
     ) -> None:

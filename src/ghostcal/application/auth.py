@@ -18,9 +18,14 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from ghostcal.application.passwords import NoBreachCheck, enforce_password_policy
 from ghostcal.application.ports.clock import Clock
 from ghostcal.application.ports.email import EmailSender
-from ghostcal.application.ports.security import AccessTokenCodec, PasswordHasher
+from ghostcal.application.ports.security import (
+    AccessTokenCodec,
+    BreachedPasswordChecker,
+    PasswordHasher,
+)
 
 
 class AuthError(Exception):
@@ -209,6 +214,10 @@ class AuthRepository:
     async def revoke_refresh_token(self, token_hash: str, now: datetime) -> None:
         raise NotImplementedError
 
+    async def revoke_all_refresh_tokens(self, user_id: uuid.UUID, now: datetime) -> int:
+        """Revoke every live session for a user. Returns how many were revoked."""
+        raise NotImplementedError
+
 
 def _hash_token(plain: str) -> str:
     return hashlib.sha256(plain.encode()).hexdigest()
@@ -240,6 +249,7 @@ class AuthService:
         mailer: EmailSender,
         clock: Clock,
         config: AuthConfig,
+        breach_checker: BreachedPasswordChecker | None = None,
     ) -> None:
         self._repo = repo
         self._hasher = hasher
@@ -247,11 +257,13 @@ class AuthService:
         self._mailer = mailer
         self._clock = clock
         self._config = config
+        self._breach_checker = breach_checker or NoBreachCheck()
 
     async def register(
         self, *, email: str, name: str, password: str, zk_keys: ZkKeyMaterial
     ) -> uuid.UUID:
         email = email.strip().lower()
+        await enforce_password_policy(password, self._breach_checker)
         password_hash = self._hasher.hash(password)
         user_id = await self._repo.provision_account(
             email=email,

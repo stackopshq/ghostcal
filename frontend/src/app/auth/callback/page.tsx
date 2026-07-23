@@ -10,6 +10,7 @@ import {
   unlockZkKeys,
 } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
+import { MIN_PASSWORD_LENGTH } from "@/lib/passwords";
 
 // Where an SSO round-trip lands. The session tokens arrive in the URL fragment; we then either
 // unlock the zero-knowledge vault with the user's encryption passphrase, or — on first SSO login —
@@ -120,7 +121,7 @@ export default function OidcCallbackPage() {
           required
           autoFocus
           type="password"
-          minLength={8}
+          minLength={MIN_PASSWORD_LENGTH}
           placeholder={t("callback.passphrasePh")}
           value={passphrase}
           onChange={(e) => setPassphrase(e.target.value)}
@@ -130,7 +131,7 @@ export default function OidcCallbackPage() {
           <input
             required
             type="password"
-            minLength={8}
+            minLength={MIN_PASSWORD_LENGTH}
             placeholder={t("callback.confirmPh")}
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
