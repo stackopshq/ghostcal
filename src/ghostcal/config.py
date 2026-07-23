@@ -143,6 +143,11 @@ class Settings(BaseSettings):
     # The check fails open, so an unreachable HIBP never blocks a registration.
     password_breach_check_enabled: bool = True
 
+    # Port the Celery worker serves its Prometheus metrics on. Counters incremented in a worker
+    # are invisible to the API's /metrics — a different process, a different registry — so the
+    # worker exposes its own. Set 0 to disable.
+    metrics_port: int = 9101
+
     # Transactional email (Resend). When the API key is unset, emails are logged instead of sent.
     resend_api_key: SecretStr | None = None
     email_from: str = "GhostCal <onboarding@resend.dev>"
