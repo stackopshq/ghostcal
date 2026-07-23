@@ -118,6 +118,19 @@ class Settings(BaseSettings):
     # Tighter limit on auth endpoints (login/register/etc.): brute-force + Argon2 CPU-DoS guard.
     auth_rate_limit_per_minute: int = 10
 
+    # Database connection pool, per process. The app, the Celery worker and beat each hold their
+    # own, so the ceiling is (pool + overflow) x processes — size it against Postgres
+    # `max_connections` (100 by default) rather than discovering the limit under load.
+    db_pool_size: int = 5
+    db_max_overflow: int = 10
+
+    # Hard limits on how long one statement, or one idle transaction, may hold a connection.
+    # Without these a single pathological query pins a connection until someone notices, and the
+    # first real load event becomes an outage instead of a slowdown. Generous enough that no
+    # legitimate query is near them.
+    db_statement_timeout_ms: int = 15_000
+    db_idle_in_transaction_timeout_ms: int = 30_000
+
     # How long computed availability is cached (seconds). Short, so freshly-taken slots clear fast.
     availability_cache_ttl_seconds: int = 45
 
