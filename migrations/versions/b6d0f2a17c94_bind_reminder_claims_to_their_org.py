@@ -19,7 +19,7 @@ Both are `SELECT ... WHERE EXISTS` rather than a plain INSERT so a mismatched pa
 and returns false, which is exactly how the callers already treat "someone else got there first".
 
 Revision ID: b6d0f2a17c94
-Revises: f2a4cec11a6c
+Revises: c8f3b0d21a45
 Create Date: 2026-07-20 17:45:00.000000
 
 """
@@ -29,7 +29,7 @@ from collections.abc import Sequence
 from alembic import op
 
 revision: str = "b6d0f2a17c94"
-down_revision: str | Sequence[str] | None = "f2a4cec11a6c"
+down_revision: str | Sequence[str] | None = "c8f3b0d21a45"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
