@@ -48,6 +48,15 @@ class InvalidToken(AuthError):
     pass
 
 
+class OidcIdentityRefused(AuthError):
+    """The OIDC login may not be bound to a local account.
+
+    Either the provider did not vouch for the email, or an unverified local account already holds
+    it. Deliberately one error for both: telling them apart at the edge would reveal whether an
+    account exists on an address the caller has not proved they own.
+    """
+
+
 class ZkKeysAlreadySet(AuthError):
     """Refuse to overwrite existing zero-knowledge keys (would orphan encrypted data)."""
 
@@ -142,6 +151,7 @@ class AuthRepository:
         name: str,
         org_name: str,
         org_slug: str,
+        email_verified: bool,
     ) -> uuid.UUID:
         """Resolve an OIDC login to a local user id: return the linked user, link to an existing
         account with the same email, or provision a fresh passwordless account. Return user id."""
@@ -323,7 +333,14 @@ class AuthService:
         return await self._issue_pair(user.id)
 
     async def authenticate_oidc(
-        self, *, provider: str, issuer: str, subject: str, email: str, name: str
+        self,
+        *,
+        provider: str,
+        issuer: str,
+        subject: str,
+        email: str,
+        name: str,
+        email_verified: bool,
     ) -> TokenPair:
         """Log a user in from a validated OIDC identity, provisioning on first login. No password
         is involved; the zero-knowledge content is unlocked later by the encryption passphrase."""
@@ -336,6 +353,7 @@ class AuthService:
             name=name or email,
             org_name=name or email,
             org_slug=_org_slug(email),
+            email_verified=email_verified,
         )
         return await self._issue_pair(user_id)
 

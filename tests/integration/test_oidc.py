@@ -13,7 +13,13 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
-from ghostcal.application.auth import AuthConfig, AuthService, ZkKeyMaterial, ZkKeysAlreadySet
+from ghostcal.application.auth import (
+    AuthConfig,
+    AuthService,
+    OidcIdentityRefused,
+    ZkKeyMaterial,
+    ZkKeysAlreadySet,
+)
 from ghostcal.application.ports.clock import SystemClock
 from ghostcal.infrastructure.db.auth_repository import SqlAuthRepository
 from ghostcal.infrastructure.db.session import db_session
@@ -65,7 +71,12 @@ async def test_oidc_provisions_once_and_is_idempotent(admin_engine: AsyncEngine)
     try:
         async with db_session() as s:
             pair1 = await _service(s).authenticate_oidc(
-                provider="oidc", issuer=_ISSUER, subject=subject, email=email, name="Robin Vale"
+                provider="oidc",
+                issuer=_ISSUER,
+                subject=subject,
+                email=email,
+                name="Robin Vale",
+                email_verified=True,
             )
         # The access token's subject is the provisioned user id.
         user_id = _CODEC.decode(pair1.access_token)
@@ -93,7 +104,12 @@ async def test_oidc_provisions_once_and_is_idempotent(admin_engine: AsyncEngine)
         # A second login with the same identity returns the same user (no duplicate provisioning).
         async with db_session() as s:
             pair2 = await _service(s).authenticate_oidc(
-                provider="oidc", issuer=_ISSUER, subject=subject, email=email, name="Robin Vale"
+                provider="oidc",
+                issuer=_ISSUER,
+                subject=subject,
+                email=email,
+                name="Robin Vale",
+                email_verified=True,
             )
         assert _CODEC.decode(pair2.access_token) == user_id
     finally:
@@ -105,11 +121,13 @@ async def test_oidc_links_to_existing_email_account(admin_engine: AsyncEngine) -
     email = f"link-{uuid.uuid4().hex[:8]}@example.test"
     user_id: uuid.UUID | None = None
     try:
-        # A pre-existing password account with this email.
+        # A pre-existing password account with this email, whose owner has *proved* they own it.
+        # Verification is what makes adopting the account safe; see the squatting test below.
         async with db_session() as s:
             user_id = await _service(s).register(
                 email=email, name="Pat", password="s3cret-passw0rd", zk_keys=ZK_PLACEHOLDER
             )
+        await _verify(admin_engine, user_id)
 
         # OIDC login with the same (IdP-verified) email links to that account, not a new one.
         async with db_session() as s:
@@ -119,6 +137,7 @@ async def test_oidc_links_to_existing_email_account(admin_engine: AsyncEngine) -
                 subject=f"sub-{uuid.uuid4().hex[:10]}",
                 email=email,
                 name="Pat",
+                email_verified=True,
             )
         assert _CODEC.decode(pair.access_token) == user_id
 
@@ -159,6 +178,112 @@ async def test_setup_zk_keys_refuses_to_overwrite(admin_engine: AsyncEngine) -> 
         async with db_session() as s:
             with pytest.raises(ZkKeysAlreadySet):
                 await _service(s).setup_zk_keys(user_id, material)
+    finally:
+        if user_id is not None:
+            await _delete_user(admin_engine, user_id)
+
+
+async def _verify(admin_engine: AsyncEngine, user_id: uuid.UUID) -> None:
+    """Mark an account's email verified, as clicking the verification link would."""
+    maker = async_sessionmaker(admin_engine)
+    async with maker() as s:
+        await s.execute(
+            text("UPDATE users SET email_verified_at = now() WHERE id = :u"), {"u": user_id}
+        )
+        await s.commit()
+
+
+async def test_an_unverified_idp_email_is_refused(admin_engine: AsyncEngine) -> None:
+    """The email is what links an SSO login to an account and what proves ownership of an invited
+    address. A provider that has not vouched for it has asserted nothing worth acting on."""
+    email = f"unver-{uuid.uuid4().hex[:8]}@example.test"
+    with pytest.raises(OidcIdentityRefused):
+        async with db_session() as s:
+            await _service(s).authenticate_oidc(
+                provider="oidc",
+                issuer=_ISSUER,
+                subject=f"sub-{uuid.uuid4().hex[:10]}",
+                email=email,
+                name="Nobody",
+                email_verified=False,
+            )
+
+    maker = async_sessionmaker(admin_engine)
+    async with maker() as s:
+        count = (
+            await s.execute(text("SELECT count(*) FROM users WHERE email = :e"), {"e": email})
+        ).scalar_one()
+    assert count == 0  # and nothing was provisioned on the way to the refusal
+
+
+async def test_a_squatted_unverified_account_is_not_adopted(admin_engine: AsyncEngine) -> None:
+    """The other half of the takeover: an attacker registers the victim's address, never verifies
+    it, and waits. Their registration wrapped that org's key under *their* passphrase, so adopting
+    the row would seat the victim in the attacker's organization under a key the attacker holds.
+    """
+    email = f"squat-{uuid.uuid4().hex[:8]}@example.test"
+    squatter_id: uuid.UUID | None = None
+    try:
+        async with db_session() as s:
+            squatter_id = await _service(s).register(
+                email=email, name="Mallory", password="s3cret-passw0rd", zk_keys=ZK_PLACEHOLDER
+            )
+        # Deliberately NOT verified — the victim never saw the mail.
+
+        with pytest.raises(OidcIdentityRefused):
+            async with db_session() as s:
+                await _service(s).authenticate_oidc(
+                    provider="oidc",
+                    issuer=_ISSUER,
+                    subject=f"sub-{uuid.uuid4().hex[:10]}",
+                    email=email,
+                    name="Victim",
+                    email_verified=True,
+                )
+
+        maker = async_sessionmaker(admin_engine)
+        async with maker() as s:
+            linked = (
+                await s.execute(
+                    text("SELECT count(*) FROM identities WHERE user_id = :u"), {"u": squatter_id}
+                )
+            ).scalar_one()
+        assert linked == 0
+    finally:
+        if squatter_id is not None:
+            await _delete_user(admin_engine, squatter_id)
+
+
+async def test_a_returning_identity_is_unaffected_by_the_email_checks(
+    admin_engine: AsyncEngine,
+) -> None:
+    """Once the subject is bound, the email reasoning no longer applies — the binding was already
+    established. A provider that stops sending the claim must not lock existing users out."""
+    subject = f"sub-{uuid.uuid4().hex[:10]}"
+    email = f"ret-{uuid.uuid4().hex[:8]}@example.test"
+    user_id: uuid.UUID | None = None
+    try:
+        async with db_session() as s:
+            first = await _service(s).authenticate_oidc(
+                provider="oidc",
+                issuer=_ISSUER,
+                subject=subject,
+                email=email,
+                name="Ret",
+                email_verified=True,
+            )
+        user_id = _CODEC.decode(first.access_token)
+
+        async with db_session() as s:
+            again = await _service(s).authenticate_oidc(
+                provider="oidc",
+                issuer=_ISSUER,
+                subject=subject,
+                email=email,
+                name="Ret",
+                email_verified=False,
+            )
+        assert _CODEC.decode(again.access_token) == user_id
     finally:
         if user_id is not None:
             await _delete_user(admin_engine, user_id)

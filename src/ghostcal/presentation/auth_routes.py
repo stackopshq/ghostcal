@@ -19,6 +19,7 @@ from ghostcal.application.auth import (
     EmailNotVerified,
     InvalidCredentials,
     InvalidToken,
+    OidcIdentityRefused,
     TokenPair,
     ZkKeyMaterial,
     ZkKeysAlreadySet,
@@ -233,15 +234,30 @@ async def oidc_callback(request: Request) -> RedirectResponse:
         logger.warning("OIDC userinfo missing sub/email")
         return RedirectResponse(f"{_settings.frontend_base_url}/login?sso_error=1")
 
+    # The email is treated downstream as proof of who this is — it is what links an SSO login to
+    # an existing account, and what `accept_organization_invitation` accepts as ownership of an
+    # invited address. So an address the provider has not vouched for is worth nothing here.
+    # Absent claim counts as unverified: providers that omit it have not made the assertion.
+    email_verified = userinfo.get("email_verified") is True
+
     issuer = str(_settings.oidc_issuer or userinfo.get("iss") or "")
-    async with db_session() as session:
-        tokens = await _service(session).authenticate_oidc(
-            provider="oidc",
-            issuer=issuer,
-            subject=str(subject),
-            email=str(email),
-            name=str(userinfo.get("name") or ""),
-        )
+    try:
+        async with db_session() as session:
+            tokens = await _service(session).authenticate_oidc(
+                provider="oidc",
+                issuer=issuer,
+                subject=str(subject),
+                email=str(email),
+                name=str(userinfo.get("name") or ""),
+                email_verified=email_verified,
+            )
+    except OidcIdentityRefused:
+        # Unverified address, or an unverified local account already holds it. Both are refusals
+        # to link, and the redirect says no more than that: distinguishing them here would tell a
+        # stranger whether an account exists on an address they do not control.
+        logger.warning("OIDC identity refused for a %s reason", "linking/verification")
+        return RedirectResponse(f"{_settings.frontend_base_url}/login?sso_error=1")
+
     # Tokens go in the URL fragment (never sent to a server, not in Referer); the SPA reads them and
     # immediately strips the fragment. This matches the app's existing localStorage token model.
     fragment = urlencode(
