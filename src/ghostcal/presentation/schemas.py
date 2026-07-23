@@ -9,6 +9,7 @@ from zoneinfo import available_timezones
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
+from ghostcal.application.passwords import MIN_PASSWORD_LENGTH
 from ghostcal.application.retention import MAX_RETENTION_DAYS, MIN_RETENTION_DAYS
 
 _TIMEZONES = available_timezones()
@@ -65,7 +66,7 @@ class ZkKeyMaterialIn(BaseModel):
 class RegisterIn(BaseModel):
     email: EmailStr
     name: str = Field(min_length=1, max_length=200)
-    password: str = Field(min_length=8, max_length=200)
+    password: str = Field(min_length=MIN_PASSWORD_LENGTH, max_length=200)
     zk_keys: ZkKeyMaterialIn
 
 
@@ -161,7 +162,7 @@ class ProfileUpdateIn(BaseModel):
 
 class PasswordChangeIn(BaseModel):
     current_password: str = Field(min_length=1, max_length=200)
-    new_password: str = Field(min_length=8, max_length=200)
+    new_password: str = Field(min_length=MIN_PASSWORD_LENGTH, max_length=200)
 
 
 class UserKeypairIn(BaseModel):
