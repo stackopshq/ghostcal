@@ -35,6 +35,7 @@ const en: Dict = {
   "login.errInvalid": "Invalid email or password.",
   "login.sso": "Continue with SSO",
   "login.errSso": "SSO sign-in failed. Please try again.",
+  "login.passwordChanged": "Password changed. For your security, all sessions were signed out — please sign in again.",
   "common.or": "or",
   // SSO callback (OIDC): capture session, then set or enter the encryption passphrase
   "callback.signingIn": "Signing you in…",
@@ -604,6 +605,7 @@ const fr: Dict = {
   "login.errInvalid": "E-mail ou mot de passe invalide.",
   "login.sso": "Continuer avec le SSO",
   "login.errSso": "Échec de la connexion SSO. Veuillez réessayer.",
+  "login.passwordChanged": "Mot de passe modifié. Par sécurité, toutes les sessions ont été déconnectées — veuillez vous reconnecter.",
   "common.or": "ou",
   "callback.signingIn": "Connexion en cours…",
   "callback.unlockTitle": "Déverrouiller votre calendrier",

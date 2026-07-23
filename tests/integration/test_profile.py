@@ -10,7 +10,12 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
-from ghostcal.application.auth import AuthConfig, AuthService, InvalidCredentials
+from ghostcal.application.auth import (
+    AuthConfig,
+    AuthService,
+    InvalidCredentials,
+    InvalidToken,
+)
 from ghostcal.application.ports.clock import SystemClock
 from ghostcal.application.profile import InvalidTimezone, ProfileService
 from ghostcal.infrastructure.db.auth_repository import SqlAuthRepository
@@ -92,11 +97,28 @@ async def test_profile_update_and_password_change(admin_engine: AsyncEngine) -> 
                     user_id, current_password="wrong", new_password=NEW_PASSWORD
                 )
 
+        # Sign in twice before the change, so there is a session to lose and a second one to prove
+        # it is not just the caller's own that goes.
+        async with db_session() as s:
+            first = await _auth(s, mailer).login(email=email, password=PASSWORD)
+        async with db_session() as s:
+            second = await _auth(s, mailer).login(email=email, password=PASSWORD)
+
         # Correct current password rotates it; login works with the new one.
         async with db_session() as s:
-            await _profile(s).change_password(
+            revoked = await _profile(s).change_password(
                 user_id, current_password=PASSWORD, new_password=NEW_PASSWORD
             )
+        assert revoked == 2
+
+        # The point of the change: every refresh token minted before it is dead. Without this a
+        # stolen token outlived the password change by its full 30-day life — surviving the one
+        # action a user takes precisely because they think someone else has their password.
+        for stale in (first.refresh_token, second.refresh_token):
+            with pytest.raises(InvalidToken):
+                async with db_session() as s:
+                    await _auth(s, mailer).refresh(refresh_token=stale)
+
         async with db_session() as s:
             tokens = await _auth(s, mailer).login(email=email, password=NEW_PASSWORD)
         assert tokens.access_token
