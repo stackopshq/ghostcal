@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from ghostcal.application.auth import AuthRepository, AuthUserRecord, InvalidCredentials
 from ghostcal.application.passwords import NoBreachCheck, enforce_password_policy
+from ghostcal.application.ports.clock import Clock, SystemClock
 from ghostcal.application.ports.security import BreachedPasswordChecker, PasswordHasher
 
 
@@ -32,10 +33,12 @@ class ProfileService:
         repo: AuthRepository,
         hasher: PasswordHasher,
         breach_checker: BreachedPasswordChecker | None = None,
+        clock: Clock | None = None,
     ) -> None:
         self._repo = repo
         self._hasher = hasher
         self._breach_checker = breach_checker or NoBreachCheck()
+        self._clock = clock or SystemClock()
 
     async def get(self, user_id: uuid.UUID) -> AuthUserRecord:
         user = await self._repo.get_by_id(user_id)
@@ -61,7 +64,15 @@ class ProfileService:
 
     async def change_password(
         self, user_id: uuid.UUID, *, current_password: str, new_password: str
-    ) -> None:
+    ) -> int:
+        """Change the password and end every existing session. Returns how many were ended.
+
+        Revoking is the point, not a bonus. People change their password *because* they think
+        someone else has it, and a refresh token lives for 30 days — so leaving sessions alone
+        would hand the attacker a month of access starting from the moment the user acted to lock
+        them out. The user's own other devices are signed out too; that is the correct trade, and
+        it is what "change my password" is understood to mean.
+        """
         user = await self.get(user_id)
         if user.password_hash is None or not self._hasher.verify(
             user.password_hash, current_password
@@ -71,3 +82,4 @@ class ProfileService:
         # two paths would make the weaker one the real policy.
         await enforce_password_policy(new_password, self._breach_checker)
         await self._repo.set_password_hash(user_id, self._hasher.hash(new_password))
+        return await self._repo.revoke_all_refresh_tokens(user_id, self._clock.now())

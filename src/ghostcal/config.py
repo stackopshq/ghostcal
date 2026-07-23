@@ -71,6 +71,25 @@ class Settings(BaseSettings):
     # How often the worker refreshes subscribed public ICS feeds.
     subscription_sync_interval_seconds: int = 3600  # 1 h
 
+    # Which peers may be believed when they send X-Forwarded-For.
+    #
+    # The app sits behind the Next same-origin proxy, so the socket peer is the proxy and the real
+    # client is in the header. But a header is client-controlled: honouring it from *any* peer lets
+    # anyone mint a fresh rate-limit bucket per request, which is what the auth limiter exists to
+    # prevent. Only peers inside these ranges are believed; everyone else is rate-limited on the
+    # address they actually connected from.
+    #
+    # Defaults to loopback and the private ranges, which is where a reverse proxy lives in every
+    # supported topology. Set it to [] if the app is exposed directly, with no proxy in front.
+    trusted_proxy_cidrs: list[str] = [
+        "127.0.0.0/8",
+        "::1/128",
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "fc00::/7",
+    ]
+
     # Private networks the server may fetch calendars from, e.g. ["192.168.1.0/24"].
     #
     # Empty by default, which is the right posture for a hosted deployment: the SSRF guard refuses
@@ -98,6 +117,19 @@ class Settings(BaseSettings):
     vote_rate_limit_per_minute: int = 60
     # Tighter limit on auth endpoints (login/register/etc.): brute-force + Argon2 CPU-DoS guard.
     auth_rate_limit_per_minute: int = 10
+
+    # Database connection pool, per process. The app, the Celery worker and beat each hold their
+    # own, so the ceiling is (pool + overflow) x processes — size it against Postgres
+    # `max_connections` (100 by default) rather than discovering the limit under load.
+    db_pool_size: int = 5
+    db_max_overflow: int = 10
+
+    # Hard limits on how long one statement, or one idle transaction, may hold a connection.
+    # Without these a single pathological query pins a connection until someone notices, and the
+    # first real load event becomes an outage instead of a slowdown. Generous enough that no
+    # legitimate query is near them.
+    db_statement_timeout_ms: int = 15_000
+    db_idle_in_transaction_timeout_ms: int = 30_000
 
     # How long computed availability is cached (seconds). Short, so freshly-taken slots clear fast.
     availability_cache_ttl_seconds: int = 45

@@ -204,6 +204,10 @@ class AuthRepository:
     async def revoke_refresh_token(self, token_hash: str, now: datetime) -> None:
         raise NotImplementedError
 
+    async def revoke_all_refresh_tokens(self, user_id: uuid.UUID, now: datetime) -> int:
+        """Revoke every live session for a user. Returns how many were revoked."""
+        raise NotImplementedError
+
 
 def _hash_token(plain: str) -> str:
     return hashlib.sha256(plain.encode()).hexdigest()

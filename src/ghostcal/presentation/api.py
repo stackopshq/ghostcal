@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 import time
 import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -42,6 +44,19 @@ from ghostcal.presentation.weather_routes import router as weather_router
 from ghostcal.presentation.webhook_routes import router as webhook_router
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Close the connection pool on the way out.
+
+    Without this, a deploy tears the process down with checked-out connections still open, and
+    Postgres only reclaims them when it notices the socket is gone. Under a rolling restart the
+    old process's slots overlap the new one's, which is how a deploy runs into `max_connections`
+    on a database that was comfortably provisioned a moment earlier.
+    """
+    yield
+    await get_engine().dispose()
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(settings.log_level)
@@ -55,6 +70,7 @@ def create_app() -> FastAPI:
         title="GhostCal",
         version=__version__,
         description="Fast, correct scheduling.",
+        lifespan=_lifespan,
         **_docs,  # type: ignore[arg-type]
     )
 
