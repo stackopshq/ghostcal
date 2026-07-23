@@ -8,9 +8,15 @@ on:
 permissions:
   contents: read
 
+# Every job runs on the self-hosted runner. GitHub-hosted minutes are unavailable on this
+# account, and a blocked hosted job fails in three seconds with no runner assigned and no
+# steps — indistinguishable, at a glance, from a real test failure. `ubuntu-latest` is
+# deliberately not reused as a runner label: it would silently route work to whichever of the
+# two happened to be free, and the two environments are not interchangeable (the `image` job
+# needs podman, which no hosted image ships).
 jobs:
   quality:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
 
     # Two thirds of the backend suite is integration tests, and without a database they skip —
     # which CI reports as success. RLS, invitations and key rotation are only covered here.
@@ -79,7 +85,7 @@ jobs:
         run: uv run pytest
 
   security:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     steps:
       - uses: actions/checkout@v4
 
@@ -100,7 +106,7 @@ jobs:
             --lockfile=frontend/package-lock.json
 
   frontend:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     defaults:
       run:
         working-directory: frontend
@@ -124,7 +130,7 @@ jobs:
         run: npm run build
 
   image:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     needs: [quality]
     steps:
       - uses: actions/checkout@v4
