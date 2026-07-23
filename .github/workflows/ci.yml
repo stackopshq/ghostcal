@@ -20,21 +20,12 @@ jobs:
 
     # Two thirds of the backend suite is integration tests, and without a database they skip —
     # which CI reports as success. RLS, invitations and key rotation are only covered here.
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: ghostcal
-          POSTGRES_PASSWORD: ci-admin-password
-          POSTGRES_DB: ghostcal
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U ghostcal"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
-
+    #
+    # Postgres is started by hand rather than through `services:`. The runner starts service
+    # containers by shelling out to the `docker` CLI, which is not installed here and which
+    # podman's API does not stand in for; a `services:` block fails the job before its first
+    # step. Podman runs the same image, so the loss is only the runner's health-gating, which
+    # the explicit pg_isready wait below replaces.
     env:
       GHOSTCAL_DATABASE_ADMIN_URL: postgresql+asyncpg://ghostcal:ci-admin-password@localhost:5432/ghostcal
       GHOSTCAL_DATABASE_URL: postgresql+asyncpg://ghostcal_app:ci-app-password@localhost:5432/ghostcal
@@ -50,6 +41,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The runner is long-lived, so a container left behind by a cancelled run would hold both
+      # the name and port 5432. Removing it first makes the job self-healing rather than red
+      # until someone logs in — which, on a runner nobody here can reach, means red for good.
+      - name: Start Postgres (podman)
+        run: |
+          podman rm -f ghostcal-ci-postgres 2>/dev/null || true
+          podman run -d --name ghostcal-ci-postgres \
+            -e POSTGRES_USER=ghostcal \
+            -e POSTGRES_PASSWORD=ci-admin-password \
+            -e POSTGRES_DB=ghostcal \
+            -p 5432:5432 \
+            docker.io/library/postgres:16-alpine
+
+          for _ in $(seq 1 30); do
+            if podman exec ghostcal-ci-postgres pg_isready -U ghostcal -q; then
+              echo "postgres ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Postgres did not become ready within 60s"
+          podman logs ghostcal-ci-postgres
+          exit 1
+
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
@@ -63,11 +78,15 @@ jobs:
       # ghostcal_app)` — so migrating first silently skips every one of those grants and the app
       # role then cannot call `provision_account` at all. The default privileges this sets cover
       # the tables the migrations go on to create.
+      #
+      # Piped into the container's own psql: the runner has no postgres client installed, and
+      # the script is fed on stdin so its `\set` and `:'app_password'` are still interpreted.
       - name: Provision the application role
         run: |
-          psql "postgresql://ghostcal:ci-admin-password@localhost:5432/ghostcal" \
+          podman exec -i ghostcal-ci-postgres \
+            psql "postgresql://ghostcal:ci-admin-password@localhost:5432/ghostcal" \
             -v app_password="ci-app-password" \
-            -f scripts/bootstrap_roles.sql
+            -f - < scripts/bootstrap_roles.sql
 
       - name: Create the schema (admin role)
         run: uv run alembic upgrade head
@@ -84,6 +103,12 @@ jobs:
       - name: Tests (pytest)
         run: uv run pytest
 
+      # `services:` used to be torn down by the runner whatever the outcome; doing it by hand
+      # means saying so, or the container outlives the job on this long-lived machine.
+      - name: Stop Postgres
+        if: always()
+        run: podman rm -f ghostcal-ci-postgres 2>/dev/null || true
+
   security:
     runs-on: [self-hosted, linux, x64]
     steps:
@@ -98,11 +123,20 @@ jobs:
             | tar -xz gitleaks
           ./gitleaks dir . --config .gitleaks.toml --no-banner --redact --exit-code 1
 
+      # Run the osv-scanner binary directly, for the same reason gitleaks is run that way above:
+      # the marketplace action is a *Docker* action, and the runner has no docker CLI to pull its
+      # image with. The published checksums are verified — the release serves a SHA256SUMS file,
+      # so there is no reason to trust the download blindly.
       - name: Scan dependencies (osv-scanner)
-        uses: google/osv-scanner-action/osv-scanner-action@v2.3.8
-        with:
-          scan-args: |-
-            --lockfile=uv.lock
+        run: |
+          version=2.3.8
+          base="https://github.com/google/osv-scanner/releases/download/v${version}"
+          curl -sSLf -o osv-scanner_linux_amd64 "${base}/osv-scanner_linux_amd64"
+          curl -sSLf -o osv-scanner_SHA256SUMS "${base}/osv-scanner_SHA256SUMS"
+          sha256sum --ignore-missing -c osv-scanner_SHA256SUMS
+          chmod +x osv-scanner_linux_amd64
+          ./osv-scanner_linux_amd64 scan source \
+            --lockfile=uv.lock \
             --lockfile=frontend/package-lock.json
 
   frontend:
