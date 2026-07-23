@@ -21,7 +21,7 @@ Scoped to the password-wrapped rows. Sealed generations need no re-wrap at all: 
 with the member's own keypair, which a password change does not touch.
 
 Revision ID: e7c2a95f31d0
-Revises: f2a4cec11a6c
+Revises: b6d0f2a17c94
 Create Date: 2026-07-20 16:55:00.000000
 
 """
@@ -31,7 +31,7 @@ from collections.abc import Sequence
 from alembic import op
 
 revision: str = "e7c2a95f31d0"
-down_revision: str | Sequence[str] | None = "f2a4cec11a6c"
+down_revision: str | Sequence[str] | None = "b6d0f2a17c94"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
