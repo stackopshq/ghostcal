@@ -80,11 +80,25 @@ services:
       redis:
         condition: service_healthy
 
+  # The schedule file records when each periodic task last ran. Kept on a volume: in the
+  # container's ephemeral layer it resets on every restart, and the 24 h retention purge — the one
+  # job with a GDPR obligation behind it — would silently never run on a beat that restarts more
+  # often than daily. Nothing reports that it did not.
   beat:
     build: *build
     image: ghostcal:local
-    command: ["celery", "-A", "ghostcal.celery_app:celery_app", "beat", "-l", "info"]
+    command:
+      - celery
+      - -A
+      - ghostcal.celery_app:celery_app
+      - beat
+      - -l
+      - info
+      - --schedule
+      - /var/lib/ghostcal/celerybeat-schedule
     environment: *ghostcal-env
+    volumes:
+      - ghostcal-beatdata:/var/lib/ghostcal:Z
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -92,5 +106,6 @@ services:
         condition: service_healthy
 
 volumes:
+  ghostcal-beatdata:
   ghostcal-pgdata:
   ghostcal-redisdata:

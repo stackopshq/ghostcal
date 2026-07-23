@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { inputClass, primaryButtonClass } from "@/components/AuthCard";
 import { ApiError } from "@/lib/api";
+import { logout } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 import { changePassword, getProfile, updateProfile } from "@/lib/profile";
+import { MIN_PASSWORD_LENGTH } from "@/lib/passwords";
 
 function timezones(fallback: string): string[] {
   const fn = (Intl as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf;
@@ -68,11 +70,18 @@ export default function ProfileSettings() {
       setCurrent("");
       setNext("");
       setSavedPassword(true);
+      // The server has just revoked every refresh token, this tab's included — that is the point
+      // of changing a password. The access token would keep working for its last few minutes and
+      // then fail mid-action, so end the session here and say why, rather than letting it rot.
+      await logout();
+      window.location.assign("/login?reason=password-changed");
     } catch (err) {
       setPasswordError(
         err instanceof ApiError && err.status === 403
           ? t("profile.errCurrentWrong")
-          : t("profile.errPassword"),
+          : err instanceof ApiError && err.status === 422
+            ? err.detail || t("profile.errPassword")
+            : t("profile.errPassword"),
       );
     }
   }
@@ -140,7 +149,7 @@ export default function ProfileSettings() {
         <input
           type="password"
           required
-          minLength={8}
+          minLength={MIN_PASSWORD_LENGTH}
           placeholder={t("profile.newPassword")}
           value={next}
           onChange={(e) => setNext(e.target.value)}

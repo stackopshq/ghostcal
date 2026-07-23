@@ -47,6 +47,25 @@ export class ApiError extends Error {
   ) {
     super(message);
   }
+
+  /** FastAPI's `detail` string, when the body is its usual `{"detail": "..."}` envelope.
+   *
+   * Empty otherwise — including for validation errors, whose `detail` is an array of field
+   * objects rather than a sentence, and which callers should not paste at a user. Extracted here
+   * so each call site does not re-parse the body.
+   */
+  get detail(): string {
+    try {
+      const parsed: unknown = JSON.parse(this.message);
+      if (parsed && typeof parsed === "object" && "detail" in parsed) {
+        const value = (parsed as { detail: unknown }).detail;
+        return typeof value === "string" ? value : "";
+      }
+    } catch {
+      // Not JSON (a proxy error page, say) — nothing safe to show.
+    }
+    return "";
+  }
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {

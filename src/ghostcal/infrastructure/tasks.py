@@ -51,6 +51,10 @@ def _manage_url(reminder: DueReminder) -> str:
     return f"{_settings.frontend_base_url}/manage/{token}"
 
 
+class WebhookDeliveryIncomplete(Exception):
+    """At least one endpoint failed in a way worth retrying."""
+
+
 @celery_app.task(name="ghostcal.sync_all_calendars")  # type: ignore[untyped-decorator]
 def sync_all_calendars() -> int:
     """Sync every active CalDAV connection. Returns how many synced successfully."""
@@ -171,14 +175,35 @@ async def _sync_all_subscriptions() -> int:
     return refreshed
 
 
-@celery_app.task(name="ghostcal.deliver_webhooks")  # type: ignore[untyped-decorator]
-def deliver_webhooks(organization_id: str, event_type: str, payload: dict[str, object]) -> int:
-    """POST a signed event payload to every active endpoint subscribed to it."""
-    return asyncio.run(_deliver_webhooks(uuid.UUID(organization_id), event_type, payload))
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="ghostcal.deliver_webhooks",
+    bind=True,
+    autoretry_for=(WebhookDeliveryIncomplete,),
+    retry_backoff=_settings.task_retry_backoff_seconds,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    max_retries=_settings.task_max_retries,
+)
+def deliver_webhooks(
+    self: object,
+    organization_id: str,
+    event_type: str,
+    payload: dict[str, object],
+    event_id: str | None = None,
+) -> int:
+    """POST a signed event payload to every active endpoint subscribed to it.
+
+    Retries when at least one endpoint failed transiently. Previously a 500 from a subscriber was
+    logged once and the event was gone forever, which made webhooks unreliable in exactly the
+    situation subscribers most need them to be reliable.
+    """
+    return asyncio.run(
+        _deliver_webhooks(uuid.UUID(organization_id), event_type, payload, event_id or "")
+    )
 
 
 async def _deliver_webhooks(
-    organization_id: uuid.UUID, event_type: str, payload: dict[str, object]
+    organization_id: uuid.UUID, event_type: str, payload: dict[str, object], event_id: str = ""
 ) -> int:
     delivered = 0
     try:
@@ -188,7 +213,10 @@ async def _deliver_webhooks(
             )
         if not targets:
             return 0
-        body = json.dumps({"event": event_type, "data": payload}, default=str).encode()
+        body = json.dumps(
+            {"event": event_type, "id": event_id, "data": payload}, default=str
+        ).encode()
+        retryable = 0
         # follow_redirects=False (the default) so a 30x can't bounce us to an internal address.
         async with httpx.AsyncClient(timeout=10.0, follow_redirects=False) as http:
             for target in targets:
@@ -202,16 +230,28 @@ async def _deliver_webhooks(
                     "content-type": "application/json",
                     "user-agent": "GhostCal-Webhook/1.0",
                     "X-GhostCal-Event": event_type,
+                    # Stable across retries, so a subscriber can discard duplicates. Delivery is
+                    # at-least-once by construction and no amount of retry logic changes that;
+                    # what we owe consumers is the means to deduplicate.
+                    "X-GhostCal-Event-Id": event_id,
                     "X-GhostCal-Signature": f"sha256={sign_payload(target.secret, body)}",
                 }
                 try:
                     response = await http.post(target.url, content=body, headers=headers)
                     if response.status_code < 400:
                         delivered += 1
+                    elif response.status_code >= 500 or response.status_code == 429:
+                        # The subscriber is down or throttling us — worth trying again. A 4xx is
+                        # the subscriber saying no, and retrying it just repeats the argument.
+                        retryable += 1
+                        logger.warning("webhook %s returned %s", target.url, response.status_code)
                     else:
                         logger.warning("webhook %s returned %s", target.url, response.status_code)
                 except httpx.HTTPError:
+                    retryable += 1
                     logger.warning("webhook delivery to %s failed", target.url)
+        if retryable:
+            raise WebhookDeliveryIncomplete(f"{retryable} endpoint(s) failed transiently")
     finally:
         await reset_engine()
     return delivered
@@ -220,7 +260,7 @@ async def _deliver_webhooks(
 def emit_event(organization_id: uuid.UUID, event_type: str, payload: dict[str, object]) -> None:
     """Enqueue webhook delivery for an event. Best-effort: never fails the caller."""
     try:
-        deliver_webhooks.delay(str(organization_id), event_type, payload)
+        deliver_webhooks.delay(str(organization_id), event_type, payload, str(uuid.uuid4()))
     except Exception:
         logger.warning("could not enqueue webhook event %s", event_type)
 
