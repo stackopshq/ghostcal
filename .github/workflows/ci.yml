@@ -180,13 +180,18 @@ jobs:
       #
       # Scanned from an archive rather than by tag: the image lives in podman's store, and the
       # Trivy action resolves an `image-ref` through the Docker daemon, where it does not exist.
+      #
+      # Written under RUNNER_TEMP, which the runner empties between jobs, rather than /tmp, which
+      # it does not. `podman save` onto an existing docker-archive tries to add to it and fails
+      # with "docker-archive doesn't support modifying existing images" — so on a long-lived
+      # runner the step worked exactly once per machine and failed on every run afterwards.
       - name: Export image for scanning
-        run: podman save -o /tmp/ghostcal-ci.tar ghostcal:ci
+        run: podman save -o "${RUNNER_TEMP}/ghostcal-ci.tar" ghostcal:ci
 
       - name: Scan image (Trivy)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          input: /tmp/ghostcal-ci.tar
+          input: ${{ runner.temp }}/ghostcal-ci.tar
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: "1"
