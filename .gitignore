@@ -35,3 +35,8 @@ htmlcov/
 CLAUDE.md
 .claude/
 compose.override.yaml
+
+# Database dumps (scripts/backup.sh). Sealed content stays sealed, but these still carry
+# email addresses and encrypted-at-rest credentials — never commit one.
+backups/
+*.dump
