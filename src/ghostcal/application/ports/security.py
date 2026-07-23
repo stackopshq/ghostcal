@@ -16,6 +16,17 @@ class PasswordHasher(Protocol):
     def verify(self, hashed: str, password: str) -> bool: ...
 
 
+class BreachedPasswordChecker(Protocol):
+    async def is_breached(self, password: str) -> bool:
+        """True if the password is known to appear in a public breach corpus.
+
+        Implementations must fail *open* — return False when the check cannot be performed. A
+        password-strength advisory that can lock people out of registering when a third party is
+        having a bad day is a worse problem than the one it solves.
+        """
+        ...
+
+
 class AccessTokenCodec(Protocol):
     def encode(self, user_id: uuid.UUID) -> str: ...
 

@@ -19,16 +19,19 @@ from ghostcal.application.auth import (
     EmailNotVerified,
     InvalidCredentials,
     InvalidToken,
+    OidcIdentityRefused,
     TokenPair,
     ZkKeyMaterial,
     ZkKeysAlreadySet,
 )
+from ghostcal.application.passwords import PasswordRejected
 from ghostcal.application.ports.clock import SystemClock
 from ghostcal.config import get_settings
 from ghostcal.infrastructure.db.auth_repository import SqlAuthRepository
 from ghostcal.infrastructure.db.session import db_session
 from ghostcal.infrastructure.email import build_email_sender
 from ghostcal.infrastructure.ratelimit import rate_limit
+from ghostcal.infrastructure.security.hibp import HibpBreachedPasswordChecker
 from ghostcal.infrastructure.security.oidc import OIDCNotConfigured, oidc_client
 from ghostcal.infrastructure.security.passwords import Argon2PasswordHasher
 from ghostcal.infrastructure.security.tokens import JwtAccessTokenCodec
@@ -61,6 +64,7 @@ _codec = JwtAccessTokenCodec(
 )
 _mailer = build_email_sender(_settings)
 _clock = SystemClock()
+_breach_checker = HibpBreachedPasswordChecker(enabled=_settings.password_breach_check_enabled)
 _config = AuthConfig(
     access_ttl=timedelta(seconds=_settings.access_token_ttl_seconds),
     refresh_ttl=timedelta(seconds=_settings.refresh_token_ttl_seconds),
@@ -86,6 +90,7 @@ def _service(session: object) -> AuthService:
         _mailer,
         _clock,
         _config,
+        _breach_checker,
     )
 
 
@@ -127,6 +132,10 @@ async def register(payload: RegisterIn) -> RegisteredOut:
                 password=payload.password,
                 zk_keys=zk_keys,
             )
+        except PasswordRejected as exc:
+            # 422, not 400: this is the request body failing a rule, same class as the Pydantic
+            # length check that runs just before it. The message is written to be shown as-is.
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         except EmailAlreadyRegistered as exc:
             raise HTTPException(status_code=409, detail="email already registered") from exc
     return RegisteredOut(user_id=user_id)
@@ -225,15 +234,30 @@ async def oidc_callback(request: Request) -> RedirectResponse:
         logger.warning("OIDC userinfo missing sub/email")
         return RedirectResponse(f"{_settings.frontend_base_url}/login?sso_error=1")
 
+    # The email is treated downstream as proof of who this is — it is what links an SSO login to
+    # an existing account, and what `accept_organization_invitation` accepts as ownership of an
+    # invited address. So an address the provider has not vouched for is worth nothing here.
+    # Absent claim counts as unverified: providers that omit it have not made the assertion.
+    email_verified = userinfo.get("email_verified") is True
+
     issuer = str(_settings.oidc_issuer or userinfo.get("iss") or "")
-    async with db_session() as session:
-        tokens = await _service(session).authenticate_oidc(
-            provider="oidc",
-            issuer=issuer,
-            subject=str(subject),
-            email=str(email),
-            name=str(userinfo.get("name") or ""),
-        )
+    try:
+        async with db_session() as session:
+            tokens = await _service(session).authenticate_oidc(
+                provider="oidc",
+                issuer=issuer,
+                subject=str(subject),
+                email=str(email),
+                name=str(userinfo.get("name") or ""),
+                email_verified=email_verified,
+            )
+    except OidcIdentityRefused:
+        # Unverified address, or an unverified local account already holds it. Both are refusals
+        # to link, and the redirect says no more than that: distinguishing them here would tell a
+        # stranger whether an account exists on an address they do not control.
+        logger.warning("OIDC identity refused for a %s reason", "linking/verification")
+        return RedirectResponse(f"{_settings.frontend_base_url}/login?sso_error=1")
+
     # Tokens go in the URL fragment (never sent to a server, not in Referer); the SPA reads them and
     # immediately strips the fragment. This matches the app's existing localStorage token model.
     fragment = urlencode(

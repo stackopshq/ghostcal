@@ -21,6 +21,18 @@ def create_celery() -> Celery:
         task_reject_on_worker_lost=True,
         timezone="UTC",
         enable_utc=True,
+        # Nothing here should run for minutes. `sync_all_calendars` walks every connection in one
+        # task, so a handful of unresponsive CalDAV servers at 15s apiece could otherwise stall a
+        # worker past the next beat tick and quietly stop all scheduled work. The soft limit
+        # raises an exception the task can unwind from; the hard limit kills it shortly after.
+        task_soft_time_limit=settings.task_soft_time_limit_seconds,
+        task_time_limit=settings.task_time_limit_seconds,
+        # A worker that starts before Redis is up should wait for it rather than exit — the
+        # ordinary case on a cold `compose up`.
+        broker_connection_retry_on_startup=True,
+        # Cap what one worker takes at a time. With acks_late, a crash re-delivers everything
+        # prefetched, and a long queue behind a dead worker is worse than a slightly idle one.
+        worker_prefetch_multiplier=1,
         beat_schedule={
             "caldav-busy-sync": {
                 "task": "ghostcal.sync_all_calendars",
@@ -48,6 +60,9 @@ def create_celery() -> Celery:
             },
         },
     )
+    # Importing for its signal handlers: correlation-id propagation and worker-side metrics.
+    from ghostcal.infrastructure import celery_observability  # noqa: F401
+
     app.autodiscover_tasks(["ghostcal.infrastructure"])
     return app
 

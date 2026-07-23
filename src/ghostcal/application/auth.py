@@ -18,9 +18,14 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from ghostcal.application.passwords import NoBreachCheck, enforce_password_policy
 from ghostcal.application.ports.clock import Clock
 from ghostcal.application.ports.email import EmailSender
-from ghostcal.application.ports.security import AccessTokenCodec, PasswordHasher
+from ghostcal.application.ports.security import (
+    AccessTokenCodec,
+    BreachedPasswordChecker,
+    PasswordHasher,
+)
 
 
 class AuthError(Exception):
@@ -41,6 +46,15 @@ class EmailNotVerified(AuthError):
 
 class InvalidToken(AuthError):
     pass
+
+
+class OidcIdentityRefused(AuthError):
+    """The OIDC login may not be bound to a local account.
+
+    Either the provider did not vouch for the email, or an unverified local account already holds
+    it. Deliberately one error for both: telling them apart at the edge would reveal whether an
+    account exists on an address the caller has not proved they own.
+    """
 
 
 class ZkKeysAlreadySet(AuthError):
@@ -137,6 +151,7 @@ class AuthRepository:
         name: str,
         org_name: str,
         org_slug: str,
+        email_verified: bool,
     ) -> uuid.UUID:
         """Resolve an OIDC login to a local user id: return the linked user, link to an existing
         account with the same email, or provision a fresh passwordless account. Return user id."""
@@ -199,6 +214,10 @@ class AuthRepository:
     async def revoke_refresh_token(self, token_hash: str, now: datetime) -> None:
         raise NotImplementedError
 
+    async def revoke_all_refresh_tokens(self, user_id: uuid.UUID, now: datetime) -> int:
+        """Revoke every live session for a user. Returns how many were revoked."""
+        raise NotImplementedError
+
 
 def _hash_token(plain: str) -> str:
     return hashlib.sha256(plain.encode()).hexdigest()
@@ -230,6 +249,7 @@ class AuthService:
         mailer: EmailSender,
         clock: Clock,
         config: AuthConfig,
+        breach_checker: BreachedPasswordChecker | None = None,
     ) -> None:
         self._repo = repo
         self._hasher = hasher
@@ -237,11 +257,13 @@ class AuthService:
         self._mailer = mailer
         self._clock = clock
         self._config = config
+        self._breach_checker = breach_checker or NoBreachCheck()
 
     async def register(
         self, *, email: str, name: str, password: str, zk_keys: ZkKeyMaterial
     ) -> uuid.UUID:
         email = email.strip().lower()
+        await enforce_password_policy(password, self._breach_checker)
         password_hash = self._hasher.hash(password)
         user_id = await self._repo.provision_account(
             email=email,
@@ -311,7 +333,14 @@ class AuthService:
         return await self._issue_pair(user.id)
 
     async def authenticate_oidc(
-        self, *, provider: str, issuer: str, subject: str, email: str, name: str
+        self,
+        *,
+        provider: str,
+        issuer: str,
+        subject: str,
+        email: str,
+        name: str,
+        email_verified: bool,
     ) -> TokenPair:
         """Log a user in from a validated OIDC identity, provisioning on first login. No password
         is involved; the zero-knowledge content is unlocked later by the encryption passphrase."""
@@ -324,6 +353,7 @@ class AuthService:
             name=name or email,
             org_name=name or email,
             org_slug=_org_slug(email),
+            email_verified=email_verified,
         )
         return await self._issue_pair(user_id)
 
