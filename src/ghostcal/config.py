@@ -71,6 +71,25 @@ class Settings(BaseSettings):
     # How often the worker refreshes subscribed public ICS feeds.
     subscription_sync_interval_seconds: int = 3600  # 1 h
 
+    # Which peers may be believed when they send X-Forwarded-For.
+    #
+    # The app sits behind the Next same-origin proxy, so the socket peer is the proxy and the real
+    # client is in the header. But a header is client-controlled: honouring it from *any* peer lets
+    # anyone mint a fresh rate-limit bucket per request, which is what the auth limiter exists to
+    # prevent. Only peers inside these ranges are believed; everyone else is rate-limited on the
+    # address they actually connected from.
+    #
+    # Defaults to loopback and the private ranges, which is where a reverse proxy lives in every
+    # supported topology. Set it to [] if the app is exposed directly, with no proxy in front.
+    trusted_proxy_cidrs: list[str] = [
+        "127.0.0.0/8",
+        "::1/128",
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "fc00::/7",
+    ]
+
     # Private networks the server may fetch calendars from, e.g. ["192.168.1.0/24"].
     #
     # Empty by default, which is the right posture for a hosted deployment: the SSRF guard refuses
