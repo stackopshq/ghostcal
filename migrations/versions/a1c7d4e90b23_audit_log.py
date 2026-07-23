@@ -22,7 +22,7 @@ Rows outlive their organization deliberately: ``organization_id`` is nullable wi
 NULL, so deleting an org does not erase the record that it was deleted.
 
 Revision ID: a1c7d4e90b23
-Revises: f2a4cec11a6c
+Revises: d3b8f1a04e77
 Create Date: 2026-07-20 14:05:00.000000
 
 """
@@ -34,7 +34,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "a1c7d4e90b23"
-down_revision: str | Sequence[str] | None = "f2a4cec11a6c"
+down_revision: str | Sequence[str] | None = "d3b8f1a04e77"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
