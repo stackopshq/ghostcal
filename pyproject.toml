@@ -19,6 +19,7 @@ dependencies = [
     "fastapi>=0.138.1",
     "httpx>=0.28.1",
     "itsdangerous>=2.2.0",
+    "prometheus-client>=0.25.0",
     "pydantic-settings>=2.14.2",
     "pydantic[email]>=2.13.4",
     "pyjwt>=2.13.0",

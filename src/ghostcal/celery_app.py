@@ -60,6 +60,9 @@ def create_celery() -> Celery:
             },
         },
     )
+    # Importing for its signal handlers: correlation-id propagation and worker-side metrics.
+    from ghostcal.infrastructure import celery_observability  # noqa: F401
+
     app.autodiscover_tasks(["ghostcal.infrastructure"])
     return app
 

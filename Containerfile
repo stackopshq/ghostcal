@@ -1,7 +1,12 @@
 # GhostCal backend image. Build: podman build -t ghostcal:dev .
 # Multi-stage: deps resolved with uv against the locked manifest, runtime kept minimal.
+#
+# Base images are pinned by digest, with the tag kept alongside for readability. A tag is mutable:
+# `python:3.14-slim-bookworm` is a different image this month than last, so an unpinned build is
+# not reproducible and a scan of it says nothing about what ships tomorrow. Update deliberately —
+# `podman image inspect <tag> --format '{{index .RepoDigests 0}}'` after pulling the new tag.
 
-FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim AS builder
+FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim@sha256:7cf77f594be8042dab6daa9fe326f90962252268b4f120a7f5dccce4d947e6c1 AS builder
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
@@ -21,7 +26,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
 
-FROM python:3.14-slim-bookworm AS runtime
+FROM docker.io/library/python:3.14-slim-bookworm@sha256:86f975aca15cf04a40b399eebede9aea7c82eae084d1f1a0a6ef6bcaae871a30 AS runtime
 
 # Non-root runtime user.
 RUN groupadd --system app && useradd --system --gid app --home /app app

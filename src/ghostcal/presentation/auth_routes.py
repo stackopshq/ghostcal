@@ -23,12 +23,14 @@ from ghostcal.application.auth import (
     ZkKeyMaterial,
     ZkKeysAlreadySet,
 )
+from ghostcal.application.passwords import PasswordRejected
 from ghostcal.application.ports.clock import SystemClock
 from ghostcal.config import get_settings
 from ghostcal.infrastructure.db.auth_repository import SqlAuthRepository
 from ghostcal.infrastructure.db.session import db_session
 from ghostcal.infrastructure.email import build_email_sender
 from ghostcal.infrastructure.ratelimit import rate_limit
+from ghostcal.infrastructure.security.hibp import HibpBreachedPasswordChecker
 from ghostcal.infrastructure.security.oidc import OIDCNotConfigured, oidc_client
 from ghostcal.infrastructure.security.passwords import Argon2PasswordHasher
 from ghostcal.infrastructure.security.tokens import JwtAccessTokenCodec
@@ -61,6 +63,7 @@ _codec = JwtAccessTokenCodec(
 )
 _mailer = build_email_sender(_settings)
 _clock = SystemClock()
+_breach_checker = HibpBreachedPasswordChecker(enabled=_settings.password_breach_check_enabled)
 _config = AuthConfig(
     access_ttl=timedelta(seconds=_settings.access_token_ttl_seconds),
     refresh_ttl=timedelta(seconds=_settings.refresh_token_ttl_seconds),
@@ -86,6 +89,7 @@ def _service(session: object) -> AuthService:
         _mailer,
         _clock,
         _config,
+        _breach_checker,
     )
 
 
@@ -127,6 +131,10 @@ async def register(payload: RegisterIn) -> RegisteredOut:
                 password=payload.password,
                 zk_keys=zk_keys,
             )
+        except PasswordRejected as exc:
+            # 422, not 400: this is the request body failing a rule, same class as the Pydantic
+            # length check that runs just before it. The message is written to be shown as-is.
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         except EmailAlreadyRegistered as exc:
             raise HTTPException(status_code=409, detail="email already registered") from exc
     return RegisteredOut(user_id=user_id)
