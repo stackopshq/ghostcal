@@ -23,7 +23,7 @@ only reachable once the IdP has asserted the address as verified. That matters b
 binding was bypassable through exactly this path.
 
 Revision ID: d3b8f1a04e77
-Revises: f2a4cec11a6c
+Revises: f4a1e83c02b9
 Create Date: 2026-07-20 16:20:00.000000
 
 """
@@ -33,7 +33,7 @@ from collections.abc import Sequence
 from alembic import op
 
 revision: str = "d3b8f1a04e77"
-down_revision: str | Sequence[str] | None = "f2a4cec11a6c"
+down_revision: str | Sequence[str] | None = "f4a1e83c02b9"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
