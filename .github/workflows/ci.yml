@@ -166,6 +166,12 @@ jobs:
   image:
     runs-on: [self-hosted, linux, x64]
     needs: [quality]
+    # Scoped to this job rather than the workflow: every other job here only
+    # needs to read the repository, and a token that can write packages has
+    # no business being present while third-party actions run.
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
       - name: Build image (Podman)
@@ -196,3 +202,29 @@ jobs:
           ignore-unfixed: true
           exit-code: "1"
           format: table
+
+      # Publish only what has passed quality, the vulnerability scan, and only
+      # from main. Until 2026-08-11 nothing was published at all, so deploying
+      # ghostcal meant cloning the source onto the target host and building
+      # there -- which makes "what is running" a question nobody can answer
+      # from a registry.
+      #
+      # Tagged by commit SHA, never `latest`: an immutable tag is what lets an
+      # operator say which build is deployed, and roll back to a specific one.
+      # `main` moves and is a convenience, not something to deploy from.
+      - name: Publish image to ghcr.io
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          REGISTRY: ghcr.io
+          IMAGE: ghcr.io/${{ github.repository }}
+        run: |
+          set -euo pipefail
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | podman login "${REGISTRY}" -u "${{ github.actor }}" --password-stdin
+          SHORT="$(git rev-parse --short HEAD)"
+          podman tag ghostcal:ci "${IMAGE}:sha-${SHORT}"
+          podman tag ghostcal:ci "${IMAGE}:main"
+          podman push "${IMAGE}:sha-${SHORT}"
+          podman push "${IMAGE}:main"
+          echo "published ${IMAGE}:sha-${SHORT}"
+          podman logout "${REGISTRY}" || true
