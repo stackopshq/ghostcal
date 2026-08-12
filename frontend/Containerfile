@@ -1,0 +1,57 @@
+# GhostCal frontend image. Build from the repository root:
+#   podman build -t ghostcal-frontend:dev -f frontend/Containerfile frontend
+#
+# Why a second image rather than one more process on the backend image: app,
+# worker and beat share one image because they share one runtime. This one is
+# Node, not Python. Putting both interpreters in a single image would double
+# its attack surface so that two unrelated processes could keep one tag.
+#
+# Base image pinned by digest with the tag alongside for readability, following
+# the backend Containerfile: a tag is mutable, so an unpinned build is not
+# reproducible and a scan of it says nothing about what ships tomorrow. Update
+# deliberately —
+#   podman image inspect <tag> --format '{{index .RepoDigests 0}}'
+# after pulling the new tag.
+
+FROM docker.io/library/node:22-bookworm-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436 AS builder
+
+WORKDIR /app
+
+# Dependencies first, so a source-only change does not re-resolve them.
+# `npm ci` and not `npm install`: it installs exactly what package-lock.json
+# pins and fails if the lockfile and the manifest disagree, which is the
+# property that makes a build reproducible.
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+
+# API_INTERNAL_URL is read at build time by next.config.ts for its rewrites and
+# again at runtime. The value baked here is only the fallback the config already
+# carries; the deployment overrides it through the environment.
+RUN npm run build
+
+
+FROM docker.io/library/node:22-bookworm-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436 AS runtime
+
+# Non-root runtime user, as on the backend image. The upstream node image ships
+# a `node` user, but a named one keeps both our images reading the same way.
+RUN groupadd --system app && useradd --system --gid app --home /app app
+
+WORKDIR /app
+ENV NODE_ENV=production
+
+# `next start` needs the build output, the manifest, and the production
+# dependency tree. next.config.ts is required too — its `rewrites` are what
+# proxies /api/* to the backend and serves the ghostapp manifest, so without it
+# the app builds and then answers 404 on every API call.
+COPY --from=builder --chown=app:app /app/.next ./.next
+COPY --from=builder --chown=app:app /app/public ./public
+COPY --from=builder --chown=app:app /app/node_modules ./node_modules
+COPY --from=builder --chown=app:app /app/package.json ./package.json
+COPY --from=builder --chown=app:app /app/next.config.ts ./next.config.ts
+
+USER app
+EXPOSE 3000
+
+CMD ["npx", "next", "start", "--hostname", "0.0.0.0", "--port", "3000"]

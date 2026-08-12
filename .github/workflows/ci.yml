@@ -177,6 +177,14 @@ jobs:
       - name: Build image (Podman)
         run: podman build -t ghostcal:ci .
 
+      # The frontend is a second image because it is a second runtime. Until
+      # 2026-08-12 this job built only the backend, so `npm run build` in the
+      # quality job proved the interface compiled and then threw it away -- and
+      # deploying ghostcal meant deploying an API with no interface in front of
+      # it, which is exactly what was found running in production.
+      - name: Build frontend image (Podman)
+        run: podman build -t ghostcal-frontend:ci -f frontend/Containerfile frontend
+
       # osv-scanner covers uv.lock and package-lock.json — our dependencies, not the operating
       # system underneath them. Everything in the base layer (OpenSSL, zlib, the Debian userland)
       # was unscanned, which is the largest surface in the deployed artefact.
@@ -194,10 +202,22 @@ jobs:
       - name: Export image for scanning
         run: podman save -o "${RUNNER_TEMP}/ghostcal-ci.tar" ghostcal:ci
 
+      - name: Export frontend image for scanning
+        run: podman save -o "${RUNNER_TEMP}/ghostcal-frontend-ci.tar" ghostcal-frontend:ci
+
       - name: Scan image (Trivy)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           input: ${{ runner.temp }}/ghostcal-ci.tar
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+
+      - name: Scan frontend image (Trivy)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          input: ${{ runner.temp }}/ghostcal-frontend-ci.tar
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: "1"
@@ -227,4 +247,11 @@ jobs:
           podman push "${IMAGE}:sha-${SHORT}"
           podman push "${IMAGE}:main"
           echo "published ${IMAGE}:sha-${SHORT}"
+          # Same commit, same tag, second image: an operator reading
+          # `sha-abc1234` on either must get the two halves of one build.
+          podman tag ghostcal-frontend:ci "${IMAGE}-frontend:sha-${SHORT}"
+          podman tag ghostcal-frontend:ci "${IMAGE}-frontend:main"
+          podman push "${IMAGE}-frontend:sha-${SHORT}"
+          podman push "${IMAGE}-frontend:main"
+          echo "published ${IMAGE}-frontend:sha-${SHORT}"
           podman logout "${REGISTRY}" || true
