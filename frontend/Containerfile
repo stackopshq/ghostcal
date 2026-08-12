@@ -26,32 +26,40 @@ RUN npm ci
 
 COPY . .
 
-# API_INTERNAL_URL is read at build time by next.config.ts for its rewrites and
-# again at runtime. The value baked here is only the fallback the config already
-# carries; the deployment overrides it through the environment.
+# Produces .next/standalone — a self-contained server carrying only the modules
+# actually reached, run by `node server.js`. Requires `output: "standalone"` in
+# next.config.ts.
 RUN npm run build
 
 
 FROM docker.io/library/node:22-bookworm-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436 AS runtime
 
-# Non-root runtime user, as on the backend image. The upstream node image ships
-# a `node` user, but a named one keeps both our images reading the same way.
+# Non-root runtime user. The upstream node image ships a `node` user, but a
+# named one keeps both our images reading the same way.
 RUN groupadd --system app && useradd --system --gid app --home /app app
+
+# The global npm that ships in the base image is build tooling, and it is what
+# a scanner finds first: tar, sigstore, picomatch and ip-address all arrived
+# through it, none of them needed to serve pages. Removing it costs nothing at
+# runtime — the standalone server is started by `node`, never by npm.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 WORKDIR /app
 ENV NODE_ENV=production
 
-# `next start` needs the build output, the manifest, and the production
-# dependency tree. next.config.ts is required too — its `rewrites` are what
-# proxies /api/* to the backend and serves the ghostapp manifest, so without it
-# the app builds and then answers 404 on every API call.
-COPY --from=builder --chown=app:app /app/.next ./.next
+# The standalone output carries its own minimal node_modules and server.js.
+# `static` and `public` are NOT included by Next and must be copied alongside,
+# or the app serves pages stripped of every asset — a failure that looks like a
+# broken stylesheet rather than a broken build.
+COPY --from=builder --chown=app:app /app/.next/standalone ./
+COPY --from=builder --chown=app:app /app/.next/static ./.next/static
 COPY --from=builder --chown=app:app /app/public ./public
-COPY --from=builder --chown=app:app /app/node_modules ./node_modules
-COPY --from=builder --chown=app:app /app/package.json ./package.json
-COPY --from=builder --chown=app:app /app/next.config.ts ./next.config.ts
 
 USER app
 EXPOSE 3000
 
-CMD ["npx", "next", "start", "--hostname", "0.0.0.0", "--port", "3000"]
+# next.config.ts is compiled into the standalone server, so its `rewrites` —
+# which proxy /api/* to API_INTERNAL_URL and serve the ghostapp manifest — ship
+# with it. The variable is read at runtime.
+ENV HOSTNAME=0.0.0.0 PORT=3000
+CMD ["node", "server.js"]

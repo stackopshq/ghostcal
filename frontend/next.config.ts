@@ -25,6 +25,12 @@ const SECURITY_HEADERS = [
 ];
 
 const nextConfig: NextConfig = {
+  // Sortie autonome : Next produit un serveur qui n'embarque que les modules
+  // réellement atteints, lancé par `node server.js`. Ajouté le 2026-08-12 pour
+  // que l'image de production cesse de transporter l'arbre de développement et
+  // le npm global — Trivy y trouvait tar 7.5.11 (critique), sigstore, picomatch
+  // et ip-address, aucun d'eux nécessaire pour servir des pages.
+  output: "standalone",
   allowedDevOrigins: devOrigins,
   async rewrites() {
     return [
