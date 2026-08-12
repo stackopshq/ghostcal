@@ -1,0 +1,65 @@
+# GhostCal frontend image. Build from the repository root:
+#   podman build -t ghostcal-frontend:dev -f frontend/Containerfile frontend
+#
+# Why a second image rather than one more process on the backend image: app,
+# worker and beat share one image because they share one runtime. This one is
+# Node, not Python. Putting both interpreters in a single image would double
+# its attack surface so that two unrelated processes could keep one tag.
+#
+# Base image pinned by digest with the tag alongside for readability, following
+# the backend Containerfile: a tag is mutable, so an unpinned build is not
+# reproducible and a scan of it says nothing about what ships tomorrow. Update
+# deliberately —
+#   podman image inspect <tag> --format '{{index .RepoDigests 0}}'
+# after pulling the new tag.
+
+FROM docker.io/library/node:22-bookworm-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436 AS builder
+
+WORKDIR /app
+
+# Dependencies first, so a source-only change does not re-resolve them.
+# `npm ci` and not `npm install`: it installs exactly what package-lock.json
+# pins and fails if the lockfile and the manifest disagree, which is the
+# property that makes a build reproducible.
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+
+# Produces .next/standalone — a self-contained server carrying only the modules
+# actually reached, run by `node server.js`. Requires `output: "standalone"` in
+# next.config.ts.
+RUN npm run build
+
+
+FROM docker.io/library/node:22-bookworm-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436 AS runtime
+
+# Non-root runtime user. The upstream node image ships a `node` user, but a
+# named one keeps both our images reading the same way.
+RUN groupadd --system app && useradd --system --gid app --home /app app
+
+# The global npm that ships in the base image is build tooling, and it is what
+# a scanner finds first: tar, sigstore, picomatch and ip-address all arrived
+# through it, none of them needed to serve pages. Removing it costs nothing at
+# runtime — the standalone server is started by `node`, never by npm.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+
+WORKDIR /app
+ENV NODE_ENV=production
+
+# The standalone output carries its own minimal node_modules and server.js.
+# `static` and `public` are NOT included by Next and must be copied alongside,
+# or the app serves pages stripped of every asset — a failure that looks like a
+# broken stylesheet rather than a broken build.
+COPY --from=builder --chown=app:app /app/.next/standalone ./
+COPY --from=builder --chown=app:app /app/.next/static ./.next/static
+COPY --from=builder --chown=app:app /app/public ./public
+
+USER app
+EXPOSE 3000
+
+# next.config.ts is compiled into the standalone server, so its `rewrites` —
+# which proxy /api/* to API_INTERNAL_URL and serve the ghostapp manifest — ship
+# with it. The variable is read at runtime.
+ENV HOSTNAME=0.0.0.0 PORT=3000
+CMD ["node", "server.js"]
