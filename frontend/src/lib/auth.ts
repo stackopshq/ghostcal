@@ -282,7 +282,14 @@ export type AuthConfig = { oidc_enabled: boolean };
 
 export async function getAuthConfig(): Promise<AuthConfig> {
   const res = await fetch(`${base()}/v1/auth/config`, { cache: "no-store" });
-  if (!res.ok) return { oidc_enabled: false };
+  if (!res.ok) {
+    // The fallback is deliberate — a login page without its SSO button beats a login page that does
+    // not render. But it makes an unreachable API indistinguishable from an instance where OIDC is
+    // genuinely off, which is precisely how a broken proxy hid on 2026-08-13: the button was simply
+    // absent, and nothing anywhere said why. Hence the trace.
+    console.error(`auth config unavailable: HTTP ${res.status} — the SSO button will be hidden`);
+    return { oidc_enabled: false };
+  }
   return (await res.json()) as AuthConfig;
 }
 
