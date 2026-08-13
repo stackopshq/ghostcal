@@ -168,7 +168,7 @@ export default function EventTypesPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6 sm:p-10">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{t("et.title")}</h1>
           <p className="mt-1 text-sm text-muted">{t("et.sub")}</p>
