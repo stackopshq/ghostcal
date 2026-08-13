@@ -109,3 +109,23 @@ async def bind_org(session: AsyncSession, organization_id: uuid.UUID) -> None:
         text("SELECT set_config('app.current_org_id', :oid, true)"),
         {"oid": str(organization_id)},
     )
+
+
+async def bind_user(session: AsyncSession, user_id: uuid.UUID) -> None:
+    """Declare which authenticated user this transaction acts for.
+
+    The `memberships_self_read` and `organizations_member_read` policies read this
+    GUC: with it bound, a resolver can see the caller's own memberships and the
+    organizations they belong to — and nothing else. Same trust model as
+    `bind_org`: the application declares, the policies enforce row by row.
+
+    This exists because FORCE ROW LEVEL SECURITY subjects even the table owner to
+    the policies, so SECURITY DEFINER functions inherit no sight at all — measured
+    on 2026-08-13, `user_primary_organization()` returned NULL for a user whose
+    membership sat in the table. Declaring the user is what makes the trusted
+    layer work *without* any RLS bypass.
+    """
+    await session.execute(
+        text("SELECT set_config('app.current_user_id', :uid, true)"),
+        {"uid": str(user_id)},
+    )

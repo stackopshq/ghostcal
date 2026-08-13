@@ -1,4 +1,12 @@
-"""Resolve a user's organization without an org context (via the SECURITY DEFINER function)."""
+"""Resolve a user's organization without an org context.
+
+Every helper here first declares the user via `bind_user`. The SECURITY DEFINER
+functions do NOT see across tenants — FORCE ROW LEVEL SECURITY subjects the owner
+to the policies too — so their internal queries pass through the
+`memberships_self_read` / `organizations_member_read` policies, which only open
+the declared caller's own rows. Without the declaration, every resolver returns
+NULL, which is exactly what production did until 2026-08-13.
+"""
 
 from __future__ import annotations
 
@@ -7,8 +15,11 @@ import uuid
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ghostcal.infrastructure.db.session import bind_user
+
 
 async def primary_organization(session: AsyncSession, user_id: uuid.UUID) -> uuid.UUID | None:
+    await bind_user(session, user_id)
     result = await session.execute(
         text("SELECT user_primary_organization(:uid) AS org"), {"uid": str(user_id)}
     )
@@ -19,6 +30,7 @@ async def primary_membership(
     session: AsyncSession, user_id: uuid.UUID
 ) -> tuple[uuid.UUID, str] | None:
     """(organization_id, role) of the user's primary membership, or None."""
+    await bind_user(session, user_id)
     row = (
         await session.execute(
             text("SELECT organization_id, role FROM user_primary_membership(:uid)"),
@@ -34,6 +46,7 @@ async def user_organizations(
     session: AsyncSession, user_id: uuid.UUID
 ) -> list[tuple[uuid.UUID, str, str, str]]:
     """All orgs the user belongs to as (id, name, slug, role), oldest membership first."""
+    await bind_user(session, user_id)
     rows = (
         await session.execute(
             text("SELECT organization_id, name, slug, role FROM user_organizations(:uid)"),
@@ -47,6 +60,7 @@ async def role_in_org(
     session: AsyncSession, user_id: uuid.UUID, organization_id: uuid.UUID
 ) -> str | None:
     """The user's role in a specific org, or None if not a member."""
+    await bind_user(session, user_id)
     return (  # type: ignore[no-any-return]
         await session.execute(
             text("SELECT user_role_in_org(:uid, :oid) AS role"),
