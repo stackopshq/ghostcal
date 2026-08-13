@@ -204,6 +204,32 @@ def _require_oidc_enabled() -> None:
         raise HTTPException(status_code=404, detail="not found")
 
 
+def email_is_vouched_for(userinfo: dict[str, object], issuer: str) -> bool:
+    """Whether the provider has asserted that the caller owns this address.
+
+    The email is treated downstream as proof of who this is — it links an SSO login to an existing
+    account, and `accept_organization_invitation` accepts it as ownership of an invited address. So
+    an address the provider has not vouched for is worth nothing here, and an **absent claim counts
+    as unverified**: a provider that omits it has not made the assertion.
+
+    Some providers never make it while guaranteeing the identity another way. Cloudflare Access is
+    one — its discovery advertises no `claims_supported`, yet the identity comes from Google
+    Workspace and an Access policy decides who may even reach the consent screen. Measured on
+    2026-08-13: no first SSO login could succeed, for anyone, and the refusal was indistinguishable
+    from OIDC being deliberately off.
+
+    `oidc_trust_issuer_email` moves the proof from the claim to the issuer, and is scoped to
+    `oidc_issuer` on purpose: an identity arriving with some other `iss` inherits none of that
+    trust, so a swapped or misconfigured provider cannot walk in on it.
+    """
+    if userinfo.get("email_verified") is True:
+        return True
+    if _settings.oidc_trust_issuer_email and issuer and issuer == str(_settings.oidc_issuer or ""):
+        logger.info("OIDC email accepted on issuer trust (provider emits no email_verified)")
+        return True
+    return False
+
+
 @router.get("/oidc/login")
 async def oidc_login(request: Request) -> RedirectResponse:
     """Begin the OIDC flow: 302 to the provider's authorization endpoint (state/nonce/PKCE set)."""
@@ -234,13 +260,8 @@ async def oidc_callback(request: Request) -> RedirectResponse:
         logger.warning("OIDC userinfo missing sub/email")
         return RedirectResponse(f"{_settings.frontend_base_url}/login?sso_error=1")
 
-    # The email is treated downstream as proof of who this is — it is what links an SSO login to
-    # an existing account, and what `accept_organization_invitation` accepts as ownership of an
-    # invited address. So an address the provider has not vouched for is worth nothing here.
-    # Absent claim counts as unverified: providers that omit it have not made the assertion.
-    email_verified = userinfo.get("email_verified") is True
-
     issuer = str(_settings.oidc_issuer or userinfo.get("iss") or "")
+    email_verified = email_is_vouched_for(userinfo, issuer)
     try:
         async with db_session() as session:
             tokens = await _service(session).authenticate_oidc(

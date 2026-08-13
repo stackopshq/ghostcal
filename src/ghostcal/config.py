@@ -65,6 +65,28 @@ class Settings(BaseSettings):
     # the client id — the common case, where GhostAuth mints tokens whose audience is the requesting
     # client. Set this when the realm issues a distinct resource identifier instead.
     oidc_audience: str | None = None
+    # Treat the address as vouched for when it comes from `oidc_issuer`, even
+    # though the provider never emits `email_verified`.
+    #
+    # **False by default, and it must stay that way.** The address is what proves
+    # who the caller is: it links an SSO login to an existing account, and it is
+    # what `accept_organization_invitation` accepts as ownership of an invited
+    # address. An address the provider has not vouched for is worth nothing here,
+    # and an absent claim counts as unverified — a provider that omits it has not
+    # made the assertion.
+    #
+    # Some providers never make it while still guaranteeing the identity by other
+    # means. Cloudflare Access is one: its OIDC discovery advertises no
+    # `claims_supported`, yet the identity comes from Google Workspace and its
+    # Access policy decides who may even reach the consent screen. Measured on
+    # 2026-08-13 — **no first SSO login could succeed, for anyone**, and the
+    # refusal was indistinguishable from a deliberate configuration.
+    #
+    # This flag therefore moves the proof **from the claim to the issuer**. It
+    # applies only to identities whose issuer is exactly `oidc_issuer`, never to
+    # any other. Turn it on only if the answer is yes to: *does this issuer
+    # already refuse addresses it has not verified possession of?*
+    oidc_trust_issuer_email: bool = False
 
     # How often the worker re-syncs each connected CalDAV calendar's busy time.
     caldav_sync_interval_seconds: int = 900  # 15 min
