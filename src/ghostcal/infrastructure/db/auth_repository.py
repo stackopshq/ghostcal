@@ -1,8 +1,13 @@
 """SQL implementation of the auth repository port.
 
-Operates on global (non-RLS) identity tables via a plain ``db_session``. Account provisioning
-goes through the ``provision_account`` SECURITY DEFINER function so the org/membership inserts
-bypass RLS in a controlled way.
+Operates on global (non-RLS) identity tables via a plain ``db_session``. Account provisioning goes
+through a SECURITY DEFINER function so the org/membership inserts happen in a controlled way.
+
+**SECURITY DEFINER does not, on its own, get past RLS here.** ``organizations`` and ``memberships``
+carry FORCE ROW LEVEL SECURITY, which subjects even the table owner to the policy — that is what
+FORCE is for. The provisioning function therefore sets ``app.current_org_id`` to the id it is about
+to insert, and restores it afterwards. This docstring claimed the opposite until 2026-08-13, when
+first-time SSO provisioning turned out never to have been able to work.
 """
 
 from __future__ import annotations
@@ -23,6 +28,13 @@ from ghostcal.application.auth import (
     ZkKeyMaterial,
 )
 from ghostcal.infrastructure.db import models
+
+# The exact texts the provisioning function RAISEs when it decides not to link an identity.
+# Anything else carrying 42501 is the database refusing *us*, not the function refusing a caller.
+_REFUSAL_REASONS = (
+    "oidc email not verified by the provider",
+    "an unverified local account already holds this email",
+)
 
 
 class SqlAuthRepository(AuthRepository):
@@ -67,6 +79,12 @@ class SqlAuthRepository(AuthRepository):
         # The function raises `insufficient_privilege` when it refuses to link. Translated here so
         # the application layer sees a domain error rather than a driver exception — and so a
         # refusal cannot surface as a 500.
+        #
+        # Matched on the MESSAGE, not on the SQLSTATE alone. 42501 is also what PostgreSQL raises
+        # for a row-level-security violation, and on 2026-08-13 that cost a long diagnosis:
+        # creating the first organization was structurally impossible under FORCE ROW LEVEL
+        # SECURITY, and it surfaced as "identity refused" — a policy decision the operator was
+        # invited to believe. An infrastructure failure must not get to wear the costume of a rule.
         try:
             row = (
                 await self._session.execute(
@@ -88,8 +106,11 @@ class SqlAuthRepository(AuthRepository):
                 )
             ).one()
         except DBAPIError as exc:
-            if getattr(getattr(exc, "orig", None), "sqlstate", None) == "42501":
-                raise OidcIdentityRefused(str(exc.orig)) from exc
+            orig = getattr(exc, "orig", None)
+            if getattr(orig, "sqlstate", None) == "42501" and any(
+                reason in str(orig) for reason in _REFUSAL_REASONS
+            ):
+                raise OidcIdentityRefused(str(orig)) from exc
             raise
         return row.user_id  # type: ignore[no-any-return]
 
