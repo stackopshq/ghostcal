@@ -170,10 +170,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   );
 
   return (
-    <div className="flex flex-1 flex-col md:flex-row">
+    <div className="flex flex-1 flex-col lg:flex-row">
       {/* Barre supérieure mobile — la barre latérale de 240 px laisserait 150 px
           de contenu sur un iPhone. En dessous de md, elle devient un tiroir. */}
-      <header className="flex items-center justify-between border-b border-border bg-surface-2/40 px-4 py-3 md:hidden">
+      <header className="flex items-center justify-between border-b border-border bg-surface-2/40 px-4 py-3 lg:hidden">
         <Link href="/dashboard" className="flex items-center gap-2">
           <span className="text-lg text-accent">●</span>
           <span className="text-lg font-semibold tracking-tight text-foreground">GhostCal</span>
@@ -190,7 +190,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </header>
 
       {navOpen && (
-        <div className="fixed inset-0 z-40 md:hidden" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true">
           <button
             type="button"
             aria-label="Fermer le menu"
@@ -209,7 +209,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       {/* Barre latérale bureau, inchangée — simplement absente sous md. */}
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-surface-2/40 p-4 md:flex">
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-surface-2/40 p-4 lg:flex">
         {sidebar}
       </aside>
 
