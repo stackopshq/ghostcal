@@ -1130,7 +1130,8 @@ export default function CalendarPage() {
           <div className="grid grid-cols-7 border-b border-border text-center text-xs text-muted">
             {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
               <div key={d} className="py-2">
-                {d}
+                <span className="hidden md:inline">{d}</span>
+                <span className="md:hidden">{d[0]}</span>
               </div>
             ))}
           </div>

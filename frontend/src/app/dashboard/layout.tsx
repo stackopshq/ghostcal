@@ -61,6 +61,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
+  // Tiroir de navigation mobile. Il se ferme au clic sur un lien (délégation
+  // dans l'aside du tiroir) : un menu qui reste ouvert après qu'on a choisi sa
+  // destination oblige à le fermer soi-même — deux gestes pour un.
+  const [navOpen, setNavOpen] = useState(false);
 
   useEffect(() => {
     // Preserve where the user was headed (path + query, e.g. a GhostMail ?add= deep link) so login
@@ -97,10 +101,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     .slice(0, 2)
     .toUpperCase();
 
-  return (
-    <div className="flex flex-1">
-      {/* Sidebar */}
-      <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-surface-2/40 p-4">
+  const sidebar = (
+    <>
         <Link href="/dashboard" className="mb-6 flex items-center gap-2 px-2 py-1">
           <span className="text-lg text-accent">●</span>
           <span className="text-lg font-semibold tracking-tight text-foreground">GhostCal</span>
@@ -164,6 +166,51 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Glyph d={ICONS.logout} /> {t("dash.signOut")}
           </button>
         </div>
+    </>
+  );
+
+  return (
+    <div className="flex flex-1 flex-col md:flex-row">
+      {/* Barre supérieure mobile — la barre latérale de 240 px laisserait 150 px
+          de contenu sur un iPhone. En dessous de md, elle devient un tiroir. */}
+      <header className="flex items-center justify-between border-b border-border bg-surface-2/40 px-4 py-3 md:hidden">
+        <Link href="/dashboard" className="flex items-center gap-2">
+          <span className="text-lg text-accent">●</span>
+          <span className="text-lg font-semibold tracking-tight text-foreground">GhostCal</span>
+        </Link>
+        <button
+          type="button"
+          aria-label="Menu"
+          aria-expanded={navOpen}
+          onClick={() => setNavOpen((v) => !v)}
+          className="rounded-lg border border-border p-2 text-muted transition hover:text-accent"
+        >
+          <Glyph d={navOpen ? "M6 6l12 12M18 6L6 18" : "M4 7h16M4 12h16M4 17h16"} className="h-5 w-5" />
+        </button>
+      </header>
+
+      {navOpen && (
+        <div className="fixed inset-0 z-40 md:hidden" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            aria-label="Fermer le menu"
+            className="absolute inset-0 bg-black/60"
+            onClick={() => setNavOpen(false)}
+          />
+          <aside
+            className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col overflow-y-auto border-r border-border bg-surface-2 p-4"
+            onClick={(e) => {
+              if ((e.target as HTMLElement).closest("a")) setNavOpen(false);
+            }}
+          >
+            {sidebar}
+          </aside>
+        </div>
+      )}
+
+      {/* Barre latérale bureau, inchangée — simplement absente sous md. */}
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-surface-2/40 p-4 md:flex">
+        {sidebar}
       </aside>
 
       {/* Main */}
