@@ -207,6 +207,13 @@ jobs:
 
       - name: Scan image (Trivy)
         uses: aquasecurity/trivy-action@v0.36.0
+        env:
+          # ghcr.io rate-limits Trivy DB pulls and the job died on it twice in a
+          # row on 2026-08-13 — a scan that fails on its own database download
+          # blocks every deploy while saying nothing about the image. The list
+          # is ordered fallbacks: AWS's public mirror first (no rate limit),
+          # ghcr second.
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db,ghcr.io/aquasecurity/trivy-db:2
         with:
           input: ${{ runner.temp }}/ghostcal-ci.tar
           severity: HIGH,CRITICAL
@@ -216,6 +223,8 @@ jobs:
 
       - name: Scan frontend image (Trivy)
         uses: aquasecurity/trivy-action@v0.36.0
+        env:
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db,ghcr.io/aquasecurity/trivy-db:2
         with:
           input: ${{ runner.temp }}/ghostcal-frontend-ci.tar
           severity: HIGH,CRITICAL
