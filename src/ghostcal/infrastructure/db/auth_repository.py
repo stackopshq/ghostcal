@@ -28,6 +28,7 @@ from ghostcal.application.auth import (
     ZkKeyMaterial,
 )
 from ghostcal.infrastructure.db import models
+from ghostcal.infrastructure.db.session import bind_org, bind_user
 
 # The exact texts the provisioning function RAISEs when it decides not to link an identity.
 # Anything else carrying 42501 is the database refusing *us*, not the function refusing a caller.
@@ -114,7 +115,26 @@ class SqlAuthRepository(AuthRepository):
             raise
         return row.user_id  # type: ignore[no-any-return]
 
+    async def _bind_user_and_org(self, user_id: uuid.UUID) -> None:
+        """Declare the acting user, then bind their primary organization.
+
+        The zk functions resolve the caller's organization from `memberships` and then write to
+        `organizations` / `org_member_keys`. Under FORCE ROW LEVEL SECURITY the definer functions
+        inherit no sight of their own, so both contexts must be declared by the caller: the user
+        GUC opens the self-read policies for the resolution, the org GUC opens `tenant_isolation`
+        for the writes — row by row, no bypass anywhere.
+        """
+        await bind_user(self._session, user_id)
+        org_id = (
+            await self._session.execute(
+                text("SELECT user_primary_organization(:uid) AS org"), {"uid": str(user_id)}
+            )
+        ).scalar_one()
+        if org_id is not None:
+            await bind_org(self._session, org_id)
+
     async def store_zk_keys(self, user_id: uuid.UUID, material: ZkKeyMaterial) -> None:
+        await self._bind_user_and_org(user_id)
         await self._session.execute(
             text("SELECT store_zk_keys(:uid, :pub, :wsk, :wsalt, :rsk, :rsalt)"),
             {
@@ -128,6 +148,7 @@ class SqlAuthRepository(AuthRepository):
         )
 
     async def get_zk_keys(self, user_id: uuid.UUID) -> list[ZkKeyBundle]:
+        await self._bind_user_and_org(user_id)
         rows = (
             await self._session.execute(
                 text(
@@ -161,6 +182,9 @@ class SqlAuthRepository(AuthRepository):
         wrapped_private_key: str,
         wrap_salt: str,
     ) -> None:
+        # The org is already known here — bind both contexts directly.
+        await bind_user(self._session, user_id)
+        await bind_org(self._session, org_id)
         await self._session.execute(
             text("SELECT rewrap_zk_key(:uid, :oid, :wsk, :wsalt)"),
             {"uid": user_id, "oid": org_id, "wsk": wrapped_private_key, "wsalt": wrap_salt},
