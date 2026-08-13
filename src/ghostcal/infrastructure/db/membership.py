@@ -70,6 +70,16 @@ async def role_in_org(
 
 
 async def organization_id_by_slug(session: AsyncSession, slug: str) -> uuid.UUID | None:
+    """Anonymous by design: a visitor follows /{org-slug}/... with no account.
+
+    The caller declares the slug it is resolving; the `organizations_slug_lookup`
+    policy opens exactly that one row, SELECT-only. Without the declaration the
+    definer function is blind under FORCE RLS — measured 2026-08-13, every shared
+    booking link 404'd minutes after the first one was sent.
+    """
+    await session.execute(
+        text("SELECT set_config('app.public_lookup_slug', :slug, true)"), {"slug": slug}
+    )
     result = await session.execute(
         text("SELECT organization_id_by_slug(:slug) AS org"), {"slug": slug}
     )
