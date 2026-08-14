@@ -154,6 +154,17 @@ class SchedulingRepository(Protocol):
         """The host's own calendar events, unexpanded. Times only — the content stays sealed."""
         ...
 
+    async def busy_subscription_events(
+        self, host_id: uuid.UUID, start: datetime, end: datetime
+    ) -> list[TimeRange]:
+        """Cached events from subscribed calendars the host marked as blocking.
+
+        Only those: a subscription is informational until its owner says
+        otherwise, so this filters on `blocks_availability`. Already expanded —
+        the feed hands us concrete occurrences, not recurrence rules.
+        """
+        ...
+
     async def host_loads(self, host_ids: tuple[uuid.UUID, ...]) -> dict[uuid.UUID, int]:
         """Confirmed-booking counts per host (for round-robin load balancing)."""
         ...
@@ -224,16 +235,25 @@ async def busy_for(
 ) -> list[TimeRange]:
     """What "busy" means. One definition, and this is it.
 
-    Three sources, and the third is the one that was missing:
+    Four sources:
 
     - confirmed bookings that occupy the host (a group booking does not: invitees share a slot);
     - busy time synced from the host's external (CalDAV) calendar;
     - **the host's own GhostCal events.**
+    - **subscribed calendars the host marked as blocking.**
 
     Without the third, "Dentist, 14:00" in your own calendar did not stop a stranger booking you at
     14:00 through your booking page — the engine simply could not see it. The agenda view has always
     shown all three together; the scheduler only ever looked at two, and so the product held two
     contradictory answers to "am I free?".
+
+    The fourth is the same mistake one layer out, found 2026-08-14: an all-day event arriving from a
+    subscribed iCloud calendar was visible in the agenda and invisible to the scheduler, so the day
+    stayed fully bookable. Fixing the third had not generalised.
+
+    It is opt-in per calendar, and that is not timidity. Seeing an event and being busy are
+    different things — public holidays and fixtures are exactly what the subscribe dialog suggests
+    subscribing to, and blocking those by default would quietly close eleven days a year.
 
     Times only. The events' contents stay sealed and are never opened here — the scheduler does not
     need to know *what* you are doing to know that you are doing something.
@@ -241,6 +261,7 @@ async def busy_for(
     busy = await repo.get_busy(host_id, start, end)
     for event in await repo.busy_events(host_id, start, end):
         busy.extend(TimeRange(occ.start, occ.end) for occ in expand(event, start, end))
+    busy.extend(await repo.busy_subscription_events(host_id, start, end))
     return busy
 
 

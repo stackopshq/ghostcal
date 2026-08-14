@@ -90,7 +90,11 @@ export default function CalendarAgendaList({
                     className="h-8 w-1 shrink-0 rounded-full"
                     style={{ backgroundColor: item.color ?? "var(--accent)" }}
                   />
-                  <span className="w-24 shrink-0 text-xs tabular-nums text-muted">
+                  {/* `w-16 sm:w-24` : « 13:40 » n'a jamais eu besoin de 96 px.
+                      Sur un écran de 390 px, ces 96 px se prenaient sur le
+                      titre, qui est la seule chose qu'on cherche dans une
+                      liste. */}
+                  <span className="w-16 shrink-0 text-xs tabular-nums text-muted sm:w-24">
                     {item.all_day
                       ? labels.allDay
                       : new Date(item.start).toLocaleTimeString(locale, {
@@ -98,12 +102,29 @@ export default function CalendarAgendaList({
                           minute: "2-digit",
                         })}
                   </span>
-                  <span className="flex-1 truncate text-sm text-foreground">
+                  {/* `min-w-0` n'est pas cosmétique : un enfant flex refuse par
+                      défaut de descendre sous la largeur de son contenu, donc
+                      `truncate` ne s'applique JAMAIS sans lui. C'est pour ça
+                      que la carte débordait de l'écran au lieu de couper. */}
+                  <span className="min-w-0 flex-1 truncate text-sm text-foreground">
                     {item.label}
                   </span>
                   {item.read_only && (
-                    <span className="shrink-0 text-xs text-muted">
-                      {labels.sharedReadOnly}
+                    // Était `shrink-0` : ~200 px que rien ne pouvait reprendre,
+                    // sur les 390 px d'un téléphone. Il ne restait plus de place
+                    // pour le titre, réduit à « R… ». Sous `sm` un cadenas dit la
+                    // même chose en 12 px, et la phrase reste accessible au
+                    // lecteur d'écran comme au survol.
+                    <span
+                      title={labels.sharedReadOnly}
+                      className="shrink-0 text-xs text-muted"
+                    >
+                      <span aria-hidden className="sm:hidden">
+                        🔒
+                      </span>
+                      <span className="sr-only sm:not-sr-only">
+                        {labels.sharedReadOnly}
+                      </span>
                     </span>
                   )}
                 </button>

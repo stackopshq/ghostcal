@@ -222,3 +222,48 @@ def test_a_moved_occurrence_keeps_the_same_uid():
     assert {e.uid for e in events} == {"serie-1"}
     # Ce sont les RECURRENCE-ID qui les distinguent — c'est toute la correction.
     assert sorted(e.recurrence_id for e in events) == ["", "2026-09-08T09:00:00+00:00"]
+
+
+def test_busy_for_includes_only_blocking_subscriptions():
+    """La question posée le 2026-08-14 : « j'ai un événement toute la journée
+    via iCloud, et la réservation reste possible ».
+
+    `busy_for` nommait trois sources d'occupation — réservations, CalDAV
+    synchronisé, événements propres — et les calendriers abonnés n'y étaient
+    pas. Le même oubli qu'une couche plus tôt, que sa correction n'avait pas
+    généralisé.
+
+    Le filtre est le sujet du test autant que l'ajout : un abonnement
+    n'occupe QUE si son propriétaire l'a demandé, sinon s'abonner aux jours
+    fériés fermerait onze jours de l'année sans rien dire.
+    """
+    import asyncio
+    import uuid as _uuid
+    from datetime import UTC, datetime
+
+    from ghostcal.application.scheduling import busy_for
+    from ghostcal.domain.time import TimeRange
+
+    jour = TimeRange(
+        datetime(2026, 8, 14, 0, 0, tzinfo=UTC), datetime(2026, 8, 15, 0, 0, tzinfo=UTC)
+    )
+
+    class Repo:
+        def __init__(self, bloquants: list[TimeRange]) -> None:
+            self._bloquants = bloquants
+
+        async def get_busy(self, host_id, start, end):
+            return []
+
+        async def busy_events(self, host_id, start, end):
+            return []
+
+        async def busy_subscription_events(self, host_id, start, end):
+            return list(self._bloquants)
+
+    hid = _uuid.uuid4()
+    sans = asyncio.run(busy_for(Repo([]), hid, jour.start, jour.end))
+    assert sans == [], "un abonnement non bloquant ne doit rien occuper"
+
+    avec = asyncio.run(busy_for(Repo([jour]), hid, jour.start, jour.end))
+    assert avec == [jour], "un abonnement bloquant doit fermer la journée"

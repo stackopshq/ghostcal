@@ -11,6 +11,8 @@ export type Subscription = {
   name: string;
   url: string;
   color: string;
+  /** Les événements de ce flux rendent-ils les créneaux non réservables ? */
+  blocks_availability: boolean;
   status: string;
   last_error: string | null;
   last_synced_at: string | null;
@@ -24,10 +26,20 @@ export function addSubscription(body: {
   name: string;
   url: string;
   color?: string;
+  blocks_availability?: boolean;
 }): Promise<{ id: string }> {
   return authedFetch<{ id: string }>("/v1/me/calendar/subscriptions", {
     method: "POST",
     body: JSON.stringify(body),
+  });
+}
+
+/** Bascule un abonnement DÉJÀ créé — sinon il faudrait le supprimer et le
+ *  recréer, donc perdre sa couleur et sa place. */
+export function setSubscriptionBlocking(id: string, blocking: boolean): Promise<void> {
+  return authedFetch<void>(`/v1/me/calendar/subscriptions/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ blocks_availability: blocking }),
   });
 }
 

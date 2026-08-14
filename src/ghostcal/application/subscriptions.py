@@ -29,6 +29,7 @@ class SubscriptionInput:
     name: str
     url: str
     color: str
+    blocks_availability: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +38,7 @@ class SubscriptionData:
     name: str
     url: str
     color: str
+    blocks_availability: bool
     status: str
     last_error: str | None
     last_synced_at: datetime | None
@@ -47,6 +49,11 @@ class SubscriptionRepository:
         raise NotImplementedError
 
     async def list_for_user(self, owner_id: uuid.UUID) -> list[SubscriptionData]:
+        raise NotImplementedError
+
+    async def set_blocking(
+        self, subscription_id: uuid.UUID, owner_id: uuid.UUID, blocking: bool
+    ) -> bool:
         raise NotImplementedError
 
     async def get_url(self, subscription_id: uuid.UUID) -> str | None:
@@ -108,3 +115,16 @@ async def refresh_subscription(repo: SubscriptionRepository, subscription_id: uu
     stored = await repo.replace_events(subscription_id, owner_id, events)
     await repo.mark_synced(subscription_id)
     return stored
+
+
+async def set_subscription_blocking(
+    repo: SubscriptionRepository, subscription_id: uuid.UUID, owner_id: uuid.UUID, blocking: bool
+) -> None:
+    """Ce calendrier abonné rend-il les créneaux non réservables ?
+
+    Réglable après coup, et pas seulement à la création : quiconque avait déjà
+    des abonnements devrait sinon les supprimer et les recréer — donc perdre
+    leur couleur, leur place, et leur cache.
+    """
+    if not await repo.set_blocking(subscription_id, owner_id, blocking):
+        raise SubscriptionNotFound(str(subscription_id))

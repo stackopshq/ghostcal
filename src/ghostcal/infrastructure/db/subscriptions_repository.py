@@ -34,6 +34,7 @@ class SqlSubscriptionRepository(SubscriptionRepository):
                     name=data.name,
                     url=data.url,
                     color=data.color,
+                    blocks_availability=data.blocks_availability,
                 )
                 .returning(models.CalendarSubscription.id)
             )
@@ -47,6 +48,7 @@ class SqlSubscriptionRepository(SubscriptionRepository):
                     models.CalendarSubscription.name,
                     models.CalendarSubscription.url,
                     models.CalendarSubscription.color,
+                    models.CalendarSubscription.blocks_availability,
                     models.CalendarSubscription.status,
                     models.CalendarSubscription.last_error,
                     models.CalendarSubscription.last_synced_at,
@@ -61,12 +63,39 @@ class SqlSubscriptionRepository(SubscriptionRepository):
                 name=r.name,
                 url=r.url,
                 color=r.color,
+                blocks_availability=r.blocks_availability,
                 status=r.status,
                 last_error=r.last_error,
                 last_synced_at=r.last_synced_at,
             )
             for r in rows
         ]
+
+    async def set_blocking(
+        self, subscription_id: uuid.UUID, owner_id: uuid.UUID, blocking: bool
+    ) -> bool:
+        """Bascule un abonnement existant.
+
+        Sans ça, un utilisateur qui a déjà ses calendriers devrait les
+        supprimer et les recréer pour profiter du réglage — c'est-à-dire
+        perdre leur couleur et leur place. Le filtre sur `owner_id` est ce qui
+        empêche de basculer l'abonnement de quelqu'un d'autre.
+        """
+        # `returning(id)` plutôt que `rowcount` : le typage de SQLAlchemy ne
+        # promet pas cet attribut sur un `Result`, et une valeur qui n'existe
+        # que par convention est ce qui casse au prochain changement de version.
+        row = (
+            await self._session.execute(
+                update(models.CalendarSubscription)
+                .where(
+                    models.CalendarSubscription.id == subscription_id,
+                    models.CalendarSubscription.owner_id == owner_id,
+                )
+                .values(blocks_availability=blocking)
+                .returning(models.CalendarSubscription.id)
+            )
+        ).scalar_one_or_none()
+        return row is not None
 
     async def get_url(self, subscription_id: uuid.UUID) -> str | None:
         return (
