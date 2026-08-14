@@ -256,11 +256,23 @@ jobs:
           podman push "${IMAGE}:sha-${SHORT}"
           podman push "${IMAGE}:main"
           echo "published ${IMAGE}:sha-${SHORT}"
-          # Same commit, same tag, second image: an operator reading
-          # `sha-abc1234` on either must get the two halves of one build.
-          podman tag ghostcal-frontend:ci "${IMAGE}-frontend:sha-${SHORT}"
-          podman tag ghostcal-frontend:ci "${IMAGE}-frontend:main"
-          podman push "${IMAGE}-frontend:sha-${SHORT}"
-          podman push "${IMAGE}-frontend:main"
-          echo "published ${IMAGE}-frontend:sha-${SHORT}"
+          # Le frontend part dans LE MÊME paquet, sous une balise suffixée,
+          # plutôt que dans un paquet `-frontend` séparé.
+          #
+          # Deux paquets, c'était deux épinglages à monter ensemble sans que
+          # rien ne l'impose — et un frontend en avance sur son API est une
+          # panne silencieuse. Ici les deux balises dérivent du même SHORT :
+          # elles ne peuvent pas diverger, et un seul épinglage côté Ansible
+          # suffit à décrire les deux.
+          #
+          # Pas une image unique pour autant : app, worker et beat partagent
+          # une image parce qu'ils partagent un interpréteur, et celui-ci est
+          # Node, pas Python. Les fondre doublerait la surface d'attaque des
+          # deux pour qu'ils partagent une balise — ce que ce découpage donne
+          # déjà, sans le coût.
+          podman tag ghostcal-frontend:ci "${IMAGE}:sha-${SHORT}-frontend"
+          podman tag ghostcal-frontend:ci "${IMAGE}:main-frontend"
+          podman push "${IMAGE}:sha-${SHORT}-frontend"
+          podman push "${IMAGE}:main-frontend"
+          echo "published ${IMAGE}:sha-${SHORT}-frontend"
           podman logout "${REGISTRY}" || true

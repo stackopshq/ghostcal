@@ -6,6 +6,13 @@
 # Node, not Python. Putting both interpreters in a single image would double
 # its attack surface so that two unrelated processes could keep one tag.
 #
+# It is nonetheless published into the SAME ghcr package as the backend, under
+# a `-frontend`-suffixed tag derived from the same commit. Two packages meant
+# two pins that had to move together with nothing enforcing it, and a frontend
+# ahead of its API is a silent failure. One package, two tags from one SHA:
+# they cannot diverge, and a single Ansible variable describes both — without
+# paying the merged-image cost this comment argues against.
+#
 # Base image pinned by digest with the tag alongside for readability, following
 # the backend Containerfile: a tag is mutable, so an unpinned build is not
 # reproducible and a scan of it says nothing about what ships tomorrow. Update
