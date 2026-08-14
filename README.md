@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="frontend/public/logo.png" alt="GhostCal" width="90">
+</p>
+
 <h1 align="center">GhostCal</h1>
 
 <p align="center">
