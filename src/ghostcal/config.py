@@ -179,9 +179,19 @@ class Settings(BaseSettings):
     task_max_retries: int = 3
     task_retry_backoff_seconds: int = 10
 
-    # Transactional email (Resend). When the API key is unset, emails are logged instead of sent.
+    # Transactional email. Two routes, tried in order: Resend, then SMTP. When neither is
+    # configured, messages are logged instead of sent — fine while developing, refused outside
+    # it by the validator below.
     resend_api_key: SecretStr | None = None
     email_from: str = "GhostCal <onboarding@resend.dev>"
+
+    # SMTP is the route a self-hosted deployment usually already has: the same relay its other
+    # services use. It also survives a change of provider, since only these five values move.
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: SecretStr | None = None
+    smtp_starttls: bool = True
 
     @property
     def is_production(self) -> bool:
@@ -200,6 +210,27 @@ class Settings(BaseSettings):
                     f"{name} is still a placeholder — set a real secret outside development"
                 )
         return self
+
+    @property
+    def has_email_route(self) -> bool:
+        return self.resend_api_key is not None or self.smtp_host is not None
+
+    @model_validator(mode="after")
+    def _require_email_route_outside_development(self) -> Settings:
+        # A booking product whose confirmation emails are only written to a log file still
+        # answers 200, still shows the booking, and tells nobody. That is how this shipped and
+        # went unnoticed for three days: the invitee waits for a message that was never sent.
+        #
+        # So: outside development, refusing to start is the kinder failure. A deployment that
+        # will not boot gets fixed in minutes; one that silently drops mail gets found by a
+        # customer.
+        if self.environment == "development" or self.has_email_route:
+            return self
+        raise ValueError(
+            "no email route configured — set resend_api_key or smtp_host. "
+            "Outside development GhostCal refuses to start rather than log messages "
+            "it was asked to send."
+        )
 
     @model_validator(mode="after")
     def _parse_allowed_private_cidrs(self) -> Settings:
