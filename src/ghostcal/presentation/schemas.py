@@ -49,6 +49,27 @@ def _validate_http_url(value: str | None) -> str | None:
     return value
 
 
+def _validate_feed_url(value: str | None) -> str | None:
+    """Comme `_validate_http_url`, mais tolère ce que les agendas donnent vraiment.
+
+    Apple, Google et Outlook ne proposent pas d'URL `https://` pour un
+    calendrier partagé : leur bouton de partage produit un lien **`webcal://`**,
+    un schéma qui n'a jamais existé ailleurs que dans les clients de bureau et
+    qui désigne exactement la même ressource en HTTPS. Coller ce que le
+    fournisseur donne était donc refusé, avec un message qui parlait de flux
+    injoignable — alors que le flux répond, et que seul le préfixe gênait.
+
+    Les espaces sont retirés parce qu'un copier-coller depuis une feuille de
+    partage en ramène régulièrement un en fin de chaîne, invisible à l'œil.
+    """
+    if value is None:
+        return None
+    value = value.strip()
+    if value.startswith("webcal://"):
+        value = "https://" + value[len("webcal://") :]
+    return _validate_http_url(value)
+
+
 class ZkKeyMaterialIn(BaseModel):
     """Zero-knowledge key material generated in the browser at sign-up (all base64). See ADR-0002.
 
@@ -951,7 +972,7 @@ class SubscriptionIn(BaseModel):
     url: str = Field(min_length=1, max_length=2048)
     color: str = Field(default="#00d68f", max_length=20)
 
-    _v_url = field_validator("url")(_validate_http_url)
+    _v_url = field_validator("url")(_validate_feed_url)
 
 
 class SubscriptionOut(BaseModel):

@@ -158,3 +158,39 @@ async def test_subscription_events_surface_in_agenda(
                     await s.execute(text("DELETE FROM organizations WHERE id = :o"), {"o": org})
                 await s.execute(text("DELETE FROM users WHERE id = :u"), {"u": user_id})
                 await s.commit()
+
+
+def test_webcal_url_is_rewritten_to_https():
+    """Ce que le bouton « partager » d'un agenda donne réellement.
+
+    Apple, Google et Outlook ne proposent pas d'URL `https://` pour un
+    calendrier partagé : ils produisent un lien `webcal://`, qui désigne la
+    même ressource en HTTPS. Le champ refusait donc exactement la forme que
+    tout fournisseur donne, et le message parlait de « flux injoignable »
+    alors que le flux répond — seul le préfixe gênait.
+    """
+    from ghostcal.presentation.schemas import SubscriptionIn
+
+    s = SubscriptionIn(name="Agenda", url="webcal://p50-caldav.icloud.com/published/2/AAA")
+    assert s.url == "https://p50-caldav.icloud.com/published/2/AAA"
+
+
+def test_pasted_url_keeps_no_surrounding_space():
+    """Un copier-coller depuis une feuille de partage ramène souvent un espace
+    final, invisible à l'œil et fatal à la requête."""
+    from ghostcal.presentation.schemas import SubscriptionIn
+
+    s = SubscriptionIn(name="Agenda", url="  https://example.com/cal.ics\n")
+    assert s.url == "https://example.com/cal.ics"
+
+
+def test_a_scheme_that_is_neither_is_still_refused():
+    """La tolérance porte sur `webcal`, pas sur n'importe quoi : `file://` ou
+    `gopher://` restent des refus, sinon le garde anti-SSRF perd son sens."""
+    import pytest as _pytest
+    from pydantic import ValidationError
+
+    from ghostcal.presentation.schemas import SubscriptionIn
+
+    with _pytest.raises(ValidationError):
+        SubscriptionIn(name="Agenda", url="file:///etc/passwd")
