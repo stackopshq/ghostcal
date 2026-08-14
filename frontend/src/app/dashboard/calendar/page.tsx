@@ -1344,22 +1344,6 @@ function NewCalendarModal({
           onChange={(e) => setName(e.target.value)}
           className="w-full rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
         />
-        {/* Le choix se pose ICI, pas dans un réglage qu'on ne trouvera pas :
-            c'est au moment où l'on ajoute un agenda qu'on sait s'il décrit
-            son propre temps ou celui du monde. */}
-        <label className="mt-4 flex items-start gap-2 text-xs text-muted">
-          <input
-            type="checkbox"
-            checked={blocks}
-            onChange={(e) => setBlocks(e.target.checked)}
-            className="mt-0.5 accent-[var(--accent)]"
-          />
-          <span>
-            <span className="text-foreground">{t("calendar.blocksAvailability")}</span>
-            <br />
-            {t("calendar.blocksAvailabilityHint")}
-          </span>
-        </label>
         <div className="mt-4 flex flex-wrap gap-2">
           {CAL_COLORS.map((c) => (
             <button
