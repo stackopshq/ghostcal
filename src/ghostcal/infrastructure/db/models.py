@@ -773,7 +773,17 @@ class SubscriptionEvent(Base):
 
     __tablename__ = "subscription_events"
     __table_args__ = (
-        UniqueConstraint("subscription_id", "uid"),
+        # `recurrence_id` fait partie de la clé, et il le faut. RFC 5545 §3.8.4.4 :
+        # une occurrence déplacée ou modifiée d'une série récurrente se décrit par
+        # un second VEVENT portant LE MÊME UID. Une clé (subscription_id, uid)
+        # refusait donc un calendrier parfaitement valide — mesuré le 2026-08-14
+        # sur un agenda iCloud de 400 événements dont UN SEUL était une occurrence
+        # déplacée : l'abonnement entier tombait en 500.
+        #
+        # La colonne est NOT NULL et vaut '' hors récurrence, jamais NULL :
+        # PostgreSQL ne considère pas deux NULL comme égaux, donc une colonne
+        # nullable aurait laissé passer les vrais doublons qu'on veut interdire.
+        UniqueConstraint("subscription_id", "uid", "recurrence_id"),
         Index("ix_subscription_events_org_start", "organization_id", "start_at"),
     )
 
@@ -786,6 +796,7 @@ class SubscriptionEvent(Base):
     )
     owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     uid: Mapped[str] = mapped_column(String(512))
+    recurrence_id: Mapped[str] = mapped_column(String(128), default="", server_default=text("''"))
     start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     end_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     all_day: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
