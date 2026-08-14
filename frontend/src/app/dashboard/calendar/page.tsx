@@ -1400,9 +1400,13 @@ function SubscribeModal({
           className="w-full rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
         />
         <input
-          type="url"
+          // Volontairement PAS type="url" : le navigateur marque alors le champ
+          // invalide, et ce qu'Apple, Google et Outlook mettent dans le
+          // presse-papier quand on partage un agenda est un lien `webcal://`.
+          // Le champ refusait donc exactement la forme que tout fournisseur
+          // donne. Le serveur la réécrit en https ; l'entrée doit l'accepter.
           inputMode="url"
-          placeholder="https://example.com/calendar.ics"
+          placeholder="https://… ou webcal://…"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           className="mt-3 w-full rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"

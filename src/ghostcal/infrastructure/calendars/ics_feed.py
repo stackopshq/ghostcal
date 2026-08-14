@@ -33,6 +33,15 @@ class FeedEvent:
     end_at: datetime
     all_day: bool
     summary: str | None
+    # Vide pour un événement ordinaire ; sinon l'occurrence que ce VEVENT
+    # remplace, en ISO UTC.
+    #
+    # **Un UID ne suffit pas à identifier un événement.** RFC 5545 §3.8.4.4 :
+    # quand une occurrence d'une série récurrente est déplacée ou modifiée, le
+    # calendrier émet un second VEVENT portant LE MÊME UID et un RECURRENCE-ID
+    # qui désigne l'occurrence remplacée. C'est le fonctionnement normal, pas
+    # un flux malformé — n'importe quel agenda réel finit par en contenir un.
+    recurrence_id: str = ""
 
 
 def _to_dt(value: object) -> tuple[datetime, bool]:
@@ -58,8 +67,17 @@ async def fetch_feed(url: str) -> list[FeedEvent]:
         raise IcsFeedError(str(exc)) from exc
     if resp.status_code != 200:
         raise IcsFeedError(f"feed returned {resp.status_code}")
-    body = resp.content[:_MAX_BYTES]
+    return parse_feed_body(resp.content[:_MAX_BYTES])
 
+
+def parse_feed_body(body: bytes) -> list[FeedEvent]:
+    """Les VEVENT d'un corps ICS déjà téléchargé.
+
+    Séparé de `fetch_feed` pour que le parsing soit éprouvable sans réseau :
+    ce qui se casse ici tient à la forme du calendrier, pas au transport, et
+    fabriquer un flux à la main est le seul moyen d'épingler un cas comme
+    l'occurrence déplacée d'une série récurrente.
+    """
     try:
         cal = Calendar.from_ical(body)
     except Exception as exc:
@@ -77,6 +95,15 @@ async def fetch_feed(url: str) -> list[FeedEvent]:
         else:
             end_at = start_at
         uid = str(comp.get("uid") or f"{start_at.isoformat()}-{comp.get('summary') or ''}")[:512]
+        rec = comp.get("recurrence-id")
+        recurrence_id = ""
+        if rec is not None:
+            try:
+                recurrence_id = _to_dt(rec.dt)[0].isoformat()
+            except IcsFeedError:
+                # Un RECURRENCE-ID illisible ne doit pas coûter tout le flux :
+                # l'occurrence reste distinguée par sa valeur brute.
+                recurrence_id = str(rec)[:128]
         summary = comp.get("summary")
         events.append(
             FeedEvent(
@@ -85,6 +112,7 @@ async def fetch_feed(url: str) -> list[FeedEvent]:
                 end_at=end_at,
                 all_day=all_day,
                 summary=str(summary) if summary else None,
+                recurrence_id=recurrence_id,
             )
         )
         if len(events) >= _MAX_EVENTS:

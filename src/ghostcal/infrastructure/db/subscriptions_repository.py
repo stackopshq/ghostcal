@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 
 from sqlalchemy import delete, func, insert, select, update
@@ -14,6 +15,8 @@ from ghostcal.application.subscriptions import (
 )
 from ghostcal.infrastructure.calendars.ics_feed import FeedEvent
 from ghostcal.infrastructure.db import models
+
+logger = logging.getLogger("ghostcal.subscriptions")
 
 
 class SqlSubscriptionRepository(SubscriptionRepository):
@@ -102,6 +105,22 @@ class SqlSubscriptionRepository(SubscriptionRepository):
         )
         if not events:
             return 0
+        # Dernier recours contre la clé d'unicité, et il doit exister même
+        # maintenant que `recurrence_id` en fait partie : ce qui arrive ici
+        # vient d'un tiers, et **aucun flux tiers ne doit pouvoir renvoyer 500
+        # à l'utilisateur**. Un agenda qui répète deux fois le même couple
+        # (uid, recurrence_id) est malformé ; on garde la dernière occurrence
+        # et on continue, plutôt que de refuser tout l'abonnement pour une
+        # ligne. Sans ce filet, la contrainte transforme la donnée d'autrui en
+        # panne de notre côté — ce qui s'est produit le 2026-08-14.
+        unique = {(e.uid, e.recurrence_id): e for e in events}
+        rows = list(unique.values())
+        if len(rows) != len(events):
+            logger.info(
+                "subscription %s: %d duplicate (uid, recurrence_id) dropped from feed",
+                subscription_id,
+                len(events) - len(rows),
+            )
         await self._session.execute(
             insert(models.SubscriptionEvent),
             [
@@ -110,15 +129,16 @@ class SqlSubscriptionRepository(SubscriptionRepository):
                     "subscription_id": subscription_id,
                     "owner_id": owner_id,
                     "uid": e.uid,
+                    "recurrence_id": e.recurrence_id,
                     "start_at": e.start_at,
                     "end_at": e.end_at,
                     "all_day": e.all_day,
                     "summary": e.summary,
                 }
-                for e in events
+                for e in rows
             ],
         )
-        return len(events)
+        return len(rows)
 
     async def mark_synced(self, subscription_id: uuid.UUID) -> None:
         await self._session.execute(

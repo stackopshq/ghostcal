@@ -158,3 +158,67 @@ async def test_subscription_events_surface_in_agenda(
                     await s.execute(text("DELETE FROM organizations WHERE id = :o"), {"o": org})
                 await s.execute(text("DELETE FROM users WHERE id = :u"), {"u": user_id})
                 await s.commit()
+
+
+def test_webcal_url_is_rewritten_to_https():
+    """Ce que le bouton « partager » d'un agenda donne réellement.
+
+    Apple, Google et Outlook ne proposent pas d'URL `https://` pour un
+    calendrier partagé : ils produisent un lien `webcal://`, qui désigne la
+    même ressource en HTTPS. Le champ refusait donc exactement la forme que
+    tout fournisseur donne, et le message parlait de « flux injoignable »
+    alors que le flux répond — seul le préfixe gênait.
+    """
+    from ghostcal.presentation.schemas import SubscriptionIn
+
+    s = SubscriptionIn(name="Agenda", url="webcal://p50-caldav.icloud.com/published/2/AAA")
+    assert s.url == "https://p50-caldav.icloud.com/published/2/AAA"
+
+
+def test_pasted_url_keeps_no_surrounding_space():
+    """Un copier-coller depuis une feuille de partage ramène souvent un espace
+    final, invisible à l'œil et fatal à la requête."""
+    from ghostcal.presentation.schemas import SubscriptionIn
+
+    s = SubscriptionIn(name="Agenda", url="  https://example.com/cal.ics\n")
+    assert s.url == "https://example.com/cal.ics"
+
+
+def test_a_scheme_that_is_neither_is_still_refused():
+    """La tolérance porte sur `webcal`, pas sur n'importe quoi : `file://` ou
+    `gopher://` restent des refus, sinon le garde anti-SSRF perd son sens."""
+    import pytest as _pytest
+    from pydantic import ValidationError
+
+    from ghostcal.presentation.schemas import SubscriptionIn
+
+    with _pytest.raises(ValidationError):
+        SubscriptionIn(name="Agenda", url="file:///etc/passwd")
+
+
+def test_a_moved_occurrence_keeps_the_same_uid():
+    """Ce qu'un vrai agenda contient, et qui faisait tomber l'abonnement entier.
+
+    RFC 5545 §3.8.4.4 : déplacer UNE occurrence d'une série récurrente produit
+    un second VEVENT avec le MÊME UID et un RECURRENCE-ID. Mesuré le
+    2026-08-14 sur un agenda iCloud de 400 événements : 399 UID distincts, un
+    seul en double, exactement un RECURRENCE-ID. L'abonnement échouait en 500
+    et l'utilisateur lisait « vérifiez l'URL ».
+    """
+    from ghostcal.infrastructure.calendars.ics_feed import parse_feed_body
+
+    ics = (
+        b"BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//test//EN\r\n"
+        b"BEGIN:VEVENT\r\nUID:serie-1\r\nDTSTART:20260901T090000Z\r\n"
+        b"DTEND:20260901T100000Z\r\nRRULE:FREQ=WEEKLY\r\nSUMMARY:Point\r\nEND:VEVENT\r\n"
+        b"BEGIN:VEVENT\r\nUID:serie-1\r\nRECURRENCE-ID:20260908T090000Z\r\n"
+        b"DTSTART:20260908T140000Z\r\nDTEND:20260908T150000Z\r\nSUMMARY:Point deplace\r\n"
+        b"END:VEVENT\r\nEND:VCALENDAR\r\n"
+    )
+
+    events = parse_feed_body(ics)
+
+    assert len(events) == 2, "l'occurrence deplacee doit etre conservee, pas ecrasee"
+    assert {e.uid for e in events} == {"serie-1"}
+    # Ce sont les RECURRENCE-ID qui les distinguent — c'est toute la correction.
+    assert sorted(e.recurrence_id for e in events) == ["", "2026-09-08T09:00:00+00:00"]
