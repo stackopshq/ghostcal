@@ -8,6 +8,59 @@ import { useT } from "@/lib/i18n";
 import { changePassword, getProfile, updateProfile } from "@/lib/profile";
 import { MIN_PASSWORD_LENGTH } from "@/lib/passwords";
 
+/** Les initiales, dessinées ici — aucun réseau, aucun tiers.
+ *
+ * Le repli précédent allait chercher `api.dicebear.com`, et la politique de
+ * sécurité de contenu n'autorise que `'self' data: blob:` : **aucun avatar ne
+ * s'est jamais affiché**, pas même celui par défaut. Le cercle vide n'était
+ * pas l'échec d'une URL, c'était l'absence de toute image.
+ *
+ * Aller chercher un service tiers pour dessiner deux lettres contredisait de
+ * toute façon la promesse du produit — « le serveur sait quand vous êtes
+ * occupé, jamais pourquoi » ne tient pas si un tiers apprend qui regarde quoi,
+ * et à quelle heure.
+ */
+function Avatar({
+  url,
+  name,
+  broken,
+  onBroken,
+}: {
+  url: string;
+  name: string;
+  broken: boolean;
+  onBroken: () => void;
+}) {
+  const initials =
+    name
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((w) => w[0] ?? "")
+      .join("")
+      .toUpperCase() || "?";
+
+  if (url && !broken) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={url}
+        alt=""
+        onError={onBroken}
+        className="h-14 w-14 shrink-0 rounded-full border border-border-strong object-cover"
+      />
+    );
+  }
+  return (
+    <span
+      aria-hidden
+      className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border-strong bg-surface-2 text-lg font-semibold text-muted"
+    >
+      {initials}
+    </span>
+  );
+}
+
 function timezones(fallback: string): string[] {
   const fn = (Intl as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf;
   try {
@@ -23,6 +76,7 @@ export default function ProfileSettings() {
   const [name, setName] = useState("");
   const [tz, setTz] = useState("UTC");
   const [avatar, setAvatar] = useState("");
+  const [avatarBroken, setAvatarBroken] = useState(false);
   const zones = useMemo(() => timezones("UTC"), []);
   const [savedProfile, setSavedProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -92,21 +146,31 @@ export default function ProfileSettings() {
 
       <form onSubmit={saveProfile} className="flex flex-col gap-4">
         <div className="flex items-center gap-4">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={avatar || "https://api.dicebear.com/9.x/initials/svg?seed=" + name}
-            alt=""
-            className="h-14 w-14 rounded-full border border-border-strong object-cover"
+          <Avatar
+            url={avatar}
+            name={name}
+            broken={avatarBroken}
+            onBroken={() => setAvatarBroken(true)}
           />
-          <label className="flex flex-1 flex-col gap-1 text-sm text-muted">
+          <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm text-muted">
             {t("profile.avatarUrl")}
             <input
               type="url"
               placeholder="https://…/avatar.png"
               value={avatar}
-              onChange={(e) => setAvatar(e.target.value)}
+              onChange={(e) => {
+                setAvatar(e.target.value);
+                setAvatarBroken(false);
+              }}
               className={inputClass}
             />
+            {avatarBroken && (
+              // Le champ acceptait et enregistrait une URL qui ne pouvait pas
+              // s'afficher, sans rien dire : la politique de sécurité de
+              // contenu n'autorise que les images de ce site. Un champ qui
+              // ment est pire qu'un champ qui refuse.
+              <span className="text-xs text-danger">{t("profile.avatarBlocked")}</span>
+            )}
           </label>
         </div>
         <label className="flex flex-col gap-1 text-sm text-muted">

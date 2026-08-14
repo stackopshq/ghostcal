@@ -762,6 +762,18 @@ class CalendarSubscription(TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(200))
     url: Mapped[str] = mapped_column(String(2048))
     color: Mapped[str] = mapped_column(String(20), default="#00d68f")
+    # Les événements de ce flux rendent-ils les créneaux non réservables ?
+    #
+    # Par calendrier, et **éteint par défaut**. Voir un événement dans son
+    # agenda et être occupé sont deux choses différentes : les exemples que
+    # la fenêtre d'abonnement met elle-même en avant — jours fériés, matchs —
+    # sont informatifs. Bloquer d'office fermerait onze jours de l'année sans
+    # que rien ne le signale, et « plus personne ne peut réserver » est un
+    # symptôme qu'on ne relie pas à sa cause.
+    #
+    # Un agenda personnel abonné, lui, doit bloquer : c'est un clic, à
+    # l'ajout ou plus tard sur la pastille du calendrier.
+    blocks_availability: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
     status: Mapped[str] = mapped_column(String(20), default="active", server_default="active")
     last_error: Mapped[str | None] = mapped_column(Text)
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

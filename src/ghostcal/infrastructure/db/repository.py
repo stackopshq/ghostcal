@@ -286,6 +286,37 @@ class SqlSchedulingRepository:
             for r in rows
         ]
 
+    async def busy_subscription_events(
+        self, host_id: uuid.UUID, start: datetime, end: datetime
+    ) -> list[TimeRange]:
+        """Cached events from the host's subscribed calendars — but only the blocking ones.
+
+        `blocks_availability` is the whole point of the join: a subscription is informational
+        until its owner says otherwise. Without that filter, subscribing to public holidays
+        would close eleven days of the year and nothing would explain why.
+
+        No recurrence expansion here, unlike `busy_events`: an ICS feed hands us concrete
+        occurrences, already dated. `summary` is never selected — the scheduler needs to know
+        that you are busy, never with what.
+        """
+        blocking = select(models.CalendarSubscription.id).where(
+            models.CalendarSubscription.owner_id == host_id,
+            models.CalendarSubscription.blocks_availability.is_(True),
+        )
+        rows = (
+            await self._session.execute(
+                select(
+                    models.SubscriptionEvent.start_at,
+                    models.SubscriptionEvent.end_at,
+                ).where(
+                    models.SubscriptionEvent.subscription_id.in_(blocking),
+                    models.SubscriptionEvent.start_at < end,
+                    models.SubscriptionEvent.end_at > start,
+                )
+            )
+        ).all()
+        return [TimeRange(r.start_at, r.end_at) for r in rows]
+
     async def host_loads(self, host_ids: tuple[uuid.UUID, ...]) -> dict[uuid.UUID, int]:
         if not host_ids:
             return {}

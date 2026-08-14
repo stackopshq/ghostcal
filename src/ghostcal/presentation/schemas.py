@@ -971,8 +971,15 @@ class SubscriptionIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     url: str = Field(min_length=1, max_length=2048)
     color: str = Field(default="#00d68f", max_length=20)
+    # Par défaut faux : un abonnement est informatif tant que son propriétaire
+    # n'en décide pas autrement. Voir §`CalendarSubscription.blocks_availability`.
+    blocks_availability: bool = False
 
     _v_url = field_validator("url")(_validate_feed_url)
+
+
+class SubscriptionPatchIn(BaseModel):
+    blocks_availability: bool
 
 
 class SubscriptionOut(BaseModel):
@@ -980,6 +987,7 @@ class SubscriptionOut(BaseModel):
     name: str
     url: str
     color: str
+    blocks_availability: bool
     status: str
     last_error: str | None = None
     last_synced_at: datetime | None = None

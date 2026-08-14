@@ -240,6 +240,11 @@ const en: Dict = {
   "calendar.subscribeHint":
     "Paste a public iCal/ICS feed URL (holidays, sports fixtures, a shared calendar). It stays read-only and refreshes automatically.",
   "calendar.subscribeError": "Could not fetch that feed — check the URL.",
+  "calendar.blocksAvailability": "Block my availability",
+  "calendar.blocksAvailabilityHint":
+    "Events from this calendar make those slots unbookable. Leave it off for holidays or fixtures — seeing an event is not the same as being busy.",
+  "calendar.blocksAvailabilityOn": "Blocks your availability — click to stop",
+  "calendar.blocksAvailabilityOff": "Does not block your availability — click to make it",
   "calendar.weather": "Weather",
   "calendar.weatherHint":
     "Overlay the daily forecast on your calendar. The location stays on this device only.",
@@ -370,6 +375,8 @@ const en: Dict = {
   "profile.name": "Name",
   "profile.timezone": "Time zone",
   "profile.avatarUrl": "Avatar URL",
+  "profile.avatarBlocked":
+    "That image could not be loaded. Only images served by this site are allowed — an external URL is refused on purpose.",
   "profile.save": "Save profile",
   "profile.errLoad": "Could not load your profile.",
   "profile.errSave": "Could not save your profile (check the avatar URL).",
@@ -808,6 +815,11 @@ const fr: Dict = {
     "Collez l'URL d'un flux iCal/ICS public (jours fériés, matchs, calendrier partagé). Il reste en lecture seule et se met à jour automatiquement.",
   "calendar.subscribeError":
     "Impossible de récupérer ce flux — vérifiez l'URL.",
+  "calendar.blocksAvailability": "Bloquer mes disponibilités",
+  "calendar.blocksAvailabilityHint":
+    "Les événements de ce calendrier rendront ces créneaux non réservables. À laisser décoché pour les jours fériés ou les matchs — voir un événement n'est pas être occupé.",
+  "calendar.blocksAvailabilityOn": "Bloque vos disponibilités — cliquez pour arrêter",
+  "calendar.blocksAvailabilityOff": "Ne bloque pas vos disponibilités — cliquez pour l'activer",
   "calendar.weather": "Météo",
   "calendar.weatherHint":
     "Superposez les prévisions quotidiennes sur votre calendrier. Le lieu reste uniquement sur cet appareil.",
@@ -934,6 +946,8 @@ const fr: Dict = {
   "profile.name": "Nom",
   "profile.timezone": "Fuseau horaire",
   "profile.avatarUrl": "URL de l'avatar",
+  "profile.avatarBlocked":
+    "Cette image n'a pas pu être chargée. Seules les images servies par ce site sont autorisées — une URL externe est refusée volontairement.",
   "profile.save": "Enregistrer le profil",
   "profile.errLoad": "Impossible de charger votre profil.",
   "profile.errSave":

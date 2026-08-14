@@ -31,6 +31,7 @@ import {
   deleteSubscription,
   listSubscriptions,
   refreshSubscription,
+  setSubscriptionBlocking,
   type Subscription,
 } from "@/lib/subscriptions";
 import {
@@ -341,6 +342,11 @@ export default function CalendarPage() {
 
   async function removeSubscription(id: string) {
     await deleteSubscription(id);
+    await load();
+  }
+
+  async function toggleSubscriptionBlocking(sub: Subscription) {
+    await setSubscriptionBlocking(sub.id, !sub.blocks_availability);
     await load();
   }
 
@@ -1024,6 +1030,27 @@ export default function CalendarPage() {
                   <span className="text-foreground">{s.name}</span>
                   {errored && <span aria-hidden>⚠</span>}
                 </button>
+                {/* Un calendrier visible et un calendrier qui vous rend
+                    occupée sont deux choses différentes : ce cadenas est le
+                    seul endroit où on le dit. Éteint au départ — s'abonner aux
+                    jours fériés ne doit pas fermer onze jours de l'année. */}
+                <button
+                  type="button"
+                  onClick={() => void toggleSubscriptionBlocking(s)}
+                  title={
+                    s.blocks_availability
+                      ? t("calendar.blocksAvailabilityOn")
+                      : t("calendar.blocksAvailabilityOff")
+                  }
+                  aria-pressed={s.blocks_availability}
+                  className={
+                    s.blocks_availability
+                      ? "text-accent"
+                      : "text-muted opacity-50 hover:text-accent hover:opacity-100"
+                  }
+                >
+                  {s.blocks_availability ? "🔒" : "🔓"}
+                </button>
                 <button
                   type="button"
                   onClick={() => void resyncSubscription(s.id)}
@@ -1317,6 +1344,22 @@ function NewCalendarModal({
           onChange={(e) => setName(e.target.value)}
           className="w-full rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
         />
+        {/* Le choix se pose ICI, pas dans un réglage qu'on ne trouvera pas :
+            c'est au moment où l'on ajoute un agenda qu'on sait s'il décrit
+            son propre temps ou celui du monde. */}
+        <label className="mt-4 flex items-start gap-2 text-xs text-muted">
+          <input
+            type="checkbox"
+            checked={blocks}
+            onChange={(e) => setBlocks(e.target.checked)}
+            className="mt-0.5 accent-[var(--accent)]"
+          />
+          <span>
+            <span className="text-foreground">{t("calendar.blocksAvailability")}</span>
+            <br />
+            {t("calendar.blocksAvailabilityHint")}
+          </span>
+        </label>
         <div className="mt-4 flex flex-wrap gap-2">
           {CAL_COLORS.map((c) => (
             <button
@@ -1366,6 +1409,7 @@ function SubscribeModal({
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [color, setColor] = useState(CAL_COLORS[4]);
+  const [blocks, setBlocks] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -1374,7 +1418,12 @@ function SubscribeModal({
     setBusy(true);
     setError(null);
     try {
-      await addSubscription({ name: name.trim(), url: url.trim(), color });
+      await addSubscription({
+        name: name.trim(),
+        url: url.trim(),
+        color,
+        blocks_availability: blocks,
+      });
       await onDone();
       onClose();
     } catch {
@@ -1411,6 +1460,22 @@ function SubscribeModal({
           onChange={(e) => setUrl(e.target.value)}
           className="mt-3 w-full rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
         />
+        {/* Le choix se pose ICI, pas dans un réglage qu'on ne trouvera pas :
+            c'est au moment où l'on ajoute un agenda qu'on sait s'il décrit
+            son propre temps ou celui du monde. */}
+        <label className="mt-4 flex items-start gap-2 text-xs text-muted">
+          <input
+            type="checkbox"
+            checked={blocks}
+            onChange={(e) => setBlocks(e.target.checked)}
+            className="mt-0.5 accent-[var(--accent)]"
+          />
+          <span>
+            <span className="text-foreground">{t("calendar.blocksAvailability")}</span>
+            <br />
+            {t("calendar.blocksAvailabilityHint")}
+          </span>
+        </label>
         <div className="mt-4 flex flex-wrap gap-2">
           {CAL_COLORS.map((c) => (
             <button

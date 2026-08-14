@@ -38,6 +38,7 @@ from ghostcal.application.subscriptions import (
     delete_subscription,
     list_subscriptions,
     refresh_subscription,
+    set_subscription_blocking,
 )
 from ghostcal.config import get_settings
 from ghostcal.infrastructure.db.attendees_repository import SqlAttendeeRepository
@@ -61,6 +62,7 @@ from ghostcal.presentation.schemas import (
     ShareOut,
     SubscriptionIn,
     SubscriptionOut,
+    SubscriptionPatchIn,
 )
 
 router = APIRouter(prefix="/v1/me", tags=["calendar"])
@@ -350,13 +352,41 @@ async def add_my_subscription(
             sub_id = await add_subscription(
                 repo,
                 member.user.id,
-                SubscriptionInput(name=payload.name, url=payload.url, color=payload.color),
+                SubscriptionInput(
+                    name=payload.name,
+                    url=payload.url,
+                    color=payload.color,
+                    blocks_availability=payload.blocks_availability,
+                ),
             )
         except FeedUnreachable as exc:
             raise HTTPException(status_code=422, detail=f"could not fetch feed: {exc}") from exc
         # Populate its events right away so it shows without waiting for the worker.
         await refresh_subscription(repo, sub_id)
     return CreatedOut(id=sub_id)
+
+
+@router.patch("/calendar/subscriptions/{subscription_id}", status_code=204)
+async def set_my_subscription_blocking(
+    subscription_id: uuid.UUID,
+    payload: SubscriptionPatchIn,
+    member: Member = Depends(current_member),
+) -> None:
+    """Ce calendrier rend-il les créneaux non réservables ?
+
+    En PATCH et pas seulement à la création : sans ça, un utilisateur qui a
+    déjà ses abonnements devrait les supprimer et les recréer.
+    """
+    async with org_session(member.organization_id) as session:
+        try:
+            await set_subscription_blocking(
+                SqlSubscriptionRepository(session, member.organization_id),
+                subscription_id,
+                member.user.id,
+                payload.blocks_availability,
+            )
+        except SubscriptionNotFound as exc:
+            raise HTTPException(status_code=404, detail="subscription not found") from exc
 
 
 @router.post("/calendar/subscriptions/{subscription_id}/refresh", status_code=204)
