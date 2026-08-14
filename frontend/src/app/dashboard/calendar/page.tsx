@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import UnlockBanner from "@/components/UnlockBanner";
 import { getActiveOrg } from "@/lib/auth";
 import {
   type Connection,
@@ -902,11 +903,7 @@ export default function CalendarPage() {
         </form>
       )}
 
-      {locked && (
-        <p className="glass flex items-center gap-2 rounded-xl border-l-[3px] border-l-accent p-3 text-sm text-accent/90">
-          <span aria-hidden>🔒</span> {t("calendar.locked")}
-        </p>
-      )}
+      {locked && <UnlockBanner />}
       {loading && <p className="text-sm text-muted">{t("common.loading")}</p>}
 
       {/* Calendar overlays: toggle each calendar's visibility; colours flow into every view. */}

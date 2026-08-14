@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import UnlockBanner from "@/components/UnlockBanner";
 import { getActiveOrg } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { parseQuickAdd } from "@/lib/quickAdd";
@@ -196,11 +197,7 @@ export default function TasksPage() {
         <p className="mt-1 text-sm text-muted">{t("tasks.sub")}</p>
       </div>
 
-      {locked && (
-        <p className="glass flex items-center gap-2 rounded-xl border-l-[3px] border-l-accent p-3 text-sm text-accent/90">
-          <span aria-hidden>🔒</span> {t("calendar.locked")}
-        </p>
-      )}
+      {locked && <UnlockBanner />}
 
       {!locked && (
         <>
