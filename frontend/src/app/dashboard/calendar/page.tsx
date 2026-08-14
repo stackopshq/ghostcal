@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import UnlockBanner from "@/components/UnlockBanner";
 import { getActiveOrg } from "@/lib/auth";
 import {
   type Connection,
@@ -767,21 +768,36 @@ export default function CalendarPage() {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-5 p-6 sm:p-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold capitalize text-foreground">
             {headerLabel}
           </h1>
           <p className="mt-1 text-sm text-muted">{t("calendar.sub")}</p>
         </div>
-        <div className="flex items-center gap-2">
-          {/* View switcher */}
-          <div className="flex overflow-hidden rounded-lg border border-border-strong">
+        {/* `flex-wrap` ici AUSSI, pas seulement sur le parent. Le parent l'avait
+            déjà : il déplaçait donc cette barre sur sa propre ligne — sans la
+            rétrécir. Cinq boutons de vue, trois de navigation et « Partager »
+            forment un bloc insécable d'environ 640 px, qui élargit le CORPS DE
+            PAGE sur un téléphone de 390.
+
+            Le symptôme est reconnaissable et trompeur : le fond de l'en-tête
+            s'arrête au milieu de l'écran, là où la fenêtre finissait avant que
+            la page ne s'élargisse. On croit à un défaut de l'en-tête ; il est
+            ailleurs, plus bas.
+
+            `w-full sm:w-auto` pour qu'elle prenne sa ligne entière en mobile au
+            lieu de rester collée à droite. */}
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+          {/* Sélecteur de vue — il DÉFILE au lieu de se replier. Un contrôle
+              segmenté qui passe à la ligne casse sa bordure commune et cesse de
+              ressembler à un sélecteur ; le faire défiler garde la forme. */}
+          <div className="flex max-w-full overflow-x-auto rounded-lg border border-border-strong">
             {CAL_VIEWS.map((v) => (
               <button
                 key={v}
                 type="button"
                 onClick={() => pickView(v)}
-                className={`px-3 py-1.5 text-sm transition ${
+                className={`shrink-0 whitespace-nowrap px-2.5 py-1.5 text-sm transition sm:px-3 ${
                   view === v
                     ? "bg-accent text-accent-ink"
                     : "text-muted hover:text-accent"
@@ -887,11 +903,7 @@ export default function CalendarPage() {
         </form>
       )}
 
-      {locked && (
-        <p className="glass flex items-center gap-2 rounded-xl border-l-[3px] border-l-accent p-3 text-sm text-accent/90">
-          <span aria-hidden>🔒</span> {t("calendar.locked")}
-        </p>
-      )}
+      {locked && <UnlockBanner />}
       {loading && <p className="text-sm text-muted">{t("common.loading")}</p>}
 
       {/* Calendar overlays: toggle each calendar's visibility; colours flow into every view. */}
