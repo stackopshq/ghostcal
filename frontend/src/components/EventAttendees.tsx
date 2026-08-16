@@ -9,7 +9,7 @@ import {
   sendInvitation,
 } from "@/lib/agenda";
 import { getMe } from "@/lib/auth";
-import { openInGhostMail } from "@/lib/ghostmail";
+import { ghostMailUrl, openInGhostMail } from "@/lib/ghostmail";
 import { useT } from "@/lib/i18n";
 
 const STATUS_KEY: Record<string, string> = {
@@ -41,6 +41,14 @@ export default function EventAttendees({
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  // Null until the deployment answers, and the button stays hidden meanwhile.
+  // That is the honest default: most deployments run GhostCal on its own, and a
+  // button that opens a dead tab is worse than no button at all.
+  const [mailApp, setMailApp] = useState<string | null>(null);
+
+  useEffect(() => {
+    void ghostMailUrl().then(setMailApp);
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -93,15 +101,15 @@ export default function EventAttendees({
     <div className="flex flex-col gap-2 border-t border-border pt-3">
       <div className="flex items-center justify-between">
         <p className="text-xs font-medium uppercase tracking-wide text-muted">{t("att.title")}</p>
-        {attendees.length > 0 && (
+        {attendees.length > 0 && mailApp && (
           <button
             type="button"
-            onClick={() =>
-              openInGhostMail({
+            onClick={() => {
+              void openInGhostMail({
                 to: attendees.map((a) => a.email),
                 subject: title || t("calendar.untitled"),
-              })
-            }
+              });
+            }}
             className="flex items-center gap-1 text-xs text-accent hover:underline"
           >
             <span aria-hidden>✉️</span> {t("att.emailGuests")}

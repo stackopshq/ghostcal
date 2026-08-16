@@ -62,7 +62,7 @@ import {
   listBusyLinks,
   revokeBusyLink,
 } from "@/lib/busy";
-import { openInGhostMail } from "@/lib/ghostmail";
+import { ghostMailUrl, openInGhostMail } from "@/lib/ghostmail";
 import { parseImportUrl, toDraftFields } from "@/lib/importEvent";
 import { drainPushQueue } from "@/lib/push";
 import { parseQuickAdd, type QuickAddResult } from "@/lib/quickAdd";
@@ -1692,6 +1692,12 @@ function ShareModal({
   // A free-busy link is a different promise, and the UI must not let the two blur: it shows WHEN
   // this person is busy and never WHAT they are doing, so it carries no key and has no fragment.
   const [busyLinks, setBusyLinks] = useState<BusyLink[]>([]);
+  // Sibling GhostMail, or null when this deployment has none — see lib/ghostmail. Asked here
+  // rather than passed down: the lookup is memoised, so a second component costs nothing.
+  const [mailApp, setMailApp] = useState<string | null>(null);
+  useEffect(() => {
+    void ghostMailUrl().then(setMailApp);
+  }, []);
   const [busyName, setBusyName] = useState("");
   const [freshBusyLink, setFreshBusyLink] = useState<string | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
@@ -1894,22 +1900,24 @@ function ShareModal({
                 {/* Only here, and only now: the token is shown exactly once, so this is the one
                     moment at which a link exists to send. Offering it beside a saved link would be
                     offering something we cannot produce. */}
-                <button
-                  type="button"
-                  onClick={() =>
-                    openInGhostMail({
-                      to: [],
-                      subject: t("calendar.busyEmailSubject"),
-                      body: t("calendar.busyEmailBody").replace(
-                        "{url}",
-                        freshBusyLink,
-                      ),
-                    })
-                  }
-                  className="rounded-lg border border-border px-3 py-1 text-xs text-muted transition hover:text-accent"
-                >
-                  ✉ {t("calendar.busyEmail")}
-                </button>
+                {mailApp && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void openInGhostMail({
+                        to: [],
+                        subject: t("calendar.busyEmailSubject"),
+                        body: t("calendar.busyEmailBody").replace(
+                          "{url}",
+                          freshBusyLink,
+                        ),
+                      });
+                    }}
+                    className="rounded-lg border border-border px-3 py-1 text-xs text-muted transition hover:text-accent"
+                  >
+                    ✉ {t("calendar.busyEmail")}
+                  </button>
+                )}
               </div>
             </div>
           )}
