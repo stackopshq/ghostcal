@@ -1199,37 +1199,37 @@ export default function CalendarPage() {
               );
               const isToday = key === ymd(new Date());
               return (
+                // Single click opens the day, double click creates an event
+                // there. The single click is the common intent -- looking at
+                // what a day holds -- and it is the one that has to be
+                // discoverable. Creating keeps a gesture rather than a button
+                // so the grid stays a grid.
+                //
+                // `title` on the cell is what tells anyone about the double
+                // click, since nothing in the layout can. The keyboard keeps
+                // both: Enter opens, Shift+Enter creates.
                 <button
                   key={key}
                   type="button"
-                  onClick={() => openNew(day)}
+                  title={`${t("calendar.openDay")} — ${t("calendar.newOnDoubleClick")}`}
+                  aria-label={`${day.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })} — ${t("calendar.openDay")}`}
+                  onClick={() => openDay(day)}
+                  onDoubleClick={() => openNew(day)}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter") return;
+                    e.preventDefault();
+                    if (e.shiftKey) openNew(day);
+                    else openDay(day);
+                  }}
                   className={[
                     "flex min-h-24 flex-col gap-1 border-b border-r border-border p-1.5 text-left transition hover:bg-surface-2/40",
                     inMonth ? "" : "opacity-40",
                   ].join(" ")}
                 >
                   <span className="flex flex-wrap items-center justify-between gap-3">
-                    {/* `span[role=button]` and not `<button>`: the cell itself
-                        is already a button ("new event here"), and nesting one
-                        button inside another is invalid HTML — browsers drop
-                        the inner one. Same idiom the event chips below use. */}
                     <span
-                      role="button"
-                      tabIndex={0}
-                      title={t("calendar.openDay")}
-                      aria-label={`${t("calendar.openDay")} — ${day.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openDay(day);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key !== "Enter" && e.key !== " ") return;
-                        e.preventDefault();
-                        e.stopPropagation();
-                        openDay(day);
-                      }}
                       className={[
-                        "-m-0.5 cursor-pointer rounded p-0.5 text-xs hover:bg-surface-2 hover:text-accent",
+                        "text-xs",
                         isToday ? "font-semibold text-accent" : "text-muted",
                       ].join(" ")}
                     >
@@ -1268,6 +1268,11 @@ export default function CalendarPage() {
                             e.stopPropagation();
                           }
                         }}
+                        // The cell now creates an event on double click. Two
+                        // quick clicks on a chip are still two clicks on a
+                        // chip: they must not also open an empty form behind
+                        // it.
+                        onDoubleClick={(e) => e.stopPropagation()}
                         style={
                           c
                             ? outlined
