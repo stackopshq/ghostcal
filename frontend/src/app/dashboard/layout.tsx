@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -104,7 +105,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const sidebar = (
     <>
         <Link href="/dashboard" className="mb-6 flex items-center gap-2 px-2 py-1">
-          <span className="text-lg text-accent">●</span>
+          <Image
+              src="/logo.svg"
+              alt=""
+              width={28}
+              height={28}
+              className="h-7 w-7"
+              priority
+            />
           <span className="text-lg font-semibold tracking-tight text-foreground">GhostCal</span>
         </Link>
 
@@ -175,7 +183,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           de contenu sur un iPhone. En dessous de md, elle devient un tiroir. */}
       <header className="flex items-center justify-between border-b border-border bg-surface-2/40 px-4 py-3 lg:hidden">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <span className="text-lg text-accent">●</span>
+          <Image
+              src="/logo.svg"
+              alt=""
+              width={28}
+              height={28}
+              className="h-7 w-7"
+              priority
+            />
           <span className="text-lg font-semibold tracking-tight text-foreground">GhostCal</span>
         </Link>
         <button
