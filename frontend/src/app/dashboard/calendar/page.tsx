@@ -806,7 +806,18 @@ export default function CalendarPage() {
     : null;
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-5 p-6 sm:p-10">
+    // Width is decided per view, not once for the page.
+    //
+    // max-w-5xl (1024 px) suited a calendar that was mostly a list; it does not suit a month grid,
+    // which wants the screen. On a 2560 px display two thirds went unused and a day cell was about
+    // 130 px for a date, a weather glyph and three events — which is also why labels truncated so
+    // early.
+    //
+    // Not unbounded either: a grid stretched across an ultra-wide is as hard to read as a cramped
+    // one, in the other direction, because the eye has to travel between a day and its column
+    // header. 1760 px is roughly where a week column stops gaining anything. The reading views
+    // clamp themselves back down where they are rendered.
+    <main className="mx-auto flex w-full max-w-[110rem] flex-col gap-5 p-6 sm:p-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold capitalize text-foreground">
@@ -1188,17 +1199,21 @@ export default function CalendarPage() {
         />
       )}
 
+      {/* The list is prose, not a grid: it reads worse the wider it gets, because the eye loses
+          the line it was on. It keeps the old width while the grids take the screen. */}
       {!locked && view === "list" && (
-        <CalendarAgendaList
-          items={gridItems}
-          locale={locale}
-          onEventClick={onGridEvent}
-          labels={{
-            allDay: t("calendar.allDay"),
-            empty: t("calendar.nothingAhead"),
-            sharedReadOnly: t("calendar.sharedReadOnly"),
-          }}
-        />
+        <div className="mx-auto w-full max-w-4xl">
+          <CalendarAgendaList
+            items={gridItems}
+            locale={locale}
+            onEventClick={onGridEvent}
+            labels={{
+              allDay: t("calendar.allDay"),
+              empty: t("calendar.nothingAhead"),
+              sharedReadOnly: t("calendar.sharedReadOnly"),
+            }}
+          />
+        </div>
       )}
 
       {!locked && view === "month" && (
