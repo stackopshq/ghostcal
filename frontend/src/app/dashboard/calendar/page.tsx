@@ -221,6 +221,19 @@ export default function CalendarPage() {
     localStorage.setItem("gc_cal_view", v);
   }
 
+  /** Zoom into one day from the month or week view.
+   *
+   * Both grids show a day number that reads as a link — and in month view every
+   * cell was a "new event here" button, so the only thing a click on "14" could
+   * do was open an empty form. Moving the cursor first, then the view, keeps the
+   * two in step: `pickView` alone would land on whatever day the cursor already
+   * pointed at, which is the first of the month.
+   */
+  function openDay(day: Date) {
+    setCursor(new Date(day.getFullYear(), day.getMonth(), day.getDate()));
+    pickView("day");
+  }
+
   const ownCalendar = useMemo(
     () => calendars.find((c) => !c.is_shared),
     [calendars],
@@ -1130,9 +1143,12 @@ export default function CalendarPage() {
           locale={locale}
           onNewAt={(date, hour) => openNew(date, hour)}
           onEventClick={onGridEvent}
+          // Not in day view: the header would offer to open the day already open.
+          onDayClick={view === "week" ? openDay : undefined}
           labels={{
             allDay: t("calendar.allDay"),
             sharedReadOnly: t("calendar.sharedReadOnly"),
+            openDay: t("calendar.openDay"),
           }}
           weatherByDay={weatherByDay}
         />
@@ -1183,10 +1199,28 @@ export default function CalendarPage() {
               );
               const isToday = key === ymd(new Date());
               return (
+                // Single click opens the day, double click creates an event
+                // there. The single click is the common intent -- looking at
+                // what a day holds -- and it is the one that has to be
+                // discoverable. Creating keeps a gesture rather than a button
+                // so the grid stays a grid.
+                //
+                // `title` on the cell is what tells anyone about the double
+                // click, since nothing in the layout can. The keyboard keeps
+                // both: Enter opens, Shift+Enter creates.
                 <button
                   key={key}
                   type="button"
-                  onClick={() => openNew(day)}
+                  title={`${t("calendar.openDay")} — ${t("calendar.newOnDoubleClick")}`}
+                  aria-label={`${day.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })} — ${t("calendar.openDay")}`}
+                  onClick={() => openDay(day)}
+                  onDoubleClick={() => openNew(day)}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter") return;
+                    e.preventDefault();
+                    if (e.shiftKey) openNew(day);
+                    else openDay(day);
+                  }}
                   className={[
                     "flex min-h-24 flex-col gap-1 border-b border-r border-border p-1.5 text-left transition hover:bg-surface-2/40",
                     inMonth ? "" : "opacity-40",
@@ -1234,6 +1268,11 @@ export default function CalendarPage() {
                             e.stopPropagation();
                           }
                         }}
+                        // The cell now creates an event on double click. Two
+                        // quick clicks on a chip are still two clicks on a
+                        // chip: they must not also open an empty form behind
+                        // it.
+                        onDoubleClick={(e) => e.stopPropagation()}
                         style={
                           c
                             ? outlined
