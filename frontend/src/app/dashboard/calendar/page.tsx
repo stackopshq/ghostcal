@@ -221,6 +221,19 @@ export default function CalendarPage() {
     localStorage.setItem("gc_cal_view", v);
   }
 
+  /** Zoom into one day from the month or week view.
+   *
+   * Both grids show a day number that reads as a link — and in month view every
+   * cell was a "new event here" button, so the only thing a click on "14" could
+   * do was open an empty form. Moving the cursor first, then the view, keeps the
+   * two in step: `pickView` alone would land on whatever day the cursor already
+   * pointed at, which is the first of the month.
+   */
+  function openDay(day: Date) {
+    setCursor(new Date(day.getFullYear(), day.getMonth(), day.getDate()));
+    pickView("day");
+  }
+
   const ownCalendar = useMemo(
     () => calendars.find((c) => !c.is_shared),
     [calendars],
@@ -1130,9 +1143,12 @@ export default function CalendarPage() {
           locale={locale}
           onNewAt={(date, hour) => openNew(date, hour)}
           onEventClick={onGridEvent}
+          // Not in day view: the header would offer to open the day already open.
+          onDayClick={view === "week" ? openDay : undefined}
           labels={{
             allDay: t("calendar.allDay"),
             sharedReadOnly: t("calendar.sharedReadOnly"),
+            openDay: t("calendar.openDay"),
           }}
           weatherByDay={weatherByDay}
         />
@@ -1193,9 +1209,27 @@ export default function CalendarPage() {
                   ].join(" ")}
                 >
                   <span className="flex flex-wrap items-center justify-between gap-3">
+                    {/* `span[role=button]` and not `<button>`: the cell itself
+                        is already a button ("new event here"), and nesting one
+                        button inside another is invalid HTML — browsers drop
+                        the inner one. Same idiom the event chips below use. */}
                     <span
+                      role="button"
+                      tabIndex={0}
+                      title={t("calendar.openDay")}
+                      aria-label={`${t("calendar.openDay")} — ${day.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openDay(day);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key !== "Enter" && e.key !== " ") return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openDay(day);
+                      }}
                       className={[
-                        "text-xs",
+                        "-m-0.5 cursor-pointer rounded p-0.5 text-xs hover:bg-surface-2 hover:text-accent",
                         isToday ? "font-semibold text-accent" : "text-muted",
                       ].join(" ")}
                     >

@@ -41,6 +41,7 @@ export default function CalendarTimeGrid({
   locale,
   onNewAt,
   onEventClick,
+  onDayClick,
   labels,
   weatherByDay,
 }: {
@@ -49,7 +50,11 @@ export default function CalendarTimeGrid({
   locale: string;
   onNewAt: (date: Date, hour: number) => void;
   onEventClick: (it: GridItem) => void;
-  labels: { allDay: string; sharedReadOnly: string };
+  /** Zoom into one day. Optional: in day view there is nowhere to zoom to, and
+   *  the caller says so by not passing it rather than by us guessing from
+   *  `days.length === 1`. */
+  onDayClick?: (day: Date) => void;
+  labels: { allDay: string; sharedReadOnly: string; openDay: string };
   weatherByDay?: Map<string, { glyph: string; tmax: number; tmin: number }>;
 }) {
   const todayKey = ymd(new Date());
@@ -85,11 +90,25 @@ export default function CalendarTimeGrid({
               <div className="text-[11px] uppercase text-muted">
                 {day.toLocaleDateString(locale, { weekday: "short" })}
               </div>
-              <div
-                className={`text-sm ${isToday ? "font-semibold text-accent" : "text-foreground"}`}
-              >
-                {day.getDate()}
-              </div>
+              {onDayClick ? (
+                <button
+                  type="button"
+                  onClick={() => onDayClick(day)}
+                  title={labels.openDay}
+                  aria-label={`${labels.openDay} — ${day.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}`}
+                  className={`rounded px-1.5 text-sm hover:bg-surface-2 hover:text-accent ${
+                    isToday ? "font-semibold text-accent" : "text-foreground"
+                  }`}
+                >
+                  {day.getDate()}
+                </button>
+              ) : (
+                <div
+                  className={`text-sm ${isToday ? "font-semibold text-accent" : "text-foreground"}`}
+                >
+                  {day.getDate()}
+                </div>
+              )}
               {wx && (
                 <div
                   className="mt-0.5 text-[10px] text-muted"
