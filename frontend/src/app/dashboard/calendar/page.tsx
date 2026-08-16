@@ -116,9 +116,30 @@ const REMINDERS = [
 function ymd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
-function localKey(iso: string): string {
-  return ymd(new Date(iso));
+/** Does this item touch this day at all?
+ *
+ * The month grid used to ask a narrower question — "does it START on this day" —
+ * while the week and day grids already asked this one. Two views, two answers,
+ * for the same event: an all-day item spanning several days appeared only on the
+ * first, and anything whose start landed on the previous day once converted to
+ * the browser's timezone appeared nowhere at all.
+ *
+ * The end is exclusive, which is how an all-day event is stored: the 14th runs
+ * to midnight on the 15th and must not bleed into it. A zero-length item is kept
+ * on its own day rather than falling through that exclusion.
+ */
+function touchesDay(item: { start: string; end?: string }, day: Date): boolean {
+  const dayStart = new Date(
+    day.getFullYear(),
+    day.getMonth(),
+    day.getDate(),
+  ).getTime();
+  const dayEnd = dayStart + 86_400_000;
+  const start = new Date(item.start).getTime();
+  const end = item.end ? new Date(item.end).getTime() : start;
+  return start < dayEnd && (end > dayStart || end === start);
 }
+
 function hm(iso: string): string {
   return new Date(iso).toLocaleTimeString(undefined, {
     hour: "2-digit",
@@ -1195,7 +1216,7 @@ export default function CalendarPage() {
               const key = ymd(day);
               const inMonth = day.getMonth() === month;
               const dayItems = visibleItems.filter(
-                (it) => localKey(it.start) === key,
+                (it) => touchesDay(it, day),
               );
               const isToday = key === ymd(new Date());
               return (
