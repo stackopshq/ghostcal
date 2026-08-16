@@ -110,9 +110,23 @@ CurrentUser = Annotated[AuthenticatedUser, Depends(current_user)]
 
 
 @router.get("/config")
-async def auth_config() -> dict[str, bool]:
-    """Public auth capabilities the frontend needs at load time (e.g. whether to show SSO)."""
-    return {"oidc_enabled": _settings.oidc_enabled}
+async def auth_config() -> dict[str, bool | str | None]:
+    """Public capabilities the frontend needs at load time.
+
+    Auth first -- whether to show the SSO button -- and now the sibling app's
+    address, which belongs here for the same reason: a per-deployment fact the
+    browser cannot know, answered at runtime.
+
+    It emphatically cannot be a NEXT_PUBLIC_ variable. Next inlines those at
+    BUILD time, so one published image would carry one deployment's URLs in its
+    bundle. Measured 2026-08-16: the "email these guests" button opened
+    `http://localhost:3002` on the user's own machine, and setting the variable
+    on the host changed nothing, because the bundle had already been written.
+    """
+    return {
+        "oidc_enabled": _settings.oidc_enabled,
+        "ghostmail_url": _settings.ghostmail_url,
+    }
 
 
 @router.post("/register", response_model=RegisteredOut, status_code=201, dependencies=_AUTH_RL)

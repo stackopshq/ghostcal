@@ -51,6 +51,19 @@ class Settings(BaseSettings):
     # Where the frontend lives — used to build links sent by email.
     frontend_base_url: str = "http://localhost:3001"
 
+    # Where the sibling GhostMail lives, if this deployment has one.
+    #
+    # Served to the browser at runtime rather than compiled in. The "email these
+    # guests" button used to read NEXT_PUBLIC_GHOSTMAIL_URL, which Next inlines
+    # at BUILD time -- so the published image carried `http://localhost:3002` in
+    # its bundle, and setting the variable on the host changed nothing. Measured
+    # 2026-08-16: the button opened a dead tab on the user's own machine.
+    #
+    # None means no GhostMail here, and the frontend hides the button rather
+    # than offering a link that goes nowhere. Absent is a real answer for a
+    # self-hosted product: most deployments run one app, not the suite.
+    ghostmail_url: str | None = None
+
     # SSO / OIDC (single operator-configured provider). Off by default: when disabled, the OIDC
     # routes 404 and the frontend hides the SSO button. Authentication only — the zero-knowledge
     # content is still unlocked by a separate encryption passphrase (the server never sees it).

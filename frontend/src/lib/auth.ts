@@ -278,7 +278,11 @@ export async function login(email: string, password: string): Promise<void> {
 
 // --- SSO / OIDC ---------------------------------------------------------------------------------
 
-export type AuthConfig = { oidc_enabled: boolean };
+export type AuthConfig = {
+  oidc_enabled: boolean;
+  /** Sibling GhostMail, or null/absent when this deployment has none. */
+  ghostmail_url?: string | null;
+};
 
 export async function getAuthConfig(): Promise<AuthConfig> {
   const res = await fetch(`${base()}/v1/auth/config`, { cache: "no-store" });

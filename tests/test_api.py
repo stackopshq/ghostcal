@@ -52,4 +52,6 @@ def test_oidc_routes_404_when_disabled() -> None:
     # OIDC is off by default; the routes must behave as if absent (no info leak, no 500).
     client = TestClient(app)
     assert client.get("/v1/auth/oidc/login", follow_redirects=False).status_code == 404
-    assert client.get("/v1/auth/config").json() == {"oidc_enabled": False}
+    # The field, not the whole body. Asserting the entire payload made this test fail the day an
+    # unrelated capability joined it, which says nothing about OIDC being off.
+    assert client.get("/v1/auth/config").json()["oidc_enabled"] is False
