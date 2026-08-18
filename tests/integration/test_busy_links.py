@@ -138,3 +138,82 @@ async def test_revoking_the_link_closes_the_door(admin_engine: AsyncEngine) -> N
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get(f"/v1/public/busy/{token}")
     assert response.status_code == 404
+
+
+async def test_the_calendar_feed_says_when_and_never_what(admin_engine: AsyncEngine) -> None:
+    """The same link, subscribed to instead of read — and just as silent.
+
+    A subscription is the shape that works here: a subscribed calendar carries VEVENT
+    happily. The risk it brings is different from the JSON view's — an .ics is copied
+    into other people's calendars, exported, forwarded — so the assertion is the same
+    one, made against the bytes that travel.
+    """
+    _, token = await _seed(admin_engine)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get(f"/v1/public/busy/{token}/calendar.ics")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/calendar")
+    body = response.text
+
+    # The title is nowhere in the bytes, and neither is any field that could carry one.
+    assert SECRET_TITLE not in body
+    for field in ("DESCRIPTION", "LOCATION", "ATTENDEE", "ORGANIZER", "X-ALT-DESC"):
+        assert field not in body, f"{field} has no business in a free-busy feed"
+
+    assert "BEGIN:VCALENDAR" in body and "END:VCALENDAR" in body
+    assert body.count("BEGIN:VEVENT") == body.count("END:VEVENT") >= 1
+    assert "SUMMARY:Occupé" in body
+
+    # A cached copy outlives the revocation meant to end it.
+    assert "no-store" in response.headers.get("cache-control", "")
+
+
+async def test_the_feed_is_byte_identical_across_polls(admin_engine: AsyncEngine) -> None:
+    """Nothing in the feed may read the clock.
+
+    A DTSTAMP taken from `now` would change on every request, so every ETag would change,
+    and every subscriber would re-download the whole calendar every quarter of an hour
+    forever. The bytes must depend only on the busy time itself.
+    """
+    _, token = await _seed(admin_engine)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        first = (await client.get(f"/v1/public/busy/{token}/calendar.ics")).text
+        second = (await client.get(f"/v1/public/busy/{token}/calendar.ics")).text
+
+    assert first == second
+
+
+async def test_two_links_do_not_agree_on_uids(admin_engine: AsyncEngine) -> None:
+    """Holding one link must not let you confirm what another publishes.
+
+    UIDs are keyed on the link, so the same hour published twice produces two unrelated
+    identifiers. Without this, a recipient could correlate feeds — which is a different
+    disclosure from "when am I busy", and one nobody agreed to.
+    """
+    _, first_token = await _seed(admin_engine)
+    _, second_token = await _seed(admin_engine)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        first = (await client.get(f"/v1/public/busy/{first_token}/calendar.ics")).text
+        second = (await client.get(f"/v1/public/busy/{second_token}/calendar.ics")).text
+
+    def uids(text: str) -> set[str]:
+        return {line for line in text.splitlines() if line.startswith("UID:")}
+
+    assert uids(first) and uids(second)
+    assert not (uids(first) & uids(second))
+
+
+async def test_an_unknown_token_is_not_a_calendar_either(admin_engine: AsyncEngine) -> None:
+    """The .ics door refuses exactly like the JSON one. A representation is not a bypass."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get(f"/v1/public/busy/{new_token()}/calendar.ics")
+
+    assert response.status_code == 404
