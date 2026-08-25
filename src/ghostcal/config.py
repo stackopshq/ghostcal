@@ -192,7 +192,14 @@ class Settings(BaseSettings):
     task_max_retries: int = 3
     task_retry_backoff_seconds: int = 10
 
-    # Transactional email (Resend). When the API key is unset, emails are logged instead of sent.
+    # Transactional email. Brevo is tried first, then Resend; with neither key set the
+    # messages are logged instead of sent — which is a fine default for development and a
+    # silent outage in production, so `is_production` deployments must set one.
+    #
+    # Brevo is the provider the sending domain is authenticated with (DKIM + SPF). A domain
+    # under DMARC p=reject rejects — not junks — mail that no provider has signed for it, so
+    # the choice of provider and the choice of `email_from` are not independent.
+    brevo_api_key: SecretStr | None = None
     resend_api_key: SecretStr | None = None
     email_from: str = "GhostCal <onboarding@resend.dev>"
 
