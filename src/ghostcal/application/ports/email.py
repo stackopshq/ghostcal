@@ -1,4 +1,4 @@
-"""Email-sending port. Implemented by a Resend adapter (or a logging adapter in dev)."""
+"""Email-sending port. Implemented by a Brevo or Resend adapter (or a logging adapter in dev)."""
 
 from __future__ import annotations
 

@@ -286,7 +286,7 @@ podman-compose up -d --build
 # `alembic upgrade head`; then app (:8000), worker and beat start.
 ```
 
-To send real emails, set `GHOSTCAL_RESEND_API_KEY` (otherwise emails are logged).
+To send real emails, set `GHOSTCAL_BREVO_API_KEY` or `GHOSTCAL_RESEND_API_KEY` (otherwise emails are logged, not sent). Brevo is used when both are present.
 
 > **Key management note.** `GHOSTCAL_TOKEN_ENCRYPTION_KEY` decrypts the at-rest (Tier 2) data; keep
 > it stable and backed up. The zero-knowledge (Tier 1) keys are derived in the browser — the server
