@@ -8,17 +8,23 @@ on:
 permissions:
   contents: read
 
-# `ubuntu-latest` désigne ICI le runner de la forge, pas un runner hébergé par GitHub.
+# `ubuntu-latest` désigne ICI le runner de la forge, pas un runner hébergé par GitHub. Les
+# jobs de test et de lint y restent : ils tournent dans l'image `runner-images:ubuntu-latest`,
+# donc dans un conteneur jetable, et ils n'ont besoin d'aucun moteur de conteneurs.
 #
-# Ne pas « restaurer » `[self-hosted, linux, x64]` : ces étiquettes-là n'existent nulle part
-# sur `core-run-01-runner-1`, le seul exécutant Linux de `git.stackops.ch`. Sa configuration
-# ne déclare que `ubuntu-latest`, `ubuntu-22.04`, `ubuntu-20.04` et `host`. Un job qui demande
-# `self-hosted` n'est donc pas lent : personne ne le prend, il reste `queued` indéfiniment en
-# affichant `pending`, ce qui se lit comme une attente et n'en est pas une. GhostCal était
-# l'exception ; six produits sur neuf de la gamme demandent déjà `ubuntu-latest`.
+# Le job `image` fait exception et demande `[self-hosted, linux, x64]`. Ces étiquettes
+# existent depuis le 2026-08-27 : elles désignent `core-run-01-host-1`, un second exécutant
+# enregistré au niveau de l'organisation `stackops` et déclaré SANS image. Le job s'exécute
+# donc directement sur la VM `core-run-01`, sous l'utilisateur `gitea-runner-host` (uid 985),
+# où `podman 5.8.2` est installé en rootless. Mesuré : `/run/.containerenv` absent,
+# `podman build` aboutit.
 #
-# `host` ne serait pas un contournement : il atterrit dans le conteneur du runner lui-même,
-# pas sur la VM.
+# Ne pas déplacer les autres jobs ici. Sur cet exécutant il n'y a pas de bac à sable : un job
+# écrit sur la VM elle-même, et sa capacité est de 1, donc tout ce qui y passe sérialise le
+# reste. Un test qui marche dans un conteneur jetable n'a rien à y gagner.
+#
+# `host` n'est pas un contournement : cette étiquette-là appartient à l'ANCIEN exécutant et
+# atterrit dans le conteneur du runner, pas sur la VM.
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -193,7 +199,7 @@ jobs:
         run: npm run build
 
   image:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64]
     needs: [quality]
     # Scoped to this job rather than the workflow: every other job here only
     # needs to read the repository, and a token that can write packages has
@@ -274,11 +280,18 @@ jobs:
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         env:
           REGISTRY: ghcr.io
-          IMAGE: ghcr.io/${{ github.repository }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          # `ghcr.io/stackopshq/…` en dur, et non `github.repository` : sur la forge cette
+          # variable vaut `stackops/ghostcal`, un espace de noms qui n'existe pas sur
+          # GitHub. Le nom est le même vu d'ici ou du miroir, autant l'écrire.
+          IMAGE: ghcr.io/stackopshq/ghostcal
         run: |
           set -euo pipefail
-          echo "${{ secrets.GITHUB_TOKEN }}" \
-            | podman login "${REGISTRY}" -u "${{ github.actor }}" --password-stdin
+          # `GITHUB_TOKEN` est ici un jeton de la forge : ghcr.io le refuse en 403.
+          # Les identifiants ghcr sont des secrets d'organisation `stackops`.
+          printf '%s' "${GHCR_TOKEN}" \
+            | podman login "${REGISTRY}" -u "${GHCR_USERNAME}" --password-stdin
           SHORT="$(git rev-parse --short HEAD)"
           podman tag ghostcal:ci "${IMAGE}:sha-${SHORT}"
           podman tag ghostcal:ci "${IMAGE}:main"
