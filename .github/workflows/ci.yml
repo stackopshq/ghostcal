@@ -8,27 +8,72 @@ on:
 permissions:
   contents: read
 
-# Every job runs on the self-hosted runner. GitHub-hosted minutes are unavailable on this
-# account, and a blocked hosted job fails in three seconds with no runner assigned and no
-# steps — indistinguishable, at a glance, from a real test failure. `ubuntu-latest` is
-# deliberately not reused as a runner label: it would silently route work to whichever of the
-# two happened to be free, and the two environments are not interchangeable (the `image` job
-# needs podman, which no hosted image ships).
+# `ubuntu-latest` désigne ICI le runner de la forge, pas un runner hébergé par GitHub.
+#
+# Ne pas « restaurer » `[self-hosted, linux, x64]` : ces étiquettes-là n'existent nulle part
+# sur `core-run-01-runner-1`, le seul exécutant Linux de `git.stackops.ch`. Sa configuration
+# ne déclare que `ubuntu-latest`, `ubuntu-22.04`, `ubuntu-20.04` et `host`. Un job qui demande
+# `self-hosted` n'est donc pas lent : personne ne le prend, il reste `queued` indéfiniment en
+# affichant `pending`, ce qui se lit comme une attente et n'en est pas une. GhostCal était
+# l'exception ; six produits sur neuf de la gamme demandent déjà `ubuntu-latest`.
+#
+# `host` ne serait pas un contournement : il atterrit dans le conteneur du runner lui-même,
+# pas sur la VM.
 jobs:
   quality:
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
 
     # Two thirds of the backend suite is integration tests, and without a database they skip —
     # which CI reports as success. RLS, invitations and key rotation are only covered here.
     #
-    # Postgres is started by hand rather than through `services:`. The runner starts service
-    # containers by shelling out to the `docker` CLI, which is not installed here and which
-    # podman's API does not stand in for; a `services:` block fails the job before its first
-    # step. Podman runs the same image, so the loss is only the runner's health-gating, which
-    # the explicit pg_isready wait below replaces.
+    # Postgres arrive par `services:`, et NON par un `podman run` lancé à la main.
+    #
+    # Le commentaire précédent justifiait ce contournement par l'absence du client `docker`
+    # sur le runner. C'est faux, mesuré le 2026-08-27 dans l'image du runner elle-même
+    # (`docker.gitea.com/runner-images:ubuntu-latest`) : `docker` y est présent, et c'est
+    # `podman` qui est absent.
+    #
+    # Attention à ne pas en tirer que les jobs pourraient construire des images avec
+    # `docker` : mesuré le même jour par une sonde jetable, le client est bien là (29.6.2)
+    # et le job tourne en uid 0, mais AUCUN démon n'est joignable depuis le conteneur de
+    # job. `/var/run/docker.sock` y est un répertoire vide, pas une socket, et tout appel
+    # rend `permission denied while trying to connect to the docker API`. Si `services:`
+    # fonctionne malgré ça, c'est que les conteneurs de service sont créés par le runner
+    # côté hôte, et non depuis le job.
+    #
+    # Le contournement était donc devenu la panne, le job mourant
+    # sur `podman: command not found` (code 127) à sa toute première étape, avant d'exécuter
+    # le moindre test. Quatre autres produits de la gamme sont servis par `services:`.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ghostcal
+          POSTGRES_PASSWORD: ci-admin-password
+          POSTGRES_DB: ghostcal
+        # Pas de `ports:`, et ce n'est pas un oubli : `core-run-01` est partagé par toute la
+        # forge, donc publier 5432 sur l'hôte fait que le premier job qui le tient tue tous
+        # les autres sur `bind: address already in use`. Un service reste joignable par son
+        # NOM sur le réseau du job, sans rien publier.
+        #
+        # `--health-cmd` remplace la boucle `pg_isready` que faisait l'ancienne étape : le
+        # runner ne démarre aucune étape tant que la sonde n'est pas verte. Elle s'exécute
+        # DANS le conteneur postgres, qui porte `pg_isready` ; le conteneur de job, lui,
+        # ne l'a pas.
+        options: >-
+          --health-cmd "pg_isready -U ghostcal -d ghostcal"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     env:
-      GHOSTCAL_DATABASE_ADMIN_URL: postgresql+asyncpg://ghostcal:ci-admin-password@localhost:5432/ghostcal
-      GHOSTCAL_DATABASE_URL: postgresql+asyncpg://ghostcal_app:ci-app-password@localhost:5432/ghostcal
+      # `postgres`, et non `localhost` : les étapes tournent DANS le conteneur de job, où
+      # `localhost` désigne ce conteneur et jamais le service.
+      GHOSTCAL_DATABASE_ADMIN_URL: postgresql+asyncpg://ghostcal:ci-admin-password@postgres:5432/ghostcal
+      GHOSTCAL_DATABASE_URL: postgresql+asyncpg://ghostcal_app:ci-app-password@postgres:5432/ghostcal
+      # Reste sur `localhost` à dessein : aucun service Redis n'est déclaré, et rien ne s'y
+      # connecte. `tests/conftest.py` ne fait qu'un `setdefault` pour que la validation de
+      # configuration passe. Ne pas le pointer sur un service qui n'existe pas.
       GHOSTCAL_REDIS_URL: redis://localhost:6379/0
       # Throwaway values for a throwaway database. `environment` stays development, so the
       # placeholder-secret validator does not apply; these never leave the runner. Annotated
@@ -41,29 +86,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # The runner is long-lived, so a container left behind by a cancelled run would hold both
-      # the name and port 5432. Removing it first makes the job self-healing rather than red
-      # until someone logs in — which, on a runner nobody here can reach, means red for good.
-      - name: Start Postgres (podman)
+      # Le client psql n'est pas dans l'image du runner (vérifié le 2026-08-27 : ni `psql`,
+      # ni `pg_isready`). L'ancienne étape s'en passait en appelant le psql du conteneur via
+      # `podman exec` ; sans podman, il faut le client ici. Le serveur est en 16, le client
+      # d'Ubuntu 24.04 aussi.
+      - name: Install the PostgreSQL client
         run: |
-          podman rm -f ghostcal-ci-postgres 2>/dev/null || true
-          podman run -d --name ghostcal-ci-postgres \
-            -e POSTGRES_USER=ghostcal \
-            -e POSTGRES_PASSWORD=ci-admin-password \
-            -e POSTGRES_DB=ghostcal \
-            -p 5432:5432 \
-            docker.io/library/postgres:16-alpine
-
-          for _ in $(seq 1 30); do
-            if podman exec ghostcal-ci-postgres pg_isready -U ghostcal -q; then
-              echo "postgres ready"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "::error::Postgres did not become ready within 60s"
-          podman logs ghostcal-ci-postgres
-          exit 1
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends postgresql-client
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -79,14 +109,15 @@ jobs:
       # role then cannot call `provision_account` at all. The default privileges this sets cover
       # the tables the migrations go on to create.
       #
-      # Piped into the container's own psql: the runner has no postgres client installed, and
-      # the script is fed on stdin so its `\set` and `:'app_password'` are still interpreted.
+      # Joué par le psql installé plus haut, contre le service `postgres`. Le script est passé
+      # par `-f` sur un vrai chemin, et non plus sur stdin : le détour par stdin n'existait que
+      # pour alimenter le psql d'un conteneur distant. Il garde son `\set` et son
+      # `:'app_password'`, qui imposent psql et interdisent de le rejouer avec un autre client.
       - name: Provision the application role
         run: |
-          podman exec -i ghostcal-ci-postgres \
-            psql "postgresql://ghostcal:ci-admin-password@localhost:5432/ghostcal" \
+          psql "postgresql://ghostcal:ci-admin-password@postgres:5432/ghostcal" \
             -v app_password="ci-app-password" \
-            -f - < scripts/bootstrap_roles.sql
+            -f scripts/bootstrap_roles.sql
 
       - name: Create the schema (admin role)
         run: uv run alembic upgrade head
@@ -103,14 +134,12 @@ jobs:
       - name: Tests (pytest)
         run: uv run pytest
 
-      # `services:` used to be torn down by the runner whatever the outcome; doing it by hand
-      # means saying so, or the container outlives the job on this long-lived machine.
-      - name: Stop Postgres
-        if: always()
-        run: podman rm -f ghostcal-ci-postgres 2>/dev/null || true
+      # Pas d'étape d'arrêt : le runner détruit lui-même les conteneurs de `services:` à la fin
+      # du job, quelle qu'en soit l'issue. C'est précisément ce que le `podman run` à la main
+      # avait fait perdre, et que cette étape rattrapait.
 
   security:
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -140,7 +169,7 @@ jobs:
             --lockfile=frontend/package-lock.json
 
   frontend:
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: frontend
@@ -164,7 +193,7 @@ jobs:
         run: npm run build
 
   image:
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     needs: [quality]
     # Scoped to this job rather than the workflow: every other job here only
     # needs to read the repository, and a token that can write packages has
