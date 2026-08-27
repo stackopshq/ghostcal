@@ -238,7 +238,7 @@ describe("buildIcs", () => {
     const ics = buildIcs(await openExport(raw));
 
     expect(ics).toContain("BEGIN:VEVENT");
-    expect(ics).toContain("SUMMARY:(encrypted — key locked)");
+    expect(ics).toContain("SUMMARY:(encrypted, key locked)");
     expect(ics).not.toContain("Secret");
   });
 });

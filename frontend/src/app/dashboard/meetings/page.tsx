@@ -153,7 +153,7 @@ export default function MeetingsPage() {
             <div>
               <p className="font-medium text-foreground">{m.event_title}</p>
               <p className="text-sm text-muted">
-                {(decrypted[m.id]?.name || m.invitee_name) ?? "—"} ·{" "}
+                {(decrypted[m.id]?.name || m.invitee_name) ?? t("meetings.noName")} ·{" "}
                 {m.invitee_email}
               </p>
               {decrypted[m.id] && (

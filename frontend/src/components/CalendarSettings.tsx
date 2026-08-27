@@ -196,7 +196,7 @@ export default function CalendarSettings() {
             />
             {c.calendar_name ?? t("cal.calendarFallback")}
             <span className="text-muted">
-              — {c.username}@{c.server_url}
+              · {c.username}@{c.server_url}
             </span>
             {c.mirror_bookings && (
               <span className="rounded-full border border-accent/50 px-2 py-0.5 text-xs text-accent">

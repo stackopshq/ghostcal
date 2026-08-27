@@ -73,7 +73,7 @@ export default function PublicBusyPage({
           The next two weeks. Times are shown in your timezone
           {here ? ` (${here})` : ""}
           {here && here !== busy.owner_timezone
-            ? ` — ${busy.owner_name} is in ${busy.owner_timezone}`
+            ? `; ${busy.owner_name} is in ${busy.owner_timezone}`
             : ""}
           .
         </p>

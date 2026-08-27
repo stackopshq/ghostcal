@@ -65,7 +65,7 @@ export default function InvitePage() {
 
             {responded ? (
               <p className="text-sm text-accent">
-                {t("invite.thanks")} — {t(`att.${responded}`)}
+                {t("invite.thanks")} · {t(`att.${responded}`)}
               </p>
             ) : (
               <div className="mt-2 flex gap-2">
