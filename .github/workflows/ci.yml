@@ -250,6 +250,13 @@ jobs:
           # ghcr second.
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db,ghcr.io/aquasecurity/trivy-db:2
         with:
+          # `setup-trivy`, appelée par cette action, fait un `actions/checkout` du dépôt
+          # `aquasecurity/trivy` SUR github.com, avec `github.token` par défaut. Ici ce jeton
+          # est celui de la forge : github.com le refuse, git redemande un nom d'utilisateur
+          # et l'étape meurt sur « could not read Username ». Constaté le 2026-08-27, après
+          # les deux `podman build` — les images étaient construites, le job rouge.
+          # `GH_COM_TOKEN` est le secret d'organisation déjà utilisé pour atteindre github.com.
+          token-setup-trivy: ${{ secrets.GH_COM_TOKEN }}
           input: ${{ runner.temp }}/ghostcal-ci.tar
           severity: HIGH,CRITICAL
           ignore-unfixed: true
@@ -261,6 +268,13 @@ jobs:
         env:
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db,ghcr.io/aquasecurity/trivy-db:2
         with:
+          # `setup-trivy`, appelée par cette action, fait un `actions/checkout` du dépôt
+          # `aquasecurity/trivy` SUR github.com, avec `github.token` par défaut. Ici ce jeton
+          # est celui de la forge : github.com le refuse, git redemande un nom d'utilisateur
+          # et l'étape meurt sur « could not read Username ». Constaté le 2026-08-27, après
+          # les deux `podman build` — les images étaient construites, le job rouge.
+          # `GH_COM_TOKEN` est le secret d'organisation déjà utilisé pour atteindre github.com.
+          token-setup-trivy: ${{ secrets.GH_COM_TOKEN }}
           input: ${{ runner.temp }}/ghostcal-frontend-ci.tar
           severity: HIGH,CRITICAL
           ignore-unfixed: true
