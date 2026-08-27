@@ -95,7 +95,7 @@ export default function CalendarTimeGrid({
                   type="button"
                   onClick={() => onDayClick(day)}
                   title={labels.openDay}
-                  aria-label={`${labels.openDay} — ${day.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}`}
+                  aria-label={`${labels.openDay}, ${day.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}`}
                   className={`rounded px-1.5 text-sm hover:bg-surface-2 hover:text-accent ${
                     isToday ? "font-semibold text-accent" : "text-foreground"
                   }`}

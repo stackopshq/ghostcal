@@ -223,7 +223,7 @@ async def send_event_reminder(
         html=(
             f"<p>You have a calendar event {lead}.</p>"
             f"<p><strong>When:</strong> {when}</p>"
-            f"<p>Open GhostCal to see the details — they're end-to-end encrypted.</p>"
+            f"<p>Open GhostCal to see the details: they're end-to-end encrypted.</p>"
         ),
     )
 
@@ -246,7 +246,7 @@ async def send_task_reminder(
         html=(
             f"<p>You have a task due {lead}.</p>"
             f"<p><strong>Due:</strong> {when}</p>"
-            f"<p>Open GhostCal to see it — your tasks are end-to-end encrypted.</p>"
+            f"<p>Open GhostCal to see it: your tasks are end-to-end encrypted.</p>"
         ),
     )
 

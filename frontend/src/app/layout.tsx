@@ -44,7 +44,7 @@ async function siteOrigin(): Promise<string> {
   return `${proto}://${host}`;
 }
 
-const TITLE = "GhostCal — fast, correct scheduling";
+const TITLE = "GhostCal · fast, correct scheduling";
 const DESCRIPTION =
   "Pick a time in seconds. GhostCal is a fast, dark-mode-native scheduling tool.";
 

@@ -57,7 +57,7 @@ def validate_window(days: int | None) -> int | None:
         )
     if days > MAX_RETENTION_DAYS:
         raise InvalidRetentionWindow(
-            f"a retention window must be at most {MAX_RETENTION_DAYS} days — "
+            f"a retention window must be at most {MAX_RETENTION_DAYS} days; "
             "leave it unset to keep bookings forever"
         )
     return days

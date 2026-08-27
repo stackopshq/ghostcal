@@ -115,7 +115,7 @@ export default function PollDetailPage() {
           <h2 className="text-sm font-medium text-foreground">{t("pollsh.voters")}</h2>
           {poll.voters.map((v) => (
             <p key={v.email} className="text-sm text-muted">
-              {v.name} ({v.email}) — {t("pollsh.timesCount", { n: v.option_ids.length })}
+              {v.name} ({v.email}) · {t("pollsh.timesCount", { n: v.option_ids.length })}
             </p>
           ))}
         </section>

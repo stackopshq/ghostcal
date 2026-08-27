@@ -943,7 +943,7 @@ export default function CalendarPage() {
               )}
               {quickParsed.rrule && <span className="text-muted">· ↻</span>}
               <span className="text-muted/70">
-                — {t("calendar.quickAddRefine")}
+                · {t("calendar.quickAddRefine")}
               </span>
             </button>
           ) : quickText.trim() ? (
@@ -1247,8 +1247,8 @@ export default function CalendarPage() {
                 <button
                   key={key}
                   type="button"
-                  title={`${t("calendar.openDay")} — ${t("calendar.newOnDoubleClick")}`}
-                  aria-label={`${day.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })} — ${t("calendar.openDay")}`}
+                  title={`${t("calendar.openDay")}, ${t("calendar.newOnDoubleClick")}`}
+                  aria-label={`${day.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}, ${t("calendar.openDay")}`}
                   onClick={() => openDay(day)}
                   onDoubleClick={() => openNew(day)}
                   onKeyDown={(e) => {

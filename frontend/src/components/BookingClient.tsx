@@ -410,7 +410,7 @@ function Confirmed({ slot, tz, host }: { slot: Booking; tz: string; host: string
       </div>
       <h2 className="text-xl font-semibold text-foreground">{t("booking.booked")}</h2>
       <p className="text-sm text-muted">
-        {dayLabel(slot.start_at, tz)} · {timeLabel(slot.start_at, tz)} —{" "}
+        {dayLabel(slot.start_at, tz)} · {timeLabel(slot.start_at, tz)} ·{" "}
         {t("booking.with", { host })}
       </p>
       <p className="text-xs text-muted/70">{t("booking.emailFollow")}</p>
