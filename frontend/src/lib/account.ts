@@ -258,7 +258,7 @@ export function buildIcs(exported: OpenedExport): string {
         `DTSTART:${icsStamp(event.start_at)}`,
         `DTEND:${icsStamp(event.end_at)}`,
         // A sealed event we could not open still belongs in the archive — as a hole the user can see.
-        `SUMMARY:${icsEscape(event.content?.title ?? "(encrypted, key locked)")}`,
+        `SUMMARY:${icsEscape(event.content?.title ?? "(encrypted: key locked)")}`,
       );
       if (event.content?.location)
         lines.push(`LOCATION:${icsEscape(event.content.location)}`);
