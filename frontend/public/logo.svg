@@ -1,7 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 421 548" fill="none">
-  <!-- Généré par tools/brand/ghost_suite.py — ne pas éditer à la main.
-       La silhouette, les tirets et l'épaisseur sont communs à toute la suite ;
-       seuls le glyphe intérieur et les trois teintes distinguent ghostcal. -->
+  <!-- Charte ghost-suite, variante logo — produit par tools/brand/ghost_suite.py.
+       Ne pas retoucher : régénérer. -->
   <defs>
     <linearGradient id="g" x1="421" y1="0" x2="0" y2="548" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#9CFBFF"/>
@@ -15,9 +14,9 @@
   </g>
   <g stroke="url(#g)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"
      opacity="0.92">
-      <path d="M 194 152 L 326 152 A 14 14 0 0 1 340 166 L 340 212 A 14 14 0 0 1 326 226 L 194 226 A 14 14 0 0 1 180 212 L 180 166 A 14 14 0 0 1 194 152 Z"/>
-      <path d="M 180 182 L 340 182"/>
-      <path d="M 216 134 L 216 158"/>
-      <path d="M 304 134 L 304 158"/>
+    <path d="M 194 152 L 326 152 A 14 14 0 0 1 340 166 L 340 212 A 14 14 0 0 1 326 226 L 194 226 A 14 14 0 0 1 180 212 L 180 166 A 14 14 0 0 1 194 152 Z"/>
+    <path d="M 180 182 L 340 182"/>
+    <path d="M 216 134 L 216 158"/>
+    <path d="M 304 134 L 304 158"/>
   </g>
 </svg>
