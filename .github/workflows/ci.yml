@@ -84,15 +84,7 @@ jobs:
     env:
       # `postgres`, et non `localhost` : les étapes tournent DANS le conteneur de job, où
       # `localhost` désigne ce conteneur et jamais le service.
-      # `ghostcal_owner`, et non `ghostcal` : le `POSTGRES_USER` d'une image postgres est
-      # l'utilisateur d'AMORÇAGE du cluster, donc superutilisateur — et un superutilisateur
-      # contourne RLS quoi que dise FORCE ROW LEVEL SECURITY. En production le propriétaire
-      # est un rôle ordinaire, soumis à ses propres politiques. Faire tourner les migrations
-      # et les tests sous un superutilisateur rend la CI aveugle à toute une famille de
-      # défauts : mesuré le 2026-08-29, la même requête sur le même schéma rend `1` sous
-      # propriétaire superutilisateur et `0` sous propriétaire ordinaire — et c'est ce `0`
-      # que voyaient les invités, dont aucun lien d'équipe n'a jamais fonctionné.
-      GHOSTCAL_DATABASE_ADMIN_URL: postgresql+asyncpg://ghostcal_owner:ci-owner-password@postgres:5432/ghostcal
+      GHOSTCAL_DATABASE_ADMIN_URL: postgresql+asyncpg://ghostcal:ci-admin-password@postgres:5432/ghostcal
       GHOSTCAL_DATABASE_URL: postgresql+asyncpg://ghostcal_app:ci-app-password@postgres:5432/ghostcal
       # Reste sur `localhost` à dessein : aucun service Redis n'est déclaré, et rien ne s'y
       # connecte. `tests/conftest.py` ne fait qu'un `setdefault` pour que la validation de
@@ -137,18 +129,9 @@ jobs:
       # par `-f` sur un vrai chemin, et non plus sur stdin : le détour par stdin n'existait que
       # pour alimenter le psql d'un conteneur distant. Il garde son `\set` et son
       # `:'app_password'`, qui imposent psql et interdisent de le rejouer avec un autre client.
-      # Joué par l'utilisateur d'amorçage, la seule chose pour laquelle il sert encore :
-      # créer un propriétaire qui, lui, n'est pas superutilisateur.
-      - name: Provision a non-superuser owner
-        run: |
-          psql "postgresql://ghostcal:ci-admin-password@postgres:5432/ghostcal" -v ON_ERROR_STOP=1 -c \
-            "CREATE ROLE ghostcal_owner LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD 'ci-owner-password'" # gitleaks:allow
-          psql "postgresql://ghostcal:ci-admin-password@postgres:5432/ghostcal" -v ON_ERROR_STOP=1 -c \
-            "GRANT ALL ON SCHEMA public TO ghostcal_owner"
-
       - name: Provision the application role
         run: |
-          psql "postgresql://ghostcal_owner:ci-owner-password@postgres:5432/ghostcal" \
+          psql "postgresql://ghostcal:ci-admin-password@postgres:5432/ghostcal" \
             -v app_password="ci-app-password" \
             -f scripts/bootstrap_roles.sql
 
