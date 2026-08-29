@@ -139,6 +139,15 @@ async def test_org_members_roles_and_invitations(admin_engine: AsyncEngine) -> N
         assert len(invitations) == 1
 
         # Preview (token-based, non-tenant) shows org + role.
+        #
+        # This assertion is the guard for the whole invitation flow, and it was always
+        # written correctly — what lied was the environment it ran in. `db_session()`
+        # binds no tenant, exactly like the unauthenticated request an invitee makes, so
+        # under FORCE ROW LEVEL SECURITY the SECURITY DEFINER function sees nothing
+        # unless a policy grants it sight. It passed anyway for as long as CI owned the
+        # schema with the cluster's bootstrap superuser, which bypasses RLS outright. Run
+        # this against a plain owner and it fails without migration d1f4a72b98c0 — which
+        # is what every invitee got.
         async with db_session() as s:
             preview = await preview_invitation(SqlInvitationGateway(s), token=invite_token)
         assert preview.role == "member"
