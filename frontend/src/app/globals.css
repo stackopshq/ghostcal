@@ -1,23 +1,37 @@
-@import "tailwindcss";
-/* Polices de la suite, servies depuis l'origine. Doit rester un @import de tête. */
+/* Feuille d'entrée de GhostCal.
+ *
+ * Trois imports, et l'ordre compte : les polices hébergées, le thème généré du
+ * produit, puis Tailwind, qui lit ces jetons par le `@theme inline` plus bas.
+ *
+ * `ghost-theme.css` est COPIÉ depuis ghostsuite (`assets/ghostcal/`), pas édité
+ * ici. Il est produit par `tools/brand/emit_theme.py` à partir de `PRODUITS`,
+ * qui porte déjà les couleurs des logos : un accent changé là-bas traverse les
+ * icônes ET le thème, ou aucun des deux. Le retoucher ici serait écrasé à la
+ * régénération, et la CI de ghostsuite refuse un fichier généré qui a dérivé.
+ *
+ * Avant le 2026-08-29 cette feuille ne déclarait AUCUNE taille de police ni
+ * aucun rayon. Elle n'écrivait donc pas de valeurs fausses — elle n'en écrivait
+ * pas du tout, et l'interface prenait celles de Tailwind par défaut. L'écart
+ * mesuré ce jour-là avec ghostpass (xs à 0,75 au lieu de 0,8125 rem, 2xl à 1,5
+ * au lieu de 1,75) ne venait donc pas d'une divergence choisie : la charte
+ * n'atteignait simplement jamais ce produit. C'est ce que l'import répare.
+ */
 @import "./fonts.css";
+@import "./ghost-theme.css";
+@import "tailwindcss";
 
-/* GhostCal design system — dark-mode-native.
-   Palette: deep night base, electric-cyan accent, smoked-glass surfaces. */
-:root {
-  --color-base: #0b0f19; /* page background */
-  --color-surface: #1e293b; /* cards / components */
-  --color-surface-2: #161e2e; /* nested surfaces */
-  --color-foreground: #e2e8f0; /* primary text */
-  --color-muted: #94a3b8; /* secondary text */
-  --color-accent: #00f0ff; /* electric cyan — actions, selected slots */
-  --color-accent-ink: #021016; /* text on top of accent */
-  --color-border: rgba(255, 255, 255, 0.06);
-  --color-border-strong: rgba(255, 255, 255, 0.12);
-  --aurora: rgba(0, 240, 255, 0.08);
-}
-
-/* Light mode — same cyan identity, daylight surfaces. Toggled via data-theme on <html>. */
+/* Mode clair — même identité cyan, surfaces de plein jour. Basculé par
+ * `data-theme` sur <html>.
+ *
+ * Le thème généré est SOMBRE et unique : la charte ne produit pas encore de
+ * variante claire, et ghostcal est le seul des huit produits à en avoir une. Ce
+ * bloc reste donc ici, par-dessus l'import, jusqu'à ce que le générateur sache
+ * émettre les deux. Il ne redéclare que des couleurs — l'échelle typographique
+ * et les rayons ne dépendent pas de la lumière et viennent de la charte dans les
+ * deux modes.
+ *
+ * Il l'emporte sur le `:root` du thème généré par sa spécificité, pas par
+ * l'ordre des règles : déplacer l'import ne le casserait pas en silence. */
 :root[data-theme="light"] {
   --color-base: #f5f8fc;
   --color-surface: #ffffff;
@@ -31,8 +45,42 @@
   --aurora: rgba(8, 145, 178, 0.1);
 }
 
-/* Expose the tokens to Tailwind utilities (bg-base, text-accent, border-border, …). */
+/* Le pont entre les jetons de la charte et les classes Tailwind. Aucune valeur
+ * n'est répétée : `text-sm` rend la marche `--text-sm`, `bg-surface` le fond
+ * `--color-surface`. Changer une valeur se fait dans `PRODUITS`, pas ici.
+ *
+ * `inline` est ce qui fait marcher le mode clair : Tailwind n'émet pas sa propre
+ * copie du jeton, l'utilitaire pointe sur la propriété personnalisée, et
+ * celle-ci est résolue sur l'élément — donc sous `[data-theme="light"]` elle
+ * vaut la valeur claire. Sans `inline`, la valeur sombre serait figée à la
+ * compilation et le bouton de bascule ne changerait plus rien.
+ *
+ * Le pont est EXPLICITE pour tout ce que la charte porte, y compris ce que
+ * l'import imposerait de toute façon. Mesuré le 2026-08-29 : `ghost-theme.css`
+ * n'est pas dans une couche, tandis que le thème par défaut de Tailwind vit dans
+ * `@layer theme` — donc le premier gagne, ponté ou non, sur chaque nom qu'ils
+ * partagent. Compter là-dessus, ce serait laisser la feuille dire une chose et
+ * le navigateur en faire une autre ; on l'écrit.
+ *
+ * `--color-accent-light` et `--color-accent-deep` arrivent avec le thème mais ne
+ * sont VOLONTAIREMENT pas pontés : le bloc clair ci-dessus ne les redéfinit pas,
+ * et exposer `bg-accent-light` reviendrait à offrir un utilitaire qui garde sa
+ * teinte de nuit en plein jour. Ils restent joignables en `var()`.
+ *
+ * `--radius` (12 px) n'est pas ponté non plus, faute de nom correspondant chez
+ * Tailwind : `rounded` seul y vaut 0,25 rem en dur, sans jeton derrière. */
 @theme inline {
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  --text-2xs: var(--text-2xs);
+  --text-xs: var(--text-xs);
+  --text-sm: var(--text-sm);
+  --text-base: var(--text-base);
+  --text-lg: var(--text-lg);
+  --text-xl: var(--text-xl);
+  --text-2xl: var(--text-2xl);
+
   --color-base: var(--color-base);
   --color-surface: var(--color-surface);
   --color-surface-2: var(--color-surface-2);
@@ -42,8 +90,18 @@
   --color-accent-ink: var(--color-accent-ink);
   --color-border: var(--color-border);
   --color-border-strong: var(--color-border-strong);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-mono);
+
+  /* La charte a quatre marches de rayon (8 · 12 · 18 px · pilule) là où Tailwind
+   * en a neuf, et deux noms se télescopent. `rounded-lg` passe donc de 8 à 18 px
+   * sur les 130 emplacements qui l'emploient — ce qui le rend PLUS arrondi que
+   * les 38 `rounded-2xl`, restés à 16 px faute d'équivalent dans la charte. Une
+   * échelle qui s'inverse se voit mal mais se répare mal aussi : la fermer
+   * demande de renommer les classes du produit vers les quatre marches de la
+   * charte, une modification visible qui se décide à part. Noté ici pour que le
+   * prochain lecteur ne prenne pas cet ordre pour une intention. */
+  --radius-sm: var(--radius-sm);
+  --radius-lg: var(--radius-lg);
+  --radius-pill: var(--radius-pill);
 }
 
 body {
@@ -66,7 +124,15 @@ body {
   display: inline;
 }
 
-/* Smoked-glass card. */
+/* Verre fumé.
+ *
+ * La recette a été écrite pour un `--color-surface` OPAQUE (#1e293b). Depuis que
+ * la surface vient de la charte, elle est elle-même translucide (blanc à 3 %),
+ * et ce `color-mix` la dilue une seconde fois : mesuré à 2 % de blanc au lieu de
+ * 65 % d'un bleu ardoise. Les cartes tiennent encore par leur liseré, mais elles
+ * ne portent plus de fond propre. Laissé tel quel à dessein — le corriger
+ * demande de choisir sur quoi mélanger (ghostpass mélange sur `--color-base`,
+ * qui est opaque), et ce choix appartient à la charte, pas à ce fichier. */
 .glass {
   background: color-mix(in srgb, var(--color-surface) 65%, transparent);
   border: 1px solid var(--color-border);
