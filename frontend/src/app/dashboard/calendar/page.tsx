@@ -790,6 +790,24 @@ export default function CalendarPage() {
     color: colorFor(it),
   }));
 
+  // 2024-01-01 est un lundi. La grille commence le lundi (voir `monthGrid`), donc
+  // dérouler sept jours à partir de là donne les en-têtes dans le bon ordre et dans
+  // la langue de l'utilisateur. Le tableau anglais codé en dur qu'il y avait ici
+  // était le seul endroit du calendrier à ne pas passer par `locale` : la vue
+  // semaine, la grille annuelle et l'agenda le faisaient déjà.
+  const weekdayNames = useMemo(
+    () =>
+      Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(2024, 0, 1 + i);
+        return {
+          long: d.toLocaleDateString(locale, { weekday: "long" }),
+          short: d.toLocaleDateString(locale, { weekday: "short" }),
+          narrow: d.toLocaleDateString(locale, { weekday: "narrow" }),
+        };
+      }),
+    [locale],
+  );
+
   const quickPreview = quickParsed
     ? {
         date: new Date(
@@ -1219,10 +1237,10 @@ export default function CalendarPage() {
       {!locked && view === "month" && (
         <div className="glass overflow-hidden rounded-2xl">
           <div className="grid grid-cols-7 border-b border-border text-center text-xs text-muted">
-            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-              <div key={d} className="py-2">
-                <span className="hidden md:inline">{d}</span>
-                <span className="md:hidden">{d[0]}</span>
+            {weekdayNames.map((d) => (
+              <div key={d.long} className="py-2">
+                <span className="hidden md:inline">{d.short}</span>
+                <span className="md:hidden">{d.narrow}</span>
               </div>
             ))}
           </div>
