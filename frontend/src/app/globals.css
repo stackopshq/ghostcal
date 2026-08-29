@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* Polices de la suite, servies depuis l'origine. Doit rester un @import de tête. */
+@import "./fonts.css";
 
 /* GhostCal design system — dark-mode-native.
    Palette: deep night base, electric-cyan accent, smoked-glass surfaces. */
@@ -13,7 +15,6 @@
   --color-border: rgba(255, 255, 255, 0.06);
   --color-border-strong: rgba(255, 255, 255, 0.12);
   --aurora: rgba(0, 240, 255, 0.08);
-  --font-sans: var(--font-inter), system-ui, sans-serif;
 }
 
 /* Light mode — same cyan identity, daylight surfaces. Toggled via data-theme on <html>. */
@@ -42,6 +43,7 @@
   --color-border: var(--color-border);
   --color-border-strong: var(--color-border-strong);
   --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
 }
 
 body {

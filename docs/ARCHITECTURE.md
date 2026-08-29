@@ -37,8 +37,11 @@ Hard requirements that shape every decision below:
 | Email            | Resend (provider behind an interface)    | Swappable; abstract behind `EmailSender` port |
 | Payments         | Stripe Checkout (Phase 3)                | PCI scope stays on Stripe |
 
-Font note: **Inter** (OFL, no licensing friction). Geist Sans is Vercel-licensed — revisit only
-if commercial terms are cleared.
+Font note: **Hanken Grotesk** for the UI and **JetBrains Mono** for code — the Ghost suite
+charter, both OFL, both self-hosted from `frontend/public/fonts/` (see `src/app/fonts.css`).
+This note used to read *Inter*, chosen in July for the same reason — OFL, no licensing
+friction — before the suite had a shared typography. The rationale is unchanged; the family
+is now the one the other seven products carry. Geist Sans stays out: Vercel-licensed.
 
 ## 3. Architecture style — hexagonal (ports & adapters)
 
@@ -216,7 +219,7 @@ bookings respect gaps symmetrically.
   neon-grid calendar right. Availability fetched from the cached read API.
 - **Dashboard**: event-type cards, one-click copy link, schedule editor.
 - **Design system**: dark-mode-native tokens — bg `#0B0F19`, accent `#00F0FF`, card `#1E293B`,
-  muted `#94A3B8`; discreet glassmorphism (`rgba(255,255,255,0.05)` borders); Inter; subtle
+  muted `#94A3B8`; discreet glassmorphism (`rgba(255,255,255,0.05)` borders); Hanken Grotesk; subtle
   gradient only on primary CTAs.
 
 ## 9. Delivery plan (maps to the product roadmap)
