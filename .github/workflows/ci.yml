@@ -25,6 +25,15 @@ permissions:
 #
 # `host` n'est pas un contournement : cette étiquette-là appartient à l'ANCIEN exécutant et
 # atterrit dans le conteneur du runner, pas sur la VM.
+
+# uv est épinglé, pas « latest ». `setup-uv` sans version demande à l'API GitHub
+# quelle est la dernière release, anonymement : l'exécutant de la forge n'a pas de
+# jeton GitHub, et son IP publique est partagée. Le 2026-08-29 cette requête a rendu
+# `API rate limit exceeded` et fait échouer un job sur `main` qui venait de passer
+# sur la branche, à vingt minutes d'écart et sans qu'une ligne de code ait changé.
+env:
+  UV_VERSION: "0.11.8"
+
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -104,6 +113,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
+          version: ${{ env.UV_VERSION }}
           enable-cache: true
 
       - name: Sync dependencies
