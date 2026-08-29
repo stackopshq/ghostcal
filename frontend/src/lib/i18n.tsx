@@ -389,6 +389,8 @@ const en: Dict = {
   "profile.updatePassword": "Update password",
   "profile.updated": "Updated ✓",
   "profile.errCurrentWrong": "Current password is incorrect.",
+  "profile.errRewrap":
+    "Your password was changed, but your data could not be re-secured under it. Stay on this page and try again — do not sign out.",
   "profile.errPassword": "Could not change your password (min 8 characters).",
   // settings
   "settings.title": "Settings",
@@ -964,6 +966,8 @@ const fr: Dict = {
   "profile.updatePassword": "Mettre à jour le mot de passe",
   "profile.updated": "Mis à jour ✓",
   "profile.errCurrentWrong": "Le mot de passe actuel est incorrect.",
+  "profile.errRewrap":
+    "Votre mot de passe a été changé, mais vos données n'ont pas pu être resécurisées avec. Restez sur cette page et réessayez — ne vous déconnectez pas.",
   "profile.errPassword":
     "Impossible de changer votre mot de passe (8 caractères min.).",
   "settings.title": "Réglages",
