@@ -1,0 +1,79 @@
+# Projet Xcode décrit en texte : `xcodegen generate` reconstruit le .xcodeproj.
+# Un .xcodeproj est un format que deux personnes ne peuvent pas éditer sans conflit ;
+# ce fichier-ci se relit, se diffe et se fusionne. Le .xcodeproj n'est pas versionné.
+#
+# Ce projet est dérivé de celui de ghostpass, dont les commentaires expliquent chaque
+# réglage — plusieurs ont été payés d'une erreur. Une différence de taille : ghostpass
+# lie un XCFramework Rust, pas encore ghostcal. Le cœur cryptographique commun à la suite
+# est en cours d'extraction ; tant qu'il n'expose pas l'ouverture de session, cette
+# application ne peut afficher que ce qui n'est pas chiffré.
+name: Ghostcal
+options:
+  bundleIdPrefix: ch.stackops
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  # L'interface s'écrit en français ; c'est donc le français qui sert de clef dans le
+  # catalogue, et l'anglais qui en est une traduction.
+  developmentLanguage: fr
+  knownRegions: [fr, en, Base]
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    # `DEVELOPMENT_TEAM` n'est délibérément pas fixé : xcodegen substituerait à la
+    # *génération* et laisserait un littéral dans le .xcodeproj si la variable manque.
+    # Xcode y lirait une équipe portant ce nom et refuserait de signer, sur un message qui
+    # ne désigne pas sa cause. Pour une compilation scriptée :
+    #   xcodebuild ... DEVELOPMENT_TEAM=XXXXXXXXXX
+    CODE_SIGN_STYLE: Automatic
+    # Sans cela, la compilation ne relève pas les chaînes du code et le catalogue reste
+    # vide : on croirait l'application traduite alors que rien n'aurait été extrait.
+    SWIFT_EMIT_LOC_STRINGS: YES
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # iPhone seulement, et répété sur chaque cible : xcodegen pose sa propre valeur
+    # `1,2` au niveau des cibles, qui l'emporte sur celle-ci. À vérifier dans l'Info.plist
+    # du binaire construit, jamais dans le fichier de projet.
+    TARGETED_DEVICE_FAMILY: "1"
+
+targets:
+  Ghostcal:
+    type: application
+    platform: iOS
+    sources:
+      - path: Ghostcal
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ch.stackops.ghostcal
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: GhostCal
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        # Le coffre se déverrouille par Face ID une fois le cœur en place. Sans cette
+        # clef, iOS tue l'application à la première demande biométrique.
+        INFOPLIST_KEY_NSFaceIDUsageDescription: Face ID déverrouille votre agenda chiffré.
+
+  GhostcalTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [Tests]
+    dependencies:
+      - target: Ghostcal
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ch.stackops.ghostcal.tests
+        TARGETED_DEVICE_FAMILY: "1"
+        # Sans elle, la cible de test n'a pas d'Info.plist et la signature échoue —
+        # sur un message qui parle de signature alors que le manque est ailleurs.
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  Ghostcal:
+    build:
+      targets:
+        Ghostcal: all
+        GhostcalTests: [test]
+    test:
+      targets: [GhostcalTests]

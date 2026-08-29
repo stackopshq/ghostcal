@@ -40,3 +40,8 @@ compose.override.yaml
 # email addresses and encrypted-at-rest credentials — never commit one.
 backups/
 *.dump
+
+# Application iOS : tout ce que `xcodegen` et `xcodebuild` reconstruisent.
+# Un .xcodeproj ne se fusionne pas à deux ; sa description vit dans project.yml.
+apps/ios/.build/
+apps/ios/Ghostcal.xcodeproj/
