@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { Inter } from "next/font/google";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ThemeToggle from "@/components/ThemeToggle";
 import { I18nProvider } from "@/lib/i18n";
@@ -9,11 +8,11 @@ import "./globals.css";
 // Set the theme before first paint to avoid a flash. Defaults to dark (the brand is dark-native).
 const NO_FLASH_THEME = `(function(){try{var t=localStorage.getItem('gc_theme');document.documentElement.dataset.theme=(t==='light')?'light':'dark';}catch(e){document.documentElement.dataset.theme='dark';}})();`;
 
-// Inter (SIL OFL) — matches the chosen typography (see docs/adr/0001).
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-});
+// Typography lives in `globals.css`, which imports the suite's `fonts.css`: Hanken
+// Grotesk for the UI, JetBrains Mono for code, both self-hosted from `public/fonts/`.
+// GhostCal used to pull Inter through `next/font/google` — served from our own origin,
+// but a family none of the other seven products shared, and a build that had to reach
+// Google to succeed.
 
 // Origine publique du site, pour les URL absolues des aperçus de partage.
 //
@@ -99,7 +98,7 @@ export default async function RootLayout({
       lang="en"
       data-theme="dark"
       suppressHydrationWarning
-      className={`${inter.variable} h-full antialiased`}
+      className="h-full antialiased"
     >
       <head>
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: NO_FLASH_THEME }} />
