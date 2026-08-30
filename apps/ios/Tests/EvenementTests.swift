@@ -30,6 +30,41 @@ final class EvenementTests: XCTestCase {
         XCTAssertEqual(calendrier.component(.second, from: Date.prochaineDemiHeure(depart)), 0)
     }
 
+    // ─── Ce qui se modifie, et ce qui ne se modifie pas ───
+
+    /// Une ligne d'agenda n'est pas toujours un événement qu'on possède : une occurrence de
+    /// série développée par le serveur, ou un créneau venu d'un calendrier externe, n'ont
+    /// pas d'identifiant modifiable. Proposer de les corriger échouerait au moment
+    /// d'enregistrer — après que l'utilisateur a tout ressaisi.
+    func testUneLigneEnLectureSeuleNOffrePasDeModification() throws {
+        let brut = Data(
+            #"""
+            [{"source":"external","start":"2026-09-01T09:00:00+00:00",
+              "end":"2026-09-01T10:00:00+00:00","all_day":false,"calendar_id":null,
+              "event_id":"11111111-1111-1111-1111-111111111111","content":null,
+              "title":"Réunion importée","read_only":true,"reminder_minutes":null}]
+            """#.utf8)
+        let lignes = try JSONDecoder.api.decode([LigneDAgendaDTO].self, from: brut)
+        let ligne = try XCTUnwrap(lignes.first)
+        XCTAssertTrue(ligne.read_only)
+        // La règle appliquée par le service : lecture seule ⇒ pas d'identifiant modifiable.
+        XCTAssertNil(ligne.read_only ? nil : ligne.event_id)
+    }
+
+    func testUnEvenementAMoiOffreLaModification() throws {
+        let brut = Data(
+            #"""
+            [{"source":"event","start":"2026-09-01T09:00:00+00:00",
+              "end":"2026-09-01T10:00:00+00:00","all_day":false,
+              "calendar_id":"22222222-2222-2222-2222-222222222222",
+              "event_id":"11111111-1111-1111-1111-111111111111","content":"scellé",
+              "title":null,"read_only":false,"reminder_minutes":null}]
+            """#.utf8)
+        let ligne = try XCTUnwrap(
+            try JSONDecoder.api.decode([LigneDAgendaDTO].self, from: brut).first)
+        XCTAssertNotNil(ligne.read_only ? nil : ligne.event_id)
+    }
+
     // ─── Les calendriers ───
 
     /// Un calendrier partagé peut être en lecture seule. Le proposer ferait échouer

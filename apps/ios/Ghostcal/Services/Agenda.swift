@@ -52,6 +52,17 @@ struct CalendrierDTO: Decodable, Identifiable, Hashable {
     var inscriptible: Bool { can_write ?? true }
 }
 
+/// Le détail d'un événement, tel que le serveur le rend.
+struct EvenementDTO: Decodable {
+    let id: UUID
+    let calendar_id: UUID
+    let start_at: Date
+    let end_at: Date
+    let timezone: String
+    let all_day: Bool
+    let content: String?
+}
+
 /// Ce que contient un événement, une fois ouvert.
 ///
 /// Même forme que le client web, au champ près — `frontend/src/lib/zk.ts`, `EventContent`.
@@ -66,6 +77,12 @@ struct ContenuDEvenement: Codable, Equatable {
 /// Une ligne d'agenda, contenu ouvert quand on a pu.
 struct LigneDAgenda: Identifiable, Hashable {
     let id: String
+    /// L'identifiant de l'événement, quand la ligne en est un.
+    ///
+    /// Absent d'une occurrence de série développée par le serveur, et d'un créneau venu
+    /// d'un calendrier externe : ces lignes-là s'affichent mais ne se modifient pas. Le
+    /// bouton n'apparaît donc que lorsqu'il y a quelque chose à ouvrir.
+    let evenement: UUID?
     let debut: Date
     let fin: Date
     let journeeEntiere: Bool
@@ -146,6 +163,53 @@ actor Agenda {
         return reponse.id
     }
 
+    /// Le détail d'un événement, contenu ouvert.
+    ///
+    /// L'agenda n'en donne que ce qu'il faut pour l'afficher ; modifier demande le reste —
+    /// le calendrier auquel il appartient, la description, le fuseau dans lequel il a été
+    /// posé.
+    func evenement(_ id: UUID, organisation: UUID) async throws -> (
+        detail: EvenementDTO, contenu: ContenuDEvenement?
+    ) {
+        let brut: EvenementDTO = try await api.obtenir("v1/me/calendar/events/\(id.uuidString)")
+        var contenu: ContenuDEvenement?
+        if let scelle = brut.content,
+            let clair = await auth.ouvrir(scelle, organisation: organisation.uuidString)
+        {
+            contenu = try? JSONDecoder().decode(ContenuDEvenement.self, from: clair)
+        }
+        return (brut, contenu)
+    }
+
+    /// Modifie un événement. Comme à la création, le contenu est scellé vers la clé
+    /// **courante** : un événement corrigé après une rotation redevient lisible par tous,
+    /// ce qui est précisément l'effet recherché.
+    func modifierUnEvenement(
+        _ id: UUID, titre: String, description: String, lieu: String,
+        debut: Date, fin: Date, journeeEntiere: Bool, fuseau: String,
+        calendrier: UUID, organisation: UUID
+    ) async throws {
+        struct Corps: Encodable {
+            let calendar_id: String
+            let start_at: String
+            let end_at: String
+            let timezone: String
+            let all_day: Bool
+            let content: String
+        }
+        let clair = try JSONEncoder().encode(
+            ContenuDEvenement(title: titre, description: description, location: lieu))
+        let scelle = try await auth.sceller(clair, organisation: organisation.uuidString)
+        let formateur = ISO8601DateFormatter()
+        formateur.formatOptions = [.withInternetDateTime]
+        try await api.envoyerSansReponse(
+            "PUT", "v1/me/calendar/events/\(id.uuidString)",
+            Corps(
+                calendar_id: calendrier.uuidString,
+                start_at: formateur.string(from: debut), end_at: formateur.string(from: fin),
+                timezone: fuseau, all_day: journeeEntiere, content: scelle))
+    }
+
     func supprimerUnEvenement(_ id: UUID) async throws {
         struct Rien: Encodable {}
         try await api.envoyerSansReponse(
@@ -190,6 +254,7 @@ actor Agenda {
                     // tairait les suivantes.
                     id:
                         "\(brute.event_id?.uuidString ?? brute.source)-\(brute.start.timeIntervalSince1970)",
+                    evenement: brute.read_only ? nil : brute.event_id,
                     debut: brute.start, fin: brute.end, journeeEntiere: brute.all_day,
                     lectureSeule: brute.read_only, titre: titre, lieu: lieu, source: brute.source))
         }

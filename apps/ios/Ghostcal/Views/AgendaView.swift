@@ -12,6 +12,8 @@ struct AgendaView: View {
     /// modèle par onglet les laisserait diverger sans que rien ne le signale.
     @ObservedObject var modele: ModeleDAgenda
     @State private var creation = false
+    @State private var aModifier: EvenementAModifier?
+    @State private var aSupprimer: LigneDAgenda?
 
     var body: some View {
         NavigationStack {
@@ -41,6 +43,32 @@ struct AgendaView: View {
                 }
                 .environmentObject(session)
             }
+            .sheet(item: $aModifier) { cible in
+                NouvelEvenementView(
+                    cible: .existant(cible.id), organisation: modele.organisationCourante
+                ) {
+                    await modele.recharger(session, gardantLesOrganisations: true)
+                }
+                .environmentObject(session)
+            }
+            .alert(
+                "Supprimer ce rendez-vous ?", isPresented: presentation($aSupprimer),
+                presenting: aSupprimer,
+                actions: { ligne in
+                    Button("Supprimer", role: .destructive) {
+                        Task { await modele.supprimer(ligne, session) }
+                        aSupprimer = nil
+                    }
+                    Button("Annuler", role: .cancel) { aSupprimer = nil }
+                },
+                message: { _ in
+                    // Une série entière disparaît, pas seulement l'occurrence affichée : le
+                    // serveur supprime l'événement, et son développement suit.
+                    Text(
+                        "Il disparaîtra de votre agenda. S'il se répète, toutes ses occurrences disparaissent."
+                    )
+                }
+            )
             .refreshable { await modele.recharger(session) }
         }
         .tint(Color.gcAccentText)
@@ -68,7 +96,12 @@ struct AgendaView: View {
             ForEach(modele.jours) { jour in
                 GhostSection(titre: LocalizedStringKey(jour.intitule)) {
                     ForEach(jour.lignes) { ligne in
-                        LigneDAgendaVue(ligne: ligne)
+                        LigneDAgendaVue(
+                            ligne: ligne,
+                            modifier: ligne.evenement.map { id in
+                                { aModifier = EvenementAModifier(id: id) }
+                            },
+                            supprimer: ligne.evenement != nil ? { aSupprimer = ligne } : nil)
                         if ligne.id != jour.lignes.last?.id { GhostDivider() }
                     }
                 }
@@ -97,6 +130,12 @@ struct AgendaView: View {
         }
     }
 
+    private func presentation<T>(_ valeur: Binding<T?>) -> Binding<Bool> {
+        Binding(
+            get: { valeur.wrappedValue != nil },
+            set: { presente in if !presente { valeur.wrappedValue = nil } })
+    }
+
     private var menu: some View {
         Menu {
             Button("Verrouiller le coffre") { Task { await session.verrouiller() } }
@@ -108,9 +147,23 @@ struct AgendaView: View {
     }
 }
 
+/// L'événement que la feuille de modification doit ouvrir.
+///
+/// Un simple `UUID` ne suffit pas à `sheet(item:)`, qui réclame `Identifiable` — et
+/// conformer `UUID` en extension le ferait pour tout le projet, y compris là où ça n'a
+/// aucun sens.
+private struct EvenementAModifier: Identifiable {
+    let id: UUID
+}
+
 /// Une ligne d'agenda.
 private struct LigneDAgendaVue: View {
     let ligne: LigneDAgenda
+    /// Absentes quand la ligne n'est pas un événement qu'on possède — une occurrence de
+    /// série développée par le serveur, un créneau venu d'un calendrier externe. Proposer
+    /// de les modifier échouerait au moment d'enregistrer.
+    var modifier: (() -> Void)?
+    var supprimer: (() -> Void)?
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -128,6 +181,21 @@ private struct LigneDAgendaVue: View {
                 }
             }
             Spacer(minLength: 4)
+            if modifier != nil || supprimer != nil {
+                Menu {
+                    if let modifier { Button("Modifier", action: modifier) }
+                    if let supprimer {
+                        Button("Supprimer", role: .destructive, action: supprimer)
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(Color.gcMuted)
+                        .frame(width: 30, height: 30)
+                }
+                .accessibilityLabel("Actions")
+                .accessibilityIdentifier("button.eventActions")
+            }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -231,6 +299,19 @@ final class ModeleDAgenda: ObservableObject {
             let lignes = try await service.lignes(
                 de: debut, a: debut.addingTimeInterval(fenetre), organisation: organisation)
             jours = Self.parJour(lignes)
+        } catch {
+            erreur = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    func supprimer(_ ligne: LigneDAgenda, _ session: SessionStore) async {
+        guard let api = session.api, let auth = session.auth, let id = ligne.evenement else {
+            return
+        }
+        erreur = nil
+        do {
+            try await Agenda(api: api, auth: auth).supprimerUnEvenement(id)
+            await recharger(session, gardantLesOrganisations: true)
         } catch {
             erreur = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }

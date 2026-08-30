@@ -13,7 +13,8 @@ final class AgendaTests: XCTestCase {
         _ debut: Date, titre: LigneDAgenda.Titre = .dechiffre("x")
     ) -> LigneDAgenda {
         LigneDAgenda(
-            id: UUID().uuidString, debut: debut, fin: debut.addingTimeInterval(3600),
+            id: UUID().uuidString, evenement: UUID(), debut: debut,
+            fin: debut.addingTimeInterval(3600),
             journeeEntiere: false, lectureSeule: false, titre: titre, lieu: nil,
             source: "event")
     }

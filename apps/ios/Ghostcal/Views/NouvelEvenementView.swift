@@ -1,14 +1,25 @@
 import SwiftUI
 
-/// Créer un rendez-vous.
+/// Créer ou corriger un rendez-vous.
+///
+/// Le même écran pour les deux : les champs sont identiques, et les dédoubler aurait
+/// garanti qu'une correction faite d'un côté manque de l'autre. Seuls changent le titre de
+/// la barre, l'intitulé du bouton, et le fait qu'on préremplisse.
 ///
 /// Le titre, la description et le lieu sont scellés avant de partir ; les heures non. Le
 /// dire à l'écran plutôt que de le laisser deviner : quelqu'un qui choisit un gestionnaire
 /// chiffré a le droit de savoir ce que son serveur apprend, et ce qu'il n'apprend pas.
 struct NouvelEvenementView: View {
+    /// Ce qu'on édite.
+    enum Cible: Equatable {
+        case nouveau
+        case existant(UUID)
+    }
+
     @EnvironmentObject private var session: SessionStore
     @Environment(\.dismiss) private var dismiss
 
+    var cible: Cible = .nouveau
     let organisation: UUID?
     /// Rappelé à la fermeture pour que l'agenda se relise : un événement créé qui
     /// n'apparaît pas donne l'impression que rien ne s'est passé.
@@ -24,6 +35,11 @@ struct NouvelEvenementView: View {
     @State private var calendriers: [CalendrierDTO] = []
     @State private var occupe = false
     @State private var erreur: String?
+    /// Le fuseau dans lequel l'événement a été posé. Conservé tel quel à la modification :
+    /// le réécrire avec celui de l'appareil déplacerait un rendez-vous posé depuis un autre
+    /// pays, alors qu'on venait seulement corriger son titre.
+    @State private var fuseau = TimeZone.current.identifier
+    @State private var chargement = false
 
     private var vide: Bool { titre.trimmingCharacters(in: .whitespaces).isEmpty }
 
@@ -85,7 +101,7 @@ struct NouvelEvenementView: View {
                     if let erreur { messageDErreur(erreur) }
                 }
             }
-            .navigationTitle("Nouveau rendez-vous")
+            .navigationTitle(cible == .nouveau ? "Nouveau rendez-vous" : "Modifier")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -93,7 +109,7 @@ struct NouvelEvenementView: View {
                         .foregroundStyle(Color.gcMuted)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Créer") { creer() }
+                    Button(cible == .nouveau ? "Créer" : "Enregistrer") { enregistrer() }
                         .fontWeight(.semibold)
                         .foregroundStyle(vide || occupe ? Color.gcMuted : Color.gcAccentText)
                         .disabled(vide || occupe)
@@ -102,7 +118,10 @@ struct NouvelEvenementView: View {
             }
         }
         .tint(Color.gcAccentText)
-        .task { await chargerLesCalendriers() }
+        .task {
+            await chargerLesCalendriers()
+            await chargerLExistant()
+        }
     }
 
     private var selecteurDeDuree: some View {
@@ -178,7 +197,43 @@ struct NouvelEvenementView: View {
         }
     }
 
-    private func creer() {
+    /// Préremplit depuis l'événement à corriger.
+    ///
+    /// Après les calendriers : le sélecteur doit déjà connaître ses entrées pour que celle
+    /// de l'événement s'y retrouve, sinon il afficherait le premier calendrier venu et
+    /// déplacerait le rendez-vous au premier enregistrement.
+    private func chargerLExistant() async {
+        guard case .existant(let id) = cible, let api = session.api, let auth = session.auth,
+            let organisation
+        else { return }
+        chargement = true
+        defer { chargement = false }
+        do {
+            let (detail, contenu) = try await Agenda(api: api, auth: auth)
+                .evenement(id, organisation: organisation)
+            titre = contenu?.title ?? ""
+            lieu = contenu?.location ?? ""
+            description = contenu?.description ?? ""
+            debut = detail.start_at
+            duree = max(detail.end_at.timeIntervalSince(detail.start_at), 900)
+            journeeEntiere = detail.all_day
+            calendrier = detail.calendar_id
+            fuseau = detail.timezone
+            if contenu == nil {
+                // Le contenu est scellé et cette clé ne l'ouvre pas. Enregistrer écraserait
+                // un titre qu'on n'a jamais vu par un champ vide : on le dit, et on laisse
+                // l'utilisateur décider de renoncer.
+                erreur = String(
+                    localized:
+                        "Le contenu de ce rendez-vous est chiffré avec une clé que vous n'avez pas. Enregistrer remplacerait son titre et ses notes."
+                )
+            }
+        } catch {
+            erreur = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    private func enregistrer() {
         guard let api = session.api, let auth = session.auth, let organisation,
             let calendrier
         else {
@@ -200,11 +255,20 @@ struct NouvelEvenementView: View {
                     ? calendrierCivil.date(byAdding: .day, value: 1, to: debutReel) ?? debutReel
                     : debut.addingTimeInterval(duree)
 
-                try await Agenda(api: api, auth: auth).creerUnEvenement(
-                    titre: titre.trimmingCharacters(in: .whitespaces),
-                    description: description, lieu: lieu,
-                    debut: debutReel, fin: finReelle, journeeEntiere: journeeEntiere,
-                    calendrier: calendrier, organisation: organisation)
+                let service = Agenda(api: api, auth: auth)
+                let titrePropre = titre.trimmingCharacters(in: .whitespaces)
+                switch cible {
+                case .nouveau:
+                    try await service.creerUnEvenement(
+                        titre: titrePropre, description: description, lieu: lieu,
+                        debut: debutReel, fin: finReelle, journeeEntiere: journeeEntiere,
+                        calendrier: calendrier, organisation: organisation)
+                case .existant(let id):
+                    try await service.modifierUnEvenement(
+                        id, titre: titrePropre, description: description, lieu: lieu,
+                        debut: debutReel, fin: finReelle, journeeEntiere: journeeEntiere,
+                        fuseau: fuseau, calendrier: calendrier, organisation: organisation)
+                }
                 await apresCreation()
                 dismiss()
             } catch {
