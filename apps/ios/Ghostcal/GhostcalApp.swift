@@ -16,7 +16,7 @@ struct GhostcalApp: App {
             Group {
                 switch session.etat {
                 case .ouvert:
-                    AgendaView()
+                    AccueilView()
                 case .dehors, .coffreFerme:
                     ConnexionView()
                 }

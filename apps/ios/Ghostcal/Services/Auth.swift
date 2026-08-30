@@ -85,17 +85,31 @@ actor Auth {
             // à lire ce qui a été scellé avant une rotation.
             if var deja = ouvertes[generation.organization_id] {
                 deja = ClesOuvertes(
-                    organisation: deja.organisation, privee: deja.privee,
-                    anterieures: deja.anterieures + [privee])
+                    organisation: deja.organisation, publique: deja.publique,
+                    privee: deja.privee, anterieures: deja.anterieures + [privee])
                 ouvertes[generation.organization_id] = deja
             } else {
                 ouvertes[generation.organization_id] = ClesOuvertes(
-                    organisation: generation.organization_id, privee: privee, anterieures: [])
+                    organisation: generation.organization_id,
+                    publique: generation.public_key, privee: privee, anterieures: [])
             }
         }
 
         guard !ouvertes.isEmpty else { throw AuthError.phraseIncorrecte }
         cles = ouvertes
+    }
+
+    /// Scelle un contenu vers la clé publique **courante** de l'organisation.
+    ///
+    /// Toujours la courante, jamais une génération retirée : sceller avec une ancienne
+    /// produirait un contenu que les membres n'ayant que la nouvelle ne pourraient pas
+    /// ouvrir — et l'échec ne se verrait qu'au moment de la lecture, chez quelqu'un
+    /// d'autre.
+    func sceller(_ clair: Data, organisation: String, domaine: String = "ghostcal-zk-v1") throws
+        -> String
+    {
+        guard let cles = cles[organisation] else { throw AuthError.coffreFerme }
+        return try scellerVers(publique: cles.publique, clair: clair, domaine: domaine)
     }
 
     /// Ouvre un contenu scellé, en essayant les générations dans l'ordre.
@@ -116,9 +130,14 @@ actor Auth {
 
 enum AuthError: LocalizedError {
     case phraseIncorrecte
+    /// On a tenté d'écrire alors que les clés ne sont pas ouvertes. Distinct d'une phrase
+    /// fausse : ici rien n'a été tenté, il n'y a simplement rien pour sceller.
+    case coffreFerme
 
     var errorDescription: String? {
         switch self {
+        case .coffreFerme:
+            return "Le coffre est fermé : impossible de chiffrer ce contenu."
         case .phraseIncorrecte:
             // Ni « mot de passe » ni « phrase de récupération » : les trois chemins
             // aboutissent ici, et nommer le mauvais enverrait chercher à côté.

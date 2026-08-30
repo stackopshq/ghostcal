@@ -8,7 +8,9 @@ import SwiftUI
 /// répond directement.
 struct AgendaView: View {
     @EnvironmentObject private var session: SessionStore
-    @StateObject private var modele = ModeleDAgenda()
+    /// Tenu par l'accueil : les deux onglets doivent parler de la même organisation, et un
+    /// modèle par onglet les laisserait diverger sans que rien ne le signale.
+    @ObservedObject var modele: ModeleDAgenda
 
     var body: some View {
         NavigationStack {

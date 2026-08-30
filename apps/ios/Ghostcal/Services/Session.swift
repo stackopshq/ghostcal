@@ -15,6 +15,9 @@ struct JetonsDTO: Decodable {
 /// générations rendrait illisible tout ce qui a été scellé avant une rotation.
 struct GenerationDeClesDTO: Decodable {
     let organization_id: String
+    /// La clé publique de cette génération. Tout ce qu'on crée est scellé vers celle de la
+    /// génération courante — sans elle, l'application ne saurait que lire.
+    let public_key: String
     let sealed_org_key: String?
     let wrapped_private_key: String
     let wrap_salt: String
@@ -41,6 +44,10 @@ struct PaireDeClesDTO: Decodable {
 /// recréerait une divergence dès qu'une plateforme en réclame une autre.
 struct ClesOuvertes {
     let organisation: String
+    /// La clé publique **courante**. C'est vers elle que tout nouveau contenu est scellé,
+    /// jamais vers une génération retirée : ce qui serait scellé avec une ancienne
+    /// deviendrait illisible pour qui n'a que la nouvelle.
+    let publique: String
     /// La clé privée X25519, en PKCS#8 base64 — la forme que le cœur attend.
     let privee: String
     /// Les générations précédentes, à essayer dans l'ordre pour ce qui est plus ancien
