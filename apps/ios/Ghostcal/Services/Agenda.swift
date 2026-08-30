@@ -32,6 +32,26 @@ struct LigneDAgendaDTO: Decodable {
     let reminder_minutes: Int?
 }
 
+/// Un calendrier de l'utilisateur.
+///
+/// `can_write` compte : un calendrier partagé par quelqu'un d'autre peut être en lecture
+/// seule. Proposer d'y écrire ferait échouer l'enregistrement après que l'utilisateur a
+/// tout saisi — le pire moment pour apprendre qu'on n'avait pas le droit.
+struct CalendrierDTO: Decodable, Identifiable, Hashable {
+    let id: UUID
+    let name: String
+    let color: String
+    let is_default: Bool
+    let is_shared: Bool
+    let owner_name: String?
+    let can_write: Bool?
+
+    /// Absent d'un serveur antérieur au champ : on retombe alors sur « oui », qui était
+    /// le comportement d'avant. Refuser par défaut priverait d'écriture sur un serveur
+    /// parfaitement fonctionnel.
+    var inscriptible: Bool { can_write ?? true }
+}
+
 /// Ce que contient un événement, une fois ouvert.
 ///
 /// Même forme que le client web, au champ près — `frontend/src/lib/zk.ts`, `EventContent`.
@@ -81,6 +101,55 @@ actor Agenda {
 
     func organisations() async throws -> [OrganisationDTO] {
         try await api.obtenir("v1/me/organizations")
+    }
+
+    func calendriers() async throws -> [CalendrierDTO] {
+        try await api.obtenir("v1/me/calendars")
+    }
+
+    /// Crée un événement. Le contenu est scellé ici ; les heures partent en clair.
+    ///
+    /// Ce n'est pas une concession : sans les heures, le serveur ne saurait ni répondre
+    /// « occupé » à un lien de disponibilité, ni envoyer un rappel. Il apprend qu'un
+    /// créneau est pris, jamais par quoi.
+    @discardableResult
+    func creerUnEvenement(
+        titre: String, description: String = "", lieu: String = "",
+        debut: Date, fin: Date, journeeEntiere: Bool,
+        calendrier: UUID, organisation: UUID
+    ) async throws -> UUID {
+        struct Corps: Encodable {
+            let calendar_id: String
+            let start_at: String
+            let end_at: String
+            let timezone: String
+            let all_day: Bool
+            let content: String
+        }
+        struct Cree: Decodable { let id: UUID }
+
+        let clair = try JSONEncoder().encode(
+            ContenuDEvenement(title: titre, description: description, location: lieu))
+        let scelle = try await auth.sceller(clair, organisation: organisation.uuidString)
+        let formateur = ISO8601DateFormatter()
+        formateur.formatOptions = [.withInternetDateTime]
+        let reponse: Cree = try await api.envoyer(
+            "POST", "v1/me/calendar/events",
+            Corps(
+                calendar_id: calendrier.uuidString,
+                start_at: formateur.string(from: debut), end_at: formateur.string(from: fin),
+                // Le fuseau de l'appareil : c'est celui dans lequel l'utilisateur a lu les
+                // heures qu'il vient de choisir. En envoyer un autre décalerait ce qu'il a
+                // sous les yeux.
+                timezone: TimeZone.current.identifier,
+                all_day: journeeEntiere, content: scelle))
+        return reponse.id
+    }
+
+    func supprimerUnEvenement(_ id: UUID) async throws {
+        struct Rien: Encodable {}
+        try await api.envoyerSansReponse(
+            "DELETE", "v1/me/calendar/events/\(id.uuidString)", Rien())
     }
 
     /// L'agenda entre deux dates.

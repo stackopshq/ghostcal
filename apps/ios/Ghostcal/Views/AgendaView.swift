@@ -11,6 +11,7 @@ struct AgendaView: View {
     /// Tenu par l'accueil : les deux onglets doivent parler de la même organisation, et un
     /// modèle par onglet les laisserait diverger sans que rien ne le signale.
     @ObservedObject var modele: ModeleDAgenda
+    @State private var creation = false
 
     var body: some View {
         NavigationStack {
@@ -24,6 +25,21 @@ struct AgendaView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) { menu }
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        creation = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityLabel("Nouveau rendez-vous")
+                    .accessibilityIdentifier("button.newEvent")
+                }
+            }
+            .sheet(isPresented: $creation) {
+                NouvelEvenementView(organisation: modele.organisationCourante) {
+                    await modele.recharger(session, gardantLesOrganisations: true)
+                }
+                .environmentObject(session)
             }
             .refreshable { await modele.recharger(session) }
         }
