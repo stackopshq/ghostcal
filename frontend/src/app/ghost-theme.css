@@ -1,0 +1,40 @@
+/* Thème GhostCal — suite Ghost.
+ *
+ * FICHIER GÉNÉRÉ par tools/brand/emit_theme.py. Ne pas éditer à la main :
+ * régénérer. L'échelle et les neutres sont communs aux huit produits ;
+ * seul l'accent distingue celui-ci, et il vient de PRODUITS, qui le porte
+ * déjà pour les logos.
+ */
+
+:root {
+  /* Accent — propre au produit. */
+  --color-accent: #00F0FF;
+  --color-accent-light: #9CFBFF;
+  --color-accent-deep: #0E8FA8;
+  --color-accent-ink: #04122b;
+  --aurora: color-mix(in srgb, #00F0FF 8%, transparent);
+
+  /* Neutres — communs à la suite. */
+  --color-base: #0b0f19;
+  --color-surface: rgba(255, 255, 255, 0.03);
+  --color-surface-2: rgba(255, 255, 255, 0.05);
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-border-strong: rgba(255, 255, 255, 0.12);
+  --color-foreground: #e8ecf5;
+  --color-muted: rgba(232, 236, 245, 0.62);
+
+  /* Échelle typographique — commune à la suite. */
+  --text-2xs: 0.75rem;
+  --text-xs: 0.8125rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+
+  /* Rayons — communs à la suite. */
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 18px;
+  --radius-pill: 999px;
+}
