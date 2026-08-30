@@ -48,3 +48,10 @@ apps/ios/Ghostcal.xcodeproj/
 apps/ios/Generated/
 apps/ios/Headers/
 apps/ios/GhostcalCrypto.xcframework/
+
+# Maquette Flutter : produits de construction
+apps/mobile/build/
+apps/mobile/.dart_tool/
+apps/mobile/rust/target/
+apps/mobile/ios/Pods/
+apps/mobile/macos/Pods/

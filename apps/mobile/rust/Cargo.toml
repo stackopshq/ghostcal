@@ -1,0 +1,23 @@
+[package]
+name = "rust_lib_ghostcal"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+flutter_rust_bridge = "=2.13.0"
+# Le cœur commun de la suite, pris **directement** et non à travers son binding UniFFI.
+#
+# Deux générateurs coexistent au-dessus du même cœur : UniFFI pour les extensions natives
+# — remplissage automatique iOS et Android, qui ne peuvent pas être en Flutter — et
+# `flutter_rust_bridge` pour l'application. Les empiler l'un sur l'autre aurait ajouté une
+# frontière sans rien apporter ; ils sont donc frères, chacun au-dessus de `ghost-crypto`.
+#
+# Chemin relatif assumé, comme pour l'XCFramework : la suite vit à côté du produit. La
+# variable `GHOSTSUITE` sert au script de construction, pas à Cargo, qui n'en lit pas.
+ghost-crypto = { path = "../../../../suite/crates/ghost-crypto" }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
