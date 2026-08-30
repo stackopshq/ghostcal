@@ -8,6 +8,8 @@ import SwiftUI
 struct ReglagesView: View {
     @EnvironmentObject private var session: SessionStore
     @StateObject private var modele = ModeleDeReglages()
+    @State private var sondageOuvert: SondageDTO?
+    @State private var membreARetirer: MembreDTO?
 
     var body: some View {
         NavigationStack {
@@ -30,6 +32,27 @@ struct ReglagesView: View {
             .navigationTitle("Réglages")
             .navigationBarTitleDisplayMode(.inline)
             .refreshable { await modele.recharger(session) }
+            .sheet(item: $sondageOuvert) { sondage in
+                SondageView(sondage: sondage) { await modele.recharger(session) }
+                    .environmentObject(session)
+            }
+            .alert(
+                "Retirer ce membre ?", isPresented: presentation($membreARetirer),
+                presenting: membreARetirer,
+                actions: { membre in
+                    Button("Retirer", role: .destructive) {
+                        Task { await modele.retirer(membre, session) }
+                        membreARetirer = nil
+                    }
+                    Button("Annuler", role: .cancel) { membreARetirer = nil }
+                },
+                message: { membre in
+                    // Ce que la personne garde malgré le retrait : c'est la limite du
+                    // chiffrement, et la taire donnerait une fausse impression de sécurité.
+                    Text(
+                        "\(membre.name) perdra l'accès à l'équipe. Ce qu'elle a déjà lu reste connu d'elle."
+                    )
+                })
         }
         .tint(Color.gcAccentText)
         .task { await modele.demarrer(session) }
@@ -115,16 +138,28 @@ struct ReglagesView: View {
             } else {
                 VStack(alignment: .leading, spacing: 10) {
                     ForEach(modele.sondages) { sondage in
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(verbatim: sondage.title)
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(Color.gcInk)
-                            Text(
-                                "\(sondage.option_count) créneau(x) · \(sondage.vote_count) vote(s)"
-                            )
-                            .font(.caption)
-                            .foregroundStyle(Color.gcMuted)
+                        Button {
+                            sondageOuvert = sondage
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(verbatim: sondage.title)
+                                        .font(.subheadline.weight(.medium))
+                                        .foregroundStyle(Color.gcInk)
+                                    Text(
+                                        "\(sondage.option_count) créneau(x) · \(sondage.vote_count) vote(s)"
+                                    )
+                                    .font(.caption)
+                                    .foregroundStyle(Color.gcMuted)
+                                }
+                                Spacer(minLength: 8)
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(Color.gcMuted)
+                            }
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("button.openPoll")
                         if sondage.id != modele.sondages.last?.id { GhostDivider() }
                     }
                 }
@@ -155,12 +190,25 @@ struct ReglagesView: View {
                                     .foregroundStyle(Color.gcMuted)
                             }
                             Spacer(minLength: 8)
-                            Text(verbatim: membre.role_lisible)
-                                .font(.caption2.weight(.medium))
-                                .foregroundStyle(Color.gcAccentText)
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 3)
-                                .background(Color.gcAccent.opacity(0.16), in: Capsule())
+                            Menu {
+                                Button("Faire administrateur") {
+                                    Task { await modele.changerLeRole(membre, "admin", session) }
+                                }
+                                Button("Rendre membre") {
+                                    Task { await modele.changerLeRole(membre, "member", session) }
+                                }
+                                Button("Retirer de l'équipe", role: .destructive) {
+                                    membreARetirer = membre
+                                }
+                            } label: {
+                                Text(verbatim: membre.role_lisible)
+                                    .font(.caption2.weight(.medium))
+                                    .foregroundStyle(Color.gcAccentText)
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 3)
+                                    .background(Color.gcAccent.opacity(0.16), in: Capsule())
+                            }
+                            .accessibilityIdentifier("button.memberRole")
                         }
                         if membre.id != modele.membres.last?.id { GhostDivider() }
                     }
@@ -192,6 +240,12 @@ struct ReglagesView: View {
             }
             .padding(14)
         }
+    }
+
+    private func presentation<T>(_ valeur: Binding<T?>) -> Binding<Bool> {
+        Binding(
+            get: { valeur.wrappedValue != nil },
+            set: { presente in if !presente { valeur.wrappedValue = nil } })
     }
 
     private func ligne(_ icone: String, _ texte: Text) -> some View {
@@ -234,6 +288,29 @@ final class ModeleDeReglages: ObservableObject {
         do { horaires = try await service.horaires() } catch { noter(error) }
         do { sondages = try await service.sondages() } catch { noter(error) }
         do { membres = try await service.membres() } catch { noter(error) }
+    }
+
+    func changerLeRole(_ membre: MembreDTO, _ role: String, _ session: SessionStore) async {
+        guard let api = session.api, membre.role != role else { return }
+        erreur = nil
+        do {
+            // Le serveur rend la liste à jour : on la prend plutôt que de relire, deux
+            // appels laissant une fenêtre où l'écran montrerait l'ancien rôle.
+            membres = try await Reglages(api: api).changerLeRole(membre.user_id, role: role)
+        } catch {
+            noter(error)
+        }
+    }
+
+    func retirer(_ membre: MembreDTO, _ session: SessionStore) async {
+        guard let api = session.api else { return }
+        erreur = nil
+        do {
+            try await Reglages(api: api).retirerLeMembre(membre.user_id)
+            membres = try await Reglages(api: api).membres()
+        } catch {
+            noter(error)
+        }
     }
 
     private func noter(_ erreurSurvenue: Error) {

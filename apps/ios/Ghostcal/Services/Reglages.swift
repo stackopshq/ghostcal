@@ -57,6 +57,34 @@ struct SondageDTO: Decodable, Identifiable, Hashable {
     let vote_count: Int
 }
 
+/// Un créneau proposé dans un sondage.
+struct OptionDeSondageDTO: Decodable, Identifiable, Hashable {
+    let id: String
+    let start_at: Date
+    let end_at: Date
+    let votes: Int
+}
+
+/// Qui a voté, et pour quoi.
+struct VotantDTO: Decodable, Hashable {
+    let name: String
+    let email: String
+    let option_ids: [String]
+}
+
+/// Un sondage au complet.
+struct SondageDetailDTO: Decodable {
+    let id: UUID
+    let slug: String
+    let title: String
+    let duration_min: Int
+    let status: String
+    let owner_name: String
+    let finalized_option_id: String?
+    let options: [OptionDeSondageDTO]
+    let voters: [VotantDTO]
+}
+
 // MARK: - Profil
 
 struct ProfilDTO: Codable, Equatable {
@@ -108,6 +136,38 @@ actor Reglages {
 
     func sondages() async throws -> [SondageDTO] {
         try await api.obtenir("v1/me/polls")
+    }
+
+    func sondage(_ id: UUID) async throws -> SondageDetailDTO {
+        try await api.obtenir("v1/me/polls/\(id.uuidString)")
+    }
+
+    /// Retient un créneau : le sondage se ferme et l'événement se crée côté serveur.
+    @discardableResult
+    func finaliser(_ id: UUID, option: String) async throws -> SondageDetailDTO {
+        struct Corps: Encodable { let option_id: String }
+        return try await api.envoyer(
+            "POST", "v1/me/polls/\(id.uuidString)/finalize", Corps(option_id: option))
+    }
+
+    func annulerLeSondage(_ id: UUID) async throws {
+        struct Rien: Encodable {}
+        try await api.envoyerSansReponse("DELETE", "v1/me/polls/\(id.uuidString)", Rien())
+    }
+
+    /// Change le rôle d'un membre. Le serveur rend la liste à jour, qu'on réutilise plutôt
+    /// que de relire : deux appels donneraient deux vérités possibles entre-temps.
+    @discardableResult
+    func changerLeRole(_ utilisateur: String, role: String) async throws -> [MembreDTO] {
+        struct Corps: Encodable { let role: String }
+        return try await api.envoyer(
+            "PATCH", "v1/me/organization/members/\(utilisateur)", Corps(role: role))
+    }
+
+    func retirerLeMembre(_ utilisateur: String) async throws {
+        struct Rien: Encodable {}
+        try await api.envoyerSansReponse(
+            "DELETE", "v1/me/organization/members/\(utilisateur)", Rien())
     }
 
     func profil() async throws -> ProfilDTO {
