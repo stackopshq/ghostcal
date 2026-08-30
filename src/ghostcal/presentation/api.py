@@ -115,7 +115,7 @@ def create_app() -> FastAPI:
             access_logger.info(
                 "%s %s -> %s (%sms)",
                 request.method,
-                request.url.path,
+                route,
                 response.status_code,
                 round(elapsed * 1000, 1),
             )
