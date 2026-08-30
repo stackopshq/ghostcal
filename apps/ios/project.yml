@@ -43,6 +43,13 @@ targets:
     platform: iOS
     sources:
       - path: Ghostcal
+      # Liaisons produites par tools/ios/build-xcframework.sh depuis le cœur commun de la
+      # suite : compilées avec l'application, jamais éditées, jamais versionnées.
+      - path: Generated
+    dependencies:
+      # Bibliothèque statique : liée, jamais embarquée.
+      - framework: GhostcalCrypto.xcframework
+        embed: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ch.stackops.ghostcal

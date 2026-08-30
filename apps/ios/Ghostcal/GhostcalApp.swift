@@ -2,35 +2,26 @@ import SwiftUI
 
 /// Point d'entrée de GhostCal iOS.
 ///
-/// L'application est incomplète et le sait : le cœur cryptographique commun à la suite
-/// est en cours d'extraction, et sans lui rien de chiffré ne s'ouvre — ni les événements,
-/// ni les tâches, ni le nom des personnes qui ont réservé. La connexion elle-même en
-/// dépend : le mot de passe dérive la clé qui déballe la clé privée de l'organisation.
-///
-/// Ce qui est bâti d'abord est donc ce qui n'en dépend pas : le client HTTP, la charte,
-/// et les écrans dont les données voyagent en clair — types de rendez-vous,
-/// disponibilités, sondages, statistiques, profil, équipe.
+/// Le cœur cryptographique commun à la suite est branché : `tools/ios/build-xcframework.sh`
+/// construit `ghost-crypto-ffi` depuis ghostsuite et en génère les bindings. Tout ce qui
+/// est chiffré en dépend — les événements, les tâches, le nom des personnes qui ont
+/// réservé — et la connexion elle-même : la phrase dérive la clé qui déballe la clé privée
+/// de l'organisation.
 @main
 struct GhostcalApp: App {
+    @StateObject private var session = SessionStore()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
-        }
-    }
-}
-
-struct ContentView: View {
-    var body: some View {
-        GhostScreen {
-            VStack(spacing: 14) {
-                Text("GhostCal")
-                    .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    .foregroundStyle(Color.gcInk)
-                Text("En construction.")
-                    .foregroundStyle(Color.gcMuted)
+            Group {
+                switch session.etat {
+                case .ouvert:
+                    AgendaView()
+                case .dehors, .coffreFerme:
+                    ConnexionView()
+                }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.top, 60)
+            .environmentObject(session)
         }
     }
 }

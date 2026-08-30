@@ -45,3 +45,6 @@ backups/
 # Un .xcodeproj ne se fusionne pas à deux ; sa description vit dans project.yml.
 apps/ios/.build/
 apps/ios/Ghostcal.xcodeproj/
+apps/ios/Generated/
+apps/ios/Headers/
+apps/ios/GhostcalCrypto.xcframework/

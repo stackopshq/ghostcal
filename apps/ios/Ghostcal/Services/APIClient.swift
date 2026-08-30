@@ -98,7 +98,9 @@ actor APIClient {
         _ methode: String, _ chemin: String, requete: [String: String] = [:], corps: Data?,
         dejaRafraichi: Bool = false
     ) async throws -> Data {
-        guard var composants = URLComponents(url: base.appending(path: chemin), resolvingAgainstBaseURL: false)
+        guard
+            var composants = URLComponents(
+                url: base.appending(path: chemin), resolvingAgainstBaseURL: false)
         else { throw APIError.badURL }
         if !requete.isEmpty {
             composants.queryItems = requete.map { URLQueryItem(name: $0.key, value: $0.value) }
