@@ -45,6 +45,44 @@ final class ReunionsTests: XCTestCase {
         XCTAssertEqual(triees, ["Alpha", "Miel", "Zèbre"])
     }
 
+    // ─── Ce qui arrive quand un champ cesse d'être en clair ───
+
+    /// Une décision prise pour la suite (ADR-0038) prévoit un mode où l'identité de
+    /// l'invité est scellée : l'adresse cesserait d'être en clair. Avec un champ
+    /// obligatoire, le décodage de **toute la liste** échouerait, et l'écran des réunions
+    /// deviendrait vide sans rapport apparent avec la cause.
+    ///
+    /// Le test ne vérifie pas une fonctionnalité future : il vérifie qu'un client ne perd
+    /// pas un écran entier parce qu'un champ est devenu facultatif.
+    func testUneReunionSansAdresseSeDecodeQuandMeme() throws {
+        let brut = Data(
+            #"""
+            [{"id":"11111111-1111-1111-1111-111111111111","event_title":"Découverte",
+              "invitee_name":null,"invitee_email":null,"invitee_timezone":"Europe/Zurich",
+              "start_at":"2026-09-01T09:00:00+00:00","end_at":"2026-09-01T10:00:00+00:00",
+              "status":"confirmed","location":null,"meeting_url":null,
+              "invitee_private":"scellé"}]
+            """#.utf8)
+        let reunions = try JSONDecoder.api.decode([ReunionDTO].self, from: brut)
+        XCTAssertEqual(reunions.count, 1, "la liste se décode malgré l'adresse absente")
+        XCTAssertNil(try XCTUnwrap(reunions.first).invitee_email)
+    }
+
+    func testUneReunionAvecAdresseSeDecodeCommeAvant() throws {
+        let brut = Data(
+            #"""
+            [{"id":"11111111-1111-1111-1111-111111111111","event_title":"Découverte",
+              "invitee_name":"Clara","invitee_email":"clara@stackops.ch",
+              "invitee_timezone":"Europe/Zurich",
+              "start_at":"2026-09-01T09:00:00+00:00","end_at":"2026-09-01T10:00:00+00:00",
+              "status":"confirmed","location":null,"meeting_url":null,
+              "invitee_private":null}]
+            """#.utf8)
+        let reunion = try XCTUnwrap(
+            try JSONDecoder.api.decode([ReunionDTO].self, from: brut).first)
+        XCTAssertEqual(reunion.invitee_email, "clara@stackops.ch")
+    }
+
     // ─── Le statut ───
 
     /// Un statut inconnu du serveur ne doit pas faire échouer la lecture de la liste : une

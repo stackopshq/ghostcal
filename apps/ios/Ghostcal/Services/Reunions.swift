@@ -17,7 +17,17 @@ struct ReunionDTO: Decodable {
     let id: UUID
     let event_title: String
     let invitee_name: String?
-    let invitee_email: String
+    /// Optionnel **par prudence**, alors que le serveur le rend toujours aujourd'hui.
+    ///
+    /// Une décision prise cette nuit (ADR-0038) prévoit un mode où l'identité de l'invité
+    /// est scellée vers la clé de l'organisation : l'adresse cesserait alors d'être en
+    /// clair. Avec un champ obligatoire, le décodage de **toute la liste** échouerait —
+    /// l'écran des réunions deviendrait vide chez qui choisit ce mode, sans rapport
+    /// apparent avec la cause.
+    ///
+    /// Ce n'est pas de l'anticipation gratuite : un client qui perd un écran entier parce
+    /// qu'un champ est devenu facultatif est fragile indépendamment de cette décision.
+    let invitee_email: String?
     let invitee_timezone: String
     let start_at: Date
     let end_at: Date
@@ -42,6 +52,8 @@ struct Reunion: Identifiable, Hashable {
     let debut: Date
     let fin: Date
     let statut: Statut
+    /// Vide quand le serveur ne le rend pas. L'écran retombe alors sur le nom déchiffré,
+    /// et à défaut ne montre rien plutôt qu'une ligne vide qui ressemblerait à un défaut.
     let courriel: String
     let fuseau: String
     let lieu: String?
@@ -121,7 +133,7 @@ actor Reunions {
                 Reunion(
                     id: brute.id, intitule: brute.event_title, debut: brute.start_at,
                     fin: brute.end_at, statut: Reunion.Statut(brute.status),
-                    courriel: brute.invitee_email, fuseau: brute.invitee_timezone,
+                    courriel: brute.invitee_email ?? "", fuseau: brute.invitee_timezone,
                     lieu: brute.location, adresse: brute.meeting_url.flatMap(URL.init(string:)),
                     invite: invite, reponses: reponses, notes: notes))
         }

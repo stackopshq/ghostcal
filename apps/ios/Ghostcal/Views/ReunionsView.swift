@@ -35,9 +35,13 @@ struct ReunionsView: View {
                 message: { reunion in
                     // Dire que l'invité sera prévenu : c'est le geste qui touche quelqu'un
                     // d'autre, et il vaut mieux le savoir avant que de le découvrir après.
-                    Text(
-                        "« \(reunion.intitule) » sera annulée et \(reunion.courriel) en sera informé."
-                    )
+                    // L'adresse peut ne pas être en clair : dire « et  en sera informé »
+                    // avec un trou serait plus inquiétant que de ne pas la nommer.
+                    reunion.courriel.isEmpty
+                        ? Text("« \(reunion.intitule) » sera annulée et l'invité en sera informé.")
+                        : Text(
+                            "« \(reunion.intitule) » sera annulée et \(reunion.courriel) en sera informé."
+                        )
                 })
         }
         .tint(Color.gcAccentText)
@@ -149,14 +153,23 @@ private struct LigneDeReunion: View {
     @ViewBuilder private var invite: some View {
         switch reunion.invite {
         case .enClair(let nom), .dechiffre(let nom):
-            ligne("person", Text(verbatim: "\(nom) · \(reunion.courriel)"))
+            ligne(
+                "person",
+                Text(verbatim: reunion.courriel.isEmpty ? nom : "\(nom) · \(reunion.courriel)"))
         case .illisible:
-            // Le nom est scellé et cette clé ne l'ouvre pas. L'adresse, elle, est en
-            // clair : identifier la personne par son adresse vaut mieux que ne rien
-            // montrer, et le cadenas dit pourquoi le nom manque.
-            ligne("lock", Text(verbatim: reunion.courriel))
+            // Le nom est scellé et cette clé ne l'ouvre pas. Quand l'adresse est en clair,
+            // elle identifie tout de même la personne — mieux que rien, et le cadenas dit
+            // pourquoi le nom manque. Quand elle ne l'est pas non plus, on le dit aussi :
+            // une ligne muette ressemblerait à un défaut d'affichage.
+            ligne(
+                "lock",
+                reunion.courriel.isEmpty
+                    ? Text("Invité chiffré") : Text(verbatim: reunion.courriel))
         case .inconnu:
-            ligne("person", Text(verbatim: reunion.courriel))
+            ligne(
+                "person",
+                reunion.courriel.isEmpty
+                    ? Text("Invité inconnu") : Text(verbatim: reunion.courriel))
         }
     }
 
