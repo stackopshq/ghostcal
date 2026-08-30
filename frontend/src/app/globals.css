@@ -20,6 +20,20 @@
 @import "./ghost-theme.css";
 @import "tailwindcss";
 
+/* Les jetons que la charte ne porte pas encore, et qui vivent donc dans la
+ * couche locale du produit plutôt que dans le fichier généré — qu'une
+ * régénération écraserait sans rien dire.
+ *
+ * `--glass` est le fond du verre fumé, en mode sombre. La charte décrit des
+ * surfaces (`--color-surface`, `--color-surface-2`) mais pas de recette de
+ * carte ; ghostpass a tranché la même question dans son propre fichier, avec
+ * son utilitaire `carte`. On reprend sa valeur pour que les deux produits aient
+ * la même matière. Le raisonnement de la mesure est au pied du fichier, sur
+ * `.glass`. */
+:root {
+  --glass: color-mix(in srgb, var(--color-foreground) 4%, transparent);
+}
+
 /* Mode clair — même identité cyan, surfaces de plein jour. Basculé par
  * `data-theme` sur <html>.
  *
@@ -43,6 +57,12 @@
   --color-border: rgba(15, 23, 42, 0.1);
   --color-border-strong: rgba(15, 23, 42, 0.16);
   --aurora: rgba(8, 145, 178, 0.1);
+
+  /* En plein jour la surface de ce bloc est OPAQUE (#ffffff), donc la recette
+   * d'origine tient : 65 % de blanc sur une page bleutée se détache. C'est
+   * seulement en mode sombre que la surface est devenue translucide et que le
+   * mélange ne donnait plus rien — voir `--glass` sous le thème généré. */
+  --glass: color-mix(in srgb, var(--color-surface) 65%, transparent);
 }
 
 /* Le pont entre les jetons de la charte et les classes Tailwind. Aucune valeur
@@ -126,15 +146,29 @@ body {
 
 /* Verre fumé.
  *
- * La recette a été écrite pour un `--color-surface` OPAQUE (#1e293b). Depuis que
- * la surface vient de la charte, elle est elle-même translucide (blanc à 3 %),
- * et ce `color-mix` la dilue une seconde fois : mesuré à 2 % de blanc au lieu de
- * 65 % d'un bleu ardoise. Les cartes tiennent encore par leur liseré, mais elles
- * ne portent plus de fond propre. Laissé tel quel à dessein — le corriger
- * demande de choisir sur quoi mélanger (ghostpass mélange sur `--color-base`,
- * qui est opaque), et ce choix appartient à la charte, pas à ce fichier. */
+ * La recette d'origine mélangeait `--color-surface` à 65 %. Elle avait été
+ * écrite pour une surface OPAQUE (#1e293b) ; celle de la charte est elle-même
+ * translucide (blanc à 3 %), donc le mélange la diluait une seconde fois. Rendu
+ * au navigateur sur le fond de page `#0b0f19` : la carte tombait de (23,32,46)
+ * à (15,19,29), soit un écart au fond divisé par quatre. Les 44 surfaces qui
+ * portent cette classe n'avaient plus de fond propre, seulement leur liseré.
+ *
+ * Mélanger sur `--color-base`, comme le fait `verre` chez ghostpass, ne marche
+ * pas ici : mesuré, la carte rend EXACTEMENT la couleur du fond (11,15,25). Ce
+ * n'en est pas moins juste là-bas — le corps y porte deux nappes d'aurore, donc
+ * le verre a toujours quelque chose à assombrir. GhostCal n'en a qu'une, en haut
+ * à droite ; partout ailleurs la page est un aplat, et une carte de la couleur
+ * de l'aplat ne se voit pas.
+ *
+ * On reprend donc l'autre recette de ghostpass, celle de son utilitaire `carte`,
+ * qui est faite pour ce cas précis : une fraction du texte, pas du fond. Elle
+ * rend (19,23,34) — moins marqué qu'avant, ce qui est l'intention de la charte,
+ * mais deux fois plus détaché que ce que l'import laissait.
+ *
+ * Le jour où la charte portera un jeton de surface pour les cartes, `--glass`
+ * disparaît au profit du sien. */
 .glass {
-  background: color-mix(in srgb, var(--color-surface) 65%, transparent);
+  background: var(--glass);
   border: 1px solid var(--color-border);
   backdrop-filter: blur(12px);
 }
