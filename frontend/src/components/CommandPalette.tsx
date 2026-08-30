@@ -97,7 +97,7 @@ export default function CommandPalette() {
       onClick={() => setOpen(false)}
     >
       <div
-        className="glass w-full max-w-lg overflow-hidden rounded-2xl border border-border shadow-2xl"
+        className="glass w-full max-w-lg overflow-hidden rounded-lg border border-border shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <input

@@ -83,7 +83,7 @@ export default function PublicCalendarPage({
   if (state === "nokey") {
     return (
       <main className="flex min-h-screen items-center justify-center p-8">
-        <div className="glass max-w-md rounded-2xl p-8 text-center">
+        <div className="glass max-w-md rounded-lg p-8 text-center">
           <h1 className="text-lg font-semibold text-foreground">
             This link is missing its key
           </h1>
@@ -100,7 +100,7 @@ export default function PublicCalendarPage({
   if (state === "gone" || !calendar) {
     return (
       <main className="flex min-h-screen items-center justify-center p-8">
-        <div className="glass max-w-md rounded-2xl p-8 text-center">
+        <div className="glass max-w-md rounded-lg p-8 text-center">
           <h1 className="text-lg font-semibold text-foreground">
             This calendar is no longer shared
           </h1>
@@ -130,11 +130,11 @@ export default function PublicCalendarPage({
       </div>
 
       {sorted.length === 0 ? (
-        <div className="glass rounded-2xl p-10 text-center text-sm text-muted">
+        <div className="glass rounded-lg p-10 text-center text-sm text-muted">
           Nothing on this calendar yet.
         </div>
       ) : (
-        <ul className="glass flex flex-col divide-y divide-border rounded-2xl">
+        <ul className="glass flex flex-col divide-y divide-border rounded-lg">
           {sorted.map(({ event, title }) => (
             <li
               key={event.start_at + (title ?? "")}

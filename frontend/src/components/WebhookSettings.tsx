@@ -130,7 +130,7 @@ export default function WebhookSettings() {
         {error && <p className="text-sm text-red-400">{error}</p>}
         <button
           type="submit"
-          className="self-start rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.45)] transition hover:brightness-110"
+          className="self-start rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)] transition hover:brightness-110"
         >
           {t("webhooks.add")}
         </button>

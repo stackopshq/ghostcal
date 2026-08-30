@@ -191,7 +191,7 @@ export default function CalendarSettings() {
           <p className="flex flex-wrap items-center gap-2 text-sm text-foreground">
             <span
               aria-hidden
-              className="h-2.5 w-2.5 rounded-full"
+              className="h-2.5 w-2.5 rounded-pill"
               style={{ backgroundColor: c.color }}
             />
             {c.calendar_name ?? t("cal.calendarFallback")}
@@ -199,7 +199,7 @@ export default function CalendarSettings() {
               · {c.username}@{c.server_url}
             </span>
             {c.mirror_bookings && (
-              <span className="rounded-full border border-accent/50 px-2 py-0.5 text-xs text-accent">
+              <span className="rounded-pill border border-accent/50 px-2 py-0.5 text-xs text-accent">
                 {t("cal.mirrorTarget")}
               </span>
             )}
@@ -259,7 +259,7 @@ export default function CalendarSettings() {
                 <span className="flex min-w-0 items-center gap-2">
                   <span
                     aria-hidden
-                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    className="h-2.5 w-2.5 shrink-0 rounded-pill"
                     style={{ backgroundColor: c.color }}
                   />
                   <span className="truncate text-foreground">{c.name}</span>

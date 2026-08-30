@@ -41,7 +41,7 @@ export default async function HostPage({ params }: { params: Promise<{ org: stri
             <Link
               key={et.id}
               href={`/${org}/${et.slug}`}
-              className="glass flex flex-col gap-2 rounded-2xl border-l-[3px] border-l-accent p-5 transition hover:border-accent hover:shadow-[0_0_24px_rgba(0,240,255,0.18)]"
+              className="glass flex flex-col gap-2 rounded-lg border-l-[3px] border-l-accent p-5 transition hover:border-accent hover:shadow-[0_0_24px_color-mix(in_srgb,var(--color-accent)_18%,transparent)]"
             >
               <p className="font-medium text-foreground">{et.title}</p>
               <p className="text-sm text-muted">

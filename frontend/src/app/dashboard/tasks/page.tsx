@@ -253,7 +253,7 @@ export default function TasksPage() {
                       type="button"
                       aria-label={t("tasks.complete")}
                       onClick={() => toggle(task)}
-                      className="h-4 w-4 shrink-0 rounded-full border border-border-strong transition hover:border-accent"
+                      className="h-4 w-4 shrink-0 rounded-pill border border-border-strong transition hover:border-accent"
                     />
                     <button
                       type="button"
@@ -330,7 +330,7 @@ export default function TasksPage() {
                     type="button"
                     aria-label={t("tasks.reopen")}
                     onClick={() => toggle(task)}
-                    className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-accent text-[10px] text-accent-ink"
+                    className="flex h-4 w-4 shrink-0 items-center justify-center rounded-pill bg-accent text-[10px] text-accent-ink"
                   >
                     ✓
                   </button>

@@ -6,7 +6,7 @@ import { useT } from "@/lib/i18n";
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="glass rounded-2xl p-5">
+    <div className="glass rounded-lg p-5">
       <p className="text-3xl font-semibold text-foreground">{value}</p>
       <p className="mt-1 text-sm text-muted">{label}</p>
     </div>
@@ -49,7 +49,7 @@ export default function AnalyticsPage() {
         <Stat label={t("analytics.cancelled30")} value={data.cancellations_last_30_days} />
       </div>
 
-      <section className="glass flex flex-col gap-3 rounded-2xl p-6">
+      <section className="glass flex flex-col gap-3 rounded-lg p-6">
         <h2 className="text-sm font-medium text-foreground">{t("analytics.activity")}</h2>
         {data.daily.length === 0 ? (
           <p className="text-sm text-muted">{t("analytics.noActivity")}</p>
@@ -68,7 +68,7 @@ export default function AnalyticsPage() {
         )}
       </section>
 
-      <section className="glass flex flex-col gap-3 rounded-2xl p-6">
+      <section className="glass flex flex-col gap-3 rounded-lg p-6">
         <h2 className="text-sm font-medium text-foreground">{t("analytics.topEvents")}</h2>
         {data.by_event_type.length === 0 ? (
           <p className="text-sm text-muted">{t("analytics.noBookings")}</p>
@@ -76,9 +76,9 @@ export default function AnalyticsPage() {
           data.by_event_type.map((e) => (
             <div key={e.title} className="flex items-center gap-3 text-sm">
               <span className="w-40 shrink-0 truncate text-foreground">{e.title}</span>
-              <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-surface-2">
+              <div className="h-2.5 flex-1 overflow-hidden rounded-pill bg-surface-2">
                 <div
-                  className="h-full rounded-full bg-accent"
+                  className="h-full rounded-pill bg-accent"
                   style={{ width: `${(e.count / maxEvent) * 100}%` }}
                 />
               </div>

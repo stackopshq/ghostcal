@@ -57,11 +57,11 @@ function longWhen(iso: string, tz: string): string {
 
 type Mode = "view" | "rescheduling" | "cancelled" | "rescheduled";
 
-const card = "glass w-full max-w-lg rounded-2xl p-8 shadow-2xl";
+const card = "glass w-full max-w-lg rounded-lg p-8 shadow-2xl";
 const dangerBtn =
   "rounded-lg border border-border-strong px-4 py-2.5 text-sm text-muted transition hover:border-red-400 hover:text-red-400";
 const accentBtn =
-  "rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.45)] transition hover:brightness-110 disabled:opacity-60";
+  "rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)] transition hover:brightness-110 disabled:opacity-60";
 
 export default function ManagePage() {
   const t = useT();

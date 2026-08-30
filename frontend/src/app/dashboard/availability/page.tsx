@@ -162,7 +162,7 @@ export default function AvailabilityPage() {
         <p className="mt-1 text-sm text-muted">{t("avail.sub")}</p>
       </div>
 
-      <section className="glass flex flex-col gap-6 rounded-2xl p-6 sm:p-8">
+      <section className="glass flex flex-col gap-6 rounded-lg p-6 sm:p-8">
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm text-muted">
             {t("avail.scheduleName")}
@@ -210,8 +210,8 @@ export default function AvailabilityPage() {
                 >
                   <span
                     className={[
-                      "inline-block h-2.5 w-2.5 rounded-full",
-                      enabled ? "bg-accent shadow-[0_0_8px_rgba(0,240,255,0.7)]" : "bg-border-strong",
+                      "inline-block h-2.5 w-2.5 rounded-pill",
+                      enabled ? "bg-accent shadow-[0_0_8px_color-mix(in_srgb,var(--color-accent)_70%,transparent)]" : "bg-border-strong",
                     ].join(" ")}
                   />
                   {t(`day.${day}`)}

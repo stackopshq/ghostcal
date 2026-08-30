@@ -53,7 +53,7 @@ export default function RegisterPage() {
         }
       >
         <div className="flex flex-col gap-4">
-          <div className="rounded-xl border border-accent/40 bg-surface-2/60 p-4">
+          <div className="rounded-md border border-accent/40 bg-surface-2/60 p-4">
             <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-accent">
               <span aria-hidden>🔑</span> {t("register.recoveryTitle")}
             </p>

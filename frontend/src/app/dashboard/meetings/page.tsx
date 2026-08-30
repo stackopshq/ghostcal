@@ -130,7 +130,7 @@ export default function MeetingsPage() {
       </div>
 
       {locked && (
-        <p className="glass flex items-center gap-2 rounded-xl border-l-[3px] border-l-accent p-3 text-sm text-accent/90">
+        <p className="glass flex items-center gap-2 rounded-md border-l-[3px] border-l-accent p-3 text-sm text-accent/90">
           <span aria-hidden>🔒</span> {t("meetings.locked")}
         </p>
       )}
@@ -148,7 +148,7 @@ export default function MeetingsPage() {
         {meetings.map((m) => (
           <div
             key={m.id}
-            className="glass flex flex-col gap-2 rounded-2xl border-l-[3px] border-l-accent p-5 sm:flex-row sm:items-center sm:justify-between"
+            className="glass flex flex-col gap-2 rounded-lg border-l-[3px] border-l-accent p-5 sm:flex-row sm:items-center sm:justify-between"
           >
             <div>
               <p className="font-medium text-foreground">{m.event_title}</p>

@@ -67,7 +67,7 @@ export default function PollsPage() {
         <p className="mt-1 text-sm text-muted">{t("pollsh.sub")}</p>
       </div>
 
-      <form onSubmit={submit} className="glass flex flex-col gap-4 rounded-2xl p-6">
+      <form onSubmit={submit} className="glass flex flex-col gap-4 rounded-lg p-6">
         <h2 className="text-sm font-medium text-foreground">{t("pollsh.new")}</h2>
         <input
           required
@@ -125,7 +125,7 @@ export default function PollsPage() {
         <button
           type="submit"
           disabled={creating}
-          className="self-start rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.45)] transition hover:brightness-110 disabled:opacity-60"
+          className="self-start rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)] transition hover:brightness-110 disabled:opacity-60"
         >
           {creating ? t("pollsh.creating") : t("pollsh.create")}
         </button>
@@ -139,7 +139,7 @@ export default function PollsPage() {
           <Link
             key={p.id}
             href={`/dashboard/polls/${p.id}`}
-            className="glass flex items-center justify-between rounded-xl p-4 transition hover:border-accent"
+            className="glass flex items-center justify-between rounded-md p-4 transition hover:border-accent"
           >
             <div>
               <p className="font-medium text-foreground">{p.title}</p>

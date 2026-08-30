@@ -47,14 +47,14 @@ function Avatar({
         src={url}
         alt=""
         onError={onBroken}
-        className="h-14 w-14 shrink-0 rounded-full border border-border-strong object-cover"
+        className="h-14 w-14 shrink-0 rounded-pill border border-border-strong object-cover"
       />
     );
   }
   return (
     <span
       aria-hidden
-      className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border-strong bg-surface-2 text-lg font-semibold text-muted"
+      className="flex h-14 w-14 shrink-0 items-center justify-center rounded-pill border border-border-strong bg-surface-2 text-lg font-semibold text-muted"
     >
       {initials}
     </span>
