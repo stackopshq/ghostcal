@@ -73,6 +73,14 @@ export function setMirrorTarget(id: string): Promise<void> {
   });
 }
 
+/** Recolour a connected calendar, whose colour was picked by cycling a palette at connect time. */
+export function setConnectionColor(id: string, color: string): Promise<void> {
+  return authedFetch<void>(`/v1/me/calendar/connections/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ color }),
+  });
+}
+
 export function disconnectCalendar(id: string): Promise<void> {
   return authedFetch<void>(`/v1/me/calendar/connections/${id}`, {
     method: "DELETE",

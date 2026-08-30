@@ -151,6 +151,20 @@ class SqlCaldavConnectionRepository(CaldavConnectionRepository):
         )
         return result.scalar_one_or_none() is not None
 
+    async def set_color(self, connection_id: uuid.UUID, user_id: uuid.UUID, color: str) -> bool:
+        # `user_id` in the WHERE clause, like `set_mirror_target` above: ownership is enforced by
+        # the statement itself rather than by a read that another request could race.
+        result = await self._session.execute(
+            update(models.CaldavConnection)
+            .where(
+                models.CaldavConnection.id == connection_id,
+                models.CaldavConnection.user_id == user_id,
+            )
+            .values(color=color)
+            .returning(models.CaldavConnection.id)
+        )
+        return result.scalar_one_or_none() is not None
+
     async def replace_busy(
         self, connection_id: uuid.UUID, host_id: uuid.UUID, busy: list[BusyEvent]
     ) -> None:

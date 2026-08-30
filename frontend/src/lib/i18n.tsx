@@ -233,6 +233,7 @@ const en: Dict = {
   "calendar.locked":
     "Locked. Log in again to unlock your calendar in this browser.",
   "calendar.busy": "Busy",
+  "calendar.recolor": "Change this calendar's colour",
   "calendar.untitled": "(untitled)",
   "calendar.newEvent": "New event",
   "calendar.newCalendar": "New calendar",
@@ -813,6 +814,7 @@ const fr: Dict = {
   "calendar.locked":
     "Verrouillé. Reconnectez-vous pour déverrouiller votre calendrier dans ce navigateur.",
   "calendar.busy": "Occupé",
+  "calendar.recolor": "Changer la couleur de ce calendrier",
   "calendar.untitled": "(sans titre)",
   "calendar.newEvent": "Nouvel événement",
   "calendar.newCalendar": "Nouveau calendrier",

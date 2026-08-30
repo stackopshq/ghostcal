@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ColorPicker from "@/components/ColorPicker";
 import UnlockBanner from "@/components/UnlockBanner";
 import { getActiveOrg } from "@/lib/auth";
 import {
   type Connection,
   listConnections,
   syncAllCalendars,
+  setConnectionColor,
 } from "@/lib/calendar";
 import {
   type AgendaItem,
@@ -25,6 +27,7 @@ import {
   shareCalendar,
   unshareCalendar,
   updateEvent,
+  setCalendarColor,
 } from "@/lib/agenda";
 import {
   addSubscription,
@@ -32,8 +35,10 @@ import {
   listSubscriptions,
   refreshSubscription,
   setSubscriptionBlocking,
+  setSubscriptionColor,
   type Subscription,
 } from "@/lib/subscriptions";
+import { CAL_COLORS } from "@/lib/colors";
 import {
   geocode,
   getForecast,
@@ -381,6 +386,23 @@ export default function CalendarPage() {
 
   async function toggleSubscriptionBlocking(sub: Subscription) {
     await setSubscriptionBlocking(sub.id, !sub.blocks_availability);
+    await load();
+  }
+
+  // Recolouring reloads rather than patching state in place: the colour appears on every event
+  // overlay as well as on the dot, and `load()` is what already keeps those in step.
+  async function recolorCalendar(id: string, color: string) {
+    await setCalendarColor(id, color);
+    await load();
+  }
+
+  async function recolorSubscription(id: string, color: string) {
+    await setSubscriptionColor(id, color);
+    await load();
+  }
+
+  async function recolorConnection(id: string, color: string) {
+    await setConnectionColor(id, color);
     await load();
   }
 
@@ -981,30 +1003,46 @@ export default function CalendarPage() {
           {calendars.map((c) => {
             const off = hidden.has(c.id);
             return (
-              <button
+              // A <div>, not a <button>: the swatch is a button of its own now, and a button
+              // inside a button is markup a browser resolves by dropping one of them.
+              <div
                 key={c.id}
-                type="button"
-                onClick={() => toggleCalendar(c.id)}
                 className={`flex items-center gap-1.5 rounded-pill border border-border px-2.5 py-1 text-xs transition ${
                   off ? "opacity-40" : "hover:bg-surface-2/40"
                 }`}
                 title={c.is_shared ? (c.owner_name ?? undefined) : undefined}
               >
-                <span
-                  aria-hidden
-                  className="h-2.5 w-2.5 rounded-pill"
-                  style={{
-                    backgroundColor: off ? "transparent" : c.color,
-                    boxShadow: `inset 0 0 0 1.5px ${c.color}`,
-                  }}
-                />
-                <span className="text-foreground">{c.name}</span>
+                {/* A shared calendar shows its owner's colour, and only its owner may change it. */}
+                {c.is_shared ? (
+                  <span
+                    aria-hidden
+                    className="h-2.5 w-2.5 rounded-pill"
+                    style={{
+                      backgroundColor: off ? "transparent" : c.color,
+                      boxShadow: `inset 0 0 0 1.5px ${c.color}`,
+                    }}
+                  />
+                ) : (
+                  <ColorPicker
+                    value={c.color}
+                    hidden={off}
+                    label={t("calendar.recolor")}
+                    onPick={(col) => void recolorCalendar(c.id, col)}
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={() => toggleCalendar(c.id)}
+                  className="text-foreground hover:text-accent"
+                >
+                  {c.name}
+                </button>
                 {/* A bare dot said nothing. Two people's default calendars are both "My calendar",
                     so a shared one has to name its owner to be tellable apart at a glance. */}
                 {c.is_shared && (
                   <span className="text-muted">· {c.owner_name}</span>
                 )}
-              </button>
+              </div>
             );
           })}
           <button
@@ -1019,29 +1057,27 @@ export default function CalendarPage() {
           {connections.length > 0 ? (
             <>
               {connections.map((c) => (
-                <button
+                <div
                   key={c.id}
-                  type="button"
-                  onClick={() => toggleCalendar(c.id)}
                   className={`flex items-center gap-1.5 rounded-pill border border-border px-2.5 py-1 text-xs transition ${
                     hidden.has(c.id) ? "opacity-40" : "hover:bg-surface-2/40"
                   }`}
                   title={`${c.username}@${c.server_url}`}
                 >
-                  <span
-                    aria-hidden
-                    className="h-2.5 w-2.5 rounded-pill"
-                    style={{
-                      backgroundColor: hidden.has(c.id)
-                        ? "transparent"
-                        : c.color,
-                      boxShadow: `inset 0 0 0 1.5px ${c.color}`,
-                    }}
+                  <ColorPicker
+                    value={c.color}
+                    hidden={hidden.has(c.id)}
+                    label={t("calendar.recolor")}
+                    onPick={(col) => void recolorConnection(c.id, col)}
                   />
-                  <span className="text-foreground">
+                  <button
+                    type="button"
+                    onClick={() => toggleCalendar(c.id)}
+                    className="text-foreground hover:text-accent"
+                  >
                     {c.calendar_name || t("calendar.externalCalendar")}
-                  </span>
-                </button>
+                  </button>
+                </div>
               ))}
               <button
                 type="button"
@@ -1077,19 +1113,17 @@ export default function CalendarPage() {
                     : (s.last_synced_at ?? undefined)
                 }
               >
+                <ColorPicker
+                  value={s.color}
+                  hidden={off}
+                  label={t("calendar.recolor")}
+                  onPick={(col) => void recolorSubscription(s.id, col)}
+                />
                 <button
                   type="button"
                   onClick={() => toggleCalendar(s.id)}
                   className="flex items-center gap-1.5 hover:text-accent"
                 >
-                  <span
-                    aria-hidden
-                    className="h-2.5 w-2.5 rounded-pill"
-                    style={{
-                      backgroundColor: off ? "transparent" : s.color,
-                      boxShadow: `inset 0 0 0 1.5px ${s.color}`,
-                    }}
-                  />
                   <span className="text-foreground">{s.name}</span>
                   {errored && <span aria-hidden>⚠</span>}
                 </button>
@@ -1391,15 +1425,6 @@ export default function CalendarPage() {
   );
 }
 
-const CAL_COLORS = [
-  "#00f0ff",
-  "#a3ff00",
-  "#ff2d95",
-  "#ffb020",
-  "#8b5cff",
-  "#ff5c5c",
-  "#00d68f",
-];
 
 function NewCalendarModal({
   onClose,
