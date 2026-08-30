@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Ce qu'on voit une fois le coffre ouvert.
 ///
-/// Trois onglets : l'agenda, les tâches, les réunions. Un onglet par section plutôt qu'un
+/// Quatre onglets : l'agenda, les tâches, les réunions, les créneaux à réserver. Un onglet par section plutôt qu'un
 /// menu — sur un téléphone, ce qu'on consulte plusieurs fois par jour doit être à un
 /// toucher, pas à deux.
 ///
@@ -21,6 +21,8 @@ struct AccueilView: View {
                 .tabItem { Label("Tâches", systemImage: "checklist") }
             ReunionsView(organisation: modele.organisationCourante)
                 .tabItem { Label("Réunions", systemImage: "person.2") }
+            TypesDeRendezVousView()
+                .tabItem { Label("Réservation", systemImage: "link") }
         }
         .tint(Color.gcAccentText)
     }
