@@ -14,6 +14,7 @@ import {
   embedSnippet,
   type EventType,
   type EventTypeInput,
+  toEventTypeInput,
   listEventTypes,
   LOCATION_LABELS,
   publicLink,
@@ -26,6 +27,7 @@ type FormState = EventTypeInput & { id: string | null };
 const BLANK: FormState = {
   id: null,
   title: "",
+  description: null,
   duration_min: 30,
   slot_interval_min: 30,
   buffer_before_min: 0,
@@ -51,25 +53,6 @@ const KINDS: { value: string; labelKey: string }[] = [
 
 const QUESTION_TYPES = ["text", "textarea", "phone", "select", "checkbox"] as const;
 
-function toInput(x: EventTypeInput): EventTypeInput {
-  return {
-    title: x.title,
-    duration_min: x.duration_min,
-    slot_interval_min: x.slot_interval_min,
-    buffer_before_min: x.buffer_before_min,
-    buffer_after_min: x.buffer_after_min,
-    min_notice_min: x.min_notice_min,
-    date_window_days: x.date_window_days,
-    max_per_day: x.max_per_day,
-    location_type: x.location_type,
-    active: x.active,
-    questions: x.questions,
-    kind: x.kind,
-    host_ids: x.host_ids,
-    capacity: x.capacity,
-    redirect_url: x.redirect_url,
-  };
-}
 
 export default function EventTypesPage() {
   const t = useT();
@@ -98,13 +81,13 @@ export default function EventTypesPage() {
 
   async function toggleActive(item: EventType) {
     setOpenMenu(null);
-    await updateEventType(item.id, toInput({ ...item, active: !item.active }));
+    await updateEventType(item.id, toEventTypeInput({ ...item, active: !item.active }));
     await reload();
   }
 
   function startEdit(item: EventType) {
     setOpenMenu(null);
-    setForm({ id: item.id, ...toInput(item) });
+    setForm({ id: item.id, ...toEventTypeInput(item) });
   }
 
   useEffect(() => {
@@ -125,7 +108,7 @@ export default function EventTypesPage() {
     if (!form) return;
     setSaving(true);
     setError(null);
-    const body = toInput(form);
+    const body = toEventTypeInput(form);
     try {
       if (form.id) await updateEventType(form.id, body);
       else await createEventType(body);
@@ -198,6 +181,17 @@ export default function EventTypesPage() {
             placeholder={t("et.titlePh")}
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
+            className={inputClass}
+          />
+          {/* The public booking page renders this under the title. It had no editor at all until
+              2026-08-30 — the field existed, was served, and could only be set through the API. */}
+          <textarea
+            placeholder={t("et.descriptionPh")}
+            value={form.description ?? ""}
+            onChange={(e) =>
+              setForm({ ...form, description: e.target.value || null })
+            }
+            rows={3}
             className={inputClass}
           />
           <div className="grid gap-4 sm:grid-cols-3">
