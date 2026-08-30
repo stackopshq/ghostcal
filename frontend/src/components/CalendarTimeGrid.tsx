@@ -78,7 +78,7 @@ export default function CalendarTimeGrid({
   const hasAllDay = days.some((d) => allDayForDay(d).length > 0);
 
   return (
-    <div className="glass overflow-hidden rounded-2xl">
+    <div className="glass overflow-hidden rounded-lg">
       {/* Day headers */}
       <div className="grid border-b border-border" style={{ gridTemplateColumns: cols }}>
         <div />

@@ -80,7 +80,7 @@ export default function SettingsPage() {
 
       <form
         onSubmit={save}
-        className="glass flex flex-col gap-5 rounded-2xl p-6 sm:p-8"
+        className="glass flex flex-col gap-5 rounded-lg p-6 sm:p-8"
       >
         <label className="flex flex-col gap-1 text-sm text-muted">
           {t("settings.orgName")}
@@ -129,15 +129,15 @@ export default function SettingsPage() {
         </div>
       </form>
 
-      <section className="glass rounded-2xl p-6 sm:p-8">
+      <section className="glass rounded-lg p-6 sm:p-8">
         <CalendarSettings />
       </section>
 
-      <section className="glass rounded-2xl p-6 sm:p-8">
+      <section className="glass rounded-lg p-6 sm:p-8">
         <WebhookSettings />
       </section>
 
-      <section className="glass rounded-2xl p-6 sm:p-8">
+      <section className="glass rounded-lg p-6 sm:p-8">
         <div className="mb-6">
           <h2 className="text-lg font-semibold text-foreground">
             {t("privacy.title")}

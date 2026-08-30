@@ -111,15 +111,34 @@
   --color-border: var(--color-border);
   --color-border-strong: var(--color-border-strong);
 
-  /* La charte a quatre marches de rayon (8 · 12 · 18 px · pilule) là où Tailwind
-   * en a neuf, et deux noms se télescopent. `rounded-lg` passe donc de 8 à 18 px
-   * sur les 130 emplacements qui l'emploient — ce qui le rend PLUS arrondi que
-   * les 38 `rounded-2xl`, restés à 16 px faute d'équivalent dans la charte. Une
-   * échelle qui s'inverse se voit mal mais se répare mal aussi : la fermer
-   * demande de renommer les classes du produit vers les quatre marches de la
-   * charte, une modification visible qui se décide à part. Noté ici pour que le
-   * prochain lecteur ne prenne pas cet ordre pour une intention. */
+  /* Les quatre marches de la charte, et rien d'autre.
+   *
+   * Tailwind en propose neuf, la charte en a quatre, et deux noms se
+   * télescopaient : `--radius-lg` valait 8 px chez l'un et 18 px chez l'autre.
+   * L'import imposait le second de toute façon — `ghost-theme.css` n'est pas
+   * dans une couche, le thème de Tailwind vit dans `@layer theme`, donc le
+   * premier gagne, ponté ou non. Le produit s'est donc retrouvé avec des
+   * `rounded-lg` à 18 px PLUS arrondis que ses `rounded-2xl` restés à 16 px :
+   * une échelle inversée, visible dès l'écran de connexion, où les champs
+   * étaient plus ronds que la carte qui les contenait.
+   *
+   * Les classes du produit ont été renommées vers ces quatre marches plutôt que
+   * d'élargir la charte, ce qui est aussi ce qu'a fait ghostpass — mesuré chez
+   * lui : 24 `rounded-lg`, 10 `rounded-pill`, 1 `rounded-sm`, 1 `rounded-full`,
+   * et AUCUN `rounded-xl` ni `rounded-2xl`. C'est cette absence qui fait que la
+   * collision n'y existe pas. L'échelle est de nouveau monotone, et le seul nom
+   * disponible pour une marche est celui que la charte lui donne.
+   *
+   * `--radius-md` ponte `--radius`, la marche à 12 px : Tailwind range ce nom
+   * dans le même espace `--radius-*`, alors que `rounded` seul y vaut 0,25 rem
+   * en dur, sans jeton derrière. Ces `rounded` nus subsistent sur huit
+   * micro-éléments — le badge ⌘K, les pastilles d'événement en 11 px, le
+   * sélecteur de langue, une barre de graphique en `rounded-t`. La charte n'a
+   * pas de marche à 4 px, et les promouvoir à 8 px doublerait leur rayon : c'est
+   * une question de dessin, pas de convergence, et elle se pose à part. On n'est
+   * d'ailleurs pas seul dans ce cas — ghostpass en compte 23. */
   --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius);
   --radius-lg: var(--radius-lg);
   --radius-pill: var(--radius-pill);
 }

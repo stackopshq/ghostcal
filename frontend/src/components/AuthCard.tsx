@@ -5,7 +5,7 @@ export const inputClass =
   "rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent";
 
 export const primaryButtonClass =
-  "rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.45)] transition hover:brightness-110 disabled:opacity-60";
+  "rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)] transition hover:brightness-110 disabled:opacity-60";
 
 export default function AuthCard({
   title,
@@ -20,7 +20,7 @@ export default function AuthCard({
 }) {
   return (
     <main className="flex flex-1 items-center justify-center p-4 sm:p-8">
-      <div className="glass w-full max-w-sm rounded-2xl p-8 shadow-2xl">
+      <div className="glass w-full max-w-sm rounded-lg p-8 shadow-2xl">
         <div className="mb-6 flex items-center gap-2 text-sm font-medium tracking-wide text-muted">
           <span className="text-accent">●</span>
           <Link href="/" className="hover:text-accent">

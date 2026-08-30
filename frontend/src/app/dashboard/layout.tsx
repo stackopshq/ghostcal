@@ -131,7 +131,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <Link
           href="/dashboard/event-types"
-          className="mb-6 flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.35)] transition hover:brightness-110"
+          className="mb-6 flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_35%,transparent)] transition hover:brightness-110"
         >
           <Glyph d={ICONS.plus} /> {t("dash.create")}
         </Link>
@@ -158,7 +158,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <div className="mt-auto border-t border-border pt-4">
           <div className="flex items-center gap-3 px-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-accent/30 to-accent/5 text-xs font-semibold text-accent ring-1 ring-border-strong">
+            <div className="flex h-9 w-9 items-center justify-center rounded-pill bg-gradient-to-br from-accent/30 to-accent/5 text-xs font-semibold text-accent ring-1 ring-border-strong">
               {initials}
             </div>
             <div className="min-w-0 flex-1">

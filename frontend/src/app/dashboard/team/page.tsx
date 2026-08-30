@@ -115,7 +115,7 @@ export default function TeamPage() {
             {members.map((m) => (
               <div
                 key={m.user_id}
-                className="glass flex items-center justify-between gap-3 rounded-xl p-4"
+                className="glass flex items-center justify-between gap-3 rounded-md p-4"
               >
                 <div>
                   <p className="font-medium text-foreground">{m.name}</p>
@@ -169,14 +169,14 @@ export default function TeamPage() {
               </select>
               <button
                 type="submit"
-                className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.45)] transition hover:brightness-110"
+                className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)] transition hover:brightness-110"
               >
                 {t("team.inviteBtn")}
               </button>
             </form>
 
             {secureLink && (
-              <div className="rounded-xl border border-accent/40 bg-surface-2/60 p-4">
+              <div className="rounded-md border border-accent/40 bg-surface-2/60 p-4">
                 <p className="mb-1 flex items-center gap-1.5 text-sm font-medium text-accent">
                   <span aria-hidden>🔑</span> {t("team.secureLinkTitle")}
                 </p>

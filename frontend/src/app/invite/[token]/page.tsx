@@ -46,7 +46,7 @@ export default function InvitePage() {
 
   return (
     <main className="flex flex-1 items-center justify-center p-6">
-      <div className="glass flex w-full max-w-md flex-col gap-4 rounded-2xl p-6 sm:p-8">
+      <div className="glass flex w-full max-w-md flex-col gap-4 rounded-lg p-6 sm:p-8">
         <div className="flex items-center gap-2">
           <span aria-hidden className="text-2xl text-accent">
             📅

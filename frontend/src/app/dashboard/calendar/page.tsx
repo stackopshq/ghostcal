@@ -985,14 +985,14 @@ export default function CalendarPage() {
                 key={c.id}
                 type="button"
                 onClick={() => toggleCalendar(c.id)}
-                className={`flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs transition ${
+                className={`flex items-center gap-1.5 rounded-pill border border-border px-2.5 py-1 text-xs transition ${
                   off ? "opacity-40" : "hover:bg-surface-2/40"
                 }`}
                 title={c.is_shared ? (c.owner_name ?? undefined) : undefined}
               >
                 <span
                   aria-hidden
-                  className="h-2.5 w-2.5 rounded-full"
+                  className="h-2.5 w-2.5 rounded-pill"
                   style={{
                     backgroundColor: off ? "transparent" : c.color,
                     boxShadow: `inset 0 0 0 1.5px ${c.color}`,
@@ -1010,7 +1010,7 @@ export default function CalendarPage() {
           <button
             type="button"
             onClick={() => setNewCalOpen(true)}
-            className="rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent"
+            className="rounded-pill border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent"
           >
             + {t("calendar.newCalendar")}
           </button>
@@ -1023,14 +1023,14 @@ export default function CalendarPage() {
                   key={c.id}
                   type="button"
                   onClick={() => toggleCalendar(c.id)}
-                  className={`flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs transition ${
+                  className={`flex items-center gap-1.5 rounded-pill border border-border px-2.5 py-1 text-xs transition ${
                     hidden.has(c.id) ? "opacity-40" : "hover:bg-surface-2/40"
                   }`}
                   title={`${c.username}@${c.server_url}`}
                 >
                   <span
                     aria-hidden
-                    className="h-2.5 w-2.5 rounded-full"
+                    className="h-2.5 w-2.5 rounded-pill"
                     style={{
                       backgroundColor: hidden.has(c.id)
                         ? "transparent"
@@ -1047,7 +1047,7 @@ export default function CalendarPage() {
                 type="button"
                 onClick={runSync}
                 disabled={syncing}
-                className="rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent disabled:opacity-50"
+                className="rounded-pill border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent disabled:opacity-50"
               >
                 {syncing ? t("common.saving") : `↻ ${t("calendar.syncNow")}`}
               </button>
@@ -1055,7 +1055,7 @@ export default function CalendarPage() {
           ) : (
             <Link
               href="/dashboard/settings"
-              className="rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent"
+              className="rounded-pill border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent"
             >
               + {t("calendar.connectExternal")}
             </Link>
@@ -1068,7 +1068,7 @@ export default function CalendarPage() {
             return (
               <span
                 key={s.id}
-                className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
+                className={`flex items-center gap-1.5 rounded-pill border px-2.5 py-1 text-xs transition ${
                   errored ? "border-danger/50" : "border-border"
                 } ${off ? "opacity-40" : ""}`}
                 title={
@@ -1084,7 +1084,7 @@ export default function CalendarPage() {
                 >
                   <span
                     aria-hidden
-                    className="h-2.5 w-2.5 rounded-full"
+                    className="h-2.5 w-2.5 rounded-pill"
                     style={{
                       backgroundColor: off ? "transparent" : s.color,
                       boxShadow: `inset 0 0 0 1.5px ${s.color}`,
@@ -1137,14 +1137,14 @@ export default function CalendarPage() {
           <button
             type="button"
             onClick={() => setSubOpen(true)}
-            className="rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent"
+            className="rounded-pill border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent"
           >
             + {t("calendar.subscribe")}
           </button>
 
           {/* Weather: pick a location (client-side only) to overlay the daily forecast. */}
           {weatherLoc ? (
-            <span className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs">
+            <span className="flex items-center gap-1.5 rounded-pill border border-border px-2.5 py-1 text-xs">
               <button
                 type="button"
                 onClick={() => setWeatherOpen(true)}
@@ -1166,7 +1166,7 @@ export default function CalendarPage() {
             <button
               type="button"
               onClick={() => setWeatherOpen(true)}
-              className="rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent"
+              className="rounded-pill border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent"
             >
               + {t("calendar.weather")}
             </button>
@@ -1235,7 +1235,7 @@ export default function CalendarPage() {
       )}
 
       {!locked && view === "month" && (
-        <div className="glass overflow-hidden rounded-2xl">
+        <div className="glass overflow-hidden rounded-lg">
           <div className="grid grid-cols-7 border-b border-border text-center text-xs text-muted">
             {weekdayNames.map((d) => (
               <div key={d.long} className="py-2">
@@ -1426,7 +1426,7 @@ function NewCalendarModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="glass w-full max-w-sm rounded-2xl p-6 shadow-2xl">
+      <div className="glass w-full max-w-sm rounded-lg p-6 shadow-2xl">
         <h2 className="mb-4 text-lg font-semibold text-foreground">
           {t("calendar.newCalendar")}
         </h2>
@@ -1444,7 +1444,7 @@ function NewCalendarModal({
               type="button"
               aria-label={c}
               onClick={() => setColor(c)}
-              className={`h-6 w-6 rounded-full transition ${color === c ? "ring-2 ring-offset-2 ring-offset-surface" : ""}`}
+              className={`h-6 w-6 rounded-pill transition ${color === c ? "ring-2 ring-offset-2 ring-offset-surface" : ""}`}
               style={{
                 backgroundColor: c,
                 boxShadow: color === c ? `0 0 0 2px ${c}` : undefined,
@@ -1513,7 +1513,7 @@ function SubscribeModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="glass w-full max-w-sm rounded-2xl p-6 shadow-2xl">
+      <div className="glass w-full max-w-sm rounded-lg p-6 shadow-2xl">
         <h2 className="mb-1 text-lg font-semibold text-foreground">
           {t("calendar.subscribe")}
         </h2>
@@ -1560,7 +1560,7 @@ function SubscribeModal({
               type="button"
               aria-label={c}
               onClick={() => setColor(c)}
-              className={`h-6 w-6 rounded-full transition ${color === c ? "ring-2 ring-offset-2 ring-offset-surface" : ""}`}
+              className={`h-6 w-6 rounded-pill transition ${color === c ? "ring-2 ring-offset-2 ring-offset-surface" : ""}`}
               style={{
                 backgroundColor: c,
                 boxShadow: color === c ? `0 0 0 2px ${c}` : undefined,
@@ -1638,7 +1638,7 @@ function WeatherModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="glass w-full max-w-sm rounded-2xl p-6 shadow-2xl">
+      <div className="glass w-full max-w-sm rounded-lg p-6 shadow-2xl">
         <h2 className="mb-1 text-lg font-semibold text-foreground">
           {t("calendar.weather")}
         </h2>
@@ -1825,7 +1825,7 @@ function ShareModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="glass max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl p-6 shadow-2xl">
+      <div className="glass max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg p-6 shadow-2xl">
         <h2 className="mb-1 text-lg font-semibold text-foreground">
           {t("calendar.shareTitle")}
         </h2>
@@ -2051,7 +2051,7 @@ function EventModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="glass w-full max-w-md rounded-2xl p-6 shadow-2xl">
+      <div className="glass w-full max-w-md rounded-lg p-6 shadow-2xl">
         <h2 className="mb-4 text-lg font-semibold text-foreground">
           {draft.id ? t("calendar.editEvent") : t("calendar.newEvent")}
         </h2>

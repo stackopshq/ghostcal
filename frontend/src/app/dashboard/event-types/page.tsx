@@ -182,7 +182,7 @@ export default function EventTypesPage() {
 
       {host && (
         <div className="flex items-center gap-3 border-b border-border pb-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-accent/30 to-accent/5 text-xs font-semibold text-accent ring-1 ring-border-strong">
+          <div className="flex h-9 w-9 items-center justify-center rounded-pill bg-gradient-to-br from-accent/30 to-accent/5 text-xs font-semibold text-accent ring-1 ring-border-strong">
             {hostInitials}
           </div>
           <span className="text-sm font-medium text-foreground">{host.name}</span>
@@ -190,7 +190,7 @@ export default function EventTypesPage() {
       )}
 
       {form && (
-        <section className="glass flex flex-col gap-4 rounded-2xl p-6">
+        <section className="glass flex flex-col gap-4 rounded-lg p-6">
           <h2 className="text-sm font-medium text-foreground">
             {form.id ? t("et.editTitle") : t("et.newTitle")}
           </h2>
@@ -407,7 +407,7 @@ export default function EventTypesPage() {
         {items.map((item) => (
           <div
             key={item.id}
-            className="glass flex flex-col gap-3 rounded-2xl border-l-[3px] border-l-accent p-5 sm:flex-row sm:items-center sm:justify-between"
+            className="glass flex flex-col gap-3 rounded-lg border-l-[3px] border-l-accent p-5 sm:flex-row sm:items-center sm:justify-between"
             data-kind={item.kind}
           >
             <div>

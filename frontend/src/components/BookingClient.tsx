@@ -162,7 +162,7 @@ export default function BookingClient({
   const location = LOCATION_LABELS[eventType.location_type] ?? eventType.location_type;
 
   return (
-    <div className="glass grid w-full max-w-5xl overflow-hidden rounded-2xl shadow-2xl md:grid-cols-[minmax(0,22rem)_1fr]">
+    <div className="glass grid w-full max-w-5xl overflow-hidden rounded-lg shadow-2xl md:grid-cols-[minmax(0,22rem)_1fr]">
       {/* Host panel */}
       <aside className="flex flex-col gap-6 border-b border-border p-8 md:border-b-0 md:border-r">
         <div className="flex items-center gap-2 text-sm font-medium tracking-wide text-muted">
@@ -227,7 +227,7 @@ export default function BookingClient({
                         className={[
                           "rounded-lg border px-3 py-2 text-sm font-medium transition",
                           active
-                            ? "border-accent text-accent shadow-[0_0_14px_rgba(0,240,255,0.25)]"
+                            ? "border-accent text-accent shadow-[0_0_14px_color-mix(in_srgb,var(--color-accent)_25%,transparent)]"
                             : "border-border-strong text-foreground hover:border-accent hover:text-accent",
                         ].join(" ")}
                       >
@@ -249,8 +249,8 @@ export default function BookingClient({
                         className={[
                           "rounded-lg border px-4 py-2.5 text-sm font-medium transition",
                           active
-                            ? "border-accent bg-accent text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.45)]"
-                            : "border-border-strong text-foreground hover:border-accent hover:text-accent hover:shadow-[0_0_14px_rgba(0,240,255,0.25)]",
+                            ? "border-accent bg-accent text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)]"
+                            : "border-border-strong text-foreground hover:border-accent hover:text-accent hover:shadow-[0_0_14px_color-mix(in_srgb,var(--color-accent)_25%,transparent)]",
                         ].join(" ")}
                       >
                         {timeLabel(slot.start, tz)}
@@ -318,7 +318,7 @@ export default function BookingClient({
                 <button
                   type="submit"
                   disabled={submitting || missingRequired()}
-                  className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.45)] transition hover:brightness-110 disabled:opacity-60"
+                  className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)] transition hover:brightness-110 disabled:opacity-60"
                 >
                   {submitting ? t("booking.confirming") : t("booking.confirm")}
                 </button>
@@ -405,7 +405,7 @@ function Confirmed({ slot, tz, host }: { slot: Booking; tz: string; host: string
   const t = useT();
   return (
     <div className="flex flex-col items-start gap-3 py-6">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/15 text-2xl text-accent ring-1 ring-border-strong">
+      <div className="flex h-12 w-12 items-center justify-center rounded-pill bg-accent/15 text-2xl text-accent ring-1 ring-border-strong">
         ✓
       </div>
       <h2 className="text-xl font-semibold text-foreground">{t("booking.booked")}</h2>

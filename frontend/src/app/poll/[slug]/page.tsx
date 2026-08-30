@@ -75,7 +75,7 @@ export default function PublicPollPage() {
 
   return (
     <main className="flex flex-1 items-center justify-center p-4 sm:p-8">
-      <div className="glass w-full max-w-lg rounded-2xl p-8 shadow-2xl">
+      <div className="glass w-full max-w-lg rounded-lg p-8 shadow-2xl">
         <p className="text-sm text-muted">{t("poll.asking", { owner: poll.owner_name })}</p>
         <h1 className="mt-1 text-2xl font-semibold text-foreground">{poll.title}</h1>
         <p className="mt-1 text-sm text-muted">
@@ -83,7 +83,7 @@ export default function PublicPollPage() {
         </p>
 
         {finalized ? (
-          <div className="mt-6 rounded-xl border border-accent p-4">
+          <div className="mt-6 rounded-md border border-accent p-4">
             <p className="text-sm text-muted">{t("poll.confirmedTime")}</p>
             <p className="text-lg font-medium text-foreground">{fmt(finalized.start_at, tz)}</p>
           </div>
@@ -121,7 +121,7 @@ export default function PublicPollPage() {
             {error && <p className="text-sm text-red-400">{error}</p>}
             <button
               type="submit"
-              className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.45)] transition hover:brightness-110"
+              className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)] transition hover:brightness-110"
             >
               {t("poll.submit")}
             </button>
