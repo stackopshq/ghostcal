@@ -15,7 +15,7 @@ from ghostcal.application.event_reminders import dispatch_event_reminders
 from ghostcal.application.ports.calendar import CalendarError
 from ghostcal.application.ports.clock import SystemClock
 from ghostcal.application.reminders import DueReminder, dispatch_reminders
-from ghostcal.application.retention import purge_expired_bookings as purge_expired
+from ghostcal.application.retention import PurgeResult, purge_one_organization
 from ghostcal.application.subscriptions import FeedUnreachable, refresh_subscription
 from ghostcal.application.task_reminders import dispatch_task_reminders
 from ghostcal.application.webhooks import sign_payload
@@ -274,8 +274,7 @@ def purge_expired_bookings() -> int:
 async def _purge_expired_bookings() -> int:
     total = 0
     try:
-        async with db_session() as session:
-            results = await purge_expired(SqlRetentionRepository(session))
+        results = await _purge_every_organization()
         # Irreversible, so never silent: say which organization lost how many rows.
         for result in results:
             logger.info(
@@ -287,3 +286,29 @@ async def _purge_expired_bookings() -> int:
     finally:
         await reset_engine()
     return total
+
+
+async def _purge_every_organization() -> list[PurgeResult]:
+    """Enumerate, then bind, then delete — one organization at a time.
+
+    The same shape as `sync_all_calendars` above, and for the same reason: each organization needs
+    its own bound session. The enumeration is the only cross-tenant step, it goes through a function
+    whose return type is an id and a number of days, and the deletion that follows runs under the
+    ordinary policy.
+
+    One organization failing must not stop the others: a purge that abandons the rest of the estate
+    because one tenant errored is a retention window quietly unhonoured for everyone after it.
+    """
+    async with db_session() as session:
+        windows = await SqlRetentionRepository(session).retention_windows()
+
+    results: list[PurgeResult] = []
+    for window in windows:
+        try:
+            async with org_session(window.organization_id) as session:
+                results.append(
+                    await purge_one_organization(SqlRetentionRepository(session), window)
+                )
+        except Exception:
+            logger.exception("purge failed for organization=%s", window.organization_id)
+    return results
