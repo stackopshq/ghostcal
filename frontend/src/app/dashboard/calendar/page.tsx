@@ -1549,6 +1549,11 @@ function SubscribeModal({
         <h2 className="mb-1 text-lg font-semibold text-foreground">
           {t("calendar.subscribe")}
         </h2>
+        {/* The other half of the pair. Read before pasting, it settles the question the two forms
+            were silently asking. */}
+        <p className="mb-1 text-sm font-medium text-foreground">
+          {t("calendar.subscribeWhatFor")}
+        </p>
         <p className="mb-4 text-xs text-muted">{t("calendar.subscribeHint")}</p>
         <input
           autoFocus
