@@ -76,6 +76,13 @@ export default function LoginPage() {
           <Link href="/register" className="text-accent hover:underline">
             {t("login.create")}
           </Link>
+          <br />
+          <Link
+            href="/forgot-password"
+            className="text-muted hover:text-accent"
+          >
+            {t("forgot.title")}
+          </Link>
         </>
       }
     >

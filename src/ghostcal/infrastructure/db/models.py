@@ -167,6 +167,23 @@ class EmailVerificationToken(TimestampMixin, Base):
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class PasswordResetToken(TimestampMixin, Base):
+    """Single-use password-reset token. Only the hash is stored.
+
+    Holding one is not enough to reset anything: the org key envelope it unlocks is sealed under
+    the recovery phrase, 24 random bytes shown once at sign-up. Mailbox access alone gets a
+    ciphertext and an Argon2id wall.
+    """
+
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    token_hash: Mapped[str] = mapped_column(String(128), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class RefreshToken(TimestampMixin, Base):
     """Rotating refresh token. Only the hash is stored; rotation revokes the previous one."""
 

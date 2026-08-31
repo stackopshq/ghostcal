@@ -94,6 +94,7 @@ class AuthConfig:
     refresh_ttl: timedelta
     email_verification_ttl: timedelta
     frontend_base_url: str
+    password_reset_ttl: timedelta = timedelta(hours=1)
 
 
 @dataclass(frozen=True, slots=True)
@@ -202,6 +203,23 @@ class AuthRepository:
     async def mark_email_verified(self, user_id: uuid.UUID, now: datetime) -> None:
         raise NotImplementedError
 
+    async def add_password_reset(
+        self, user_id: uuid.UUID, token_hash: str, expires_at: datetime
+    ) -> None:
+        raise NotImplementedError
+
+    async def peek_password_reset(self, token_hash: str, now: datetime) -> uuid.UUID | None:
+        """The user a live token belongs to, WITHOUT spending it, else None.
+
+        The reset page needs the key envelopes before it can offer to reset anything, and it must
+        be able to fail on a wrong recovery phrase without burning the link.
+        """
+        raise NotImplementedError
+
+    async def consume_password_reset(self, token_hash: str, now: datetime) -> uuid.UUID | None:
+        """Mark an unused, unexpired token used and return its user id, else None."""
+        raise NotImplementedError
+
     async def add_refresh_token(
         self, user_id: uuid.UUID, token_hash: str, expires_at: datetime
     ) -> None:
@@ -238,6 +256,15 @@ def _org_slug(email: str) -> str:
     base = "".join(c if c.isalnum() else "-" for c in email.split("@", 1)[0].lower())
     base = base.strip("-") or "team"
     return f"{base}-{secrets.token_hex(3)}"
+
+
+@dataclass(frozen=True)
+class ZkRewrap:
+    """One organization's key, re-wrapped under the new password by the browser."""
+
+    organization_id: uuid.UUID
+    wrapped_private_key: str
+    wrap_salt: str
 
 
 class AuthService:
@@ -311,6 +338,73 @@ class AuthService:
                 f'<p><a href="{link}">Verify my email</a></p>'
             ),
         )
+
+    async def request_password_reset(self, *, email: str) -> None:
+        """Start a reset. Says nothing about whether the address is known.
+
+        Always returns as if it worked: a route that answers differently for a known and an unknown
+        address is an account-enumeration oracle, and the caller here is unauthenticated.
+
+        Nothing is sent to an address that was never verified either. The link is proof of mailbox
+        control, and an unverified address has never been shown to belong to the account holder.
+        """
+        user = await self._repo.get_by_email(email.strip().lower())
+        if user is None or not user.email_verified:
+            return
+        plain = secrets.token_urlsafe(32)
+        expires_at = self._clock.now() + self._config.password_reset_ttl
+        await self._repo.add_password_reset(user.id, _hash_token(plain), expires_at)
+        link = f"{self._config.frontend_base_url}/reset-password?token={plain}"
+        await self._mailer.send(
+            to=email,
+            subject="Reset your GhostCal password",
+            html=(
+                "<p>Someone asked to reset the password on this GhostCal account. If that was not "
+                "you, ignore this message and nothing changes.</p>"
+                f'<p><a href="{link}">Reset my password</a></p>'
+                "<p>You will need the recovery phrase shown when the account was created. Without "
+                "it this link cannot open your calendar — we do not hold a copy.</p>"
+            ),
+        )
+
+    async def zk_keys_for_reset(self, *, token: str) -> list[ZkKeyBundle]:
+        """The key envelopes a reset needs, for the holder of a live token.
+
+        Handing these to whoever has the emailed link is deliberate and safe: every one of them is
+        sealed under the recovery phrase, 24 random bytes — 192 bits — behind Argon2id. Mailbox
+        access alone yields ciphertext and nothing else.
+        """
+        user_id = await self._repo.peek_password_reset(_hash_token(token), self._clock.now())
+        if user_id is None:
+            raise InvalidToken("invalid or expired reset token")
+        return await self._repo.get_zk_keys(user_id)
+
+    async def reset_password(
+        self, *, token: str, new_password: str, envelopes: list[ZkRewrap]
+    ) -> None:
+        """Set a new password from a reset link, together with the re-wrapped key envelopes.
+
+        The envelopes are not optional and not a second step. The server cannot produce them — it
+        never sees a private key — so if the browser does not send them here, the account ends up
+        with a working password and a calendar nothing can open. That is the failure this whole
+        feature exists to undo; doing it in two requests would reintroduce it in the gap.
+
+        Every session is revoked, for the same reason a deliberate password change revokes them.
+        """
+        await enforce_password_policy(new_password, self._breach_checker)
+        now = self._clock.now()
+        user_id = await self._repo.consume_password_reset(_hash_token(token), now)
+        if user_id is None:
+            raise InvalidToken("invalid or expired reset token")
+        await self._repo.set_password_hash(user_id, self._hasher.hash(new_password))
+        for envelope in envelopes:
+            await self._repo.rewrap_zk_key(
+                user_id,
+                envelope.organization_id,
+                wrapped_private_key=envelope.wrapped_private_key,
+                wrap_salt=envelope.wrap_salt,
+            )
+        await self._repo.revoke_all_refresh_tokens(user_id, now)
 
     async def verify_email(self, *, token: str) -> None:
         now = self._clock.now()

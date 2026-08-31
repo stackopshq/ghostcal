@@ -233,6 +233,28 @@ const en: Dict = {
   "calendar.locked":
     "Locked. Log in again to unlock your calendar in this browser.",
   "calendar.busy": "Busy",
+  "forgot.title": "Forgotten password",
+  "forgot.subtitle": "We will email you a link.",
+  "forgot.send": "Send the link",
+  "forgot.sent": "If that address has an account, a link is on its way. It expires in an hour.",
+  "forgot.backToLogin": "Back to sign in",
+  "forgot.phraseWarning":
+    "You will need the recovery phrase shown when the account was created. We do not hold a copy, so without it the link cannot open your calendar.",
+  "reset.title": "Choose a new password",
+  "reset.subtitle": "Your recovery phrase unlocks the calendar; the new password re-locks it.",
+  "reset.phrasePlaceholder": "Recovery phrase",
+  "reset.newPassword": "New password",
+  "reset.submit": "Reset my password",
+  "reset.wrongPhrase":
+    "That phrase does not open this account. Nothing has changed and the link still works.",
+  "reset.badLinkTitle": "This link cannot be used",
+  "reset.badLinkBody":
+    "It has expired, or it has already been used. Reset links last an hour and work once.",
+  "reset.askAgain": "Ask for a new link",
+  "reset.nothingRecoverable":
+    "The recovery phrase cannot reopen anything on this account: its keys reached it another way, and no copy of them is wrapped under the phrase. Ask an administrator of your organisation to grant you access again.",
+  "reset.partialWarning":
+    "{n} key generation(s) will stay locked: they were granted after your account was set up, and the recovery phrase has no copy of them. Everything else reopens. An administrator can grant the rest back.",
   "calendar.recolor": "Change this calendar's colour",
   "calendar.untitled": "(untitled)",
   "calendar.newEvent": "New event",
@@ -814,6 +836,29 @@ const fr: Dict = {
   "calendar.locked":
     "Verrouillé. Reconnectez-vous pour déverrouiller votre calendrier dans ce navigateur.",
   "calendar.busy": "Occupé",
+  "forgot.title": "Mot de passe oublié",
+  "forgot.subtitle": "Nous vous envoyons un lien par courriel.",
+  "forgot.send": "Envoyer le lien",
+  "forgot.sent": "Si cette adresse a un compte, un lien est parti. Il expire dans une heure.",
+  "forgot.backToLogin": "Retour à la connexion",
+  "forgot.phraseWarning":
+    "Il vous faudra la phrase de récupération affichée à la création du compte. Nous n'en gardons aucune copie : sans elle, le lien ne peut pas ouvrir votre agenda.",
+  "reset.title": "Choisir un nouveau mot de passe",
+  "reset.subtitle":
+    "Votre phrase de récupération déverrouille l'agenda ; le nouveau mot de passe le referme.",
+  "reset.phrasePlaceholder": "Phrase de récupération",
+  "reset.newPassword": "Nouveau mot de passe",
+  "reset.submit": "Réinitialiser mon mot de passe",
+  "reset.wrongPhrase":
+    "Cette phrase n'ouvre pas ce compte. Rien n'a changé et le lien fonctionne toujours.",
+  "reset.badLinkTitle": "Ce lien n'est plus utilisable",
+  "reset.badLinkBody":
+    "Il a expiré, ou il a déjà servi. Un lien de réinitialisation dure une heure et ne sert qu'une fois.",
+  "reset.askAgain": "Demander un nouveau lien",
+  "reset.nothingRecoverable":
+    "La phrase de récupération ne peut rien rouvrir sur ce compte : ses clés lui sont parvenues autrement, et aucune copie n'en est enveloppée sous la phrase. Demandez à un administrateur de votre organisation de vous redonner l'accès.",
+  "reset.partialWarning":
+    "{n} génération(s) de clé resteront verrouillées : elles ont été octroyées après la création de votre compte, et la phrase de récupération n'en a pas de copie. Tout le reste se rouvre. Un administrateur peut vous rendre le reste.",
   "calendar.recolor": "Changer la couleur de ce calendrier",
   "calendar.untitled": "(sans titre)",
   "calendar.newEvent": "Nouvel événement",
