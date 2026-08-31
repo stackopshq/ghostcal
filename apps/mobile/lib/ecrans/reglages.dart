@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../services/agenda.dart';
+import '../services/reglages.dart' as service;
 import '../services/session.dart';
 import '../theme.dart';
+import 'equipe.dart';
+import 'profil.dart';
+import 'sondages.dart';
 
 /// Ce qu'on peut régler, et rien d'autre.
 ///
@@ -19,6 +23,7 @@ class EcranDeReglages extends StatefulWidget {
 
 class _EcranDeReglagesState extends State<EcranDeReglages> {
   List<Organisation>? _organisations;
+  List<service.Horaire>? _horaires;
   String? _erreur;
 
   @override
@@ -33,7 +38,13 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
     if (api == null || auth == null) return;
     try {
       final organisations = await Agenda(api: api, auth: auth).organisations();
-      if (mounted) setState(() => _organisations = organisations);
+      final horaires = await service.Reglages(api: api).horaires();
+      if (mounted) {
+        setState(() {
+          _organisations = organisations;
+          _horaires = horaires;
+        });
+      }
     } on Object catch (e) {
       if (mounted) setState(() => _erreur = '$e');
     }
@@ -59,8 +70,12 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
             ),
           _titre(gc, 'Compte'),
           ListTile(
-            title: const Text('Adresse e-mail'),
+            title: const Text('Profil'),
             subtitle: Text(session.email, style: TextStyle(color: gc.estompe)),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push<void>(MaterialPageRoute(
+              builder: (_) => EcranDeProfil(session: session),
+            )),
           ),
           ListTile(
             title: const Text('Serveur'),
@@ -96,6 +111,43 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
                 ],
               ),
             ),
+          _titre(gc, 'Disponibilités'),
+          if (_horaires == null)
+            const Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator())
+          else if (_horaires!.isEmpty)
+            ListTile(
+              title: Text('Aucun horaire', style: TextStyle(color: gc.estompe)),
+              subtitle: Text(
+                'Ils se définissent depuis le web.',
+                style: TextStyle(color: gc.estompe, fontSize: 12),
+              ),
+            )
+          else
+            for (final horaire in _horaires!)
+              ListTile(
+                title: Text(horaire.nom),
+                subtitle: Text(
+                  _resume(horaire),
+                  style: TextStyle(color: gc.estompe, fontSize: 12),
+                ),
+              ),
+          _titre(gc, 'Organisation'),
+          ListTile(
+            leading: const Icon(Icons.how_to_vote_outlined),
+            title: const Text('Sondages'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push<void>(MaterialPageRoute(
+              builder: (_) => EcranDeSondages(session: session),
+            )),
+          ),
+          ListTile(
+            leading: const Icon(Icons.people_outline),
+            title: const Text('Équipe'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push<void>(MaterialPageRoute(
+              builder: (_) => EcranDEquipe(session: session),
+            )),
+          ),
           _titre(gc, 'Sécurité'),
           ListTile(
             leading: const Icon(Icons.lock_outline),
@@ -114,6 +166,17 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
         ],
       ),
     );
+  }
+
+  /// Le résumé d'un horaire : les jours qu'il couvre.
+  ///
+  /// Le nom du jour vient de `RegleDHoraire.jour`, qui **refuse** une valeur hors bornes
+  /// plutôt que de la ramener par modulo — un `weekday` de 42 affiché « lundi » serait une
+  /// valeur fausse présentée avec l'assurance d'une vraie.
+  String _resume(service.Horaire horaire) {
+    if (horaire.regles.isEmpty) return 'Aucune plage · ${horaire.fuseau}';
+    final jours = <String>{for (final regle in horaire.regles) regle.jour};
+    return '${jours.join(', ')} · ${horaire.fuseau}';
   }
 
   Widget _titre(Gc gc, String texte) => Padding(
