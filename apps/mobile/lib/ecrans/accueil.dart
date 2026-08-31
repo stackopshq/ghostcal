@@ -4,12 +4,13 @@ import '../services/session.dart';
 import '../theme.dart';
 import 'agenda.dart';
 import 'reglages.dart';
+import 'taches.dart';
 
 /// L'application une fois le coffre ouvert.
 ///
-/// Deux onglets seulement, parce que deux fonctions seulement existent. Le client natif en
-/// a cinq ; en afficher cinq ici, dont trois vides, laisserait croire à un chargement
-/// perpétuel plutôt qu'à un portage en cours.
+/// Un onglet par fonction **qui existe**. Le client natif en a cinq ; en afficher cinq ici,
+/// dont certains vides, laisserait croire à un chargement perpétuel plutôt qu'à un portage
+/// en cours. Chacun s'ajoute quand son écran est écrit, pas avant.
 class EcranDAccueil extends StatefulWidget {
   const EcranDAccueil({super.key, required this.session});
 
@@ -30,6 +31,7 @@ class _EcranDAccueilState extends State<EcranDAccueil> {
           index: _onglet,
           children: [
             EcranDAgenda(session: widget.session),
+            EcranDeTaches(session: widget.session),
             EcranDeReglages(session: widget.session),
           ],
         ),
@@ -43,6 +45,7 @@ class _EcranDAccueilState extends State<EcranDAccueil> {
           onDestinationSelected: (i) => setState(() => _onglet = i),
           destinations: const [
             NavigationDestination(icon: Icon(Icons.calendar_today), label: 'Agenda'),
+            NavigationDestination(icon: Icon(Icons.check_circle_outline), label: 'Tâches'),
             NavigationDestination(icon: Icon(Icons.settings), label: 'Réglages'),
           ],
         ),

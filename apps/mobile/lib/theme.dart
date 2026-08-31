@@ -74,13 +74,12 @@ class Gc {
   }
 }
 
-/// Mesures partagées, relevées sur les jetons de `ghost-theme.css` — `--radius`,
-/// `--radius-lg`, `--radius-pill`.
+/// Mesures partagées, relevées sur les jetons de `ghost-theme.css` — `--radius` et
+/// `--radius-lg`.
 ///
-/// Relevé le 2026-08-31 : les clients iOS avaient divergé du web sans que rien ne le
-/// signale. Les cartes y étaient à 16 au lieu de 18, et **les boutons rectangulaires au
-/// lieu d'être des pilules**. La pilule est ce qu'on reconnaît d'un produit à l'autre ; un
-/// rectangle arrondi à sa place fait douter qu'il s'agisse de la même famille.
+/// Les cartes sont passées de 16 à 18 le 2026-08-31 : elles avaient dérivé du web sans
+/// que rien ne le signale. Les **boutons**, eux, restent rectangulaires là où le web les
+/// arrondit en pilule — exception écrite et assumée, voir `BoutonPrincipal`.
 class Mesures {
   static const rayon = 12.0;
   static const rayonCarte = 18.0;
@@ -193,21 +192,23 @@ class BoutonPrincipal extends StatelessWidget {
     final actif = onPressed != null;
     return DecoratedBox(
       decoration: ShapeDecoration(
-        // La pilule de la charte — `--radius-pill`. `StadiumBorder` est la façon dont
-        // Flutter nomme cette forme ; un rayon de 999 la dessinerait aussi, mais
-        // finirait par diverger de ce que le CSS appelle.
-        shape: const StadiumBorder(),
+        // **Rectangulaire, et non la pilule du web.** Décidé le 2026-08-31 en regardant
+        // l'écran : sur iOS la barre de recherche appartient au système et ne peut pas
+        // devenir une pilule ; un bouton en pilule à côté d'un champ qui n'en est pas une
+        // jure davantage que l'écart avec le web. Exception assumée, pas dérive.
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Mesures.rayon),
+        ),
         // Seule l'action disponible rayonne. Faire luire un bouton inerte appellerait
         // l'œil vers ce sur quoi on ne peut pas appuyer.
         shadows: gc.halo(actif ? 0.85 : 0),
       ),
       child: Material(
         color: gc.accent.withValues(alpha: actif ? 1 : 0.35),
-        shape: const StadiumBorder(),
-        clipBehavior: Clip.antiAlias,
+        borderRadius: BorderRadius.circular(Mesures.rayon),
         child: InkWell(
           onTap: onPressed,
-          customBorder: const StadiumBorder(),
+          borderRadius: BorderRadius.circular(Mesures.rayon),
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 15),
