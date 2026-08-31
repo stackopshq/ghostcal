@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from ghostcal.application.audit import AuditLog
 from ghostcal.application.keypairs import (
     KeypairAlreadySet,
+    KeypairNotRewrappable,
     KeypairService,
     UserKeypair,
 )
@@ -35,6 +36,7 @@ from ghostcal.presentation.schemas import (
     RotateKeyOut,
     UserKeypairIn,
     UserKeypairOut,
+    UserKeypairRewrapIn,
 )
 
 router = APIRouter(prefix="/v1/me", tags=["keypair"])
@@ -73,6 +75,33 @@ async def set_keypair(payload: UserKeypairIn, user: CurrentUser) -> None:
             )
         except KeypairAlreadySet as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.post("/keypair/rewrap", status_code=204)
+async def rewrap_keypair(payload: UserKeypairRewrapIn, user: CurrentUser) -> None:
+    """The same keypair, re-wrapped under a new password. Called right after a password change.
+
+    Distinct from `PUT /keypair`, which is write-once. That rule exists to stop a public key being
+    replaced, because everything sealed to it would be stranded. Re-wrapping strands nothing: the
+    keypair does not change, only the envelope around its private half. So this route never writes
+    `public_key` — it matches it, and refuses (404) when the caller names a keypair this account
+    does not hold.
+
+    Without it the envelope stayed sealed under the OLD password, and write-once meant it could
+    never be re-sealed: the account went on working while every org key sealed to this keypair
+    became unreadable. Permanently — the browser's own comment said the next login would fix it,
+    and there was nothing for the next login to fix.
+    """
+    async with db_session() as session:
+        try:
+            await KeypairService(SqlKeypairRepository(session)).rewrap(
+                user.id,
+                public_key=payload.public_key,
+                wrapped_private_key=payload.wrapped_private_key,
+                wrap_salt=payload.wrap_salt,
+            )
+        except KeypairNotRewrappable as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/organization/member-keys", response_model=list[MemberPublicKeyOut])

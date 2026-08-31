@@ -9,6 +9,9 @@ The server never validates the crypto — it cannot. It stores opaque base64 and
 rules, which are the two ways a keypair store goes wrong:
 
 - a keypair is **write-once**. Overwriting a public key would strand everything ever sealed to it.
+  Re-wrapping is NOT that operation: the same keypair in a new envelope leaves `zk_public_key`
+  identical, so nothing sealed to it is stranded. It has its own path, which never writes the
+  public key and matches it instead — a caller must say which keypair it holds, and be right.
 - a public key is only visible to someone who **shares an organization** with its owner. Public keys
   are not secret, but a directory of every user in the system is not something to hand out either.
 """
@@ -25,6 +28,10 @@ class KeypairError(Exception):
 
 class KeypairAlreadySet(KeypairError):
     """The user already has a keypair. Replacing it would strand all that was sealed to it."""
+
+
+class KeypairNotRewrappable(KeypairError):
+    """No keypair to re-wrap, or the caller's public key is not the one on file."""
 
 
 class UnknownUser(KeypairError):
@@ -58,6 +65,15 @@ class KeypairRepository:
         """Store the keypair. Returns False if one was already there (nothing is overwritten)."""
         raise NotImplementedError
 
+    async def rewrap(
+        self, user_id: uuid.UUID, *, public_key: str, wrapped_private_key: str, wrap_salt: str
+    ) -> bool:
+        """Replace the envelope of an existing keypair.
+
+        False when `public_key` is not the one on file: the caller is re-wrapping something else.
+        """
+        raise NotImplementedError
+
     async def member_public_keys(self, organization_id: uuid.UUID) -> list[MemberPublicKey]:
         """Every member of the organization, with their public key (None if they have none yet)."""
         raise NotImplementedError
@@ -73,6 +89,24 @@ class KeypairService:
     async def set(self, user_id: uuid.UUID, keypair: UserKeypair) -> None:
         if not await self._repo.set(user_id, keypair):
             raise KeypairAlreadySet("this account already has a keypair")
+
+    async def rewrap(
+        self, user_id: uuid.UUID, *, public_key: str, wrapped_private_key: str, wrap_salt: str
+    ) -> None:
+        """Store the same keypair under a new password.
+
+        Called after a password change. Without it the stored envelope stays sealed under the OLD
+        password and, because the keypair is write-once, it can never be opened again: the account
+        keeps working, and every org key sealed to this keypair becomes unreadable — permanently,
+        not until the next login.
+        """
+        if not await self._repo.rewrap(
+            user_id,
+            public_key=public_key,
+            wrapped_private_key=wrapped_private_key,
+            wrap_salt=wrap_salt,
+        ):
+            raise KeypairNotRewrappable("no keypair with that public key for this account")
 
     async def member_public_keys(self, organization_id: uuid.UUID) -> list[MemberPublicKey]:
         return await self._repo.member_public_keys(organization_id)

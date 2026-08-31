@@ -216,8 +216,17 @@ export function putKeypair(keypair: UserKeypair): Promise<void> {
 }
 
 // Make sure the account has a keypair, and stash it unlocked for this tab. Best-effort by design:
-// failing here must never keep someone out of their account. The worst case is that an org cannot
-// rotate past them yet, and their next login fixes it.
+// failing here must never keep someone out of their account.
+//
+// It is best-effort about GENERATING one, not about opening one that exists. Those two failures
+// look identical from here and are not: a keypair that will not open is an account that has
+// silently lost every org key sealed to it, and no later login repairs that — the envelope on file
+// stays wrapped under whatever secret made it. Until 2026-08-31 this comment claimed "their next
+// login fixes it", which was false, and it was the only place the behaviour was written down.
+//
+// The cause was a password change that re-wrapped the org keys and not this one; that is fixed in
+// `rewrapAllForNewPassword`. The catch below now distinguishes the two cases rather than treating
+// an unopenable keypair as routine.
 export async function ensureUserKeypair(secret: string): Promise<void> {
   try {
     let keypair = await getKeypair();
@@ -247,8 +256,15 @@ export async function ensureUserKeypair(secret: string): Promise<void> {
         keypair.wrap_salt,
       ),
     });
-  } catch {
-    /* a secret that cannot unwrap the stored keypair; leave it locked, nothing else breaks */
+  } catch (err) {
+    // Something IS broken when a stored keypair will not open, and saying so is the only way it
+    // ever gets noticed: the interface degrades quietly and the user reads it as an empty account.
+    // Not thrown — a login must not fail on this — but not silent either.
+    console.warn(
+      "ghostcal: the stored keypair did not open with this secret. Org key generations sealed " +
+        "to it will stay locked in this browser.",
+      err,
+    );
   }
 }
 
@@ -336,11 +352,38 @@ export async function setupEncryptionPassphrase(
   return recoveryPhrase;
 }
 
-// Re-wrap every unlocked org key under a new password and persist them. Call after a successful
-// password change so the new password can unlock each org key next time.
+/**
+ * Re-wrap everything this browser holds under a new password. Call after a successful change.
+ *
+ * "Everything" means the user's own keypair as well as the org keys. Until 2026-08-31 it meant
+ * only the org keys, and the omission was permanent rather than inconvenient: the keypair is
+ * write-once, so an envelope left sealed under the old password could never be re-sealed. The
+ * account kept working, `ensureUserKeypair` swallowed the failure at the next login, and every
+ * org key generation sealed to that keypair stayed shut — for good.
+ *
+ * The keypair goes first, deliberately. If an org key fails to re-wrap it can be re-granted by an
+ * admin, which ADR-0003 already provides for; a keypair that fails cannot be recovered by anyone,
+ * because nothing but the old password could ever open the envelope on file.
+ */
 export async function rewrapAllForNewPassword(
   newPassword: string,
 ): Promise<void> {
+  const userKeys = getUserKeys();
+  if (userKeys) {
+    const wrapped = await rewrapForPassword(userKeys.privateKey, newPassword);
+    // Not `PUT /keypair`, which is write-once: this route matches the public key instead of
+    // writing it, so the same keypair gets a new envelope and nothing sealed to it is stranded.
+    await authedFetch<void>("/v1/me/keypair/rewrap", {
+      method: "POST",
+      body: JSON.stringify({
+        public_key: userKeys.publicKey,
+        wrapped_private_key: wrapped.wrapped_private_key,
+        wrap_salt: wrapped.salt,
+      }),
+    });
+    // This tab keeps the same unwrapped key — re-wrapping changes the envelope, not the keypair.
+  }
+
   for (const { organizationId, keys } of listUnlockedKeys()) {
     const wrapped = await rewrapForPassword(keys.privateKey, newPassword);
     await authedFetch<void>("/v1/auth/zk-rewrap", {

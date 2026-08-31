@@ -59,6 +59,20 @@ class SqlKeypairRepository(KeypairRepository):
         )
         return bool(result.rowcount)  # type: ignore[attr-defined]
 
+    async def rewrap(
+        self, user_id: uuid.UUID, *, public_key: str, wrapped_private_key: str, wrap_salt: str
+    ) -> bool:
+        # `zk_public_key` is in the WHERE clause and NOT in the SET clause. That is the whole
+        # difference from `set` above: the write-once rule exists to stop a public key changing,
+        # and this statement cannot change one. Matching it also proves the caller is re-wrapping
+        # the keypair that is actually stored — a browser holding a stale one updates nothing.
+        result = await self._session.execute(
+            update(models.User)
+            .where(models.User.id == user_id, models.User.zk_public_key == public_key)
+            .values(zk_wrapped_private_key=wrapped_private_key, zk_wrap_salt=wrap_salt)
+        )
+        return bool(result.rowcount)  # type: ignore[attr-defined]
+
     async def member_public_keys(self, organization_id: uuid.UUID) -> list[MemberPublicKey]:
         await bind_org(self._session, organization_id)
         rows = (
