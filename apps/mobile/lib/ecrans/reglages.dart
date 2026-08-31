@@ -68,6 +68,10 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
     return Scaffold(
       appBar: AppBar(title: const Text('Réglages')),
       body: ListView(
+        // La dernière ligne finissait au ras de la barre d'onglets : rien n'indiquait
+        // qu'il restait à faire défiler, et une section coupée après son premier élément
+        // se lit comme complète. Constaté à l'écran — voir le témoin de visibilité.
+        padding: const EdgeInsets.only(bottom: 24),
         children: [
           if (_erreur != null)
             Padding(
@@ -86,6 +90,36 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
           ListTile(
             title: const Text('Serveur'),
             subtitle: Text(session.serveur, style: TextStyle(color: gc.estompe)),
+          ),
+          _titre(gc, 'Sécurité'),
+          // Le délai décide aussi de l'apparition du cadenas dans la barre de l'agenda :
+          // à « immédiatement », quitter l'application referme déjà, et le bouton ferait
+          // doublon avec ce que le système fait seul.
+          RadioGroup<v.DelaiDeVerrouillage>(
+            groupValue: widget.verrouillage.choix,
+            onChanged: (valeur) async {
+              if (valeur == null) return;
+              await widget.verrouillage.choisir(valeur);
+              if (mounted) setState(() {});
+            },
+            child: Column(
+              children: [
+                for (final choix in v.DelaiDeVerrouillage.values)
+                  RadioListTile<v.DelaiDeVerrouillage>(
+                    value: choix,
+                    title: Text(choix.libelle),
+                  ),
+              ],
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.lock_outline),
+            title: const Text('Verrouiller le coffre'),
+            subtitle: Text(
+              'Les clés quittent la mémoire ; la session reste ouverte.',
+              style: TextStyle(color: gc.estompe, fontSize: 12),
+            ),
+            onTap: session.verrouiller,
           ),
           _titre(gc, 'Organisation'),
           if (_organisations == null)
@@ -137,7 +171,7 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
                   style: TextStyle(color: gc.estompe, fontSize: 12),
                 ),
               ),
-          _titre(gc, 'Organisation'),
+          _titre(gc, 'Collaboration'),
           ListTile(
             leading: const Icon(Icons.how_to_vote_outlined),
             title: const Text('Sondages'),
@@ -153,36 +187,6 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
             onTap: () => Navigator.of(context).push<void>(MaterialPageRoute(
               builder: (_) => EcranDEquipe(session: session),
             )),
-          ),
-          _titre(gc, 'Sécurité'),
-          // Le délai décide aussi de l'apparition du cadenas dans la barre de l'agenda :
-          // à « immédiatement », quitter l'application referme déjà, et le bouton ferait
-          // doublon avec ce que le système fait seul.
-          RadioGroup<v.DelaiDeVerrouillage>(
-            groupValue: widget.verrouillage.choix,
-            onChanged: (valeur) async {
-              if (valeur == null) return;
-              await widget.verrouillage.choisir(valeur);
-              if (mounted) setState(() {});
-            },
-            child: Column(
-              children: [
-                for (final choix in v.DelaiDeVerrouillage.values)
-                  RadioListTile<v.DelaiDeVerrouillage>(
-                    value: choix,
-                    title: Text(choix.libelle),
-                  ),
-              ],
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.lock_outline),
-            title: const Text('Verrouiller le coffre'),
-            subtitle: Text(
-              'Les clés quittent la mémoire ; la session reste ouverte.',
-              style: TextStyle(color: gc.estompe, fontSize: 12),
-            ),
-            onTap: session.verrouiller,
           ),
           ListTile(
             leading: Icon(Icons.logout, color: gc.danger),
