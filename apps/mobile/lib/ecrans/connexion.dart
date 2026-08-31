@@ -59,43 +59,61 @@ class _EcranDeConnexionState extends State<EcranDeConnexion> {
   @override
   Widget build(BuildContext context) {
     final gc = Gc.of(context);
-    return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('GhostCal',
-                  style: Theme.of(context)
-                      .textTheme
-                      .displaySmall
-                      ?.copyWith(fontWeight: FontWeight.bold, color: gc.encre)),
-              const SizedBox(height: 6),
-              Text('Votre agenda, chiffré de bout en bout.',
-                  style: TextStyle(color: gc.estompe)),
-              const SizedBox(height: 22),
-              ..._visage(gc),
-              if (session.erreur != null) ...[
-                const SizedBox(height: 14),
-                Text(session.erreur!, style: TextStyle(color: gc.danger, fontSize: 13)),
-              ],
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: session.occupe ? null : _valider,
-                  child: session.occupe
-                      ? const SizedBox(
-                          height: 18,
-                          width: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : Text(_coffreFerme || _reprise ? 'Déverrouiller' : 'Se connecter'),
+    return FondGhost(
+      child: Scaffold(
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 40, 20, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // L'enseigne rayonne, comme sur le web et sur iOS : c'est la seule
+                // chose de l'écran qui porte la marque.
+                Text(
+                  'GhostCal',
+                  style: TextStyle(
+                    fontSize: 40,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                    color: gc.encre,
+                    shadows: gc.haloDeTexte(0.7),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              ..._bascules(gc),
-            ],
+                const SizedBox(height: 6),
+                Text('Votre agenda, chiffré de bout en bout.',
+                    style: TextStyle(color: gc.estompe, fontSize: 15)),
+                const SizedBox(height: 28),
+                // Le formulaire vit dans une carte de verre : c'est ce qui distingue
+                // l'écran d'une pile de champs posés sur un fond.
+                CarteDeVerre(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ..._visage(gc),
+                      if (session.erreur != null) ...[
+                        const SizedBox(height: 16),
+                        Text(session.erreur!,
+                            style: TextStyle(color: gc.danger, fontSize: 13)),
+                      ],
+                      const SizedBox(height: 20),
+                      BoutonPrincipal(
+                        onPressed: session.occupe ? null : _valider,
+                        child: session.occupe
+                            ? const SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Gc.surAccent))
+                            : Text(_coffreFerme || _reprise
+                                ? 'Déverrouiller'
+                                : 'Se connecter'),
+                      ),
+                      ..._bascules(gc),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -126,6 +144,7 @@ class _EcranDeConnexionState extends State<EcranDeConnexion> {
       _champ(
         'Serveur',
         _serveur,
+        cle: const Key('champ.serveur'),
         // Le domaine est celui que la RFC 2606 réserve aux exemples — il ne résout nulle
         // part, donc personne ne se connectera par mégarde à l'instance d'un tiers.
         indice: 'https://ghostcal.example.com',
@@ -133,7 +152,9 @@ class _EcranDeConnexionState extends State<EcranDeConnexion> {
       ),
       const SizedBox(height: 12),
       _champ('Adresse e-mail', _email,
-          indice: 'vous@exemple.ch', clavier: TextInputType.emailAddress),
+          cle: const Key('champ.email'),
+          indice: 'vous@exemple.ch',
+          clavier: TextInputType.emailAddress),
       const SizedBox(height: 12),
       _champDePhrase(),
     ];
@@ -171,24 +192,42 @@ class _EcranDeConnexionState extends State<EcranDeConnexion> {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: gc.surface2,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(Mesures.rayon),
           border: Border.all(color: gc.bordure),
         ),
         child: Text(texte, style: TextStyle(color: gc.encre, fontSize: 13)),
       );
 
+  /// Les libellés de la charte : petites capitales espacées, teinte estompée. Ils
+  /// nomment sans se disputer l'attention avec ce qu'on saisit.
+  Widget _libelle(String texte) => Text(
+        texte.toUpperCase(),
+        style: TextStyle(
+          color: Gc.of(context).estompe,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1.1,
+        ),
+      );
+
+  /// La clé identifie le champ indépendamment de son libellé.
+  ///
+  /// Les tests s'y accrochent plutôt qu'au texte : un libellé passé en capitales pour
+  /// suivre la charte a fait tomber une vérification qui ne portait pas sur la charte.
   Widget _champ(
     String titre,
     TextEditingController controleur, {
+    Key? cle,
     String? indice,
     TextInputType? clavier,
   }) =>
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(titre, style: TextStyle(color: Gc.of(context).estompe, fontSize: 12)),
-          const SizedBox(height: 6),
+          _libelle(titre),
+          const SizedBox(height: 8),
           TextField(
+            key: cle,
             controller: controleur,
             keyboardType: clavier,
             autocorrect: false,
@@ -202,12 +241,10 @@ class _EcranDeConnexionState extends State<EcranDeConnexion> {
   Widget _champDePhrase() => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            _parRecuperation ? 'Phrase de récupération' : 'Mot de passe',
-            style: TextStyle(color: Gc.of(context).estompe, fontSize: 12),
-          ),
-          const SizedBox(height: 6),
+          _libelle(_parRecuperation ? 'Phrase de récupération' : 'Mot de passe'),
+          const SizedBox(height: 8),
           TextField(
+            key: const Key('champ.phrase'),
             controller: _phrase,
             obscureText: !_phraseVisible,
             autocorrect: false,

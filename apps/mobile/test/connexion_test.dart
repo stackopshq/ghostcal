@@ -19,8 +19,9 @@ void main() {
   group("L'écran de connexion a trois visages", () {
     testWidgets('sans rien d\'enregistré, il demande tout', (tester) async {
       await afficher(tester, Session());
-      expect(find.text('Serveur'), findsOneWidget);
-      expect(find.text('Adresse e-mail'), findsOneWidget);
+      expect(find.byKey(const Key('champ.serveur')), findsOneWidget);
+      expect(find.byKey(const Key('champ.email')), findsOneWidget);
+      expect(find.byKey(const Key('champ.phrase')), findsOneWidget);
       expect(find.text('Se connecter'), findsOneWidget);
     });
 
@@ -32,8 +33,9 @@ void main() {
         ..email = 'clara@example.com';
       session.debugPoserSessionEnregistree(true);
       await afficher(tester, session);
-      expect(find.text('Serveur'), findsNothing);
-      expect(find.text('Adresse e-mail'), findsNothing);
+      expect(find.byKey(const Key('champ.serveur')), findsNothing);
+      expect(find.byKey(const Key('champ.email')), findsNothing);
+      expect(find.byKey(const Key('champ.phrase')), findsOneWidget);
       expect(find.text('Déverrouiller'), findsOneWidget);
       expect(find.textContaining('clara@example.com'), findsOneWidget);
     });
@@ -47,7 +49,7 @@ void main() {
       await afficher(tester, session);
       expect(find.textContaining('Vous êtes connecté'), findsOneWidget);
       expect(find.textContaining("n'ouvre pas le coffre"), findsOneWidget);
-      expect(find.text('Serveur'), findsNothing);
+      expect(find.byKey(const Key('champ.serveur')), findsNothing);
     });
 
     testWidgets('la récupération ne se propose pas à la connexion', (tester) async {
