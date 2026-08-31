@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../services/agenda.dart';
 import '../services/session.dart';
+import '../services/verrouillage.dart';
 import '../theme.dart';
 import 'nouvel_evenement.dart';
 
@@ -12,9 +13,14 @@ import 'nouvel_evenement.dart';
 /// serveur borne la plage à 366 jours parce qu'un événement récurrent développé sur une
 /// plage illimitée serait un déni de service.
 class EcranDAgenda extends StatefulWidget {
-  const EcranDAgenda({super.key, required this.session});
+  const EcranDAgenda({
+    super.key,
+    required this.session,
+    required this.verrouillage,
+  });
 
   final Session session;
+  final Verrouillage verrouillage;
 
   @override
   State<EcranDAgenda> createState() => _EcranDAgendaState();
@@ -79,6 +85,20 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
       appBar: AppBar(
         title: Text(DateFormat.yMMMMEEEEd('fr_FR').format(_jour)),
         actions: [
+          // Un cadenas plutôt que « Verrouiller » : la barre porte déjà trois flèches et
+          // une date longue, et le mot y prendrait la place des jours.
+          //
+          // Il **n'apparaît que si le verrouillage automatique attend**. Avec le réglage
+          // par défaut — immédiat — quitter l'application referme déjà le coffre, et le
+          // bouton occuperait la meilleure place pour un geste que le système fait tout
+          // seul. Dès qu'un délai est réglé, il redevient le seul moyen de verrouiller
+          // sur-le-champ.
+          if (widget.verrouillage.cadenasVisible)
+            IconButton(
+              icon: const Icon(Icons.lock_outline),
+              tooltip: 'Verrouiller le coffre',
+              onPressed: widget.session.verrouiller,
+            ),
           IconButton(
             icon: const Icon(Icons.chevron_left),
             tooltip: 'Jour précédent',

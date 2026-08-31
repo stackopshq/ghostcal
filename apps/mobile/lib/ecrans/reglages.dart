@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/agenda.dart';
 import '../services/reglages.dart' as service;
 import '../services/session.dart';
+import '../services/verrouillage.dart' as v;
 import '../theme.dart';
 import 'equipe.dart';
 import 'profil.dart';
@@ -13,9 +14,14 @@ import 'sondages.dart';
 /// L'écran ne montre que les fonctions qui existent. Un réglage grisé est pire que son
 /// absence : il promet une fonction, et laisse chercher pourquoi elle ne s'active pas.
 class EcranDeReglages extends StatefulWidget {
-  const EcranDeReglages({super.key, required this.session});
+  const EcranDeReglages({
+    super.key,
+    required this.session,
+    required this.verrouillage,
+  });
 
   final Session session;
+  final v.Verrouillage verrouillage;
 
   @override
   State<EcranDeReglages> createState() => _EcranDeReglagesState();
@@ -149,6 +155,26 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
             )),
           ),
           _titre(gc, 'Sécurité'),
+          // Le délai décide aussi de l'apparition du cadenas dans la barre de l'agenda :
+          // à « immédiatement », quitter l'application referme déjà, et le bouton ferait
+          // doublon avec ce que le système fait seul.
+          RadioGroup<v.DelaiDeVerrouillage>(
+            groupValue: widget.verrouillage.choix,
+            onChanged: (valeur) async {
+              if (valeur == null) return;
+              await widget.verrouillage.choisir(valeur);
+              if (mounted) setState(() {});
+            },
+            child: Column(
+              children: [
+                for (final choix in v.DelaiDeVerrouillage.values)
+                  RadioListTile<v.DelaiDeVerrouillage>(
+                    value: choix,
+                    title: Text(choix.libelle),
+                  ),
+              ],
+            ),
+          ),
           ListTile(
             leading: const Icon(Icons.lock_outline),
             title: const Text('Verrouiller le coffre'),

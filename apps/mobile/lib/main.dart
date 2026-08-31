@@ -4,6 +4,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'ecrans/accueil.dart';
 import 'ecrans/connexion.dart';
 import 'services/session.dart';
+import 'services/verrouillage.dart';
 import 'src/rust/frb_generated.dart';
 import 'theme.dart';
 
@@ -17,13 +18,20 @@ Future<void> main() async {
   await initializeDateFormatting('fr_FR');
   final session = Session();
   await session.amorcer();
-  runApp(GhostcalApp(session: session));
+  final verrouillage = Verrouillage();
+  await verrouillage.amorcer();
+  runApp(GhostcalApp(session: session, verrouillage: verrouillage));
 }
 
 class GhostcalApp extends StatelessWidget {
-  const GhostcalApp({super.key, required this.session});
+  const GhostcalApp({
+    super.key,
+    required this.session,
+    required this.verrouillage,
+  });
 
   final Session session;
+  final Verrouillage verrouillage;
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +43,7 @@ class GhostcalApp extends StatelessWidget {
       home: AnimatedBuilder(
         animation: session,
         builder: (context, _) => session.etat == Etat.ouvert
-            ? EcranDAccueil(session: session)
+            ? EcranDAccueil(session: session, verrouillage: verrouillage)
             : EcranDeConnexion(session: session),
       ),
     );
