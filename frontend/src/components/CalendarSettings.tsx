@@ -335,6 +335,12 @@ export default function CalendarSettings() {
           <h3 className="text-sm font-medium text-foreground">
             {t("cal.publishTitle")}
           </h3>
+          {/* The third of the family, after "a calendar you edit" and "a calendar you follow".
+              Three sections on this page accept a calendar, and what separates them is not the
+              protocol — which the reader has no reason to know — but what they mean to do with it. */}
+          <p className="mt-1 text-sm font-medium text-foreground">
+            {t("cal.publishWhatFor")}
+          </p>
           <p className="mt-1 text-xs text-muted">{t("cal.publishSub")}</p>
           <div className="mt-3 flex flex-col gap-2">
             {myCalendars.map((c) => (

@@ -650,8 +650,9 @@ const en: Dict = {
   "cal.connect": "Connect",
   "cal.addAnother": "+ Connect another calendar",
   "cal.publishTitle": "Publish your calendars",
+  "cal.publishWhatFor": "A calendar you take with you.",
   "cal.publishSub":
-    "Send a GhostCal calendar to one of the accounts above, so its events show up on your phone. It is still encrypted here: your browser opens each event and hands it over to be forwarded, and the server keeps none of it. Which means a publish waits for a browser: nothing runs in the background, because nothing in the background can read your events.",
+    "Your appointments go to one of the accounts above. Your browser is what decrypts them to send, never the server — so publishing only moves forward while this page is open.",
   "cal.publishNowhere": "Don't publish",
   "cal.published": "Published: {n} event(s) sent.",
   "cal.mirrorTarget": "Bookings land here",
@@ -1305,8 +1306,9 @@ const fr: Dict = {
   "cal.connect": "Connecter",
   "cal.addAnother": "+ Connecter un autre calendrier",
   "cal.publishTitle": "Publier vos calendriers",
+  "cal.publishWhatFor": "Un calendrier que vous emportez.",
   "cal.publishSub":
-    "Envoyez un calendrier GhostCal vers l'un des comptes ci-dessus, pour que ses événements apparaissent sur votre téléphone. Il reste chiffré ici : votre navigateur ouvre chaque événement et le remet pour transmission, et le serveur n'en garde rien. Ce qui veut dire qu'une publication attend un navigateur : rien ne tourne en arrière-plan, parce que rien en arrière-plan ne sait lire vos événements.",
+    "Vos rendez-vous partent vers l'un des comptes ci-dessus. C'est votre navigateur qui les déchiffre pour les envoyer, jamais le serveur : la publication n'avance donc que pendant que cette page est ouverte.",
   "cal.publishNowhere": "Ne pas publier",
   "cal.published": "Publié : {n} événement(s) envoyé(s).",
   "cal.mirrorTarget": "Les réservations arrivent ici",
