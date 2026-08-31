@@ -222,6 +222,19 @@ class UserKeypairIn(BaseModel):
     wrap_salt: str = Field(min_length=1, max_length=512)
 
 
+class UserKeypairRewrapIn(BaseModel):
+    """The SAME keypair in a new envelope, after a password change.
+
+    `public_key` is not a field to be written — it is the caller stating which keypair it holds, and
+    the server matches it. A mismatch means this browser is re-wrapping something other than what is
+    stored, and the write is refused rather than applied to whatever is there.
+    """
+
+    public_key: str = Field(min_length=1, max_length=512)
+    wrapped_private_key: str = Field(min_length=1, max_length=2048)
+    wrap_salt: str = Field(min_length=1, max_length=512)
+
+
 class UserKeypairOut(BaseModel):
     public_key: str
     wrapped_private_key: str

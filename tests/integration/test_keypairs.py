@@ -17,7 +17,12 @@ import pytest_asyncio
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
-from ghostcal.application.keypairs import KeypairAlreadySet, KeypairService, UserKeypair
+from ghostcal.application.keypairs import (
+    KeypairAlreadySet,
+    KeypairNotRewrappable,
+    KeypairService,
+    UserKeypair,
+)
 from ghostcal.infrastructure.db import models
 from ghostcal.infrastructure.db.keypairs_repository import SqlKeypairRepository
 from ghostcal.infrastructure.db.session import db_session
@@ -29,6 +34,8 @@ PUBLIC = "cHVibGljLWtleQ=="
 OTHER_PUBLIC = "b3RoZXItcHVibGljLWtleQ=="
 WRAPPED = "d3JhcHBlZC1zaw=="
 SALT = "c2FsdA=="
+REWRAPPED = "cmUtd3JhcHBlZC1zaw=="
+NEW_SALT = "bmV3LXNhbHQ="
 
 
 def _service(session: object) -> KeypairService:
@@ -142,6 +149,68 @@ async def test_two_concurrent_logins_cannot_both_win(two_orgs: Fixture) -> None:
         stored = await _service(s).get(alice)
     assert stored is not None
     assert stored.public_key in (PUBLIC, OTHER_PUBLIC)
+
+
+async def test_rewrapping_replaces_the_envelope_and_not_the_keypair(two_orgs: Fixture) -> None:
+    """The move a password change makes, and the one the write-once rule must not block.
+
+    Write-once exists so a public key cannot be replaced, because everything sealed to it would be
+    stranded. A re-wrap strands nothing — the keypair is the same, only its envelope changes — so it
+    gets its own path, which matches the public key rather than writing it.
+    """
+    alice = two_orgs.members["alice"]
+
+    async with db_session() as s:
+        await _service(s).set(alice, _keypair())
+
+    async with db_session() as s:
+        await _service(s).rewrap(
+            alice, public_key=PUBLIC, wrapped_private_key=REWRAPPED, wrap_salt=NEW_SALT
+        )
+
+    async with db_session() as s:
+        stored = await _service(s).get(alice)
+    assert stored is not None
+    assert stored.public_key == PUBLIC, "the public key must survive a re-wrap untouched"
+    assert stored.wrapped_private_key == REWRAPPED
+    assert stored.wrap_salt == NEW_SALT
+
+
+async def test_rewrapping_a_keypair_the_account_does_not_hold_is_refused(
+    two_orgs: Fixture,
+) -> None:
+    """A browser naming the wrong public key is re-wrapping something else. Refuse, never apply."""
+    alice = two_orgs.members["alice"]
+
+    async with db_session() as s:
+        await _service(s).set(alice, _keypair())
+
+    with pytest.raises(KeypairNotRewrappable):
+        async with db_session() as s:
+            await _service(s).rewrap(
+                alice,
+                public_key=OTHER_PUBLIC,
+                wrapped_private_key=REWRAPPED,
+                wrap_salt=NEW_SALT,
+            )
+
+    async with db_session() as s:
+        stored = await _service(s).get(alice)
+    assert stored == _keypair(), "a refused re-wrap must leave the envelope exactly as it was"
+
+
+async def test_rewrapping_before_there_is_a_keypair_is_refused(two_orgs: Fixture) -> None:
+    """It is not a back door to creation: with nothing stored, there is nothing to re-wrap."""
+    alice = two_orgs.members["alice"]
+
+    with pytest.raises(KeypairNotRewrappable):
+        async with db_session() as s:
+            await _service(s).rewrap(
+                alice, public_key=PUBLIC, wrapped_private_key=REWRAPPED, wrap_salt=NEW_SALT
+            )
+
+    async with db_session() as s:
+        assert await _service(s).get(alice) is None
 
 
 async def test_member_keys_lists_the_org_and_flags_who_has_none(two_orgs: Fixture) -> None:
