@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { unlockZkKeys } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
+import {
+  LockIcon,
+} from "@/components/icons";
 
 /**
  * The locked banner, with the one thing it was missing: a way out.
@@ -46,7 +49,7 @@ export default function UnlockBanner() {
   return (
     <div className="glass rounded border-l-[3px] border-l-accent p-3 text-sm text-accent/90">
       <div className="flex flex-wrap items-center gap-2">
-        <span aria-hidden>🔒</span>
+        <LockIcon />
         <span className="min-w-0 flex-1">{t("calendar.locked")}</span>
         {!open && (
           <button

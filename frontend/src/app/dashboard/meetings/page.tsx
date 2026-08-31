@@ -15,6 +15,10 @@ import {
   openWithOrgKeys,
   type InviteePrivate,
 } from "@/lib/zk";
+import {
+  LockIcon,
+  UnlockIcon,
+} from "@/components/icons";
 
 function fmtDay(iso: string, tz: string): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -131,7 +135,7 @@ export default function MeetingsPage() {
 
       {locked && (
         <p className="glass flex items-center gap-2 rounded border-l-[3px] border-l-accent p-3 text-sm text-accent/90">
-          <span aria-hidden>🔒</span> {t("meetings.locked")}
+          <LockIcon /> {t("meetings.locked")}
         </p>
       )}
 
@@ -199,7 +203,7 @@ function MeetingDetails({
   return (
     <div className="mt-2 rounded-lg border border-border bg-surface-2/60 p-3 text-xs">
       <p className="mb-1 flex items-center gap-1 text-accent/80">
-        <span aria-hidden>🔓</span> {label}
+        <UnlockIcon /> {label}
       </p>
       <dl className="flex flex-col gap-0.5">
         {entries.map(([k, v]) => (

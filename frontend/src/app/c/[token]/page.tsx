@@ -8,6 +8,9 @@ import {
   publicCalendarRows,
 } from "@/lib/links";
 import { keyFromFragment, openContent } from "@/lib/zk";
+import {
+  LockIcon,
+} from "@/components/icons";
 
 /**
  * A shared calendar, for someone with no GhostCal account (ADR-0009).
@@ -175,7 +178,7 @@ export default function PublicCalendarPage({
               </div>
               {title === null ? (
                 <span className="flex-1 truncate text-sm italic text-muted">
-                  🔒 Locked — this link&rsquo;s key does not open this entry
+                  <LockIcon /> Locked — this link&rsquo;s key does not open this entry
                 </span>
               ) : (
                 <span className="flex-1 truncate text-sm text-foreground">

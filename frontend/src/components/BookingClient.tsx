@@ -12,6 +12,9 @@ import {
 } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { sealInviteePrivate } from "@/lib/zk";
+import {
+  LockIcon,
+} from "@/components/icons";
 
 const LOCATION_LABELS: Record<string, string> = {
   google_meet: "Google Meet",
@@ -310,7 +313,7 @@ export default function BookingClient({
                 />
                 {eventType.zk_public_key && (
                   <p className="flex items-start gap-1.5 text-xs text-accent/80">
-                    <span aria-hidden>🔒</span>
+                    <LockIcon />
                     <span>{t("booking.zkNotice")}</span>
                   </p>
                 )}

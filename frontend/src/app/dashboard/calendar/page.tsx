@@ -79,6 +79,13 @@ import {
   sealContent,
   type EventContent,
 } from "@/lib/zk";
+import {
+  LockIcon,
+  MailIcon,
+  PinIcon,
+  UnlockIcon,
+  WarningIcon,
+} from "@/components/icons";
 
 const TZ =
   typeof Intl !== "undefined"
@@ -1125,7 +1132,7 @@ export default function CalendarPage() {
                   className="flex items-center gap-1.5 hover:text-accent"
                 >
                   <span className="text-foreground">{s.name}</span>
-                  {errored && <span aria-hidden>⚠</span>}
+                  {errored && <WarningIcon />}
                 </button>
                 {/* Un calendrier visible et un calendrier qui vous rend
                     occupée sont deux choses différentes : ce cadenas est le
@@ -1146,7 +1153,7 @@ export default function CalendarPage() {
                       : "text-muted opacity-50 hover:text-accent hover:opacity-100"
                   }
                 >
-                  {s.blocks_availability ? "🔒" : "🔓"}
+                  {s.blocks_availability ? <LockIcon /> : <UnlockIcon />}
                 </button>
                 <button
                   type="button"
@@ -1184,7 +1191,7 @@ export default function CalendarPage() {
                 onClick={() => setWeatherOpen(true)}
                 className="flex items-center gap-1 text-foreground hover:text-accent"
               >
-                <span aria-hidden>📍</span>
+                <PinIcon />
                 {weatherLoc.name}
               </button>
               <button
@@ -1723,7 +1730,13 @@ function WeatherModal({
             disabled={geoBusy}
             className="rounded-pill border border-border-strong px-3 py-2 text-xs text-muted hover:text-accent disabled:opacity-60"
           >
-            {geoBusy ? "…" : `📍 ${t("calendar.weatherMyLocation")}`}
+            {geoBusy ? (
+              "…"
+            ) : (
+              <>
+                <PinIcon /> {t("calendar.weatherMyLocation")}
+              </>
+            )}
           </button>
           <div className="flex gap-2">
             {current && (
@@ -1994,7 +2007,7 @@ function ShareModal({
                     }}
                     className="rounded-pill border border-border px-3 py-1 text-xs text-muted transition hover:text-accent"
                   >
-                    ✉ {t("calendar.busyEmail")}
+                    <MailIcon /> {t("calendar.busyEmail")}
                   </button>
                 )}
               </div>
@@ -2210,7 +2223,7 @@ function EventModal({
             />
           )}
           <p className="flex items-center gap-1.5 text-xs text-accent/80">
-            <span aria-hidden>🔒</span> {t("calendar.zkNotice")}
+            <LockIcon /> {t("calendar.zkNotice")}
           </p>
         </div>
         <div className="mt-5 flex items-center justify-between">

@@ -5,6 +5,9 @@ import { useCallback, useEffect, useState } from "react";
 import { primaryButtonClass } from "@/components/AuthCard";
 import { type InvitePreview, getEventInvite, respondEventInvite } from "@/lib/agenda";
 import { useI18n } from "@/lib/i18n";
+import {
+  CalendarIcon,
+} from "@/components/icons";
 
 // Public RSVP page for a personal-event invitation. Zero-knowledge: the server only knows the time
 // (the invitee already got the full details in the emailed ICS). No account required.
@@ -49,7 +52,7 @@ export default function InvitePage() {
       <div className="glass flex w-full max-w-md flex-col gap-4 rounded-lg p-6 sm:p-8">
         <div className="flex items-center gap-2">
           <span aria-hidden className="text-2xl text-accent">
-            📅
+            <CalendarIcon />
           </span>
           <h1 className="text-xl font-semibold text-foreground">{t("invite.title")}</h1>
         </div>

@@ -11,6 +11,9 @@ import {
 } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 import { MIN_PASSWORD_LENGTH } from "@/lib/passwords";
+import {
+  KeyIcon,
+} from "@/components/icons";
 
 // Where an SSO round-trip lands. The session tokens arrive in the URL fragment; we then either
 // unlock the zero-knowledge vault with the user's encryption passphrase, or — on first SSO login —
@@ -85,7 +88,7 @@ export default function OidcCallbackPage() {
         <div className="flex flex-col gap-4">
           <div className="rounded border border-accent/40 bg-surface-2/60 p-4">
             <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-accent">
-              <span aria-hidden>🔑</span> {t("register.recoveryTitle")}
+              <KeyIcon /> {t("register.recoveryTitle")}
             </p>
             <code className="block break-all rounded-lg bg-base/80 px-3 py-2 font-mono text-sm text-foreground">
               {recoveryPhrase}
