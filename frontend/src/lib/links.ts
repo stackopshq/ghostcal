@@ -141,6 +141,31 @@ export type PublicCalendar = {
   events: PublicEvent[];
 };
 
+/** One line of a shared calendar. `title === null` means this link's key did not open it. */
+export type PublicRow = { event: PublicEvent; title: string | null };
+
+/**
+ * The rows a shared calendar shows, in order — INCLUDING the ones that did not open.
+ *
+ * An entry whose title will not decrypt keeps its slot and loses only its title. Dropping it
+ * instead was the behaviour until 2026-08-30, and it made the one screen built for judging
+ * availability say the opposite of the truth: a busy hour rendered as free, and a calendar whose
+ * key had stopped fitting rendered as "nothing here yet". A visitor cannot tell an empty calendar
+ * from an unreadable one, and the cost of guessing wrong is a double booking.
+ *
+ * Kept out of the page component because that is where it can be tested: this suite renders no
+ * components, so logic that only exists inside JSX is logic no test can reach — which is exactly
+ * how the filter survived.
+ */
+export function publicCalendarRows(
+  events: readonly PublicEvent[],
+  titles: ReadonlyMap<number, string>,
+): PublicRow[] {
+  return events
+    .map((event, i) => ({ event, title: titles.get(i) ?? null }))
+    .sort((a, b) => a.event.start_at.localeCompare(b.event.start_at));
+}
+
 /** No auth: a visitor has no account. What comes back is ciphertext. */
 export function fetchPublicCalendar(token: string): Promise<PublicCalendar> {
   return fetch(`/api/v1/public/calendar/${encodeURIComponent(token)}`).then(
