@@ -33,7 +33,7 @@
   <img alt="Crypto" src="https://img.shields.io/badge/crypto-WebCrypto%20%2B%20hash--wasm-00F0FF?style=flat-square">
   <img alt="Lint: Ruff" src="https://img.shields.io/badge/lint-ruff-00F0FF?style=flat-square&logo=ruff&logoColor=white">
   <img alt="Types: mypy strict" src="https://img.shields.io/badge/types-mypy%20strict-00F0FF?style=flat-square">
-  <img alt="License: AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-00F0FF?style=flat-square">
+  <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-00F0FF?style=flat-square">
 </p>
 
 ---
@@ -311,5 +311,6 @@ is injected — so availability is deterministic and property-testable. See
 
 ## License
 
-[GNU AGPL-3.0-or-later](LICENSE). Network use is distribution: anyone interacting with a modified
-GhostCal over a network must be offered the corresponding source.
+[MIT](LICENSE), like the rest of the Ghost suite. Use, modify, and redistribute freely,
+including in closed-source and commercial work, as long as the copyright and permission
+notice travel with the code.

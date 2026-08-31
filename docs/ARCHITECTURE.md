@@ -249,4 +249,5 @@ errors).
    organization-scoped. A solo user is a one-member organization.
 5. **Tenant isolation via Postgres RLS from the start**, backed by repository-layer scoping as
    defence in depth (see §4). The app role is non-`BYPASSRLS`.
-6. **License: GNU AGPL-3.0-or-later** — network use triggers the source-disclosure obligation.
+6. **License: MIT**, aligned with the rest of the Ghost suite (see ADR-0013). Relicensed from
+   AGPL-3.0-or-later on 2026-08-31.

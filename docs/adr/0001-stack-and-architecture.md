@@ -2,6 +2,10 @@
 
 - Status: Proposed
 - Date: 2026-06-26
+- Superseded in part on 2026-08-31: the licence decision recorded below (AGPL-3.0-or-later)
+  no longer holds. GhostCal is MIT, aligned with the rest of the Ghost suite. See
+  [ADR-0013](0013-relicense-to-mit.md). Everything else in this record still stands, and the
+  original wording is kept intact so the change of mind stays visible.
 
 ## Context
 
@@ -31,6 +35,7 @@ public booking pages fast (<200 ms) and integrate with Google / Microsoft calend
   non-`BYPASSRLS`), with repository-layer scoping as defence in depth.
 - **License: GNU AGPL-3.0-or-later.** Network use counts as distribution, so SaaS modifications
   must offer their source — matching the open-alternative positioning (as Cal.com does).
+  *(Superseded 2026-08-31 by ADR-0013: MIT.)*
 - **Auth owned in-house, four methods at launch:** email/password (Argon2), Google, Microsoft,
   generic OIDC SSO — all converging on one `users` row via an `identities` table. Login identity
   is kept separate from calendar OAuth grants.
@@ -49,3 +54,5 @@ public booking pages fast (<200 ms) and integrate with Google / Microsoft calend
   schema migrations and the session/transaction layer own this from Phase 1.
 - AGPL obliges us (and any operator of a modified GhostCal) to offer source on network use;
   third-party dependencies must stay license-compatible (no proprietary/Apache-incompatible-only).
+  *(Superseded 2026-08-31 by ADR-0013. Under MIT there is no source-disclosure obligation;
+  the dependency-compatibility duty remains, now against strong copyleft.)*
