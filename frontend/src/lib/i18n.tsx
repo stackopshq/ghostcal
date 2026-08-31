@@ -609,6 +609,16 @@ const en: Dict = {
   "cal.passwordLabel": "App password",
   "cal.provider.icloud": "Apple iCloud",
   "cal.provider.fastmail": "Fastmail",
+  "cal.provider.mailbox": "mailbox.org",
+  "cal.provider.microsoft": "Outlook / Microsoft 365",
+  "cal.provider.proton": "Proton Calendar",
+  "cal.user.mailbox": "mailbox.org address (your full email)",
+  "cal.help.mailbox":
+    "Sign in with your full mailbox.org address. If two-factor authentication is on, create an application password in Settings → Security → Application passwords, and use that one.",
+  "cal.help.microsoft":
+    "GhostCal cannot connect to an Outlook or Microsoft 365 calendar: it signs in with a password, and Microsoft offers no calendar address that accepts one. If your calendar can be published as an iCal address, add that address under Subscribed calendars further down this page — it is read-only, which is what a subscription is.",
+  "cal.help.proton":
+    "GhostCal cannot connect to a Proton calendar: Proton publishes no calendar server to sign in to. If your calendar can be shared as an iCal address, add that address under Subscribed calendars further down this page.",
   "cal.provider.infomaniak": "Infomaniak kSuite",
   "cal.provider.nextcloud": "Nextcloud or another self-hosted server",
   "cal.provider.google": "Google Calendar",
@@ -1254,6 +1264,16 @@ const fr: Dict = {
   "cal.passwordLabel": "Mot de passe d'application",
   "cal.provider.icloud": "Apple iCloud",
   "cal.provider.fastmail": "Fastmail",
+  "cal.provider.mailbox": "mailbox.org",
+  "cal.provider.microsoft": "Outlook / Microsoft 365",
+  "cal.provider.proton": "Proton Calendar",
+  "cal.user.mailbox": "Adresse mailbox.org (votre courriel complet)",
+  "cal.help.mailbox":
+    "Connectez-vous avec votre adresse mailbox.org complète. Si la double authentification est active, créez un mot de passe d'application sous Paramètres → Sécurité → Mots de passe d'application, et utilisez celui-là.",
+  "cal.help.microsoft":
+    "GhostCal ne peut pas se connecter à un agenda Outlook ou Microsoft 365 : il s'authentifie par mot de passe, et Microsoft ne propose aucune adresse d'agenda qui en accepte un. Si votre agenda peut être publié sous forme d'adresse iCal, ajoutez cette adresse sous Calendriers abonnés, plus bas sur cette page — c'est en lecture seule, ce qu'est un abonnement.",
+  "cal.help.proton":
+    "GhostCal ne peut pas se connecter à un agenda Proton : Proton ne publie aucun serveur d'agenda où s'authentifier. Si votre agenda peut être partagé sous forme d'adresse iCal, ajoutez cette adresse sous Calendriers abonnés, plus bas sur cette page.",
   "cal.provider.infomaniak": "Infomaniak kSuite",
   "cal.provider.nextcloud": "Nextcloud ou un autre serveur auto-hébergé",
   "cal.provider.google": "Google Agenda",

@@ -64,6 +64,22 @@ export const CALDAV_PROVIDERS: CaldavProvider[] = [
     usernameKey: "cal.user.infomaniak",
   },
   {
+    id: "mailbox",
+    nameKey: "cal.provider.mailbox",
+    // Measured on 2026-08-31, without an account:
+    //   OPTIONS https://dav.mailbox.org/          → 401, WWW-Authenticate: Basic realm="OX WebDAV"
+    //   GET     /.well-known/caldav               → 301 to https://dav.mailbox.org/caldav/
+    //   OPTIONS https://dav.mailbox.org/caldav/   → 401, same realm
+    //   caldav.mailbox.org                        → does not resolve
+    // Basic auth over Open-Xchange, so `caldav.DAVClient` speaks it. Note the address is the
+    // /caldav/ path and not the root: unlike Infomaniak, the discovery record points somewhere
+    // else, which is exactly the kind of detail a user cannot be asked to know.
+    serverUrl: "https://dav.mailbox.org/caldav/",
+    supported: true,
+    helpKey: "cal.help.mailbox",
+    usernameKey: "cal.user.mailbox",
+  },
+  {
     id: "nextcloud",
     nameKey: "cal.provider.nextcloud",
     // Per-installation by definition, so the field stays open — but with the shape shown, which is
@@ -95,6 +111,37 @@ export const CALDAV_PROVIDERS: CaldavProvider[] = [
     // would make the whole trip before finding the wildcard.
     supported: false,
     helpKey: "cal.help.google",
+    usernameKey: "cal.user.other",
+  },
+  {
+    id: "microsoft",
+    nameKey: "cal.provider.microsoft",
+    serverUrl: null,
+    // **Established by measurement**, 2026-08-31: no CalDAV discovery record answers.
+    //   caldav.outlook.com, caldav.office365.com    → do not resolve
+    //   outlook.office.com/.well-known/caldav       → 404
+    //   office365.com/.well-known/caldav            → 403
+    //   caldav.live.com/.well-known/caldav          → 301 to outlook.live.com/mail/, a mailbox
+    //
+    // **Not established**: that Microsoft has no CalDAV anywhere. A probe that finds nothing
+    // measures the probe as much as the target, and the reason usually given — that Graph and
+    // OAuth replaced it — comes from documentation rather than from anything observed here. What
+    // the list says is what was measured: nothing we can point `caldav.DAVClient` at.
+    supported: false,
+    helpKey: "cal.help.microsoft",
+    usernameKey: "cal.user.other",
+  },
+  {
+    id: "proton",
+    nameKey: "cal.provider.proton",
+    serverUrl: null,
+    // Established, 2026-08-31: `dav.proton.me` and `caldav.protonmail.ch` do not resolve.
+    //
+    // Not established: the architectural reason. Proton Calendar is end-to-end encrypted and a
+    // CalDAV server would have to hand out cleartext, which is why no such host is expected to
+    // exist — but that is read, not measured, and the entry says only what a user needs.
+    supported: false,
+    helpKey: "cal.help.proton",
     usernameKey: "cal.user.other",
   },
   {

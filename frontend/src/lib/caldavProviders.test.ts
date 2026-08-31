@@ -133,3 +133,30 @@ describe("naming the third party a booking is mirrored to", () => {
     expect(connectionLabel("not a url", "clara").host).toBe("not a url");
   });
 });
+
+describe("the three providers added on 2026-08-31", () => {
+  it("gives mailbox.org the path its discovery record points at, not the root", () => {
+    // `/.well-known/caldav` on dav.mailbox.org redirects to `/caldav/`, unlike Infomaniak whose
+    // record points back at its own root. Exactly the kind of detail a user cannot be asked to know.
+    expect(providerFor("mailbox").serverUrl).toBe(
+      "https://dav.mailbox.org/caldav/",
+    );
+    expect(providerFor("mailbox").supported).toBe(true);
+  });
+
+  it("marks Microsoft and Proton unsupported, and says why", () => {
+    // Listed rather than omitted, for the reason Google is: an absent entry reads as an oversight,
+    // and the address then gets typed into "Other", where it fails later and less clearly.
+    for (const id of ["microsoft", "proton"]) {
+      expect(providerFor(id).supported, id).toBe(false);
+      expect(providerFor(id).helpKey, id).toBeTruthy();
+      expect(providerFor(id).serverUrl, id).toBeNull();
+    }
+  });
+
+  it("recognises a mailbox.org connection from its address", () => {
+    expect(providerIdForServer("https://dav.mailbox.org/caldav/")).toBe(
+      "mailbox",
+    );
+  });
+});
