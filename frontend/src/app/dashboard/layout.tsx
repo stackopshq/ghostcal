@@ -126,7 +126,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           className="mb-3 flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm text-muted transition hover:text-accent"
         >
           <span>{t("cmd.open")}</span>
-          <kbd className="rounded border border-border-strong px-1.5 py-0.5 text-[10px]">⌘K</kbd>
+          <kbd className="rounded border border-border-strong px-1.5 py-0.5 text-2xs">⌘K</kbd>
         </button>
 
         <Link

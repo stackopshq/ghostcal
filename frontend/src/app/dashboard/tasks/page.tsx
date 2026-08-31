@@ -330,7 +330,7 @@ export default function TasksPage() {
                     type="button"
                     aria-label={t("tasks.reopen")}
                     onClick={() => toggle(task)}
-                    className="flex h-4 w-4 shrink-0 items-center justify-center rounded-pill bg-accent text-[10px] text-accent-ink"
+                    className="flex h-4 w-4 shrink-0 items-center justify-center rounded-pill bg-accent text-2xs text-accent-ink"
                   >
                     ✓
                   </button>

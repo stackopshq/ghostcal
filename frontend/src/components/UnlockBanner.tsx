@@ -44,7 +44,7 @@ export default function UnlockBanner() {
   }
 
   return (
-    <div className="glass rounded-md border-l-[3px] border-l-accent p-3 text-sm text-accent/90">
+    <div className="glass rounded border-l-[3px] border-l-accent p-3 text-sm text-accent/90">
       <div className="flex flex-wrap items-center gap-2">
         <span aria-hidden>🔒</span>
         <span className="min-w-0 flex-1">{t("calendar.locked")}</span>

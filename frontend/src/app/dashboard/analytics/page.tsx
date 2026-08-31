@@ -7,7 +7,7 @@ import { useT } from "@/lib/i18n";
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div className="glass rounded-lg p-5">
-      <p className="text-3xl font-semibold text-foreground">{value}</p>
+      <p className="text-2xl font-semibold text-foreground">{value}</p>
       <p className="mt-1 text-sm text-muted">{label}</p>
     </div>
   );
@@ -61,7 +61,7 @@ export default function AnalyticsPage() {
                   className="w-full rounded-t bg-accent/70"
                   style={{ height: `${(d.count / maxDay) * 100}%` }}
                 />
-                <span className="text-[10px] text-muted/70">{d.day.slice(5)}</span>
+                <span className="text-2xs text-muted/70">{d.day.slice(5)}</span>
               </div>
             ))}
           </div>

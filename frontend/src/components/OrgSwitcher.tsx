@@ -28,7 +28,7 @@ export default function OrgSwitcher() {
 
   return (
     <label className="mb-4 flex flex-col gap-1 px-1">
-      <span className="text-[10px] uppercase tracking-wide text-muted/70">
+      <span className="text-2xs uppercase tracking-wide text-muted/70">
         {t("dash.organization")}
       </span>
       <select

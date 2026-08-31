@@ -130,7 +130,7 @@ export default function MeetingsPage() {
       </div>
 
       {locked && (
-        <p className="glass flex items-center gap-2 rounded-md border-l-[3px] border-l-accent p-3 text-sm text-accent/90">
+        <p className="glass flex items-center gap-2 rounded border-l-[3px] border-l-accent p-3 text-sm text-accent/90">
           <span aria-hidden>🔒</span> {t("meetings.locked")}
         </p>
       )}

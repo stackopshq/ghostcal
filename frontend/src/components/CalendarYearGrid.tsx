@@ -72,7 +72,7 @@ export default function CalendarYearGrid({
             <h3 className="mb-2 text-sm font-medium capitalize text-foreground">
               {name}
             </h3>
-            <div className="grid grid-cols-7 gap-y-1 text-center text-[10px] text-muted">
+            <div className="grid grid-cols-7 gap-y-1 text-center text-2xs text-muted">
               {weekdayInitials.map((d) => (
                 <span key={d.key}>{d.label}</span>
               ))}
@@ -88,7 +88,7 @@ export default function CalendarYearGrid({
                     type="button"
                     onClick={() => onPickDay(day)}
                     aria-label={`${day.toLocaleDateString(locale)}${isToday(day) ? ` (${todayLabel})` : ""}`}
-                    className={`relative mx-auto flex h-6 w-6 items-center justify-center rounded-pill text-[11px] transition hover:bg-surface-2 ${
+                    className={`relative mx-auto flex h-6 w-6 items-center justify-center rounded-pill text-2xs transition hover:bg-surface-2 ${
                       isToday(day)
                         ? "bg-accent font-semibold text-black"
                         : count > 0

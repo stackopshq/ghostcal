@@ -84,7 +84,7 @@ export default function PollDetailPage() {
             <div
               key={o.id}
               className={[
-                "flex items-center justify-between rounded-md border p-4",
+                "flex items-center justify-between rounded border p-4",
                 won ? "border-accent" : "border-border",
               ].join(" ")}
             >

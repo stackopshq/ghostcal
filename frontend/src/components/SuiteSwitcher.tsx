@@ -7,7 +7,7 @@ import { useT } from "@/lib/i18n";
 // just links, no shared backend. The sibling URL is per-deployment.
 const GHOSTMAIL_URL = process.env.NEXT_PUBLIC_GHOSTMAIL_URL ?? "http://localhost:3002";
 
-const PILL = "flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition";
+const PILL = "flex flex-1 items-center justify-center gap-1.5 rounded px-2 py-1.5 text-xs font-medium transition";
 
 export default function SuiteSwitcher() {
   const t = useT();

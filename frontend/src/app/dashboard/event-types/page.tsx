@@ -422,14 +422,14 @@ export default function EventTypesPage() {
                 href={publicLink(item)}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-lg border border-border-strong px-3 py-2 text-sm text-foreground transition hover:border-accent hover:text-accent"
+                className="rounded border border-border-strong px-3 py-2 text-sm text-foreground transition hover:border-accent hover:text-accent"
               >
                 {t("et.open")}
               </a>
               <button
                 type="button"
                 onClick={() => copy(item)}
-                className="rounded-lg border border-border-strong px-3 py-2 text-sm text-foreground transition hover:border-accent hover:text-accent"
+                className="rounded border border-border-strong px-3 py-2 text-sm text-foreground transition hover:border-accent hover:text-accent"
               >
                 {copied === item.id ? t("et.copied") : t("et.copyLink")}
               </button>
@@ -438,7 +438,7 @@ export default function EventTypesPage() {
                   type="button"
                   aria-label="More actions"
                   onClick={() => setOpenMenu(openMenu === item.id ? null : item.id)}
-                  className="rounded-lg border border-border-strong px-3 py-2 text-sm text-foreground transition hover:border-accent hover:text-accent"
+                  className="rounded border border-border-strong px-3 py-2 text-sm text-foreground transition hover:border-accent hover:text-accent"
                 >
                   ⋮
                 </button>
@@ -503,7 +503,7 @@ function QuestionsBuilder({
 }) {
   const t = useT();
   const cls =
-    "rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent";
+    "rounded border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent";
 
   function update(i: number, patch: Partial<BookingQuestion>) {
     onChange(questions.map((q, idx) => (idx === i ? { ...q, ...patch } : q)));
@@ -548,7 +548,7 @@ function QuestionsBuilder({
             <button
               type="button"
               onClick={() => onChange(questions.filter((_, idx) => idx !== i))}
-              className="rounded-lg border border-border-strong px-2 text-sm text-muted hover:text-red-400"
+              className="rounded border border-border-strong px-2 text-sm text-muted hover:text-red-400"
             >
               ✕
             </button>

@@ -27,7 +27,7 @@ export default async function HostPage({ params }: { params: Promise<{ org: stri
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 p-6 sm:p-12">
       <div className="flex items-center gap-3">
         <span className="text-2xl text-accent">●</span>
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           {page.organization_name}
         </h1>
       </div>
