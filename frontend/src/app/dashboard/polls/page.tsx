@@ -139,7 +139,7 @@ export default function PollsPage() {
           <Link
             key={p.id}
             href={`/dashboard/polls/${p.id}`}
-            className="glass flex items-center justify-between rounded-md p-4 transition hover:border-accent"
+            className="glass flex items-center justify-between rounded p-4 transition hover:border-accent"
           >
             <div>
               <p className="font-medium text-foreground">{p.title}</p>

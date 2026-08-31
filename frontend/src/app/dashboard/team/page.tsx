@@ -115,7 +115,7 @@ export default function TeamPage() {
             {members.map((m) => (
               <div
                 key={m.user_id}
-                className="glass flex items-center justify-between gap-3 rounded-md p-4"
+                className="glass flex items-center justify-between gap-3 rounded p-4"
               >
                 <div>
                   <p className="font-medium text-foreground">{m.name}</p>
@@ -176,7 +176,7 @@ export default function TeamPage() {
             </form>
 
             {secureLink && (
-              <div className="rounded-md border border-accent/40 bg-surface-2/60 p-4">
+              <div className="rounded border border-accent/40 bg-surface-2/60 p-4">
                 <p className="mb-1 flex items-center gap-1.5 text-sm font-medium text-accent">
                   <span aria-hidden>🔑</span> {t("team.secureLinkTitle")}
                 </p>

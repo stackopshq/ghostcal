@@ -83,7 +83,7 @@ export default function PublicPollPage() {
         </p>
 
         {finalized ? (
-          <div className="mt-6 rounded-md border border-accent p-4">
+          <div className="mt-6 rounded border border-accent p-4">
             <p className="text-sm text-muted">{t("poll.confirmedTime")}</p>
             <p className="text-lg font-medium text-foreground">{fmt(finalized.start_at, tz)}</p>
           </div>

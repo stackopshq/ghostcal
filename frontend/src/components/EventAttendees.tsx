@@ -159,7 +159,7 @@ export default function EventAttendees({
         </button>
       </form>
       {note && <p className="text-xs text-accent">{note}</p>}
-      <p className="text-[11px] text-muted">{t("att.zkNote")}</p>
+      <p className="text-2xs text-muted">{t("att.zkNote")}</p>
     </div>
   );
 }

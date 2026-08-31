@@ -1325,7 +1325,7 @@ export default function CalendarPage() {
                     </span>
                     {weatherByDay.get(key) && (
                       <span
-                        className="text-[10px] text-muted"
+                        className="text-2xs text-muted"
                         title={`${Math.round(weatherByDay.get(key)!.tmin)}° / ${Math.round(weatherByDay.get(key)!.tmax)}°`}
                       >
                         <span aria-hidden>{weatherByDay.get(key)!.glyph}</span>{" "}
@@ -1369,7 +1369,7 @@ export default function CalendarPage() {
                             : undefined
                         }
                         className={[
-                          "truncate rounded px-1.5 py-0.5 text-[11px]",
+                          "truncate rounded px-1.5 py-0.5 text-2xs",
                           c
                             ? ""
                             : it.source !== "event"
@@ -1383,7 +1383,7 @@ export default function CalendarPage() {
                     );
                   })}
                   {dayItems.length > 3 && (
-                    <span className="text-[10px] text-muted">
+                    <span className="text-2xs text-muted">
                       +{dayItems.length - 3}
                     </span>
                   )}

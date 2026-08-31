@@ -136,7 +136,7 @@ export default function NotificationsManager() {
 
   if (!showPrompt) return null;
   return (
-    <div className="glass fixed bottom-16 right-4 z-40 flex max-w-xs flex-col gap-2 rounded-md border border-border p-3 text-sm shadow-lg">
+    <div className="glass fixed bottom-16 right-4 z-40 flex max-w-xs flex-col gap-2 rounded border border-border p-3 text-sm shadow-lg">
       <p className="text-foreground">{t("notify.promptTitle")}</p>
       <p className="text-xs text-muted">{t("notify.promptBody")}</p>
       <div className="flex justify-end gap-2">

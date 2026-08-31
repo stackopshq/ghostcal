@@ -194,7 +194,7 @@ export default function PrivacySettings() {
 
       {canManage && <KeyRotationSettings />}
 
-      <section className="rounded-md border border-red-500/40 bg-red-500/5 p-5">
+      <section className="rounded border border-red-500/40 bg-red-500/5 p-5">
         <h2 className="text-lg font-semibold text-red-400">
           {t("privacy.deleteTitle")}
         </h2>

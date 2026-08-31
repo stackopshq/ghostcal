@@ -47,7 +47,7 @@ export default function ColorPicker({
         type="button"
         aria-label={label}
         onClick={() => setOpen((o) => !o)}
-        className="h-2.5 w-2.5 rounded-full transition hover:scale-125"
+        className="h-2.5 w-2.5 rounded-pill transition hover:scale-125"
         style={{
           backgroundColor: hidden ? "transparent" : value,
           boxShadow: `inset 0 0 0 1.5px ${value}`,
@@ -64,7 +64,7 @@ export default function ColorPicker({
                 setOpen(false);
                 if (c !== value) onPick(c);
               }}
-              className="h-4 w-4 rounded-full transition hover:scale-110"
+              className="h-4 w-4 rounded-pill transition hover:scale-110"
               style={{
                 backgroundColor: c,
                 boxShadow:
