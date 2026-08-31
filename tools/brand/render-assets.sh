@@ -35,13 +35,18 @@ command -v rsvg-convert >/dev/null || {
 # Elle est posée sur une plaque dessinée par l'application, qui doit rester visible
 # derrière — un fond aplati ici ferait un carré au milieu de la plaque.
 #
-# Pas de recadrage pour celle-ci : la plaque fournit déjà la marge, et l'y ajouter
-# rapetisserait la silhouette dans son cadre sans raison.
+# **Recadrée comme l'icône**, contrairement à ce que j'avais d'abord écrit ici : la plaque
+# fournit une marge autour de l'image, pas autour de la silhouette. Sans recadrage, celle-ci
+# remplit sa boîte bord à bord et paraît à l'étroit — vérifié à l'écran, les pattes du
+# fantôme touchaient le bas de la plaque quand celles de GhostPass respiraient.
 MARQUE="$ROOT/apps/mobile/assets/marque"
 mkdir -p "$MARQUE"
+CADRE="$(mktemp -t ghostcal-marque).svg"
+trap 'rm -f "$CADRE"' EXIT
+"$OUTIL" --cadre "$CADRE" "$SOURCE"
 for facteur in 1 2 3; do
   taille=$((64 * facteur))
-  rsvg-convert -w "$taille" -h "$taille" "$SOURCE" -o "$MARQUE/logo@${facteur}x.png"
+  rsvg-convert -w "$taille" -h "$taille" "$CADRE" -o "$MARQUE/logo@${facteur}x.png"
 done
 cp "$MARQUE/logo@1x.png" "$MARQUE/logo.png"
 printf '  %-32s %s\n' "assets/marque/logo*.png" "64/128/192 px, transparent"

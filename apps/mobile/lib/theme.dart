@@ -74,10 +74,16 @@ class Gc {
   }
 }
 
-/// Mesures partagées. Les mêmes que sur le web et sur iOS : contrôles à 12, cartes à 16.
+/// Mesures partagées, relevées sur les jetons de `ghost-theme.css` — `--radius`,
+/// `--radius-lg`, `--radius-pill`.
+///
+/// Relevé le 2026-08-31 : les clients iOS avaient divergé du web sans que rien ne le
+/// signale. Les cartes y étaient à 16 au lieu de 18, et **les boutons rectangulaires au
+/// lieu d'être des pilules**. La pilule est ce qu'on reconnaît d'un produit à l'autre ; un
+/// rectangle arrondi à sa place fait douter qu'il s'agisse de la même famille.
 class Mesures {
   static const rayon = 12.0;
-  static const rayonCarte = 16.0;
+  static const rayonCarte = 18.0;
   static const ecart = 12.0;
   static const marge = 16.0;
   static const margeCarte = 24.0;
@@ -186,18 +192,22 @@ class BoutonPrincipal extends StatelessWidget {
     final gc = Gc.of(context);
     final actif = onPressed != null;
     return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(Mesures.rayon),
+      decoration: ShapeDecoration(
+        // La pilule de la charte — `--radius-pill`. `StadiumBorder` est la façon dont
+        // Flutter nomme cette forme ; un rayon de 999 la dessinerait aussi, mais
+        // finirait par diverger de ce que le CSS appelle.
+        shape: const StadiumBorder(),
         // Seule l'action disponible rayonne. Faire luire un bouton inerte appellerait
         // l'œil vers ce sur quoi on ne peut pas appuyer.
-        boxShadow: gc.halo(actif ? 0.85 : 0),
+        shadows: gc.halo(actif ? 0.85 : 0),
       ),
       child: Material(
         color: gc.accent.withValues(alpha: actif ? 1 : 0.35),
-        borderRadius: BorderRadius.circular(Mesures.rayon),
+        shape: const StadiumBorder(),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(Mesures.rayon),
+          customBorder: const StadiumBorder(),
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 15),
