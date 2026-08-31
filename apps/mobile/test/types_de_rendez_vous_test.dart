@@ -72,20 +72,30 @@ void main() {
       // part, et c'est le destinataire qui le découvrirait.
       final lien = TypesDeRendezVous.lienPublic(
         TypeDeRendezVous.depuisJson(brut()),
-        serveur: 'https://ghostcal.stackops.ch',
+        serveur: Uri.parse('https://ghostcal.stackops.ch'),
       );
       expect(lien.toString(), 'https://ghostcal.stackops.ch/stackops/entretien');
     });
 
-    test("une adresse inexploitable ne produit pas de lien bancal", () {
+    test("une adresse sans hôte ne produit pas de lien bancal", () {
       for (final serveur in ['', 'pas une adresse', '/relatif']) {
         expect(
           TypesDeRendezVous.lienPublic(TypeDeRendezVous.depuisJson(brut()),
-              serveur: serveur),
+              serveur: Uri.parse(serveur)),
           isNull,
           reason: '« $serveur »',
         );
       }
+    });
+
+    test("une adresse en boucle locale avec port donne bien un lien", () {
+      // Le cas qui manquait, et qui a fait disparaître le bouton de copie sur le banc :
+      // c'est l'adresse **normalisée par le client** qu'il faut, pas la saisie.
+      final lien = TypesDeRendezVous.lienPublic(
+        TypeDeRendezVous.depuisJson(brut()),
+        serveur: Uri.parse('http://127.0.0.1:8099'),
+      );
+      expect(lien.toString(), 'http://127.0.0.1:8099/stackops/entretien');
     });
   });
 }

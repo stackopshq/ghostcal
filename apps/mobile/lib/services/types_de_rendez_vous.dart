@@ -102,9 +102,12 @@ class TypesDeRendezVous {
   /// constante : chaque client a sa propre instance, et un lien vers le mauvais domaine ne
   /// mènerait nulle part — sans qu'aucune erreur ne le signale, puisque c'est le
   /// destinataire qui le découvrirait.
-  static Uri? lienPublic(TypeDeRendezVous type, {required String serveur}) {
-    final base = Uri.tryParse(serveur);
-    if (base == null || base.host.isEmpty) return null;
-    return base.replace(path: '/${type.slugDOrganisation}/${type.slug}');
+  /// L'adresse est celle **du client**, déjà normalisée, et non la saisie de
+  /// l'utilisateur. Taper « 127.0.0.1:8099 » est le geste naturel ; sans schéma, `Uri` n'y
+  /// voit aucun hôte et la fonction rendait `null` — le bouton de copie disparaissait
+  /// simplement, sans que rien ne dise pourquoi. Constaté à l'écran le 2026-08-31.
+  static Uri? lienPublic(TypeDeRendezVous type, {required Uri serveur}) {
+    if (serveur.host.isEmpty) return null;
+    return serveur.replace(path: '/${type.slugDOrganisation}/${type.slug}');
   }
 }

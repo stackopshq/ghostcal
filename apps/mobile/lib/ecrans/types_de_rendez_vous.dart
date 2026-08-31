@@ -99,7 +99,9 @@ class _EcranDeTypesDeRendezVousState extends State<EcranDeTypesDeRendezVous> {
   }
 
   Widget _ligne(Gc gc, TypeDeRendezVous type) {
-    final lien = TypesDeRendezVous.lienPublic(type, serveur: widget.session.serveur);
+    final base = widget.session.api?.base;
+    final lien =
+        base == null ? null : TypesDeRendezVous.lienPublic(type, serveur: base);
     return ListTile(
       title: Text(
         type.titre,
