@@ -61,11 +61,13 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
-
-  # The following line ensures that the Material Icons font is
-  # included with your application, so that you can use the icons in
-  # the material Icons class.
   uses-material-design: true
+
+  assets:
+    # Rendus par tools/brand/render-assets.sh depuis le SVG de la charte. Ce sont des
+    # sorties : les retoucher condamne le prochain changement de teinte à de la peinture
+    # pixel.
+    - assets/marque/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

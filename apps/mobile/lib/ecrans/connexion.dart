@@ -3,10 +3,17 @@ import 'package:flutter/material.dart';
 import '../services/session.dart';
 import '../theme.dart';
 
-/// Entrer dans GhostCal.
+/// Entrer dans GhostCal — **le même écran que le déverrouillage de GhostPass**, aux
+/// couleurs et à la marque de GhostCal.
 ///
-/// L'écran a trois visages, qui correspondent aux trois états de la session — et il faut
-/// qu'ils soient distincts, sinon on redemande à quelqu'un ce qu'il vient de donner :
+/// C'est délibéré et ça se copie structure par structure : enseigne sur plaque avec son
+/// halo, titre, sous-titre, puis une carte de verre portant les champs et les actions. Les
+/// deux applications sont des frères ; un écran d'entrée qui diverge fait douter qu'elles
+/// viennent du même endroit, ce qui est exactement ce qu'un coffre chiffré ne peut pas se
+/// permettre.
+///
+/// Trois visages, qui correspondent aux trois états de la session — et il faut qu'ils
+/// soient distincts, sinon on redemande à quelqu'un ce qu'il vient de donner :
 ///
 /// - **une session enregistrée** : la phrase seule, l'adresse et le compte étant connus ;
 /// - **rien d'enregistré** : l'adresse, le compte, la phrase ;
@@ -58,61 +65,26 @@ class _EcranDeConnexionState extends State<EcranDeConnexion> {
 
   @override
   Widget build(BuildContext context) {
-    final gc = Gc.of(context);
     return FondGhost(
       child: Scaffold(
         body: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 40, 20, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // L'enseigne rayonne, comme sur le web et sur iOS : c'est la seule
-                // chose de l'écran qui porte la marque.
-                Text(
-                  'GhostCal',
-                  style: TextStyle(
-                    fontSize: 40,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.5,
-                    color: gc.encre,
-                    shadows: gc.haloDeTexte(0.7),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text('Votre agenda, chiffré de bout en bout.',
-                    style: TextStyle(color: gc.estompe, fontSize: 15)),
-                const SizedBox(height: 28),
-                // Le formulaire vit dans une carte de verre : c'est ce qui distingue
-                // l'écran d'une pile de champs posés sur un fond.
-                CarteDeVerre(
+            // Le clavier couvre le bas de la carte. Faire défiler le referme ; un
+            // appui dans le vide, non.
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            child: Center(
+              child: ConstrainedBox(
+                // La même largeur que GhostPass : au-delà, sur iPad, les champs
+                // s'étirent sur toute la dalle et le formulaire perd sa forme.
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ..._visage(gc),
-                      if (session.erreur != null) ...[
-                        const SizedBox(height: 16),
-                        Text(session.erreur!,
-                            style: TextStyle(color: gc.danger, fontSize: 13)),
-                      ],
-                      const SizedBox(height: 20),
-                      BoutonPrincipal(
-                        onPressed: session.occupe ? null : _valider,
-                        child: session.occupe
-                            ? const SizedBox(
-                                height: 18,
-                                width: 18,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Gc.surAccent))
-                            : Text(_coffreFerme || _reprise
-                                ? 'Déverrouiller'
-                                : 'Se connecter'),
-                      ),
-                      ..._bascules(gc),
-                    ],
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [_enseigne(), const SizedBox(height: 24), _carte()],
                   ),
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -120,103 +92,186 @@ class _EcranDeConnexionState extends State<EcranDeConnexion> {
     );
   }
 
-  List<Widget> _visage(Gc gc) {
+  Widget _enseigne() {
+    final gc = Gc.of(context);
+    return Column(
+      children: [
+        // La marque est sur fond transparent : posée à même l'écran, elle flotterait.
+        // Une plaque franchement noire ou franchement blanche la détache — pas une
+        // surface du thème, qui la ferait se fondre à nouveau.
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: gc.sombre ? Colors.black : Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: gc.bordure),
+            // La marque rayonne : c'est le seul néon de cet écran, et c'est ce qui
+            // rattache GhostCal au reste de la suite.
+            boxShadow: gc.halo(1),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Image.asset('assets/marque/logo.png', width: 64, height: 64),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'GhostCal',
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: gc.encre,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          _reprise || _coffreFerme
+              ? 'Coffre enregistré sur cet appareil'
+              : 'Agenda chiffré de bout en bout',
+          style: TextStyle(fontSize: 13, color: gc.estompe),
+        ),
+      ],
+    );
+  }
+
+  Widget _carte() {
+    final gc = Gc.of(context);
+    return CarteDeVerre(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ..._champs(gc),
+          if (session.erreur != null) ...[
+            const SizedBox(height: 18),
+            _avertissement(gc.danger, Icons.warning_amber_rounded, session.erreur!),
+          ],
+          const SizedBox(height: 18),
+          BoutonPrincipal(
+            onPressed: session.occupe || _phrase.text.isEmpty ? null : _valider,
+            child: session.occupe
+                ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Gc.surAccent))
+                : Text(_coffreFerme || _reprise ? 'Déverrouiller' : 'Se connecter'),
+          ),
+          ..._liens(gc),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _champs(Gc gc) {
     if (_coffreFerme) {
       return [
-        _encart(
-          gc,
+        // Le coffre est fermé mais la session est ouverte : le dire, plutôt que de
+        // renvoyer à un formulaire de connexion qui laisserait croire au contraire.
+        _avertissement(
+          gc.estompe,
+          Icons.lock_outline,
           'Vous êtes connecté, mais le coffre est resté fermé : '
-          '${session.raisonDuCoffre ?? "cette phrase n'ouvre pas le coffre."}',
+          '${session.raisonDuCoffre ?? "cette phrase ne l'ouvre pas."}',
         ),
-        const SizedBox(height: 14),
-        _champDePhrase(),
+        const SizedBox(height: 18),
+        _champDePhrase(gc),
       ];
     }
     if (_reprise) {
       return [
-        Text('Session enregistrée pour ${session.email}',
-            style: TextStyle(color: gc.estompe, fontSize: 13)),
-        const SizedBox(height: 14),
-        _champDePhrase(),
+        _champ(gc, 'Compte', enfant: _valeurFigee(gc, session.email)),
+        const SizedBox(height: 18),
+        _champDePhrase(gc),
       ];
     }
     return [
       _champ(
+        gc,
         'Serveur',
-        _serveur,
+        controleur: _serveur,
         cle: const Key('champ.serveur'),
-        // Le domaine est celui que la RFC 2606 réserve aux exemples — il ne résout nulle
-        // part, donc personne ne se connectera par mégarde à l'instance d'un tiers.
+        // Le domaine est celui que la RFC 2606 réserve aux exemples — il ne résout
+        // nulle part, donc personne ne se connectera par mégarde chez un tiers.
         indice: 'https://ghostcal.example.com',
         clavier: TextInputType.url,
       ),
-      const SizedBox(height: 12),
-      _champ('Adresse e-mail', _email,
+      const SizedBox(height: 18),
+      _champ(gc, 'Adresse e-mail',
+          controleur: _email,
           cle: const Key('champ.email'),
           indice: 'vous@exemple.ch',
           clavier: TextInputType.emailAddress),
-      const SizedBox(height: 12),
-      _champDePhrase(),
+      const SizedBox(height: 18),
+      _champDePhrase(gc),
     ];
   }
 
-  List<Widget> _bascules(Gc gc) => [
-        // La phrase de récupération n'est proposée qu'au déverrouillage : à la connexion,
-        // c'est le mot de passe du compte qu'on tape, et ils ne s'échangent pas.
-        if (_coffreFerme || _reprise)
-          _bascule(
-            gc,
-            'Utiliser ma phrase de récupération',
-            _parRecuperation,
-            (v) => setState(() => _parRecuperation = v),
-          ),
-        if (_reprise)
-          TextButton(
-            onPressed: () => setState(() {
-              _changerDeCompte = true;
-              _parRecuperation = false;
-            }),
-            child: const Text('Changer de compte ou de serveur'),
-          ),
-      ];
+  List<Widget> _liens(Gc gc) {
+    final liens = <Widget>[
+      // La phrase de récupération n'a de sens qu'au déverrouillage : à la connexion,
+      // c'est le mot de passe du compte qu'on tape, et ils ne s'échangent pas.
+      if (_coffreFerme || _reprise)
+        _lien(
+          gc,
+          _parRecuperation
+              ? 'Utiliser mon mot de passe'
+              : 'Utiliser ma phrase de récupération',
+          () => setState(() => _parRecuperation = !_parRecuperation),
+        ),
+      if (_reprise)
+        _lien(gc, 'Utiliser un autre compte', () {
+          setState(() {
+            _changerDeCompte = true;
+            _parRecuperation = false;
+            _phrase.clear();
+          });
+        }),
+    ];
+    return liens.isEmpty
+        ? const []
+        : [const SizedBox(height: 10), ...liens];
+  }
 
-  Widget _bascule(Gc gc, String titre, bool valeur, ValueChanged<bool> auChangement) =>
-      Row(
+  Widget _lien(Gc gc, String texte, VoidCallback action) => Align(
+        alignment: Alignment.center,
+        child: TextButton(
+          onPressed: action,
+          style: TextButton.styleFrom(
+            foregroundColor: gc.accentTexte,
+            textStyle: const TextStyle(fontSize: 13),
+            minimumSize: const Size(0, 36),
+          ),
+          child: Text(texte),
+        ),
+      );
+
+  Widget _avertissement(Color teinte, IconData icone, String texte) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(child: Text(titre, style: TextStyle(color: gc.estompe, fontSize: 13))),
-          Switch(value: valeur, onChanged: auChangement),
+          Icon(icone, size: 16, color: teinte),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(texte, style: TextStyle(fontSize: 13, color: teinte)),
+          ),
         ],
       );
 
-  Widget _encart(Gc gc, String texte) => Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: gc.surface2,
-          borderRadius: BorderRadius.circular(Mesures.rayon),
-          border: Border.all(color: gc.bordure),
-        ),
-        child: Text(texte, style: TextStyle(color: gc.encre, fontSize: 13)),
-      );
-
-  /// Les libellés de la charte : petites capitales espacées, teinte estompée. Ils
-  /// nomment sans se disputer l'attention avec ce qu'on saisit.
-  Widget _libelle(String texte) => Text(
+  /// Le libellé de section de la charte : petites capitales espacées, teinte estompée.
+  /// Il nomme sans se disputer l'attention avec ce qu'on saisit.
+  Widget _libelle(Gc gc, String texte) => Text(
         texte.toUpperCase(),
         style: TextStyle(
-          color: Gc.of(context).estompe,
+          color: gc.estompe,
           fontSize: 11,
           fontWeight: FontWeight.w600,
           letterSpacing: 1.1,
         ),
       );
 
-  /// La clé identifie le champ indépendamment de son libellé.
-  ///
-  /// Les tests s'y accrochent plutôt qu'au texte : un libellé passé en capitales pour
-  /// suivre la charte a fait tomber une vérification qui ne portait pas sur la charte.
   Widget _champ(
-    String titre,
-    TextEditingController controleur, {
+    Gc gc,
+    String titre, {
+    TextEditingController? controleur,
+    Widget? enfant,
     Key? cle,
     String? indice,
     TextInputType? clavier,
@@ -224,42 +279,57 @@ class _EcranDeConnexionState extends State<EcranDeConnexion> {
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _libelle(titre),
-          const SizedBox(height: 8),
-          TextField(
-            key: cle,
-            controller: controleur,
-            keyboardType: clavier,
-            autocorrect: false,
-            enableSuggestions: false,
-            textCapitalization: TextCapitalization.none,
-            decoration: InputDecoration(hintText: indice),
-          ),
+          _libelle(gc, titre),
+          const SizedBox(height: 7),
+          enfant ??
+              TextField(
+                key: cle,
+                controller: controleur,
+                keyboardType: clavier,
+                autocorrect: false,
+                enableSuggestions: false,
+                textCapitalization: TextCapitalization.none,
+                decoration: InputDecoration(hintText: indice),
+              ),
         ],
       );
 
-  Widget _champDePhrase() => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _libelle(_parRecuperation ? 'Phrase de récupération' : 'Mot de passe'),
-          const SizedBox(height: 8),
-          TextField(
-            key: const Key('champ.phrase'),
-            controller: _phrase,
-            obscureText: !_phraseVisible,
-            autocorrect: false,
-            enableSuggestions: false,
-            onSubmitted: (_) => _valider(),
-            decoration: InputDecoration(
-              suffixIcon: IconButton(
-                icon: Icon(_phraseVisible ? Icons.visibility_off : Icons.visibility),
-                // Une phrase de récupération fait douze mots : la taper à l'aveugle
-                // garantit la faute de frappe, et l'erreur rendue ne dit pas où.
-                tooltip: _phraseVisible ? 'Masquer' : 'Afficher',
-                onPressed: () => setState(() => _phraseVisible = !_phraseVisible),
-              ),
+  /// Le compte d'une session enregistrée : montré, pas modifiable. Le rendre saisissable
+  /// laisserait croire qu'on peut changer de compte sans repasser par la connexion.
+  Widget _valeurFigee(Gc gc, String texte) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: gc.surface2,
+          borderRadius: BorderRadius.circular(Mesures.rayon),
+          border: Border.all(color: gc.bordure),
+        ),
+        child: Text(texte, style: TextStyle(color: gc.estompe)),
+      );
+
+  Widget _champDePhrase(Gc gc) => _champ(
+        gc,
+        _parRecuperation ? 'Phrase de récupération' : 'Mot de passe maître',
+        enfant: TextField(
+          key: const Key('champ.phrase'),
+          controller: _phrase,
+          obscureText: !_phraseVisible,
+          autocorrect: false,
+          enableSuggestions: false,
+          // Le bouton dépend du champ : sans cela, il resterait éteint jusqu'à ce
+          // qu'autre chose provoque un rafraîchissement.
+          onChanged: (_) => setState(() {}),
+          onSubmitted: (_) => _valider(),
+          decoration: InputDecoration(
+            hintText: 'Votre mot de passe',
+            suffixIcon: IconButton(
+              icon: Icon(_phraseVisible ? Icons.visibility_off : Icons.visibility),
+              // Une phrase de récupération fait douze mots : la taper à l'aveugle
+              // garantit la faute de frappe, et l'erreur rendue ne dit pas où.
+              tooltip: _phraseVisible ? 'Masquer' : 'Afficher',
+              onPressed: () => setState(() => _phraseVisible = !_phraseVisible),
             ),
           ),
-        ],
+        ),
       );
 }
