@@ -66,6 +66,19 @@ export const CALDAV_PROVIDERS: CaldavProvider[] = [
     serverUrl: null,
     // Google's CalDAV requires OAuth 2.0; there is no password-authenticated endpoint, so no URL
     // and no app password would make this work. The form says so instead of letting it fail.
+    //
+    // **And it is closed for good, which is the part worth writing down.** The obstacle is not
+    // that OAuth is work: it is that Google accepts no wildcard in a redirect URI. A client
+    // registered by StackOps could never redirect back to a self-hoster's own domain, so the only
+    // ways through are a relay we host — which would see every self-hoster's authorization code,
+    // and take the self-hosted out of self-hosted — or asking each operator to register their own
+    // client in the Google console. The Calendar scope is "sensitive" on top of that: an
+    // unverified client is capped and shows a discouraging warning, and verification is a
+    // submission rather than a checkbox.
+    //
+    // Home Assistant and Nextcloud met the same wall and took the same road. Someone reading
+    // "Google, not connectable" without this will read it as a gap and set out to close it — and
+    // would make the whole trip before finding the wildcard.
     supported: false,
     helpKey: "cal.help.google",
     usernameKey: "cal.user.other",
