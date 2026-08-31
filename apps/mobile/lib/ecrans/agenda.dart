@@ -93,12 +93,20 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
           // bouton occuperait la meilleure place pour un geste que le système fait tout
           // seul. Dès qu'un délai est réglé, il redevient le seul moyen de verrouiller
           // sur-le-champ.
-          if (widget.verrouillage.cadenasVisible)
-            IconButton(
-              icon: const Icon(Icons.lock_outline),
-              tooltip: 'Verrouiller le coffre',
-              onPressed: widget.session.verrouiller,
-            ),
+          //
+          // `ListenableBuilder` parce que le réglage se change **dans un autre onglet** :
+          // sans lui, cet écran reste tel qu'il a été construit, et le cadenas
+          // n'apparaissait jamais. Constaté à l'écran.
+          ListenableBuilder(
+            listenable: widget.verrouillage,
+            builder: (_, _) => widget.verrouillage.cadenasVisible
+                ? IconButton(
+                    icon: const Icon(Icons.lock_outline),
+                    tooltip: 'Verrouiller le coffre',
+                    onPressed: widget.session.verrouiller,
+                  )
+                : const SizedBox.shrink(),
+          ),
           IconButton(
             icon: const Icon(Icons.chevron_left),
             tooltip: 'Jour précédent',
@@ -125,6 +133,12 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
       floatingActionButton: inscriptibles.isEmpty
           ? null
           : FloatingActionButton(
+              // Les cinq onglets vivent dans une `IndexedStack` : ils sont **tous montés
+              // en permanence**, donc deux boutons flottants sans étiquette partagent la
+              // même et Flutter lève « multiple heroes share the same tag ». Étiqueter les
+              // deux plutôt qu'un seul, pour qu'un troisième onglet ne réveille pas le
+              // défaut en silence.
+              heroTag: 'agenda',
               tooltip: 'Nouvel événement',
               onPressed: () async {
                 final cree = await Navigator.of(context).push<bool>(

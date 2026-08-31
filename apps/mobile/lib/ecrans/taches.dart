@@ -108,6 +108,12 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        // `IndexedStack` garde **tous** les onglets vivants : deux boutons flottants
+        // coexistent donc en permanence, et l'étiquette par défaut est la même pour les
+        // deux. Flutter lève alors « multiple heroes share the same tag » à chaque
+        // animation — une exception répétée, qui n'empêche pas l'affichage mais perturbe
+        // la mise en page et les gestes.
+        heroTag: 'taches',
         onPressed: _nouvelle,
         tooltip: 'Nouvelle tâche',
         child: const Icon(Icons.add),
