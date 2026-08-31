@@ -20,6 +20,23 @@
 @import "./ghost-theme.css";
 @import "tailwindcss";
 
+/* Les tests ne sont pas de l'interface, et leur texte ne doit pas décider du CSS livré.
+ *
+ * Tailwind v4 découvre ses sources tout seul, fichiers de test compris. `scale.test.ts` — le
+ * contrôle qui INTERDIT les tailles hors charte — cite `text-3xl` et `text-4xl` dans sa
+ * documentation pour expliquer ce qu'il refuse. Tailwind y a vu deux classes employées et les a
+ * émises : mesuré le 2026-08-31 dans la feuille servie, `.text-3xl` et `.text-4xl` étaient
+ * présentes alors que plus aucun composant ne les porte.
+ *
+ * Le poids est nul ; le problème ne l'est pas. **Le document qui interdit faisait livrer**, et
+ * quiconque auditait le CSS pour vérifier la convergence concluait l'exact contraire de la vérité.
+ *
+ * Exclure plutôt que renoncer au littéral : l'exclusion est vraie du build quoi qu'écrive un test,
+ * alors que « ne pas nommer la classe » demande que chaque auteur y pense, et le garde-fou devient
+ * illisible quand il ne peut plus nommer ce qu'il refuse. */
+@source not "../**/*.test.ts";
+@source not "../**/*.test.tsx";
+
 /* Les jetons que la charte ne porte pas encore, et qui vivent donc dans la
  * couche locale du produit plutôt que dans le fichier généré — qu'une
  * régénération écraserait sans rien dire.
