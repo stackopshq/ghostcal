@@ -184,6 +184,55 @@ jobs:
             --lockfile=uv.lock \
             --lockfile=frontend/package-lock.json
 
+  # La charte de la suite est mesurable, et ghostcal ne la mesurait pas.
+  #
+  # `scale.test.ts` et le grep de la feuille servie, dans le job `frontend`, gardent la seule
+  # chose que ce dépôt écrit lui-même : les classes Tailwind. Ils ne voient rien des quatre
+  # autres façons de dériver — une ressource de marque repartie en arrière, un fichier de police
+  # perdu, une teinte étrangère, un jeton `--radius` redéfini dans `ghost-theme.css`. Ce dernier
+  # cas est celui qui a fait rendre les boutons de ghostbit en rectangles pendant une semaine,
+  # alors que toutes ses règles écrivaient bien `var(--radius-sm)`.
+  #
+  # `ghost-theme.css` est COPIÉ depuis ghostsuite et jamais édité ici ; c'est exactement le
+  # genre de fichier dont personne ne relit les diffs, et exactement celui que ce contrôle lit.
+  #
+  # `BRAND_SCAN_ONLY` restreint la mesure à ghostcal. Sans lui le contrôle lit les huit produits
+  # et une pull request d'ici rougirait sur la dérive de ghostmon — donc sur quelque chose que
+  # son auteur ne peut pas corriger, ce qui est la façon la plus sûre de faire désactiver un
+  # contrôle. La mesure de la flotte entière reste le travail quotidien de ghostsuite.
+  charte:
+    runs-on: ubuntu-latest
+    steps:
+      # Dans `produits/ghostcal` et non à la racine : le contrôle lit un répertoire qui porte un
+      # clone PAR PRODUIT, et il retrouve le nom du produit dans le nom du dossier.
+      - uses: actions/checkout@v4
+        with:
+          path: produits/ghostcal
+
+      - name: Cloner la charte
+        env:
+          JETON: ${{ secrets.RENOVATE_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${JETON}" ]; then
+            echo "RENOVATE_TOKEN absent : sans la charte il n'y a rien à comparer, et un job" >&2
+            echo "vert dirait « conforme » sur une mesure qui n'a pas eu lieu." >&2
+            exit 2
+          fi
+          # Le jeton vit dans la config git du conteneur de job, éphémère, plutôt que sur une
+          # ligne de commande où `ps` le lirait.
+          git config --global \
+            url."https://${JETON}@git.stackops.ch/".insteadOf "https://git.stackops.ch/"
+          git clone --depth 1 --quiet https://git.stackops.ch/stackops/ghostsuite.git charte
+
+      # Trois issues, pas deux : 0 d'accord, 1 des écarts, 2 la mesure n'a pas pu se faire. Le
+      # job échoue sur 1 comme sur 2 — une charte injoignable n'est pas une charte respectée.
+      - name: Mesurer ghostcal contre la charte
+        env:
+          BRAND_SCAN_DIR: ${{ github.workspace }}/produits
+          BRAND_SCAN_ONLY: ghostcal
+        run: python3 charte/tools/forge/check_brand_drift.py
+
   frontend:
     runs-on: ubuntu-latest
     defaults:
