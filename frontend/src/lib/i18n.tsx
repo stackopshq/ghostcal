@@ -602,6 +602,30 @@ const en: Dict = {
   "cal.syncNow": "Sync now",
   "cal.disconnect": "Disconnect",
   "cal.serverPh": "CalDAV server URL (e.g. https://caldav.fastmail.com/)",
+  "cal.providerLabel": "Where is this calendar hosted?",
+  "cal.serverLabel": "Server address",
+  "cal.passwordLabel": "App password",
+  "cal.provider.icloud": "Apple iCloud",
+  "cal.provider.fastmail": "Fastmail",
+  "cal.provider.nextcloud": "Nextcloud or another self-hosted server",
+  "cal.provider.google": "Google Calendar",
+  "cal.provider.other": "Another CalDAV server",
+  "cal.user.icloud": "Apple ID (your iCloud email address)",
+  "cal.user.fastmail": "Fastmail address",
+  "cal.user.nextcloud": "Nextcloud username",
+  "cal.user.other": "Username",
+  "cal.tpl.nextcloud": "https://your-server.example/remote.php/dav",
+  "cal.tpl.other": "https://caldav.example.com/",
+  "cal.help.icloud":
+    "Your Apple account password will be refused. Create an app-specific password at appleid.apple.com → Sign-In and Security → App-Specific Passwords, and paste that one.",
+  "cal.help.fastmail":
+    "Your account password will be refused. Create an app password in Fastmail under Settings → Privacy & Security → App Passwords, with calendar access.",
+  "cal.help.nextcloud":
+    "The address ends in /remote.php/dav. If two-factor authentication is on, create a device password under Settings → Security.",
+  "cal.help.google":
+    "Google Calendar cannot be connected here: its CalDAV requires OAuth, and GhostCal signs in with a password. No app password will work. To see your Google events, subscribe to the calendar's secret address further down this page — that is read-only, which is what a subscription is.",
+  "cal.feedNotServer":
+    "That is a published calendar file, not a CalDAV server — it is read-only. Add it under Subscribed calendars, further down this page, where this exact kind of link belongs.",
   "cal.username": "Username",
   "cal.appPassword": "App password",
   "cal.checking": "Checking…",
@@ -1208,6 +1232,30 @@ const fr: Dict = {
   "cal.syncNow": "Synchroniser",
   "cal.disconnect": "Déconnecter",
   "cal.serverPh": "URL du serveur CalDAV (ex. https://caldav.fastmail.com/)",
+  "cal.providerLabel": "Où ce calendrier est-il hébergé ?",
+  "cal.serverLabel": "Adresse du serveur",
+  "cal.passwordLabel": "Mot de passe d'application",
+  "cal.provider.icloud": "Apple iCloud",
+  "cal.provider.fastmail": "Fastmail",
+  "cal.provider.nextcloud": "Nextcloud ou un autre serveur auto-hébergé",
+  "cal.provider.google": "Google Agenda",
+  "cal.provider.other": "Un autre serveur CalDAV",
+  "cal.user.icloud": "Identifiant Apple (votre adresse iCloud)",
+  "cal.user.fastmail": "Adresse Fastmail",
+  "cal.user.nextcloud": "Nom d'utilisateur Nextcloud",
+  "cal.user.other": "Nom d'utilisateur",
+  "cal.tpl.nextcloud": "https://votre-serveur.exemple/remote.php/dav",
+  "cal.tpl.other": "https://caldav.exemple.com/",
+  "cal.help.icloud":
+    "Le mot de passe de votre compte Apple sera refusé. Créez un mot de passe pour application sur appleid.apple.com → Connexion et sécurité → Mots de passe pour application, et collez celui-là.",
+  "cal.help.fastmail":
+    "Le mot de passe de votre compte sera refusé. Créez un mot de passe d'application dans Fastmail, sous Settings → Privacy & Security → App Passwords, avec l'accès au calendrier.",
+  "cal.help.nextcloud":
+    "L'adresse se termine par /remote.php/dav. Si la double authentification est active, créez un mot de passe d'appareil sous Paramètres → Sécurité.",
+  "cal.help.google":
+    "Google Agenda ne peut pas être connecté ici : son CalDAV exige OAuth, et GhostCal s'authentifie par mot de passe. Aucun mot de passe d'application n'y changera rien. Pour voir vos événements Google, abonnez-vous à l'adresse secrète du calendrier, plus bas sur cette page — c'est en lecture seule, ce qu'est un abonnement.",
+  "cal.feedNotServer":
+    "Ceci est un calendrier publié, pas un serveur CalDAV — il est en lecture seule. Ajoutez-le sous Calendriers abonnés, plus bas sur cette page : c'est exactement le champ qui attend ce genre de lien.",
   "cal.username": "Nom d'utilisateur",
   "cal.appPassword": "Mot de passe d'application",
   "cal.checking": "Vérification…",
