@@ -97,6 +97,27 @@ class SqlSubscriptionRepository(SubscriptionRepository):
         ).scalar_one_or_none()
         return row is not None
 
+    async def set_color(self, subscription_id: uuid.UUID, owner_id: uuid.UUID, color: str) -> bool:
+        """Recolore un abonnement existant.
+
+        Même forme que `set_blocking`, et pour la même raison : le filtre sur
+        `owner_id` fait partie de la requête, donc personne ne recolore
+        l'abonnement d'un autre, et `returning(id)` dit si la ligne existait
+        sans avoir à la relire d'abord.
+        """
+        row = (
+            await self._session.execute(
+                update(models.CalendarSubscription)
+                .where(
+                    models.CalendarSubscription.id == subscription_id,
+                    models.CalendarSubscription.owner_id == owner_id,
+                )
+                .values(color=color)
+                .returning(models.CalendarSubscription.id)
+            )
+        ).scalar_one_or_none()
+        return row is not None
+
     async def get_url(self, subscription_id: uuid.UUID) -> str | None:
         return (
             await self._session.execute(

@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import date, datetime, time
 from typing import Literal
 from zoneinfo import available_timezones
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 from ghostcal.application.passwords import MIN_PASSWORD_LENGTH
 from ghostcal.application.retention import MAX_RETENTION_DAYS, MIN_RETENTION_DAYS
@@ -47,6 +48,29 @@ def _validate_http_url(value: str | None) -> str | None:
     if not (value.startswith("http://") or value.startswith("https://")):
         raise ValueError("url must be an http(s) URL")
     return value
+
+
+def _validate_optional_color(value: str | None) -> str | None:
+    """`None` means "leave it alone" on a PATCH; anything else must be a real colour."""
+    return None if value is None else _validate_color(value)
+
+
+_HEX_COLOUR = re.compile(r"\A#[0-9a-fA-F]{6}\Z")
+
+
+def _validate_color(value: str) -> str:
+    """A calendar colour is a six-digit hex triple, and nothing else.
+
+    `max_length=20` was the only guard, so any string reached the database and came back out into
+    a `style` attribute on every calendar row. React renders that as a CSS property value rather
+    than markup, so it was never an injection — but "any 20 characters" is a contract nobody can
+    rely on, and the front end already offers a fixed palette. Pinning the shape here is what lets
+    the colour be *edited* without each caller inventing its own check.
+    """
+    value = value.strip()
+    if not _HEX_COLOUR.match(value):
+        raise ValueError("color must be a #rrggbb hex value")
+    return value.lower()
 
 
 def _validate_feed_url(value: str | None) -> str | None:
@@ -698,6 +722,20 @@ class CalendarIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     color: str = Field(default="#00f0ff", max_length=20)
 
+    _v_color = field_validator("color")(_validate_color)
+
+
+class CalendarPatchIn(BaseModel):
+    """What can be changed on a calendar that already exists.
+
+    Only the colour, for now. It was settable at creation and never afterwards, so the only way to
+    recolour a calendar was to delete it — taking its events with it.
+    """
+
+    color: str = Field(max_length=20)
+
+    _v_color = field_validator("color")(_validate_color)
+
 
 class EventIn(BaseModel):
     calendar_id: uuid.UUID
@@ -971,6 +1009,7 @@ class SubscriptionIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     url: str = Field(min_length=1, max_length=2048)
     color: str = Field(default="#00d68f", max_length=20)
+    _v_color = field_validator("color")(_validate_color)
     # Par défaut faux : un abonnement est informatif tant que son propriétaire
     # n'en décide pas autrement. Voir §`CalendarSubscription.blocks_availability`.
     blocks_availability: bool = False
@@ -979,7 +1018,24 @@ class SubscriptionIn(BaseModel):
 
 
 class SubscriptionPatchIn(BaseModel):
-    blocks_availability: bool
+    """Both fields optional, and at least one required.
+
+    `blocks_availability` was mandatory when it was the only thing this route could change. Keeping
+    it so would have forced a caller that only wants to recolour a feed to restate a setting it may
+    not have read — and restating a boolean you did not intend to touch is how settings get flipped
+    by accident.
+    """
+
+    blocks_availability: bool | None = None
+    color: str | None = Field(default=None, max_length=20)
+
+    _v_color = field_validator("color")(_validate_optional_color)
+
+    @model_validator(mode="after")
+    def _at_least_one(self) -> SubscriptionPatchIn:
+        if self.blocks_availability is None and self.color is None:
+            raise ValueError("nothing to change")
+        return self
 
 
 class SubscriptionOut(BaseModel):

@@ -100,6 +100,10 @@ class CaldavConnectionRepository:
         """Make this the calendar bookings mirror onto, clearing whichever one was."""
         raise NotImplementedError
 
+    async def set_color(self, connection_id: uuid.UUID, user_id: uuid.UUID, color: str) -> bool:
+        """Recolour a connected calendar. False if it is not this user's."""
+        raise NotImplementedError
+
     async def replace_busy(
         self, connection_id: uuid.UUID, host_id: uuid.UUID, busy: list[BusyEvent]
     ) -> None:
@@ -154,6 +158,19 @@ async def connect_calendar(
         color=PALETTE[len(existing) % len(PALETTE)],
         mirror_bookings=not existing,
     )
+
+
+async def set_connection_color(
+    repo: CaldavConnectionRepository, connection_id: uuid.UUID, user_id: uuid.UUID, color: str
+) -> None:
+    """Recolour a connected calendar.
+
+    The colour a connection gets is `PALETTE[len(existing) % len(PALETTE)]` — cycled so two accounts
+    do not land on the same overlay, which is a good default and nothing more. It was also final:
+    the only way to change it was to disconnect and reconnect, re-entering the server password.
+    """
+    if not await repo.set_color(connection_id, user_id, color):
+        raise NotConnected()
 
 
 async def disconnect_calendar(

@@ -104,6 +104,19 @@ export function deleteEvent(id: string): Promise<void> {
   });
 }
 
+/**
+ * Recolour a calendar that already exists.
+ *
+ * PATCH, and the body carries only the colour: the calendar's name and sharing are none of this
+ * call's business, and a body that restates them is a body that can blank them by omission.
+ */
+export function setCalendarColor(calendarId: string, color: string): Promise<void> {
+  return authedFetch<void>(`/v1/me/calendars/${calendarId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ color }),
+  });
+}
+
 export function listShares(calendarId: string): Promise<Share[]> {
   return authedFetch<Share[]>(`/v1/me/calendars/${calendarId}/shares`);
 }

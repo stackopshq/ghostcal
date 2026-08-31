@@ -24,6 +24,7 @@ from ghostcal.application.calendars import (
     disconnect_calendar,
     list_available_calendars,
     list_connections,
+    set_connection_color,
     sync_all_for_user,
     sync_connection,
 )
@@ -86,6 +87,7 @@ from ghostcal.presentation.schemas import (
     CalendarConnectIn,
     CalendarCredentialsIn,
     CalendarInfoOut,
+    CalendarPatchIn,
     ConnectionOut,
     CreatedOut,
     EventTypeDetailOut,
@@ -584,6 +586,25 @@ async def choose_mirror_endpoint(
         repo = SqlCaldavConnectionRepository(session, member.organization_id)
         try:
             await choose_mirror_target(repo, connection_id, member.user.id)
+        except NotConnected as exc:
+            raise HTTPException(status_code=404, detail="no such connected calendar") from exc
+
+
+@router.patch("/calendar/connections/{connection_id}", status_code=204)
+async def recolor_connection_endpoint(
+    connection_id: uuid.UUID,
+    payload: CalendarPatchIn,
+    member: Member = Depends(current_member),
+) -> None:
+    """Change the overlay colour of a connected calendar.
+
+    It was assigned by cycling a palette at connection time and could not be changed afterwards:
+    the only way was to disconnect and reconnect, which means re-entering the server password.
+    """
+    async with org_session(member.organization_id) as session:
+        repo = SqlCaldavConnectionRepository(session, member.organization_id)
+        try:
+            await set_connection_color(repo, connection_id, member.user.id, payload.color)
         except NotConnected as exc:
             raise HTTPException(status_code=404, detail="no such connected calendar") from exc
 
