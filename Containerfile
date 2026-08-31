@@ -21,7 +21,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # Install the project itself.
 COPY src ./src
-COPY README.md LICENSE ./
+COPY README.md LICENSE NOTICE ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
