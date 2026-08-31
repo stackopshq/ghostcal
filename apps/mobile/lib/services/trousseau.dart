@@ -17,7 +17,18 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class Trousseau {
   static const _stockage = FlutterSecureStorage(
     iOptions: IOSOptions(accessibility: KeychainAccessibility.unlocked_this_device),
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    // `resetOnError: false` **explicitement**, et ce n'est pas une redondance : la
+    // version 9 le met à faux par défaut, la version 11 à **vrai**. Une montée de
+    // version de routine retournerait donc un réglage qui, sur une simple erreur de
+    // lecture, **efface tout le magasin** — or les jetons de session y sont la seule
+    // copie existante. Aucune erreur, aucun message : l'utilisateur se retrouve
+    // déconnecté sans cause visible.
+    //
+    // Relevé le 2026-08-31 en portant GhostBit, dont la dépendance est en v11.
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+      resetOnError: false,
+    ),
   );
 
   static const serveur = 'ghostcal.serveur';

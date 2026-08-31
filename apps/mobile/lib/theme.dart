@@ -81,6 +81,11 @@ class Gc {
 /// que rien ne le signale. Les **boutons**, eux, restent rectangulaires là où le web les
 /// arrondit en pilule — exception écrite et assumée, voir `BoutonPrincipal`.
 class Mesures {
+  /// Les **champs** suivent `--radius-sm` (8), pas `--radius` (12). Décidé le
+  /// 2026-08-31 en regardant les deux à l'écran : un champ moins arrondi qu'un bouton
+  /// creuse la hiérarchie entre ce qu'on remplit et ce sur quoi on appuie. Le thème
+  /// était resté à 12 après que la charte a tranché.
+  static const rayonChamp = 8.0;
   static const rayon = 12.0;
   static const rayonCarte = 18.0;
   static const ecart = 12.0;
@@ -259,15 +264,15 @@ ThemeData themeGhostcal(Brightness luminosite) {
       contentPadding:
           const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(Mesures.rayon),
+        borderRadius: BorderRadius.circular(Mesures.rayonChamp),
         borderSide: BorderSide(color: gc.bordure),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(Mesures.rayon),
+        borderRadius: BorderRadius.circular(Mesures.rayonChamp),
         borderSide: BorderSide(color: gc.bordure),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(Mesures.rayon),
+        borderRadius: BorderRadius.circular(Mesures.rayonChamp),
         borderSide: BorderSide(color: gc.accentTexte, width: 1.5),
       ),
     ),
