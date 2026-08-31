@@ -349,7 +349,7 @@ export default function EventTypesPage() {
                         })
                       }
                       className={[
-                        "rounded-lg border px-3 py-1.5 text-sm transition",
+                        "rounded-pill border px-3 py-1.5 text-sm transition",
                         on
                           ? "border-accent text-accent"
                           : "border-border-strong text-muted hover:text-foreground",
@@ -429,7 +429,7 @@ export default function EventTypesPage() {
               <button
                 type="button"
                 onClick={() => copy(item)}
-                className="rounded border border-border-strong px-3 py-2 text-sm text-foreground transition hover:border-accent hover:text-accent"
+                className="rounded-pill border border-border-strong px-3 py-2 text-sm text-foreground transition hover:border-accent hover:text-accent"
               >
                 {copied === item.id ? t("et.copied") : t("et.copyLink")}
               </button>
@@ -438,7 +438,7 @@ export default function EventTypesPage() {
                   type="button"
                   aria-label="More actions"
                   onClick={() => setOpenMenu(openMenu === item.id ? null : item.id)}
-                  className="rounded border border-border-strong px-3 py-2 text-sm text-foreground transition hover:border-accent hover:text-accent"
+                  className="rounded-pill border border-border-strong px-3 py-2 text-sm text-foreground transition hover:border-accent hover:text-accent"
                 >
                   ⋮
                 </button>
@@ -548,7 +548,7 @@ function QuestionsBuilder({
             <button
               type="button"
               onClick={() => onChange(questions.filter((_, idx) => idx !== i))}
-              className="rounded border border-border-strong px-2 text-sm text-muted hover:text-red-400"
+              className="rounded-pill border border-border-strong px-2 text-sm text-muted hover:text-red-400"
             >
               ✕
             </button>

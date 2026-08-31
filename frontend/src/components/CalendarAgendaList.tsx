@@ -83,7 +83,7 @@ export default function CalendarAgendaList({
                 <button
                   type="button"
                   onClick={() => onEventClick(item)}
-                  className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left transition hover:bg-surface-2/60"
+                  className="flex w-full items-center gap-3 rounded-pill px-2 py-1.5 text-left transition hover:bg-surface-2/60"
                 >
                   <span
                     aria-hidden

@@ -125,7 +125,7 @@ export default function TeamPage() {
                   <select
                     value={m.role}
                     onChange={(e) => onRole(m.user_id, e.target.value)}
-                    className="rounded-lg border border-border-strong bg-surface-2 px-2 py-1.5 text-sm text-foreground outline-none focus:border-accent"
+                    className="rounded border border-border-strong bg-surface-2 px-2 py-1.5 text-sm text-foreground outline-none focus:border-accent"
                   >
                     {ROLES.map((r) => (
                       <option key={r} value={r}>
@@ -136,7 +136,7 @@ export default function TeamPage() {
                   <button
                     type="button"
                     onClick={() => onRemove(m.user_id)}
-                    className="rounded-lg border border-border-strong px-3 py-1.5 text-sm text-muted transition hover:border-red-400 hover:text-red-400"
+                    className="rounded-pill border border-border-strong px-3 py-1.5 text-sm text-muted transition hover:border-red-400 hover:text-red-400"
                   >
                     {t("team.remove")}
                   </button>
@@ -154,12 +154,12 @@ export default function TeamPage() {
                 placeholder="teammate@example.com"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
-                className="flex-1 rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
+                className="flex-1 rounded border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
               />
               <select
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value)}
-                className="rounded-lg border border-border-strong bg-surface-2 px-3 py-2.5 text-sm text-foreground outline-none focus:border-accent"
+                className="rounded border border-border-strong bg-surface-2 px-3 py-2.5 text-sm text-foreground outline-none focus:border-accent"
               >
                 {ROLES.map((r) => (
                   <option key={r} value={r}>
@@ -169,7 +169,7 @@ export default function TeamPage() {
               </select>
               <button
                 type="submit"
-                className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)] transition hover:brightness-110"
+                className="rounded-pill bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)] transition hover:brightness-110"
               >
                 {t("team.inviteBtn")}
               </button>

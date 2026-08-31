@@ -108,7 +108,7 @@ export default function PublicPollPage() {
               placeholder={t("booking.yourName")}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
+              className="rounded border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
             />
             <input
               required
@@ -116,12 +116,12 @@ export default function PublicPollPage() {
               placeholder={t("booking.yourEmail")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
+              className="rounded border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
             />
             {error && <p className="text-sm text-red-400">{error}</p>}
             <button
               type="submit"
-              className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)] transition hover:brightness-110"
+              className="rounded-pill bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)] transition hover:brightness-110"
             >
               {t("poll.submit")}
             </button>

@@ -52,7 +52,7 @@ export default function UnlockBanner() {
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-accent-ink transition hover:brightness-110"
+            className="shrink-0 rounded-pill bg-accent px-3 py-1.5 text-sm font-semibold text-accent-ink transition hover:brightness-110"
           >
             {t("callback.unlockSubmit")}
           </button>
@@ -68,12 +68,12 @@ export default function UnlockBanner() {
             value={passphrase}
             onChange={(e) => setPassphrase(e.target.value)}
             placeholder={t("callback.unlockTitle")}
-            className="min-w-0 flex-1 rounded-lg border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+            className="min-w-0 flex-1 rounded border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
           />
           <button
             type="submit"
             disabled={busy || !passphrase}
-            className="shrink-0 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-40"
+            className="shrink-0 rounded-pill bg-accent px-3 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-40"
           >
             {busy ? t("common.saving") : t("callback.unlockSubmit")}
           </button>

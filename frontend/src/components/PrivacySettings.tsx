@@ -204,7 +204,7 @@ export default function PrivacySettings() {
           <button
             type="button"
             onClick={() => setArmed(true)}
-            className="mt-4 rounded-lg border border-red-500/60 px-4 py-2 text-sm font-medium text-red-400 transition hover:bg-red-500/10"
+            className="mt-4 rounded-pill border border-red-500/60 px-4 py-2 text-sm font-medium text-red-400 transition hover:bg-red-500/10"
           >
             {t("privacy.delete")}
           </button>
@@ -238,7 +238,7 @@ export default function PrivacySettings() {
                   deleting ||
                   confirmEmail.trim().toLowerCase() !== email.toLowerCase()
                 }
-                className="rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-600 disabled:opacity-40"
+                className="rounded-pill bg-red-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-600 disabled:opacity-40"
               >
                 {deleting ? t("privacy.deleting") : t("privacy.deleteConfirm")}
               </button>

@@ -79,14 +79,14 @@ export default function InvitePage() {
                 <button
                   type="button"
                   onClick={() => respond("tentative")}
-                  className="rounded border border-border-strong px-4 py-2 text-sm text-foreground hover:bg-surface"
+                  className="rounded-pill border border-border-strong px-4 py-2 text-sm text-foreground hover:bg-surface"
                 >
                   {t("invite.maybe")}
                 </button>
                 <button
                   type="button"
                   onClick={() => respond("declined")}
-                  className="rounded border border-border-strong px-4 py-2 text-sm text-muted hover:text-red-400"
+                  className="rounded-pill border border-border-strong px-4 py-2 text-sm text-muted hover:text-red-400"
                 >
                   {t("invite.decline")}
                 </button>

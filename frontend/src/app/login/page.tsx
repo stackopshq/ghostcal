@@ -110,7 +110,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={beginOidcLogin}
-              className="rounded-lg border border-border-strong px-4 py-2 text-sm font-medium text-foreground transition hover:border-accent hover:text-accent"
+              className="rounded-pill border border-border-strong px-4 py-2 text-sm font-medium text-foreground transition hover:border-accent hover:text-accent"
             >
               {t("login.sso")}
             </button>

@@ -123,7 +123,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <button
           type="button"
           onClick={() => window.dispatchEvent(new Event("gc:cmdk"))}
-          className="mb-3 flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm text-muted transition hover:text-accent"
+          className="mb-3 flex items-center justify-between rounded-pill border border-border px-3 py-2 text-sm text-muted transition hover:text-accent"
         >
           <span>{t("cmd.open")}</span>
           <kbd className="rounded border border-border-strong px-1.5 py-0.5 text-2xs">⌘K</kbd>
@@ -169,7 +169,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <button
             type="button"
             onClick={onLogout}
-            className="mt-3 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted transition hover:bg-surface hover:text-foreground"
+            className="mt-3 flex w-full items-center gap-3 rounded-pill px-3 py-2 text-sm font-medium text-muted transition hover:bg-surface hover:text-foreground"
           >
             <Glyph d={ICONS.logout} /> {t("dash.signOut")}
           </button>
@@ -198,7 +198,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           aria-label="Menu"
           aria-expanded={navOpen}
           onClick={() => setNavOpen((v) => !v)}
-          className="rounded-lg border border-border p-2 text-muted transition hover:text-accent"
+          className="rounded-pill border border-border p-2 text-muted transition hover:text-accent"
         >
           <Glyph d={navOpen ? "M6 6l12 12M18 6L6 18" : "M4 7h16M4 12h16M4 17h16"} className="h-5 w-5" />
         </button>
