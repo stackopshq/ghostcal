@@ -609,11 +609,13 @@ const en: Dict = {
   "cal.passwordLabel": "App password",
   "cal.provider.icloud": "Apple iCloud",
   "cal.provider.fastmail": "Fastmail",
+  "cal.provider.infomaniak": "Infomaniak kSuite",
   "cal.provider.nextcloud": "Nextcloud or another self-hosted server",
   "cal.provider.google": "Google Calendar",
   "cal.provider.other": "Another CalDAV server",
   "cal.user.icloud": "Apple ID (your iCloud email address)",
   "cal.user.fastmail": "Fastmail address",
+  "cal.user.infomaniak": "Infomaniak address (your full email)",
   "cal.user.nextcloud": "Nextcloud username",
   "cal.user.other": "Username",
   "cal.tpl.nextcloud": "https://your-server.example/remote.php/dav",
@@ -622,6 +624,8 @@ const en: Dict = {
     "Your Apple account password will be refused. Create an app-specific password at appleid.apple.com → Sign-In and Security → App-Specific Passwords, and paste that one.",
   "cal.help.fastmail":
     "Your account password will be refused. Create an app password in Fastmail under Settings → Privacy & Security → App Passwords, with calendar access.",
+  "cal.help.infomaniak":
+    "Sign in with your full Infomaniak address. If two-factor authentication is on, create an application password in the Infomaniak manager under My profile → Security → Application passwords, and use that one.",
   "cal.help.nextcloud":
     "The address ends in /remote.php/dav. If two-factor authentication is on, create a device password under Settings → Security.",
   "cal.help.google":
@@ -1241,11 +1245,13 @@ const fr: Dict = {
   "cal.passwordLabel": "Mot de passe d'application",
   "cal.provider.icloud": "Apple iCloud",
   "cal.provider.fastmail": "Fastmail",
+  "cal.provider.infomaniak": "Infomaniak kSuite",
   "cal.provider.nextcloud": "Nextcloud ou un autre serveur auto-hébergé",
   "cal.provider.google": "Google Agenda",
   "cal.provider.other": "Un autre serveur CalDAV",
   "cal.user.icloud": "Identifiant Apple (votre adresse iCloud)",
   "cal.user.fastmail": "Adresse Fastmail",
+  "cal.user.infomaniak": "Adresse Infomaniak (votre courriel complet)",
   "cal.user.nextcloud": "Nom d'utilisateur Nextcloud",
   "cal.user.other": "Nom d'utilisateur",
   "cal.tpl.nextcloud": "https://votre-serveur.exemple/remote.php/dav",
@@ -1254,6 +1260,8 @@ const fr: Dict = {
     "Le mot de passe de votre compte Apple sera refusé. Créez un mot de passe pour application sur appleid.apple.com → Connexion et sécurité → Mots de passe pour application, et collez celui-là.",
   "cal.help.fastmail":
     "Le mot de passe de votre compte sera refusé. Créez un mot de passe d'application dans Fastmail, sous Settings → Privacy & Security → App Passwords, avec l'accès au calendrier.",
+  "cal.help.infomaniak":
+    "Connectez-vous avec votre adresse Infomaniak complète. Si la double authentification est active, créez un mot de passe d'application dans le manager Infomaniak, sous Mon profil → Sécurité → Mots de passe d'application, et utilisez celui-là.",
   "cal.help.nextcloud":
     "L'adresse se termine par /remote.php/dav. Si la double authentification est active, créez un mot de passe d'appareil sous Paramètres → Sécurité.",
   "cal.help.google":

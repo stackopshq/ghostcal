@@ -53,10 +53,15 @@ describe("looksLikePublishedFeed", () => {
 });
 
 describe("the provider table", () => {
-  it("gives iCloud and Fastmail a URL, so there is nothing to look for", () => {
+  it("gives the hosted providers a URL, so there is nothing to look for", () => {
     expect(providerFor("icloud").serverUrl).toBe("https://caldav.icloud.com/");
     expect(providerFor("fastmail").serverUrl).toBe(
       "https://caldav.fastmail.com/",
+    );
+    // Not caldav.infomaniak.com, which does not resolve: /.well-known/caldav on the sync host
+    // redirects to its own root, so the root is the entry point.
+    expect(providerFor("infomaniak").serverUrl).toBe(
+      "https://sync.infomaniak.com/",
     );
   });
 

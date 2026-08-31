@@ -50,6 +50,20 @@ export const CALDAV_PROVIDERS: CaldavProvider[] = [
     usernameKey: "cal.user.fastmail",
   },
   {
+    id: "infomaniak",
+    nameKey: "cal.provider.infomaniak",
+    // Measured on 2026-08-31, without an account and without guessing:
+    //   OPTIONS https://sync.infomaniak.com/   → 401, WWW-Authenticate: Basic realm="sabre/dav"
+    //   GET     /.well-known/caldav            → 302 to the same root
+    //   caldav.infomaniak.com                  → does not resolve
+    // Basic auth over SabreDAV, so the backend's `caldav.DAVClient` speaks it; and the discovery
+    // record points at the root, so the address is a constant like iCloud's and the field goes.
+    serverUrl: "https://sync.infomaniak.com/",
+    supported: true,
+    helpKey: "cal.help.infomaniak",
+    usernameKey: "cal.user.infomaniak",
+  },
+  {
     id: "nextcloud",
     nameKey: "cal.provider.nextcloud",
     // Per-installation by definition, so the field stays open — but with the shape shown, which is
