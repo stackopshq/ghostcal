@@ -42,6 +42,25 @@ Future<Uint8List> ouvrirSceau({
   domaine: domaine,
 );
 
+/// Déballe un contenu chiffré symétriquement — l'enveloppe d'une clé privée
+/// d'organisation, scellée sous la clé dérivée de la phrase.
+Future<Uint8List> dechiffrerSymetrique({
+  required List<int> cle,
+  required String blob,
+}) => RustLib.instance.api.crateApiCoeurDechiffrerSymetrique(
+  cle: cle,
+  blob: blob,
+);
+
+/// L'opération inverse, pour réenvelopper une clé lors d'un changement de phrase.
+Future<String> chiffrerSymetrique({
+  required List<int> cle,
+  required List<int> clair,
+}) => RustLib.instance.api.crateApiCoeurChiffrerSymetrique(
+  cle: cle,
+  clair: clair,
+);
+
 Future<PaireDeCles> genererPaire() =>
     RustLib.instance.api.crateApiCoeurGenererPaire();
 

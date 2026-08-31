@@ -51,6 +51,17 @@ pub fn ouvrir_sceau(
     Ok(zk::ouvrir_sceau(&privee, &blob, &domaine)?)
 }
 
+/// Déballe un contenu chiffré symétriquement — l'enveloppe d'une clé privée
+/// d'organisation, scellée sous la clé dérivée de la phrase.
+pub fn dechiffrer_symetrique(cle: Vec<u8>, blob: String) -> Result<Vec<u8>, ErreurDuCoeur> {
+    Ok(zk::dechiffrer_symetrique(&cle, &blob)?)
+}
+
+/// L'opération inverse, pour réenvelopper une clé lors d'un changement de phrase.
+pub fn chiffrer_symetrique(cle: Vec<u8>, clair: Vec<u8>) -> Result<String, ErreurDuCoeur> {
+    Ok(zk::chiffrer_symetrique(&cle, &clair)?)
+}
+
 /// Une paire de clés X25519, en base64.
 pub struct PaireDeCles {
     pub publique: String,
