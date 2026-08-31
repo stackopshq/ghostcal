@@ -216,12 +216,12 @@ export default function TasksPage() {
               value={quick}
               onChange={(e) => setQuick(e.target.value)}
               placeholder={t("tasks.quickAdd")}
-              className="flex-1 rounded-lg border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+              className="flex-1 rounded border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
             />
             <button
               type="submit"
               disabled={busy || !quick.trim()}
-              className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-40"
+              className="rounded-pill bg-accent px-3 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-40"
             >
               {busy ? t("common.saving") : t("tasks.add")}
             </button>

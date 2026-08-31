@@ -150,7 +150,7 @@ export default function NotificationsManager() {
         <button
           type="button"
           onClick={onEnable}
-          className="rounded-lg bg-accent px-3 py-1 text-xs font-semibold text-accent-ink hover:brightness-110"
+          className="rounded-pill bg-accent px-3 py-1 text-xs font-semibold text-accent-ink hover:brightness-110"
         >
           {t("notify.enable")}
         </button>

@@ -100,7 +100,7 @@ export default function PollDetailPage() {
                   type="button"
                   disabled={busy}
                   onClick={() => finalize(o.id)}
-                  className="rounded-lg border border-border-strong px-3 py-1.5 text-sm text-foreground transition hover:border-accent hover:text-accent disabled:opacity-60"
+                  className="rounded-pill border border-border-strong px-3 py-1.5 text-sm text-foreground transition hover:border-accent hover:text-accent disabled:opacity-60"
                 >
                   {t("pollsh.pickThis")}
                 </button>

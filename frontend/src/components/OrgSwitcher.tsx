@@ -37,7 +37,7 @@ export default function OrgSwitcher() {
           setActiveOrg(e.target.value);
           window.location.reload();
         }}
-        className="rounded-lg border border-border-strong bg-surface px-2 py-1.5 text-sm text-foreground outline-none focus:border-accent"
+        className="rounded border border-border-strong bg-surface px-2 py-1.5 text-sm text-foreground outline-none focus:border-accent"
       >
         {orgs.map((o) => (
           <option key={o.id} value={o.id}>

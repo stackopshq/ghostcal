@@ -52,6 +52,34 @@ function tokens(): { file: string; token: string }[] {
   });
 }
 
+
+/** The opening tag starting at `from`, following JSX braces so `className={…}` stays intact. */
+function openingTag(text: string, from: number): string {
+  let depth = 0;
+  for (let i = from; i < text.length; i++) {
+    const c = text[i];
+    if (c === "{") depth++;
+    else if (c === "}") depth--;
+    else if (c === ">" && depth === 0) return text.slice(from, i + 1);
+  }
+  return text.slice(from, from + 500);
+}
+
+/** Every `<button|input|select|textarea>` opening tag that names a radius of its own. */
+function shapedElements(): { file: string; element: string; tag: string }[] {
+  const found: { file: string; element: string; tag: string }[] = [];
+  for (const file of sourceFiles(SRC)) {
+    if (!file.endsWith(".tsx")) continue;
+    const text = readFileSync(file, "utf8");
+    for (const m of text.matchAll(/<(button|input|select|textarea)\b/g)) {
+      const tag = openingTag(text, m.index ?? 0);
+      if (!/\brounded(-(sm|lg|pill))?\b/.test(tag)) continue; // defers to a shared constant
+      found.push({ file: file.slice(SRC.length + 1), element: m[1], tag });
+    }
+  }
+  return found;
+}
+
 describe("the interface stays on the suite's scale", () => {
   it("is actually reading the source tree", () => {
     // A scan that finds nothing passes every assertion below while proving nothing. If the root
@@ -95,6 +123,40 @@ describe("the interface stays on the suite's scale", () => {
       strays.map((s) => `${s.file}: ${s.token}`),
       "these radii are not on the suite's scale. The charter's steps are rounded, rounded-sm, " +
         "rounded-lg, rounded-pill",
+    ).toEqual([]);
+  });
+});
+
+describe("shape says what an object is", () => {
+  it("is reading tags, not just files", () => {
+    // Same reason as above: a selector that matches nothing passes every assertion below.
+    expect(shapedElements().length).toBeGreaterThan(50);
+  });
+
+  it("gives every button the control shape", () => {
+    const strays = shapedElements()
+      .filter((e) => e.element === "button")
+      // A positioned block in the time grid is clickable content, not a control: its height is
+      // computed, and one radius cannot give a 20px and a 200px block the same shape.
+      .filter((e) => !e.tag.includes("absolute"))
+      .filter((e) => !/\brounded-pill\b/.test(e.tag));
+
+    expect(
+      strays.map((e) => `${e.file}: ${e.tag.slice(0, 60)}…`),
+      "a button is a control and controls are pill-shaped. Until 2026-08-31 the shared input and " +
+        "the shared primary button carried the same radius, the same height and the same padding, " +
+        "so on the privacy screen a field and a Save button differed only by colour",
+    ).toEqual([]);
+  });
+
+  it("gives every field the input shape", () => {
+    const strays = shapedElements()
+      .filter((e) => e.element !== "button")
+      .filter((e) => !/\brounded\b(?!-)/.test(e.tag));
+
+    expect(
+      strays.map((e) => `${e.file}: ${e.element}`),
+      "something you fill has the input shape; the container around it is the one that carries lg",
     ).toEqual([]);
   });
 });

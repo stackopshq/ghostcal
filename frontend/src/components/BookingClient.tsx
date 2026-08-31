@@ -182,7 +182,7 @@ export default function BookingClient({
               setSelectedDay(null);
               setSelectedSlot(null);
             }}
-            className="rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+            className="rounded border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
           >
             {timezones.map((zone) => (
               <option key={zone} value={zone}>
@@ -225,7 +225,7 @@ export default function BookingClient({
                           setSelectedSlot(null);
                         }}
                         className={[
-                          "rounded-lg border px-3 py-2 text-sm font-medium transition",
+                          "rounded-pill border px-3 py-2 text-sm font-medium transition",
                           active
                             ? "border-accent text-accent shadow-[0_0_14px_color-mix(in_srgb,var(--color-accent)_25%,transparent)]"
                             : "border-border-strong text-foreground hover:border-accent hover:text-accent",
@@ -247,7 +247,7 @@ export default function BookingClient({
                         type="button"
                         onClick={() => setSelectedSlot(slot)}
                         className={[
-                          "rounded-lg border px-4 py-2.5 text-sm font-medium transition",
+                          "rounded-pill border px-4 py-2.5 text-sm font-medium transition",
                           active
                             ? "border-accent bg-accent text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)]"
                             : "border-border-strong text-foreground hover:border-accent hover:text-accent hover:shadow-[0_0_14px_color-mix(in_srgb,var(--color-accent)_25%,transparent)]",
@@ -277,7 +277,7 @@ export default function BookingClient({
                   placeholder={t("booking.yourName")}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
+                  className="rounded border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
                 />
                 <input
                   required
@@ -285,13 +285,13 @@ export default function BookingClient({
                   placeholder={t("booking.yourEmail")}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
+                  className="rounded border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
                 />
                 <input
                   placeholder={t("booking.guests")}
                   value={guests}
                   onChange={(e) => setGuests(e.target.value)}
-                  className="rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
+                  className="rounded border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
                 />
                 {eventType.questions.map((q) => (
                   <QuestionField
@@ -306,7 +306,7 @@ export default function BookingClient({
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={3}
-                  className="rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
+                  className="rounded border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
                 />
                 {eventType.zk_public_key && (
                   <p className="flex items-start gap-1.5 text-xs text-accent/80">
@@ -318,7 +318,7 @@ export default function BookingClient({
                 <button
                   type="submit"
                   disabled={submitting || missingRequired()}
-                  className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)] transition hover:brightness-110 disabled:opacity-60"
+                  className="rounded-pill bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)] transition hover:brightness-110 disabled:opacity-60"
                 >
                   {submitting ? t("booking.confirming") : t("booking.confirm")}
                 </button>
@@ -342,7 +342,7 @@ function QuestionField({
 }) {
   const t = useT();
   const inputClass =
-    "rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent";
+    "rounded border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent";
   const label = (
     <span className="text-xs text-muted/80">
       {question.label}

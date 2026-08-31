@@ -905,21 +905,21 @@ export default function CalendarPage() {
               <button
                 type="button"
                 onClick={() => step(-1)}
-                className="rounded-lg border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
+                className="rounded-pill border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
               >
                 ‹
               </button>
               <button
                 type="button"
                 onClick={() => setCursor(new Date())}
-                className="rounded-lg border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
+                className="rounded-pill border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
               >
                 {t("calendar.today")}
               </button>
               <button
                 type="button"
                 onClick={() => step(1)}
-                className="rounded-lg border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
+                className="rounded-pill border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
               >
                 ›
               </button>
@@ -929,7 +929,7 @@ export default function CalendarPage() {
             <button
               type="button"
               onClick={() => setShareOpen(true)}
-              className="rounded-lg border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
+              className="rounded-pill border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
             >
               {t("calendar.share")}
             </button>
@@ -954,12 +954,12 @@ export default function CalendarPage() {
               value={quickText}
               onChange={(e) => setQuickText(e.target.value)}
               placeholder={t("calendar.quickAdd")}
-              className="flex-1 rounded-lg border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+              className="flex-1 rounded border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
             />
             <button
               type="submit"
               disabled={!quickParsed || quickBusy}
-              className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-40"
+              className="rounded-pill bg-accent px-3 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-40"
             >
               {quickBusy ? t("common.saving") : t("calendar.quickAddCreate")}
             </button>
@@ -971,7 +971,7 @@ export default function CalendarPage() {
                 setDraft(draftFromQuick(quickParsed));
                 setQuickText("");
               }}
-              className="flex flex-wrap items-center gap-x-2 gap-y-1 self-start rounded-lg border border-border bg-surface-2/40 px-3 py-1.5 text-left text-xs"
+              className="flex flex-wrap items-center gap-x-2 gap-y-1 self-start rounded-pill border border-border bg-surface-2/40 px-3 py-1.5 text-left text-xs"
             >
               <span className="font-medium text-foreground">
                 {quickParsed.title || t("calendar.untitled")}
@@ -1460,7 +1460,7 @@ function NewCalendarModal({
           placeholder={t("calendar.calendarName")}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+          className="w-full rounded border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
         />
         <div className="mt-4 flex flex-wrap gap-2">
           {CAL_COLORS.map((c) => (
@@ -1481,7 +1481,7 @@ function NewCalendarModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-border-strong px-4 py-2 text-sm text-muted hover:text-foreground"
+            className="rounded-pill border border-border-strong px-4 py-2 text-sm text-muted hover:text-foreground"
           >
             {t("calendar.cancel")}
           </button>
@@ -1489,7 +1489,7 @@ function NewCalendarModal({
             type="button"
             onClick={submit}
             disabled={busy || !name.trim()}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-60"
+            className="rounded-pill bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-60"
           >
             {t("calendar.save")}
           </button>
@@ -1548,7 +1548,7 @@ function SubscribeModal({
           placeholder={t("calendar.calendarName")}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+          className="w-full rounded border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
         />
         <input
           // Volontairement PAS type="url" : le navigateur marque alors le champ
@@ -1560,7 +1560,7 @@ function SubscribeModal({
           placeholder="https://… ou webcal://…"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          className="mt-3 w-full rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+          className="mt-3 w-full rounded border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
         />
         {/* Le choix se pose ICI, pas dans un réglage qu'on ne trouvera pas :
             c'est au moment où l'on ajoute un agenda qu'on sait s'il décrit
@@ -1598,7 +1598,7 @@ function SubscribeModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-border-strong px-4 py-2 text-sm text-muted hover:text-foreground"
+            className="rounded-pill border border-border-strong px-4 py-2 text-sm text-muted hover:text-foreground"
           >
             {t("calendar.cancel")}
           </button>
@@ -1606,7 +1606,7 @@ function SubscribeModal({
             type="button"
             onClick={submit}
             disabled={busy || !name.trim() || !url.trim()}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-60"
+            className="rounded-pill bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-60"
           >
             {busy ? t("common.saving") : t("calendar.save")}
           </button>
@@ -1680,12 +1680,12 @@ function WeatherModal({
             placeholder={t("calendar.weatherSearch")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="flex-1 rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+            className="flex-1 rounded border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
           />
           <button
             type="submit"
             disabled={busy || query.trim().length < 2}
-            className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-60"
+            className="rounded-pill bg-accent px-3 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-60"
           >
             {busy ? "…" : t("calendar.weatherSearchGo")}
           </button>
@@ -1704,7 +1704,7 @@ function WeatherModal({
                       longitude: p.longitude,
                     })
                   }
-                  className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm hover:bg-surface-2/40"
+                  className="flex w-full items-center justify-between rounded-pill px-2 py-1.5 text-left text-sm hover:bg-surface-2/40"
                 >
                   <span className="text-foreground">{p.name}</span>
                   {p.country && (
@@ -1721,7 +1721,7 @@ function WeatherModal({
             type="button"
             onClick={useMyLocation}
             disabled={geoBusy}
-            className="rounded-lg border border-border-strong px-3 py-2 text-xs text-muted hover:text-accent disabled:opacity-60"
+            className="rounded-pill border border-border-strong px-3 py-2 text-xs text-muted hover:text-accent disabled:opacity-60"
           >
             {geoBusy ? "…" : `📍 ${t("calendar.weatherMyLocation")}`}
           </button>
@@ -1730,7 +1730,7 @@ function WeatherModal({
               <button
                 type="button"
                 onClick={() => onChoose(null)}
-                className="rounded-lg border border-border-strong px-3 py-2 text-xs text-muted hover:text-danger"
+                className="rounded-pill border border-border-strong px-3 py-2 text-xs text-muted hover:text-danger"
               >
                 {t("calendar.weatherTurnOff")}
               </button>
@@ -1738,7 +1738,7 @@ function WeatherModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-border-strong px-3 py-2 text-xs text-muted hover:text-foreground"
+              className="rounded-pill border border-border-strong px-3 py-2 text-xs text-muted hover:text-foreground"
             >
               {t("calendar.cancel")}
             </button>
@@ -1872,7 +1872,7 @@ function ShareModal({
                   onChange={(e) =>
                     void setAccessFor(m.user_id, e.target.value as Access)
                   }
-                  className="rounded-lg border border-border bg-surface-2 px-2 py-1 text-xs text-foreground"
+                  className="rounded border border-border bg-surface-2 px-2 py-1 text-xs text-foreground"
                 >
                   <option value="none">{t("calendar.shareNone")}</option>
                   <option value="read">{t("calendar.shareRead")}</option>
@@ -1897,7 +1897,7 @@ function ShareModal({
               <button
                 type="button"
                 onClick={() => void navigator.clipboard.writeText(freshLink)}
-                className="mt-2 rounded-lg border border-border px-3 py-1 text-xs text-muted transition hover:text-accent"
+                className="mt-2 rounded-pill border border-border px-3 py-1 text-xs text-muted transition hover:text-accent"
               >
                 {t("calendar.linkCopy")}
               </button>
@@ -1939,13 +1939,13 @@ function ShareModal({
               value={linkName}
               onChange={(e) => setLinkName(e.target.value)}
               placeholder={t("calendar.linkNamePh")}
-              className="flex-1 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-foreground placeholder:text-muted"
+              className="flex-1 rounded border border-border bg-surface-2 px-3 py-2 text-sm text-foreground placeholder:text-muted"
             />
             <button
               type="button"
               onClick={() => void mintLink()}
               disabled={minting}
-              className="shrink-0 rounded-lg border border-border-strong px-3 py-2 text-sm text-muted transition hover:border-accent hover:text-accent disabled:opacity-50"
+              className="shrink-0 rounded-pill border border-border-strong px-3 py-2 text-sm text-muted transition hover:border-accent hover:text-accent disabled:opacity-50"
             >
               {minting ? t("common.saving") : t("calendar.linkCreate")}
             </button>
@@ -1972,7 +1972,7 @@ function ShareModal({
                   onClick={() =>
                     void navigator.clipboard.writeText(freshBusyLink)
                   }
-                  className="rounded-lg border border-border px-3 py-1 text-xs text-muted transition hover:text-accent"
+                  className="rounded-pill border border-border px-3 py-1 text-xs text-muted transition hover:text-accent"
                 >
                   {t("calendar.linkCopy")}
                 </button>
@@ -1992,7 +1992,7 @@ function ShareModal({
                         ),
                       });
                     }}
-                    className="rounded-lg border border-border px-3 py-1 text-xs text-muted transition hover:text-accent"
+                    className="rounded-pill border border-border px-3 py-1 text-xs text-muted transition hover:text-accent"
                   >
                     ✉ {t("calendar.busyEmail")}
                   </button>
@@ -2028,12 +2028,12 @@ function ShareModal({
               value={busyName}
               onChange={(e) => setBusyName(e.target.value)}
               placeholder={t("calendar.busyNamePh")}
-              className="flex-1 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-foreground placeholder:text-muted"
+              className="flex-1 rounded border border-border bg-surface-2 px-3 py-2 text-sm text-foreground placeholder:text-muted"
             />
             <button
               type="button"
               onClick={() => void mintBusyLink()}
-              className="shrink-0 rounded-lg border border-border-strong px-3 py-2 text-sm text-muted transition hover:border-accent hover:text-accent"
+              className="shrink-0 rounded-pill border border-border-strong px-3 py-2 text-sm text-muted transition hover:border-accent hover:text-accent"
             >
               {t("calendar.linkCreate")}
             </button>
@@ -2044,7 +2044,7 @@ function ShareModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110"
+            className="rounded-pill bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110"
           >
             {t("common.done")}
           </button>
@@ -2071,7 +2071,7 @@ function EventModal({
 }) {
   const t = useT();
   const input =
-    "w-full rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent";
+    "w-full rounded border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent";
   const set = (patch: Partial<Draft>) => setDraft({ ...draft, ...patch });
 
   return (
@@ -2229,7 +2229,7 @@ function EventModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-border-strong px-4 py-2 text-sm text-muted hover:text-foreground"
+              className="rounded-pill border border-border-strong px-4 py-2 text-sm text-muted hover:text-foreground"
             >
               {t("calendar.cancel")}
             </button>
@@ -2237,7 +2237,7 @@ function EventModal({
               type="button"
               onClick={onSave}
               disabled={!draft.title.trim()}
-              className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-60"
+              className="rounded-pill bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-60"
             >
               {t("calendar.save")}
             </button>

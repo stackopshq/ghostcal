@@ -101,7 +101,7 @@ export default function InvitationPage() {
                       placeholder={t("inv.unlockPasswordPh")}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
+                      className="w-full rounded border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
                     />
                   </div>
                 )}
@@ -109,7 +109,7 @@ export default function InvitationPage() {
                   type="button"
                   onClick={accept}
                   disabled={accepting || (hasGrant && !password)}
-                  className="w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)] transition hover:brightness-110 disabled:opacity-60"
+                  className="w-full rounded-pill bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)] transition hover:brightness-110 disabled:opacity-60"
                 >
                   {accepting ? t("inv.joining") : t("inv.accept")}
                 </button>

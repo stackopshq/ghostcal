@@ -174,7 +174,7 @@ export default function MeetingsPage() {
                 <button
                   type="button"
                   onClick={() => cancel(m.id)}
-                  className="rounded-lg border border-border-strong px-3 py-2 text-sm text-muted transition hover:border-red-400 hover:text-red-400"
+                  className="rounded-pill border border-border-strong px-3 py-2 text-sm text-muted transition hover:border-red-400 hover:text-red-400"
                 >
                   {t("meetings.cancel")}
                 </button>

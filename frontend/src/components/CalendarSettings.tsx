@@ -223,7 +223,7 @@ export default function CalendarSettings() {
                 type="button"
                 onClick={() => makeMirror(c.id)}
                 disabled={busy}
-                className="rounded-lg border border-border-strong px-4 py-2.5 text-sm text-muted transition hover:border-accent hover:text-accent"
+                className="rounded-pill border border-border-strong px-4 py-2.5 text-sm text-muted transition hover:border-accent hover:text-accent"
               >
                 {t("cal.makeMirror")}
               </button>
@@ -232,7 +232,7 @@ export default function CalendarSettings() {
               type="button"
               onClick={() => disconnect(c.id)}
               disabled={busy}
-              className="rounded-lg border border-border-strong px-4 py-2.5 text-sm text-muted transition hover:border-red-400 hover:text-red-400"
+              className="rounded-pill border border-border-strong px-4 py-2.5 text-sm text-muted transition hover:border-red-400 hover:text-red-400"
             >
               {t("cal.disconnect")}
             </button>
@@ -268,7 +268,7 @@ export default function CalendarSettings() {
                   value={c.push_connection_id ?? ""}
                   disabled={busy}
                   onChange={(e) => void publish(c.id, e.target.value || null)}
-                  className="rounded-lg border border-border bg-surface-2 px-2 py-1 text-xs text-foreground"
+                  className="rounded border border-border bg-surface-2 px-2 py-1 text-xs text-foreground"
                 >
                   <option value="">{t("cal.publishNowhere")}</option>
                   {connections.map((conn) => (
@@ -287,7 +287,7 @@ export default function CalendarSettings() {
         <button
           type="button"
           onClick={() => setAdding(true)}
-          className="self-start rounded-lg border border-dashed border-border px-4 py-2.5 text-sm text-muted transition hover:border-accent hover:text-accent"
+          className="self-start rounded-pill border border-dashed border-border px-4 py-2.5 text-sm text-muted transition hover:border-accent hover:text-accent"
         >
           {connections.length === 0 ? t("cal.connect") : t("cal.addAnother")}
         </button>

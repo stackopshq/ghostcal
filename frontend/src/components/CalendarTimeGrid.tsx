@@ -96,7 +96,7 @@ export default function CalendarTimeGrid({
                   onClick={() => onDayClick(day)}
                   title={labels.openDay}
                   aria-label={`${labels.openDay}, ${day.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}`}
-                  className={`rounded px-1.5 text-sm hover:bg-surface-2 hover:text-accent ${
+                  className={`rounded-pill px-1.5 text-sm hover:bg-surface-2 hover:text-accent ${
                     isToday ? "font-semibold text-accent" : "text-foreground"
                   }`}
                 >
@@ -138,7 +138,7 @@ export default function CalendarTimeGrid({
                   title={it.read_only ? labels.sharedReadOnly : undefined}
                   onClick={() => onEventClick(it)}
                   style={eventStyle(it)}
-                  className={`truncate rounded px-1.5 py-0.5 text-left text-2xs ${eventClasses(it)}`}
+                  className={`truncate rounded-pill px-1.5 py-0.5 text-left text-2xs ${eventClasses(it)}`}
                 >
                   {it.label}
                 </button>
