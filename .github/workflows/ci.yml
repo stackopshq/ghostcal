@@ -208,6 +208,23 @@ jobs:
       - name: Build
         run: npm run build
 
+      # The only step that looks at what is actually SERVED. `scale.test.ts` reads the source and
+      # refuses off-charter classes there; it cannot see the stylesheet, which is emitted later and
+      # from a wider net -- Tailwind v4 discovers its own sources, test files included. On
+      # 2026-08-31 that put `.text-3xl` and `.text-4xl` into production CSS because the test
+      # FORBIDDING them names them in its documentation. Weightless, and it made the shipped sheet
+      # say the opposite of the truth to anyone auditing it.
+      - name: No off-charter class in the served stylesheet
+        run: |
+          css=$(find .next -name '*.css' -path '*static*' | head -1)
+          test -n "$css" || { echo "no stylesheet was built"; exit 1; }
+          # The charter stops at 2xl and has four radii; anything above is Tailwind's own value.
+          if grep -oE '\.(text-[3-9]xl|rounded-(md|xl|2xl|3xl|4xl|full))\{' "$css"; then
+            echo "^ these are not on the suite's scale but are being served"
+            exit 1
+          fi
+          echo "clean: $(wc -c < "$css") bytes, no off-charter class"
+
   image:
     runs-on: [self-hosted, linux, x64]
     needs: [quality]
