@@ -2,6 +2,9 @@
 
 import { useMemo } from "react";
 import type { GridItem } from "@/components/CalendarTimeGrid";
+import {
+  LockIcon,
+} from "@/components/icons";
 
 /**
  * What is coming up, as a list.
@@ -120,7 +123,7 @@ export default function CalendarAgendaList({
                       className="shrink-0 text-xs text-muted"
                     >
                       <span aria-hidden className="sm:hidden">
-                        🔒
+                        <LockIcon />
                       </span>
                       <span className="sr-only sm:not-sr-only">
                         {labels.sharedReadOnly}

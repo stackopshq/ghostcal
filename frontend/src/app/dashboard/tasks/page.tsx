@@ -19,6 +19,9 @@ import {
   openWithOrgKeys,
   sealTaskContent,
 } from "@/lib/zk";
+import {
+  BellIcon,
+} from "@/components/icons";
 
 type Decorated = Task & { title: string; notes: string };
 
@@ -280,7 +283,7 @@ export default function TasksPage() {
                             task.reminder_minutes != null ? "text-accent" : ""
                           }
                         >
-                          🔔
+                          <BellIcon />
                         </span>
                         <select
                           value={task.reminder_minutes ?? ""}

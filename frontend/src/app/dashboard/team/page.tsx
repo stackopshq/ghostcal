@@ -14,6 +14,9 @@ import {
   revokeInvitation,
 } from "@/lib/team";
 import { getUnlockedKeys, wrapKeyForGrant } from "@/lib/zk";
+import {
+  KeyIcon,
+} from "@/components/icons";
 
 const ROLES = ["member", "admin", "owner"];
 
@@ -178,7 +181,7 @@ export default function TeamPage() {
             {secureLink && (
               <div className="rounded border border-accent/40 bg-surface-2/60 p-4">
                 <p className="mb-1 flex items-center gap-1.5 text-sm font-medium text-accent">
-                  <span aria-hidden>🔑</span> {t("team.secureLinkTitle")}
+                  <KeyIcon /> {t("team.secureLinkTitle")}
                 </p>
                 <p className="mb-2 text-xs text-muted">{t("team.secureLinkSub")}</p>
                 <code className="block break-all rounded-lg bg-base/80 px-3 py-2 font-mono text-xs text-foreground">

@@ -8,6 +8,9 @@ import { isAuthenticated, setActiveOrg } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 import { acceptInvitation, storeMemberKey } from "@/lib/team";
 import { rewrapForPassword, storeUnlockedKey, unwrapKeyFromGrant } from "@/lib/zk";
+import {
+  KeyIcon,
+} from "@/components/icons";
 
 export default function InvitationPage() {
   const t = useT();
@@ -94,7 +97,7 @@ export default function InvitationPage() {
                 {hasGrant && (
                   <div className="text-left">
                     <p className="mb-1 flex items-center gap-1.5 text-xs text-accent">
-                      <span aria-hidden>🔑</span> {t("inv.unlockTitle")}
+                      <KeyIcon /> {t("inv.unlockTitle")}
                     </p>
                     <input
                       type="password"

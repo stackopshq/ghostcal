@@ -7,6 +7,9 @@ import { ApiError } from "@/lib/api";
 import { register } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 import { MIN_PASSWORD_LENGTH } from "@/lib/passwords";
+import {
+  KeyIcon,
+} from "@/components/icons";
 
 export default function RegisterPage() {
   const t = useT();
@@ -55,7 +58,7 @@ export default function RegisterPage() {
         <div className="flex flex-col gap-4">
           <div className="rounded border border-accent/40 bg-surface-2/60 p-4">
             <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-accent">
-              <span aria-hidden>🔑</span> {t("register.recoveryTitle")}
+              <KeyIcon /> {t("register.recoveryTitle")}
             </p>
             <p className="mb-3 text-xs text-muted">{t("register.recoverySub")}</p>
             <code className="block break-all rounded-lg bg-base/80 px-3 py-2 font-mono text-sm text-foreground">

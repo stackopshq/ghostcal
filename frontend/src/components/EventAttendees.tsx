@@ -11,6 +11,9 @@ import {
 import { getMe } from "@/lib/auth";
 import { ghostMailUrl, openInGhostMail } from "@/lib/ghostmail";
 import { useT } from "@/lib/i18n";
+import {
+  MailIcon,
+} from "@/components/icons";
 
 const STATUS_KEY: Record<string, string> = {
   needs_action: "att.pending",
@@ -112,7 +115,7 @@ export default function EventAttendees({
             }}
             className="flex items-center gap-1 text-xs text-accent hover:underline"
           >
-            <span aria-hidden>✉️</span> {t("att.emailGuests")}
+            <MailIcon /> {t("att.emailGuests")}
           </button>
         )}
       </div>
