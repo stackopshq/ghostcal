@@ -252,6 +252,46 @@ class SqlAuthRepository(AuthRepository):
             update(models.User).where(models.User.id == user_id).values(email_verified_at=now)
         )
 
+    async def add_password_reset(
+        self, user_id: uuid.UUID, token_hash: str, expires_at: datetime
+    ) -> None:
+        await self._session.execute(
+            insert(models.PasswordResetToken).values(
+                user_id=user_id, token_hash=token_hash, expires_at=expires_at
+            )
+        )
+
+    async def peek_password_reset(self, token_hash: str, now: datetime) -> uuid.UUID | None:
+        # A read, not an UPDATE: the reset page fetches the key envelopes before the user has
+        # typed their recovery phrase, and a wrong phrase must not burn the link.
+        row = (
+            await self._session.execute(
+                select(models.PasswordResetToken.user_id).where(
+                    models.PasswordResetToken.token_hash == token_hash,
+                    models.PasswordResetToken.used_at.is_(None),
+                    models.PasswordResetToken.expires_at > now,
+                )
+            )
+        ).first()
+        return row.user_id if row else None
+
+    async def consume_password_reset(self, token_hash: str, now: datetime) -> uuid.UUID | None:
+        # Single use enforced inside the UPDATE, like the verification token above: a check
+        # followed by a write is two statements a second request can slip between.
+        row = (
+            await self._session.execute(
+                update(models.PasswordResetToken)
+                .where(
+                    models.PasswordResetToken.token_hash == token_hash,
+                    models.PasswordResetToken.used_at.is_(None),
+                    models.PasswordResetToken.expires_at > now,
+                )
+                .values(used_at=now)
+                .returning(models.PasswordResetToken.user_id)
+            )
+        ).first()
+        return row.user_id if row else None
+
     async def add_refresh_token(
         self, user_id: uuid.UUID, token_hash: str, expires_at: datetime
     ) -> None:

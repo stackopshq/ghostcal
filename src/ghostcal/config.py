@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     access_token_ttl_seconds: int = 900  # 15 min
     refresh_token_ttl_seconds: int = 60 * 60 * 24 * 30  # 30 days
     email_verification_ttl_seconds: int = 60 * 60 * 24  # 24 h
+    # Shorter than the verification link on purpose: this one starts a password reset, so the
+    # window in which a stolen mailbox is worth something should be the smaller of the two.
+    password_reset_ttl_seconds: int = 60 * 60  # 1 h
     invitation_ttl_seconds: int = 60 * 60 * 24 * 7  # 7 days
 
     # Encryption key for calendar tokens at rest (envelope key, base64)

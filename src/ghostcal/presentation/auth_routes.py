@@ -23,6 +23,7 @@ from ghostcal.application.auth import (
     TokenPair,
     ZkKeyMaterial,
     ZkKeysAlreadySet,
+    ZkRewrap,
 )
 from ghostcal.application.passwords import PasswordRejected
 from ghostcal.application.ports.clock import SystemClock
@@ -36,10 +37,12 @@ from ghostcal.infrastructure.security.oidc import OIDCNotConfigured, oidc_client
 from ghostcal.infrastructure.security.passwords import Argon2PasswordHasher
 from ghostcal.infrastructure.security.tokens import JwtAccessTokenCodec
 from ghostcal.presentation.schemas import (
+    ForgotPasswordIn,
     LoginIn,
     RefreshIn,
     RegisteredOut,
     RegisterIn,
+    ResetPasswordIn,
     TokenOut,
     UserOut,
     VerifyEmailIn,
@@ -69,6 +72,7 @@ _config = AuthConfig(
     access_ttl=timedelta(seconds=_settings.access_token_ttl_seconds),
     refresh_ttl=timedelta(seconds=_settings.refresh_token_ttl_seconds),
     email_verification_ttl=timedelta(seconds=_settings.email_verification_ttl_seconds),
+    password_reset_ttl=timedelta(seconds=_settings.password_reset_ttl_seconds),
     frontend_base_url=_settings.frontend_base_url,
 )
 
@@ -195,6 +199,72 @@ async def setup_zk_keys(payload: ZkKeyMaterialIn, user: CurrentUser) -> None:
             await _service(session).setup_zk_keys(user.id, material)
         except ZkKeysAlreadySet as exc:
             raise HTTPException(status_code=409, detail="keys already set") from exc
+
+
+@router.post("/forgot-password", status_code=202, dependencies=_AUTH_RL)
+async def forgot_password(payload: ForgotPasswordIn) -> None:
+    """Start a password reset. Always 202, whether or not the address is known.
+
+    Answering differently for a known and an unknown address would turn this into an
+    account-enumeration oracle, and the caller is unauthenticated.
+    """
+    async with db_session() as session:
+        await _service(session).request_password_reset(email=payload.email)
+
+
+@router.get(
+    "/reset-password/{token}/zk-keys", response_model=list[ZkKeysOut], dependencies=_AUTH_RL
+)
+async def reset_password_zk_keys(token: str) -> list[ZkKeysOut]:
+    """The key envelopes for a live reset token, so the browser can open them with the phrase.
+
+    Unauthenticated by necessity: the whole point is that the caller cannot log in. Safe because
+    every envelope returned is sealed under the recovery phrase — 24 random bytes, 192 bits, behind
+    Argon2id — so the link alone yields ciphertext.
+
+    A read, not a spend: a wrong recovery phrase must not burn the link.
+    """
+    async with db_session() as session:
+        try:
+            bundles = await _service(session).zk_keys_for_reset(token=token)
+        except InvalidToken as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return [
+        ZkKeysOut(
+            organization_id=b.organization_id,
+            public_key=b.public_key,
+            generation=b.generation,
+            sealed_org_key=b.sealed_org_key,
+            wrapped_private_key=b.wrapped_private_key,
+            wrap_salt=b.wrap_salt,
+            recovery_wrapped_private_key=b.recovery_wrapped_private_key,
+            recovery_salt=b.recovery_salt,
+        )
+        for b in bundles
+    ]
+
+
+@router.post("/reset-password", status_code=204, dependencies=_AUTH_RL)
+async def reset_password(payload: ResetPasswordIn) -> None:
+    """Finish a reset: the new password and the re-wrapped envelopes, together."""
+    async with db_session() as session:
+        try:
+            await _service(session).reset_password(
+                token=payload.token,
+                new_password=payload.new_password,
+                envelopes=[
+                    ZkRewrap(
+                        organization_id=e.organization_id,
+                        wrapped_private_key=e.wrapped_private_key,
+                        wrap_salt=e.wrap_salt,
+                    )
+                    for e in payload.envelopes
+                ],
+            )
+        except PasswordRejected as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except InvalidToken as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/zk-rewrap", status_code=204, dependencies=_AUTH_RL)

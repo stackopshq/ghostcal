@@ -157,6 +157,23 @@ class ZkRewrapIn(BaseModel):
     wrap_salt: str = Field(min_length=1, max_length=512)
 
 
+class ForgotPasswordIn(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordIn(BaseModel):
+    """A new password and the key envelopes that go with it, in one request.
+
+    The envelopes are required. The server cannot re-wrap anything itself — it never sees a private
+    key — so a reset that set only the password would leave a working login in front of a calendar
+    nothing can open. Splitting it in two requests would put that state in the gap between them.
+    """
+
+    token: str = Field(min_length=1, max_length=512)
+    new_password: str = Field(min_length=MIN_PASSWORD_LENGTH, max_length=256)
+    envelopes: list[ZkRewrapIn] = Field(default_factory=list, max_length=50)
+
+
 class VerifyEmailIn(BaseModel):
     token: str = Field(min_length=1)
 
