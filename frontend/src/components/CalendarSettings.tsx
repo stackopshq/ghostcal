@@ -17,6 +17,11 @@ import {
   setMirrorTarget,
   syncConnection,
 } from "@/lib/calendar";
+import {
+  CALDAV_PROVIDERS,
+  looksLikePublishedFeed,
+  providerFor,
+} from "@/lib/caldavProviders";
 import { useT } from "@/lib/i18n";
 import { drainPushQueue, publishCalendar } from "@/lib/push";
 
@@ -43,7 +48,12 @@ export default function CalendarSettings() {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
 
-  const [serverUrl, setServerUrl] = useState("");
+  // Defaults to iCloud rather than to nothing: an empty picker asks the same unanswerable question
+  // the free-text field used to.
+  const [providerId, setProviderId] = useState(CALDAV_PROVIDERS[0].id);
+  const [serverUrl, setServerUrl] = useState(
+    CALDAV_PROVIDERS[0].serverUrl ?? "",
+  );
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [calendars, setCalendars] = useState<CalendarInfo[] | null>(null);
@@ -85,12 +95,22 @@ export default function CalendarSettings() {
   function resetForm() {
     setAdding(false);
     setCalendars(null);
-    setServerUrl("");
+    // Back to the default provider, and to ITS address — clearing the field would leave the picker
+    // saying iCloud above an empty URL, which is the disagreement this form existed to remove.
+    setProviderId(CALDAV_PROVIDERS[0].id);
+    setServerUrl(CALDAV_PROVIDERS[0].serverUrl ?? "");
     setUsername("");
     setPassword("");
+    setError(null);
   }
 
   async function findCalendars() {
+    // Caught here, before the network: a published feed answers "could not reach the calendar
+    // server", which is true and tells the user nothing about what they actually did.
+    if (looksLikePublishedFeed(serverUrl)) {
+      setError(t("cal.feedNotServer"));
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -169,6 +189,8 @@ export default function CalendarSettings() {
       setBusy(false);
     }
   }
+
+  const provider = providerFor(providerId);
 
   if (loading) {
     return <p className="text-sm text-muted">{t("common.loading")}</p>;
@@ -293,34 +315,90 @@ export default function CalendarSettings() {
         </button>
       ) : (
         <div className="flex flex-col gap-3">
-          <input
-            placeholder={t("cal.serverPh")}
-            value={serverUrl}
-            onChange={(e) => setServerUrl(e.target.value)}
-            className={inputClass}
-          />
-          <div className="grid gap-3 sm:grid-cols-2">
-            <input
-              placeholder={t("cal.username")}
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+          {/* The picker comes first because it answers the question the URL field used to ask and
+              could not: for iCloud there is no address to find, it is a constant. */}
+          <label className="flex flex-col gap-1 text-sm text-muted">
+            {t("cal.providerLabel")}
+            <select
+              value={providerId}
+              onChange={(e) => {
+                const p = providerFor(e.target.value);
+                setProviderId(p.id);
+                setServerUrl(p.serverUrl ?? "");
+                setError(null);
+              }}
               className={inputClass}
-            />
-            <input
-              type="password"
-              placeholder={t("cal.appPassword")}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={inputClass}
-            />
-          </div>
+            >
+              {CALDAV_PROVIDERS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {t(p.nameKey)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {provider.helpKey && (
+            <p
+              className={`text-xs ${provider.supported ? "text-muted" : "text-amber-300"}`}
+            >
+              {t(provider.helpKey)}
+            </p>
+          )}
+
+          {provider.supported && (
+            <>
+              {/* Only shown where the address genuinely varies. A field pre-filled with a constant
+                  invites editing something that must not be edited. */}
+              {provider.serverUrl === null && (
+                <label className="flex flex-col gap-1 text-sm text-muted">
+                  {t("cal.serverLabel")}
+                  <input
+                    placeholder={
+                      provider.urlTemplateKey ? t(provider.urlTemplateKey) : ""
+                    }
+                    value={serverUrl}
+                    onChange={(e) => setServerUrl(e.target.value)}
+                    className={inputClass}
+                  />
+                </label>
+              )}
+              <div className="grid gap-3 sm:grid-cols-2">
+                {/* Labels, not placeholders. A placeholder disappears exactly when it is needed —
+                    when the field has just been filled, and possibly with the wrong thing. On a
+                    password field the dots hide the only hint there was. */}
+                <label className="flex flex-col gap-1 text-sm text-muted">
+                  {t(provider.usernameKey)}
+                  <input
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className={inputClass}
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-muted">
+                  {t("cal.passwordLabel")}
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={inputClass}
+                  />
+                </label>
+              </div>
+            </>
+          )}
 
           {calendars === null ? (
             <div className="flex gap-3">
               <button
                 type="button"
                 onClick={findCalendars}
-                disabled={busy || !serverUrl || !username || !password}
+                disabled={
+                  busy ||
+                  !provider.supported ||
+                  !serverUrl ||
+                  !username ||
+                  !password
+                }
                 className={primaryButtonClass}
               >
                 {busy ? t("cal.checking") : t("cal.findCalendars")}
