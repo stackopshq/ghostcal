@@ -14,13 +14,16 @@ import {
   disconnectCalendar,
   listCalendars,
   listConnections,
+  setMirrorDetail,
   setMirrorTarget,
   syncConnection,
 } from "@/lib/calendar";
 import {
   CALDAV_PROVIDERS,
+  connectionLabel,
   looksLikePublishedFeed,
   providerFor,
+  providerIdForServer,
 } from "@/lib/caldavProviders";
 import { useT } from "@/lib/i18n";
 import { drainPushQueue, publishCalendar } from "@/lib/push";
@@ -102,6 +105,24 @@ export default function CalendarSettings() {
     setUsername("");
     setPassword("");
     setError(null);
+  }
+
+  /** Host + account for a connection, so the list never shows two at-signs in a row. */
+  function label(c: Connection) {
+    return connectionLabel(c.server_url, c.username);
+  }
+
+  async function chooseDetail(id: string, detail: "busy" | "detailed") {
+    setBusy(true);
+    setError(null);
+    try {
+      await setMirrorDetail(id, detail);
+      setConnections(await listConnections());
+    } catch (e) {
+      setError(errorText(e, t));
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function findCalendars() {
@@ -224,8 +245,10 @@ export default function CalendarSettings() {
               style={{ backgroundColor: c.color }}
             />
             {c.calendar_name ?? t("cal.calendarFallback")}
+            {/* Host first, then the account. It used to render `username@server_url`, which put
+                two at-signs in a row: `clara@example.com@https://caldav.icloud.com/`. */}
             <span className="text-muted">
-              · {c.username}@{c.server_url}
+              · {label(c).host} · {label(c).account}
             </span>
             {c.mirror_bookings && (
               <span className="rounded-pill border border-accent/50 px-2 py-0.5 text-xs text-accent">
@@ -238,6 +261,40 @@ export default function CalendarSettings() {
             {c.last_synced_at &&
               ` · ${t("cal.lastSynced", { date: new Date(c.last_synced_at).toLocaleString() })}`}
           </p>
+          {c.mirror_bookings && (
+            <div className="flex flex-col gap-2 rounded border border-border-strong p-3">
+              <p className="text-sm font-medium text-foreground">
+                {t("cal.mirrorDetailTitle")}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {(["busy", "detailed"] as const).map((detail) => (
+                  <button
+                    key={detail}
+                    type="button"
+                    onClick={() => void chooseDetail(c.id, detail)}
+                    disabled={busy}
+                    className={`rounded-pill border px-4 py-2 text-sm transition ${
+                      c.mirror_detail === detail
+                        ? "border-accent text-accent"
+                        : "border-border-strong text-muted hover:border-accent hover:text-accent"
+                    }`}
+                  >
+                    {detail === "busy" ? t("cal.mirrorBusy") : t("cal.mirrorDetailed")}
+                  </button>
+                ))}
+              </div>
+              {/* The warning names who actually receives it, and names nobody when we have not
+                  established who that is — a self-hosted server belongs to someone we never
+                  identified, and inventing a company would be worse than naming none. */}
+              <p className="text-xs text-amber-300">
+                {providerIdForServer(c.server_url)
+                  ? t("cal.mirrorWarnKnown", { host: t(label(c).host) })
+                  : t("cal.mirrorWarnUnknown")}
+              </p>
+              <p className="text-xs text-muted">{t("cal.mirrorBusyNote")}</p>
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-3">
             <button
               type="button"

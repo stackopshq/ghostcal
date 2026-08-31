@@ -130,3 +130,46 @@ export function looksLikePublishedFeed(url: string): boolean {
   // Strip any query string before looking at the extension: `…/basic.ics?token=…` is still a file.
   return /\.ics(\?|$)/.test(value.split("#")[0]);
 }
+
+/**
+ * Who actually receives a mirrored booking, named from the address the host connected.
+ *
+ * Returned as a provider id when the address is one we know, and `null` when it is not. A
+ * self-hosted Nextcloud or an "other" server belongs to someone we have never identified, and
+ * naming a company we have not established would be worse than naming none — the point of the
+ * sentence is to be true.
+ */
+export function providerIdForServer(serverUrl: string): string | null {
+  const value = serverUrl.trim().toLowerCase();
+  if (!value) return null;
+  const match = CALDAV_PROVIDERS.find(
+    (p) => p.serverUrl && value.startsWith(p.serverUrl.toLowerCase()),
+  );
+  return match ? match.id : null;
+}
+
+/**
+ * How to show a connection in a list: the host, then the account.
+ *
+ * Not `username@server_url`, which is what it used to be and which read
+ * `clara@example.com@https://caldav.icloud.com/` — two at-signs, one of them inside an address that
+ * already had one. The host is what tells two connections apart; the URL is plumbing.
+ */
+export function connectionLabel(
+  serverUrl: string,
+  username: string,
+): { host: string; account: string } {
+  const id = providerIdForServer(serverUrl);
+  if (id) {
+    const provider = CALDAV_PROVIDERS.find((p) => p.id === id);
+    return { host: provider ? provider.nameKey : serverUrl, account: username };
+  }
+  // Unknown provider: the hostname is the most useful true thing we have.
+  let host = serverUrl;
+  try {
+    host = new URL(serverUrl).host || serverUrl;
+  } catch {
+    // Not a parseable URL — show it as typed rather than inventing a tidier version.
+  }
+  return { host, account: username };
+}

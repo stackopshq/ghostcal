@@ -24,6 +24,7 @@ def _record(row: models.CaldavConnection) -> ConnectionRecord:
         calendar_name=row.calendar_name,
         color=row.color,
         mirror_bookings=row.mirror_bookings,
+        mirror_detail=row.mirror_detail,
         status=row.status,
         last_synced_at=row.last_synced_at,
     )
@@ -147,6 +148,22 @@ class SqlCaldavConnectionRepository(CaldavConnectionRepository):
                 models.CaldavConnection.user_id == user_id,
             )
             .values(mirror_bookings=True)
+            .returning(models.CaldavConnection.id)
+        )
+        return result.scalar_one_or_none() is not None
+
+    async def set_mirror_detail(
+        self, connection_id: uuid.UUID, user_id: uuid.UUID, detail: str
+    ) -> bool:
+        # `user_id` in the WHERE clause, like the neighbours: what a booking discloses to a third
+        # party is not something one member may change on another's connection.
+        result = await self._session.execute(
+            update(models.CaldavConnection)
+            .where(
+                models.CaldavConnection.id == connection_id,
+                models.CaldavConnection.user_id == user_id,
+            )
+            .values(mirror_detail=detail)
             .returning(models.CaldavConnection.id)
         )
         return result.scalar_one_or_none() is not None

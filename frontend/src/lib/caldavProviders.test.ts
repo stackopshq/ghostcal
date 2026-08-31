@@ -15,8 +15,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   CALDAV_PROVIDERS,
+  connectionLabel,
   looksLikePublishedFeed,
   providerFor,
+  providerIdForServer,
 } from "@/lib/caldavProviders";
 
 describe("looksLikePublishedFeed", () => {
@@ -92,5 +94,42 @@ describe("the provider table", () => {
 
   it("falls back to a real provider rather than undefined", () => {
     expect(providerFor("does-not-exist").id).toBe(CALDAV_PROVIDERS[0].id);
+  });
+});
+
+describe("naming the third party a booking is mirrored to", () => {
+  it("recognises a hosted provider from its address", () => {
+    expect(providerIdForServer("https://caldav.icloud.com/")).toBe("icloud");
+    expect(providerIdForServer("https://sync.infomaniak.com/")).toBe(
+      "infomaniak",
+    );
+    // Trailing path and case must not defeat it: the address is stored as the user chose it.
+    expect(providerIdForServer("HTTPS://CALDAV.FASTMAIL.COM/dav/")).toBe(
+      "fastmail",
+    );
+  });
+
+  it("names nobody when the server is not one we know", () => {
+    // A self-hosted Nextcloud belongs to someone we have never identified. Naming a company we
+    // have not established would be worse than naming none — the sentence has to be true.
+    expect(providerIdForServer("https://cloud.example.test/remote.php/dav")).toBeNull();
+    expect(providerIdForServer("")).toBeNull();
+  });
+
+  it("shows the host and the account, never two at-signs", () => {
+    // It used to render `clara@example.com@https://caldav.icloud.com/`.
+    const known = connectionLabel("https://caldav.icloud.com/", "clara@example.com");
+    expect(known.account).toBe("clara@example.com");
+    expect(known.host).not.toContain("@");
+
+    const unknown = connectionLabel(
+      "https://cloud.example.test/remote.php/dav",
+      "clara",
+    );
+    expect(unknown.host).toBe("cloud.example.test");
+  });
+
+  it("shows an unparseable address as typed rather than inventing one", () => {
+    expect(connectionLabel("not a url", "clara").host).toBe("not a url");
   });
 });

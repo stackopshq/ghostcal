@@ -56,6 +56,8 @@ class ConnectionRecord:
     calendar_name: str | None
     color: str
     mirror_bookings: bool
+    """What a mirrored booking discloses: 'busy' or 'detailed'."""
+    mirror_detail: str
     status: str
     last_synced_at: datetime | None
 
@@ -102,6 +104,12 @@ class CaldavConnectionRepository:
 
     async def set_color(self, connection_id: uuid.UUID, user_id: uuid.UUID, color: str) -> bool:
         """Recolour a connected calendar. False if it is not this user's."""
+        raise NotImplementedError
+
+    async def set_mirror_detail(
+        self, connection_id: uuid.UUID, user_id: uuid.UUID, detail: str
+    ) -> bool:
+        """Set what a mirrored booking discloses. False if the connection is not this user's."""
         raise NotImplementedError
 
     async def replace_busy(
@@ -158,6 +166,24 @@ async def connect_calendar(
         color=PALETTE[len(existing) % len(PALETTE)],
         mirror_bookings=not existing,
     )
+
+
+MIRROR_DETAILS = ("busy", "detailed")
+
+
+async def set_mirror_detail(
+    repo: CaldavConnectionRepository, connection_id: uuid.UUID, user_id: uuid.UUID, detail: str
+) -> None:
+    """Choose what a mirrored booking says on the host's external calendar.
+
+    Validated here rather than trusted from the wire: the values are a contract with
+    `mirror._disclosed`, and an unrecognised one there falls back to the quiet form. Refusing it at
+    the door means the database never holds a setting nothing can honour.
+    """
+    if detail not in MIRROR_DETAILS:
+        raise ValueError(f"mirror detail must be one of {MIRROR_DETAILS}")
+    if not await repo.set_mirror_detail(connection_id, user_id, detail):
+        raise NotConnected()
 
 
 async def set_connection_color(

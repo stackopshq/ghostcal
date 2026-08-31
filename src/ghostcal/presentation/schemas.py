@@ -577,6 +577,7 @@ class ConnectionOut(BaseModel):
     color: str
     # The single calendar bookings are written back to. Exactly one of a user's connections has it.
     mirror_bookings: bool
+    mirror_detail: str
     status: str
     last_synced_at: datetime | None
 
@@ -753,6 +754,12 @@ class CalendarIn(BaseModel):
     color: str = Field(default="#00f0ff", max_length=20)
 
     _v_color = field_validator("color")(_validate_color)
+
+
+class MirrorDetailIn(BaseModel):
+    """What a mirrored booking discloses on the host's external calendar."""
+
+    mirror_detail: Literal["busy", "detailed"]
 
 
 class CalendarPatchIn(BaseModel):

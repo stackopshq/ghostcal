@@ -645,6 +645,15 @@ const en: Dict = {
   "cal.publishNowhere": "Don't publish",
   "cal.published": "Published: {n} event(s) sent.",
   "cal.mirrorTarget": "Bookings land here",
+  "cal.mirrorDetailTitle": "What appears on that calendar",
+  "cal.mirrorBusy": "Busy only",
+  "cal.mirrorDetailed": "Title and invitee's address",
+  "cal.mirrorWarnKnown":
+    "Choosing this sends the event title and the invitee's email address to {host}, who hosts that calendar. Everything else about the invitee stays sealed; this does not.",
+  "cal.mirrorWarnUnknown":
+    "Choosing this sends the event title and the invitee's email address to the calendar you entered. Everything else about the invitee stays sealed; this does not.",
+  "cal.mirrorBusyNote":
+    "Busy only: the slot is blocked, with no title, no address and no location.",
   "cal.makeMirror": "Put bookings here",
   "cal.mirrorHint":
     "Meetings booked with you are written to one of these calendars. Writing them to all of them would show every meeting several times.",
@@ -1281,6 +1290,15 @@ const fr: Dict = {
   "cal.publishNowhere": "Ne pas publier",
   "cal.published": "Publié : {n} événement(s) envoyé(s).",
   "cal.mirrorTarget": "Les réservations arrivent ici",
+  "cal.mirrorDetailTitle": "Ce qui apparaît sur ce calendrier",
+  "cal.mirrorBusy": "Occupé seulement",
+  "cal.mirrorDetailed": "Titre et adresse de l'invité",
+  "cal.mirrorWarnKnown":
+    "Ce choix envoie le titre de l'événement et l'adresse de l'invité à {host}, qui héberge ce calendrier. Tout le reste de l'invité reste scellé ; pas ceci.",
+  "cal.mirrorWarnUnknown":
+    "Ce choix envoie le titre de l'événement et l'adresse de l'invité sur le calendrier que vous avez indiqué. Tout le reste de l'invité reste scellé ; pas ceci.",
+  "cal.mirrorBusyNote":
+    "Occupé seulement : le créneau est bloqué, sans titre, sans adresse et sans lieu.",
   "cal.makeMirror": "Y envoyer les réservations",
   "cal.mirrorHint":
     "Les rendez-vous pris avec vous sont écrits sur l'un de ces calendriers. Les écrire sur tous ferait apparaître chaque réunion plusieurs fois.",

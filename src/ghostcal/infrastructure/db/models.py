@@ -464,6 +464,12 @@ class CaldavConnection(TimestampMixin, Base):
     # The one calendar bookings are mirrored onto. At most one per (org, user) — enforced by the
     # partial unique index uq_caldav_one_mirror_per_user.
     mirror_bookings: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
+    # What a mirrored booking says on the host's external calendar: 'busy' writes a placeholder
+    # title and nothing else, 'detailed' writes the event title and the invitee's address. New
+    # connections default to 'busy' — the address belongs to someone who is not choosing here.
+    mirror_detail: Mapped[str] = mapped_column(
+        String(20), default="busy", server_default=text("'busy'")
+    )
     status: Mapped[str] = mapped_column(String(20), default="active")
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
