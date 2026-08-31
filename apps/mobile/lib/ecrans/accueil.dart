@@ -4,6 +4,8 @@ import '../services/session.dart';
 import '../theme.dart';
 import 'agenda.dart';
 import 'reglages.dart';
+import 'reunions.dart';
+import 'types_de_rendez_vous.dart';
 import 'taches.dart';
 
 /// L'application une fois le coffre ouvert.
@@ -32,6 +34,8 @@ class _EcranDAccueilState extends State<EcranDAccueil> {
           children: [
             EcranDAgenda(session: widget.session),
             EcranDeTaches(session: widget.session),
+            EcranDeReunions(session: widget.session),
+            EcranDeTypesDeRendezVous(session: widget.session),
             EcranDeReglages(session: widget.session),
           ],
         ),
@@ -46,6 +50,8 @@ class _EcranDAccueilState extends State<EcranDAccueil> {
           destinations: const [
             NavigationDestination(icon: Icon(Icons.calendar_today), label: 'Agenda'),
             NavigationDestination(icon: Icon(Icons.check_circle_outline), label: 'Tâches'),
+            NavigationDestination(icon: Icon(Icons.groups_outlined), label: 'Réunions'),
+            NavigationDestination(icon: Icon(Icons.event_available_outlined), label: 'RDV'),
             NavigationDestination(icon: Icon(Icons.settings), label: 'Réglages'),
           ],
         ),
