@@ -262,6 +262,7 @@ const en: Dict = {
   "calendar.externalCalendar": "External",
   "calendar.connectExternal": "Connect a calendar",
   "calendar.subscribe": "Subscribe to a calendar",
+  "calendar.subscribeWhatFor": "A calendar you follow.",
   "calendar.subscribeHint":
     "Paste a public iCal/ICS feed URL (holidays, sports fixtures, a shared calendar). It stays read-only and refreshes automatically.",
   "calendar.subscribeError": "Could not fetch that feed. Check the URL.",
@@ -594,6 +595,7 @@ const en: Dict = {
   "cal.synced": "Synced {n} busy block(s).",
   "cal.confirmDisconnect": "Disconnect this calendar?",
   "cal.title": "Connected calendar",
+  "cal.whatFor": "A calendar you edit.",
   "cal.sub":
     "Connect a CalDAV calendar (iCloud, Nextcloud, Fastmail…) so your busy times block availability and bookings appear on it.",
   "cal.calendarFallback": "Calendar",
@@ -890,6 +892,7 @@ const fr: Dict = {
   "calendar.externalCalendar": "Externe",
   "calendar.connectExternal": "Connecter un calendrier",
   "calendar.subscribe": "S'abonner à un calendrier",
+  "calendar.subscribeWhatFor": "Un calendrier que vous suivez.",
   "calendar.subscribeHint":
     "Collez l'URL d'un flux iCal/ICS public (jours fériés, matchs, calendrier partagé). Il reste en lecture seule et se met à jour automatiquement.",
   "calendar.subscribeError":
@@ -1224,6 +1227,7 @@ const fr: Dict = {
   "cal.synced": "{n} plage(s) occupée(s) synchronisée(s).",
   "cal.confirmDisconnect": "Déconnecter ce calendrier ?",
   "cal.title": "Calendrier connecté",
+  "cal.whatFor": "Un calendrier que vous modifiez.",
   "cal.sub":
     "Connectez un calendrier CalDAV (iCloud, Nextcloud, Fastmail…) pour que vos créneaux occupés bloquent vos disponibilités et que les réservations y apparaissent.",
   "cal.calendarFallback": "Calendrier",

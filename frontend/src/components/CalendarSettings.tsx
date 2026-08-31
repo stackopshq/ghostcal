@@ -202,6 +202,13 @@ export default function CalendarSettings() {
         <h2 className="text-lg font-semibold text-foreground">
           {t("cal.title")}
         </h2>
+        {/* Five words, above the paragraph rather than inside it. Two forms on this page accept a
+            calendar address and nothing said which took what; the error message now points at the
+            right one, but only after the mistake. What separates them is not the protocol — it is
+            what you do with the calendar, and that is the sentence. */}
+        <p className="mt-1 text-sm font-medium text-foreground">
+          {t("cal.whatFor")}
+        </p>
         <p className="mt-1 text-sm text-muted">{t("cal.sub")}</p>
       </div>
 
