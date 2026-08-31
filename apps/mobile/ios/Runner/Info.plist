@@ -2,6 +2,22 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Sans ces deux clés, iOS ne demande jamais l'autorisation d'accès au réseau local —
+	     et le harnais de test ne retrouve jamais le processus qu'il vient de lancer. On
+	     obtient alors une application qui tourne, un écran vide, et un lanceur qui
+	     abandonne au bout de dix minutes sans dire pourquoi.
+
+	     Flutter découvre le service de débogage de l'application par mDNS ; sur iOS,
+	     publier un service Bonjour exige une permission, et une permission non déclarée
+	     n'est pas refusée : elle n'est même pas proposée. C'est ce qui rend le symptôme
+	     illisible. Ces clés ne servent qu'au développement — la version publiée n'expose
+	     aucun service de débogage. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Permet à l'outillage de développement de se connecter à l'application pendant les tests. Aucune donnée n'est échangée en usage normal.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_dartVmService._tcp</string>
+	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

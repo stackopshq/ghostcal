@@ -50,6 +50,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   integration_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -92,3 +93,15 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# L'icône du lanceur, dérivée du vectoriel de la charte plutôt que d'un bitmap agrandi.
+# La source vit dans le web (`frontend/src/app/icon.svg`, produit par tools/brand) : la
+# recopier ici en dur ferait diverger l'icône du produit le jour où la charte bouge.
+flutter_launcher_icons:
+  image_path: "assets/icone.png"
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  # Le fond de la charte ghostcal. iOS refuse la transparence sur une icône ; l'aplatir
+  # sur du blanc donnerait un halo clair autour du fantôme sur un thème sombre.
+  background_color_ios: "#21222C"
