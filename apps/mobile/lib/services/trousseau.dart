@@ -15,20 +15,23 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 /// un autre appareil par une sauvegarde. Ce n'est pas un réglage par défaut : sans lui,
 /// les jetons voyageraient dans l'iCloud Keychain.
 class Trousseau {
-  static const _stockage = FlutterSecureStorage(
+  /// Public pour qu'un témoin puisse lire les contraintes réellement déclarées : deux
+  /// magasins qui partageraient leurs options feraient exiger le visage pour lire un
+  /// jeton, et rien à l'écran ne le dirait avant l'appareil.
+  static const magasin = FlutterSecureStorage(
     iOptions: IOSOptions(accessibility: KeychainAccessibility.unlocked_this_device),
     // `resetOnError: false` **explicitement**, et ce n'est pas une redondance : la
-    // version 9 le met à faux par défaut, la version 11 à **vrai**. Une montée de
-    // version de routine retournerait donc un réglage qui, sur une simple erreur de
-    // lecture, **efface tout le magasin** — or les jetons de session y sont la seule
-    // copie existante. Aucune erreur, aucun message : l'utilisateur se retrouve
-    // déconnecté sans cause visible.
+    // version 9 le met à faux par défaut, la version 11 à **vrai**. La montée en 11,
+    // faite le 2026-08-31 pour la biométrie, aurait donc retourné ce réglage en
+    // silence — et sur une simple erreur de lecture il **efface tout le magasin**, or
+    // les jetons de session y sont la seule copie existante. Aucune erreur, aucun
+    // message : on se retrouve déconnecté sans cause visible.
     //
-    // Relevé le 2026-08-31 en portant GhostBit, dont la dépendance est en v11.
-    aOptions: AndroidOptions(
-      encryptedSharedPreferences: true,
-      resetOnError: false,
-    ),
+    // `encryptedSharedPreferences` a disparu en 11 : le stockage passe par un choix
+    // d'algorithme, et `migrateOnAlgorithmChange` — vrai par défaut — reprend les
+    // valeurs écrites par la 9. On ne le désactive pas : sans lui, les jetons d'une
+    // installation existante deviendraient illisibles au premier lancement.
+    aOptions: AndroidOptions(resetOnError: false),
   );
 
   static const serveur = 'ghostcal.serveur';
@@ -36,8 +39,8 @@ class Trousseau {
   static const jetonDAcces = 'ghostcal.jeton.acces';
   static const jetonDeRafraichissement = 'ghostcal.jeton.rafraichissement';
 
-  static Future<String?> lire(String cle) => _stockage.read(key: cle);
+  static Future<String?> lire(String cle) => magasin.read(key: cle);
   static Future<void> poser(String valeur, String cle) =>
-      _stockage.write(key: cle, value: valeur);
-  static Future<void> retirer(String cle) => _stockage.delete(key: cle);
+      magasin.write(key: cle, value: valeur);
+  static Future<void> retirer(String cle) => magasin.delete(key: cle);
 }

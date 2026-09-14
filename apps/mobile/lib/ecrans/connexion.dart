@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/biometrie.dart';
 import '../services/session.dart';
 import '../theme.dart';
 
@@ -37,9 +38,55 @@ class _EcranDeConnexionState extends State<EcranDeConnexion> {
   bool _changerDeCompte = false;
   bool _phraseVisible = false;
 
+  final _biometrie = Biometrie();
+
+  /// La biométrie de cet appareil, ou `null` s'il n'y en a pas d'utilisable.
+  Empreinte? _empreinte;
+
+  /// Une phrase est-elle déjà scellée ? C'est **cet** état, et non un réglage à part, qui
+  /// dit si l'on peut ouvrir par le visage : un réglage séparé pourrait affirmer « activé »
+  /// alors que l'entrée a été invalidée par un nouvel enrôlement, et le bouton ouvrirait
+  /// alors une erreur au lieu du coffre.
+  bool _scellee = false;
+
+  /// Retenir la phrase après ce déverrouillage-ci. Proposé **pendant** la saisie : c'est le
+  /// seul moment où le secret est sous la main, et le seul où l'on peut demander l'accord
+  /// de celle qui le tape.
+  bool _retenir = false;
+
   Session get session => widget.session;
   bool get _coffreFerme => session.etat == Etat.coffreFerme;
   bool get _reprise => session.sessionEnregistree && !_changerDeCompte;
+
+  @override
+  void initState() {
+    super.initState();
+    _regarderLaBiometrie();
+  }
+
+  Future<void> _regarderLaBiometrie() async {
+    final empreinte = await _biometrie.disponible();
+    // `aUnePhrase` interroge la présence, pas la valeur : demander la valeur ici ferait
+    // surgir le visage à l'ouverture de l'écran, avant qu'on ait rien demandé.
+    final scellee = empreinte == null ? false : await _biometrie.aUnePhrase();
+    if (mounted) {
+      setState(() {
+        _empreinte = empreinte;
+        _scellee = scellee;
+      });
+    }
+  }
+
+  /// Ouvre par le visage : on relit la phrase scellée et on suit le chemin ordinaire.
+  ///
+  /// Rien de particulier n'est tenté en cas de refus ou d'entrée invalidée — l'écran de
+  /// saisie est déjà là, et c'est le repli juste.
+  Future<void> _ouvrirParBiometrie() async {
+    final phrase = await _biometrie.rappeler();
+    if (phrase == null || !mounted) return;
+    _phrase.text = phrase;
+    await _valider();
+  }
 
   @override
   void dispose() {
@@ -60,6 +107,11 @@ class _EcranDeConnexionState extends State<EcranDeConnexion> {
       await session.reprendre(phrase: _phrase.text, parRecuperation: _parRecuperation);
     } else {
       await session.seConnecter(motDePasse: _phrase.text);
+    }
+    // Seulement après coup : on ne scelle jamais une phrase qu'on n'a pas vue ouvrir le
+    // coffre. La sceller avant vaudrait promesse d'un déverrouillage qui échouera.
+    if (_retenir && session.etat == Etat.ouvert) {
+      await _biometrie.retenir(_phrase.text);
     }
   }
 
@@ -155,10 +207,62 @@ class _EcranDeConnexionState extends State<EcranDeConnexion> {
                         strokeWidth: 2, color: Gc.surAccent))
                 : Text(_coffreFerme || _reprise ? 'Déverrouiller' : 'Se connecter'),
           ),
+          ..._biometrique(gc),
           ..._liens(gc),
         ],
       ),
     );
+  }
+
+  /// Le bouton d'ouverture par le visage, ou la proposition de retenir la phrase.
+  ///
+  /// Jamais les deux, et jamais sur une première connexion : il n'y a de sens à ouvrir par
+  /// le visage que devant un coffre déjà connu de cet appareil.
+  List<Widget> _biometrique(Gc gc) {
+    final empreinte = _empreinte;
+    if (empreinte == null || !(_coffreFerme || _reprise)) return const [];
+
+    if (_scellee) {
+      return [
+        const SizedBox(height: 12),
+        // L'icône seule, comme sur GhostPass iOS : le geste attendu se reconnaît à son
+        // dessin plus vite qu'il ne se lit. Le nom reste en étiquette de sémantique —
+        // c'est une **action**, et sans elle un lecteur d'écran annoncerait « bouton »
+        // sans dire lequel.
+        Semantics(
+          label: 'Ouvrir avec ${empreinte.nom}',
+          button: true,
+          child: OutlinedButton(
+            onPressed: session.occupe ? null : _ouvrirParBiometrie,
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+              side: BorderSide(color: gc.bordureFranche),
+              foregroundColor: gc.accentTexte,
+            ),
+            child: Icon(empreinte.icone, size: 24),
+          ),
+        ),
+      ];
+    }
+
+    return [
+      const SizedBox(height: 4),
+      CheckboxListTile(
+        value: _retenir,
+        onChanged: (v) => setState(() => _retenir = v ?? false),
+        contentPadding: EdgeInsets.zero,
+        controlAffinity: ListTileControlAffinity.leading,
+        dense: true,
+        title: Text(
+          'Ouvrir avec ${empreinte.nom}',
+          style: TextStyle(color: gc.encre, fontSize: 14),
+        ),
+        subtitle: Text(
+          'La phrase est scellée sur cet appareil, relisible par ${empreinte.nom} seul.',
+          style: TextStyle(color: gc.estompe, fontSize: 12),
+        ),
+      ),
+    ];
   }
 
   List<Widget> _champs(Gc gc) {
