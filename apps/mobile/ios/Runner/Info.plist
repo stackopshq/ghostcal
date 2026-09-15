@@ -63,6 +63,13 @@
 			</array>
 		</dict>
 	</dict>
+	<!-- Sans cette clé, iOS refuse de présenter Face ID — et le refus ne ressemble pas à
+	     un refus : `canCheckBiometrics` échoue, `disponible()` rend `null`, et l'écran
+	     conclut que l'appareil n'a pas de biométrie. Le bouton ne paraît jamais, sur un
+	     iPhone qui en est pourtant équipé. La formulation suit celle de GhostPass : elle
+	     dit ce que le visage ouvre, pas qu'on « utilise Face ID ». -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>Face ID déverrouille votre agenda sans ressaisir le mot de passe maître.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
