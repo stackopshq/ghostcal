@@ -18,7 +18,17 @@ import 'package:ghostcal/services/session.dart';
 /// observable dans l'arbre de widgets, seulement dans le fait que le magasin a été
 /// interrogé sans qu'on ait touché quoi que ce soit.
 class MagasinFeint extends Biometrie {
-  MagasinFeint(this._reponses, {this.empreinte = Empreinte.visage, this.scellee = true});
+  MagasinFeint(
+    this._reponses, {
+    this.empreinte = Empreinte.visage,
+    this.scellee = true,
+    this.etatDuSceau,
+  });
+
+  /// Ce que rend l'interrogation de **présence**, quand on veut qu'elle diffère de la
+  /// simple présence — le cas Android d'une clé invalidée, que le KeyStore signale dès
+  /// `containsKey`.
+  final Issue? etatDuSceau;
 
   /// Une réponse par appel. La liste permet de rejouer la vraie séquence d'un lancement :
   /// « pas maintenant », puis la phrase une fois l'application au premier plan.
@@ -33,7 +43,8 @@ class MagasinFeint extends Biometrie {
   Future<Empreinte?> disponible() async => empreinte;
 
   @override
-  Future<bool> aUnePhrase() async => scellee;
+  Future<Issue> sceau() async =>
+      etatDuSceau ?? (scellee ? Issue.ouverte : Issue.absente);
 
   @override
   Future<Rappel> rappeler() async {
@@ -49,7 +60,7 @@ class MagasinFeint extends Biometrie {
   }
 
   @override
-  Future<void> retenir(String phrase) async {}
+  Future<bool> retenir(String phrase) async => true;
 }
 
 Session sessionReprise() {
@@ -78,8 +89,10 @@ Future<MagasinFeint> afficher(
   Session? session,
   Empreinte? empreinte = Empreinte.visage,
   bool scellee = true,
+  Issue? etatDuSceau,
 }) async {
-  final magasin = MagasinFeint(reponses, empreinte: empreinte, scellee: scellee);
+  final magasin = MagasinFeint(reponses,
+      empreinte: empreinte, scellee: scellee, etatDuSceau: etatDuSceau);
   await tester.pumpWidget(MaterialApp(
     home: EcranDeConnexion(session: session ?? sessionReprise(), biometrie: magasin),
   ));
@@ -152,6 +165,23 @@ void main() {
           reason: 'l\'entrée morte reste en place et échouera à chaque fois');
     });
 
+    /// **Constaté sur émulateur, pas déduit.** Après l'enrôlement d'une empreinte de plus,
+    /// le KeyStore lève `KeyPermanentlyInvalidatedException` **dès l'interrogation de
+    /// présence**, avant toute lecture. Tant que cette interrogation rendait un `bool`,
+    /// l'invalidation se lisait « rien n'a jamais été scellé » : le bouton disparaissait
+    /// sans un mot, et le message écrit pour ce cas ne pouvait jamais paraître. La
+    /// garantie tenait, et le produit la taisait.
+    testWidgets('une clé invalidée dès l\'interrogation de présence se dit', (tester) async {
+      final magasin = await afficher(tester, [const Rappel(Issue.refusee)],
+          etatDuSceau: Issue.invalidee);
+
+      expect(find.byKey(const Key('mot.biometrie')), findsOneWidget,
+          reason: 'l\'invalidation vue à la présence reste muette');
+      expect(find.textContaining('ajoutée ou retirée'), findsOneWidget);
+      expect(magasin.questions, 0,
+          reason: 'inutile de réveiller le matériel pour une clé déjà morte');
+    });
+
     /// Ranger l'inconnu parmi les refus rendrait l'écran muet devant une vraie panne.
     testWidgets('une panne du magasin se nomme', (tester) async {
       await afficher(tester, [const Rappel(Issue.echec, detail: "magasin corrompu")]);
@@ -180,6 +210,27 @@ void main() {
         Biometrie.classerPourTemoin(
             PlatformException(code: 'Unexpected security result code', details: -128)),
         Issue.refusee,
+      );
+    });
+
+    /// **Le message que le paquet envoie réellement**, relevé sur émulateur après avoir
+    /// enrôlé une empreinte de plus. `flutter_secure_storage` 11 attrape la
+    /// `KeyPermanentlyInvalidatedException` et la remplace par une exception de son cru :
+    /// le nom de la classe n'atteint jamais Dart — vérifié, `details` fait 2073 octets et
+    /// ne le contient nulle part. Il ne reste que ce texte.
+    ///
+    /// Ce témoin existe pour que la chaîne, si elle change à la prochaine montée de
+    /// version, tombe ici plutôt que chez quelqu'un dont le bouton biométrique affiche
+    /// une trace Java.
+    test('le message réel du paquet Android vaut invalidation', () {
+      expect(
+        Biometrie.classerPourTemoin(PlatformException(
+          code: 'Exception encountered',
+          message: 'Migration failed after algorithm change '
+              '(Invalid key, key type incompatible with cipher). '
+              'Enable resetOnError=true or call deleteAll().',
+        )),
+        Issue.invalidee,
       );
     });
 

@@ -99,14 +99,22 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
 
   Future<void> _regarderLaBiometrie() async {
     final empreinte = await _biometrie.disponible();
-    // `aUnePhrase` interroge la présence, pas la valeur : demander la valeur ici ferait
-    // surgir le visage à l'ouverture de l'écran, avant qu'on ait rien demandé.
-    final scellee = empreinte == null ? false : await _biometrie.aUnePhrase();
+    // `sceau` interroge la présence, pas la valeur : demander la valeur ici ferait surgir
+    // le visage à l'ouverture de l'écran, avant qu'on ait rien demandé.
+    final etat = empreinte == null ? Issue.absente : await _biometrie.sceau();
     if (!mounted) return;
     setState(() {
       _empreinte = empreinte;
-      _scellee = scellee;
+      _scellee = etat == Issue.ouverte;
     });
+    // Sur Android, le KeyStore signale l'invalidation **dès l'interrogation de présence**,
+    // avant toute lecture — constaté sur émulateur après enrôlement d'une empreinte de
+    // plus. Sans ce chemin, l'écran se contenterait de ne plus afficher le bouton, et la
+    // garantie jouerait sans que personne ne l'apprenne.
+    if (etat == Issue.invalidee || etat == Issue.echec) {
+      await _traiter(Rappel(etat, detail: 'le sceau est illisible'));
+      return;
+    }
     // Troisième chemin : la condition ne devient vraie qu'**ici**, après deux appels de
     // plateforme. Déclencher depuis `initState` ne servirait à rien — à cet instant on ne
     // sait pas encore s'il y a une empreinte, ni si une phrase est scellée.
@@ -183,10 +191,15 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
         if (!mounted) return;
         setState(() {
           _scellee = false;
+          // Formulé pour ne pas affirmer une cause qu'on ne peut pas distinguer : côté
+          // Android, `flutter_secure_storage` perd le type de l'exception, et un sceau
+          // mort par nouvel enrôlement se présente comme un sceau mort par changement
+          // d'algorithme. La conduite à tenir est la même, et c'est elle qu'on énonce.
           _motDeLaBiometrie =
               "L'ouverture par ${_empreinte?.nom ?? 'la biométrie'} a été désactivée : "
-              "une biométrie a été ajoutée ou retirée sur cet appareil depuis que la "
-              "phrase a été scellée. Tapez-la pour la resceller.";
+              "le sceau posé sur cet appareil n'est plus lisible — le plus souvent parce "
+              "qu'une biométrie y a été ajoutée ou retirée. Tapez votre phrase pour la "
+              "resceller.";
         });
       case Issue.echec:
         setState(() => _motDeLaBiometrie =

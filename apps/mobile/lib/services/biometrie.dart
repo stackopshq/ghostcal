@@ -155,7 +155,20 @@ class Biometrie {
 
   /// Scelle la phrase. À n'appeler qu'après un déverrouillage réussi : on n'enregistre
   /// jamais une phrase qu'on n'a pas vue fonctionner.
-  Future<void> retenir(String phrase) => _stockage.write(key: _cle, value: phrase);
+  ///
+  /// Rend `true` si le sceau est posé. **Ne jette pas** : constaté sur émulateur, un
+  /// magasin dont la clé est morte fait échouer l'écriture par une exception non
+  /// rattrapée. Or cet appel a lieu *après* un déverrouillage réussi — laisser filer
+  /// l'exception ferait échouer une ouverture de coffre qui, elle, a parfaitement marché,
+  /// et pour une commodité dont personne n'avait besoin à cet instant.
+  Future<bool> retenir(String phrase) async {
+    try {
+      await _stockage.write(key: _cle, value: phrase);
+      return true;
+    } on Object {
+      return false;
+    }
+  }
 
   /// Redemande la phrase — c'est cet appel qui déclenche le visage ou l'empreinte.
   ///
@@ -223,6 +236,27 @@ class Biometrie {
     if (trace.contains('KeyPermanentlyInvalidatedException')) {
       return const Rappel(Issue.invalidee);
     }
+    // ─── Ce que le paquet perd en chemin, et qu'il faut rattraper au texte ───
+    //
+    // Mesuré sur émulateur, après enrôlement d'une empreinte de plus : le KeyStore lève
+    // bien `KeyPermanentlyInvalidatedException` — on le lit dans `logcat` — mais
+    // `flutter_secure_storage` 11 l'attrape, la remplace par une `java.lang.Exception`
+    // de son cru, et **la cause n'atteint jamais Dart**. Vérifié plutôt que supposé :
+    // `details` fait 2073 octets et ne contient nulle part le nom de la classe.
+    //
+    // Il ne reste que le message du paquet. C'est un instrument faible, et il faut le
+    // dire : une montée de version peut le reformuler sans rien casser à la compilation.
+    // Il est retenu quand même parce que le cas contraire — ranger une clé morte dans
+    // « panne inconnue » — laisse l'écran afficher une trace Java à quelqu'un qui voulait
+    // seulement ouvrir son agenda.
+    //
+    // Les deux formulations connues mènent à la même conduite : le sceau est illisible,
+    // il faut le refaire. Le message affiché est donc écrit pour couvrir les deux causes
+    // sans en affirmer une qu'on ne peut pas distinguer.
+    if (trace.contains('Migration failed after algorithm change') ||
+        trace.contains('key type incompatible with cipher')) {
+      return const Rappel(Issue.invalidee);
+    }
     if (trace.contains('UserNotAuthenticatedException') ||
         trace.contains('BIOMETRIC_ERROR_NONE_ENROLLED')) {
       return const Rappel(Issue.invalidee);
@@ -247,16 +281,37 @@ class Biometrie {
     }
   }
 
-  /// A-t-on une phrase scellée ? Ne déclenche **pas** la biométrie.
+  /// L'état du sceau, **sans** déclencher la biométrie.
   ///
   /// `containsKey` interroge la présence, pas la valeur — sans quoi savoir s'il faut
   /// afficher le bouton demanderait le visage, et l'écran d'entrée ouvrirait une invite
   /// avant qu'on ait rien demandé.
-  Future<bool> aUnePhrase() async {
+  ///
+  /// ─── Pourquoi ceci ne rend plus un simple `bool` ───
+  ///
+  /// Mesuré sur émulateur Android, après avoir enrôlé une empreinte de plus : le KeyStore
+  /// lève `KeyPermanentlyInvalidatedException` **dès `containsKey`**, avant toute lecture.
+  /// L'ancien `catch` rendait alors `false`, exactement comme « rien n'a jamais été
+  /// scellé ». Conséquence : le bouton disparaissait sans un mot, le déclenchement
+  /// automatique ne partait pas, et le message d'invalidation — écrit pour ce cas précis —
+  /// ne pouvait jamais s'afficher. La garantie fonctionnait, et le produit la taisait.
+  ///
+  /// Rend :
+  /// - [Issue.ouverte]   — une phrase est scellée et la clé est vivante ;
+  /// - [Issue.absente]   — rien de scellé (dont le cas Apple, où l'entrée est supprimée) ;
+  /// - [Issue.invalidee] — la clé est morte avec l'enrôlement qui l'a créée ;
+  /// - [Issue.echec]     — le magasin n'a pas répondu, et on ne devine pas.
+  Future<Issue> sceau() async {
     try {
-      return await _stockage.containsKey(key: _cle);
+      final present = await _stockage.containsKey(key: _cle);
+      return present ? Issue.ouverte : Issue.absente;
+    } on PlatformException catch (e) {
+      final issue = _classer(e).issue;
+      // `pasMaintenant` n'a pas de sens ici : `containsKey` ne présente rien. Si le
+      // trousseau le dit quand même, c'est qu'on ne sait pas, et on le dira.
+      return issue == Issue.pasMaintenant ? Issue.echec : issue;
     } on Object {
-      return false;
+      return Issue.echec;
     }
   }
 }

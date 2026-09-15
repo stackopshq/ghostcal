@@ -6,7 +6,16 @@ plugins {
 
 android {
     namespace = "ch.stackops.ghostcal"
-    compileSdk = flutter.compileSdkVersion
+    // 37 et non `flutter.compileSdkVersion`, qui vaut 36 : `flutter_secure_storage` 11 —
+    // celui qui scelle la phrase derrière le matériel — se compile contre 37 et refuse
+    // que ses dépendants visent moins. Sans cela le paquet Android ne se construit plus
+    // du tout, ce qui est passé inaperçu : la biométrie a été posée sans que personne ne
+    // reconstruise pour Android.
+    //
+    // La version de compilation n'est pas le `minSdk`, qui reste à 24 comme le veut la
+    // charte : compiler contre des API récentes n'engage pas l'appareil sur lequel on
+    // s'installe.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
