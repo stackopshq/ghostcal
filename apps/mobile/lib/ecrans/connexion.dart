@@ -22,15 +22,21 @@ import '../theme.dart';
 ///   affichée — c'est le cas le plus mal traité par les applications qui confondent « pas
 ///   authentifié » et « pas déchiffré ».
 class EcranDeConnexion extends StatefulWidget {
-  const EcranDeConnexion({super.key, required this.session});
+  const EcranDeConnexion({super.key, required this.session, this.biometrie});
 
   final Session session;
+
+  /// Le magasin scellé. Injectable **pour que le déclenchement automatique soit
+  /// témoignable** : sans cette couture, le seul moyen de vérifier que la question part
+  /// seule serait un appareil physique, et la règle ne serait gardée par rien.
+  final Biometrie? biometrie;
 
   @override
   State<EcranDeConnexion> createState() => _EcranDeConnexionState();
 }
 
-class _EcranDeConnexionState extends State<EcranDeConnexion> {
+class _EcranDeConnexionState extends State<EcranDeConnexion>
+    with WidgetsBindingObserver {
   late final _serveur = TextEditingController(text: widget.session.serveur);
   late final _email = TextEditingController(text: widget.session.email);
   final _phrase = TextEditingController();
@@ -38,7 +44,7 @@ class _EcranDeConnexionState extends State<EcranDeConnexion> {
   bool _changerDeCompte = false;
   bool _phraseVisible = false;
 
-  final _biometrie = Biometrie();
+  late final _biometrie = widget.biometrie ?? Biometrie();
 
   /// La biométrie de cet appareil, ou `null` s'il n'y en a pas d'utilisable.
   Empreinte? _empreinte;
@@ -54,6 +60,22 @@ class _EcranDeConnexionState extends State<EcranDeConnexion> {
   /// de celle qui le tape.
   bool _retenir = false;
 
+  /// Le garde : **une question posée** par présentation de cet écran.
+  ///
+  /// « Posée » est le mot qui compte. Un garde qui se referme sur une question que le
+  /// trousseau a refusé de présenter laisse un bouton qu'il faut toucher — le défaut qui a
+  /// coûté trois correctifs à GhostPass iOS. Il ne se referme donc que sur une réponse
+  /// réelle, refus compris : redemander après un refus harcèlerait celle qui vient de
+  /// dire non, et le bouton lui reste de toute façon.
+  bool _demandee = false;
+
+  /// Ce que la biométrie a eu à dire quand ce n'était ni une réussite ni un refus.
+  ///
+  /// Sans cela, une entrée invalidée ou une panne du magasin laisseraient l'écran
+  /// exactement tel qu'il est quand tout va bien — un formulaire présentable devant une
+  /// fonction morte.
+  String? _motDeLaBiometrie;
+
   Session get session => widget.session;
   bool get _coffreFerme => session.etat == Etat.coffreFerme;
   bool get _reprise => session.sessionEnregistree && !_changerDeCompte;
@@ -61,7 +83,18 @@ class _EcranDeConnexionState extends State<EcranDeConnexion> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _regarderLaBiometrie();
+  }
+
+  /// Deuxième chemin : le passage au premier plan.
+  ///
+  /// C'est celui qui rattrape le lancement. Au tout premier affichage l'application n'est
+  /// pas encore active, le trousseau refuse de présenter quoi que ce soit, et la question
+  /// ne part pas — elle doit repartir ici.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState etat) {
+    if (etat == AppLifecycleState.resumed) _demanderLaBiometrie();
   }
 
   Future<void> _regarderLaBiometrie() async {
@@ -69,27 +102,101 @@ class _EcranDeConnexionState extends State<EcranDeConnexion> {
     // `aUnePhrase` interroge la présence, pas la valeur : demander la valeur ici ferait
     // surgir le visage à l'ouverture de l'écran, avant qu'on ait rien demandé.
     final scellee = empreinte == null ? false : await _biometrie.aUnePhrase();
-    if (mounted) {
-      setState(() {
-        _empreinte = empreinte;
-        _scellee = scellee;
-      });
-    }
+    if (!mounted) return;
+    setState(() {
+      _empreinte = empreinte;
+      _scellee = scellee;
+    });
+    // Troisième chemin : la condition ne devient vraie qu'**ici**, après deux appels de
+    // plateforme. Déclencher depuis `initState` ne servirait à rien — à cet instant on ne
+    // sait pas encore s'il y a une empreinte, ni si une phrase est scellée.
+    _demanderLaBiometrie();
   }
 
-  /// Ouvre par le visage : on relit la phrase scellée et on suit le chemin ordinaire.
+  /// Demande la biométrie, au plus une fois par présentation de cet écran.
   ///
-  /// Rien de particulier n'est tenté en cas de refus ou d'entrée invalidée — l'écran de
-  /// saisie est déjà là, et c'est le repli juste.
+  /// Les quatre essais à 300 ms couvrent la fenêtre d'activation de l'application, pendant
+  /// laquelle le trousseau répond `interactionNotAllowed` sans avoir rien demandé à
+  /// personne. Bornés, parce qu'une boucle sans fin poserait l'invite en rafale ; et si
+  /// aucune n'a abouti, le garde **se rouvre**, pour que le passage au premier plan
+  /// reprenne la main et que le bouton reste une issue.
+  Future<void> _demanderLaBiometrie() async {
+    if (_demandee || !_scellee || _empreinte == null) return;
+    if (!(_coffreFerme || _reprise) || session.occupe) return;
+    _demandee = true;
+
+    for (var essai = 0; essai < 4; essai++) {
+      final rappel = await _biometrie.rappeler();
+      if (!mounted) return;
+      if (rappel.issue != Issue.pasMaintenant) {
+        await _traiter(rappel);
+        return;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      if (!mounted) return;
+    }
+    // Quatre fois « pas maintenant » : la question n'a jamais été posée. Ne pas rouvrir
+    // le garde ici, c'est exactement le bouton mort qu'on cherche à éviter.
+    _demandee = false;
+  }
+
+  /// Ouvre par le visage — le chemin du bouton, qui ne passe pas par le garde : si l'on
+  /// touche l'icône, c'est qu'on redemande délibérément.
   Future<void> _ouvrirParBiometrie() async {
-    final phrase = await _biometrie.rappeler();
-    if (phrase == null || !mounted) return;
-    _phrase.text = phrase;
-    await _valider();
+    final rappel = await _biometrie.rappeler();
+    if (mounted) await _traiter(rappel);
+  }
+
+  /// Ce qu'on fait de chaque issue — et ce qu'on en **dit**.
+  Future<void> _traiter(Rappel rappel) async {
+    switch (rappel.issue) {
+      case Issue.ouverte:
+        _phrase.text = rappel.phrase!;
+        await _valider();
+        // La phrase scellée n'ouvre plus : elle a vieilli, typiquement après un
+        // changement de mot de passe maître fait ailleurs. La garder ferait échouer le
+        // visage à chaque fois, avec la même erreur et aucune explication.
+        if (mounted && session.etat != Etat.ouvert) {
+          await _biometrie.oublier();
+          if (!mounted) return;
+          setState(() {
+            _scellee = false;
+            _phrase.clear();
+            _motDeLaBiometrie =
+                "La phrase scellée n'ouvre plus ce coffre — elle a sans doute changé "
+                "depuis. Tapez-la pour la resceller.";
+          });
+        }
+      case Issue.refusee:
+        // Le système vient d'afficher son propre refus. En rajouter serait du bruit, et
+        // l'écran de saisie est déjà là.
+        break;
+      case Issue.pasMaintenant:
+        // Le chemin du bouton peut tomber ici si l'application n'est pas encore active.
+        break;
+      case Issue.absente:
+      case Issue.invalidee:
+        // La garantie a joué : un nouveau visage, une nouvelle empreinte. C'est le cas
+        // qu'il faut surtout **ne pas** taire — muet, il ne resterait qu'une icône qui ne
+        // fait plus rien, et rien pour dire que c'est normal.
+        await _biometrie.oublier();
+        if (!mounted) return;
+        setState(() {
+          _scellee = false;
+          _motDeLaBiometrie =
+              "L'ouverture par ${_empreinte?.nom ?? 'la biométrie'} a été désactivée : "
+              "une biométrie a été ajoutée ou retirée sur cet appareil depuis que la "
+              "phrase a été scellée. Tapez-la pour la resceller.";
+        });
+      case Issue.echec:
+        setState(() => _motDeLaBiometrie =
+            "Le magasin sécurisé n'a pas pu être lu : ${rappel.detail ?? 'raison inconnue'}.");
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _serveur.dispose();
     _email.dispose();
     _phrase.dispose();
@@ -192,6 +299,18 @@ class _EcranDeConnexionState extends State<EcranDeConnexion> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ..._champs(gc),
+          // Ce que la biométrie a eu à dire. Au-dessus de l'erreur de session parce qu'il
+          // explique souvent pourquoi on se retrouve à taper : l'ordre de lecture suit
+          // l'ordre des causes.
+          if (_motDeLaBiometrie != null) ...[
+            const SizedBox(height: 18),
+            _avertissement(
+              gc.estompe,
+              Icons.info_outline,
+              _motDeLaBiometrie!,
+              cle: const Key('mot.biometrie'),
+            ),
+          ],
           if (session.erreur != null) ...[
             const SizedBox(height: 18),
             _avertissement(gc.danger, Icons.warning_amber_rounded, session.erreur!),
@@ -247,19 +366,29 @@ class _EcranDeConnexionState extends State<EcranDeConnexion> {
 
     return [
       const SizedBox(height: 4),
-      CheckboxListTile(
-        value: _retenir,
-        onChanged: (v) => setState(() => _retenir = v ?? false),
-        contentPadding: EdgeInsets.zero,
-        controlAffinity: ListTileControlAffinity.leading,
-        dense: true,
-        title: Text(
-          'Ouvrir avec ${empreinte.nom}',
-          style: TextStyle(color: gc.encre, fontSize: 14),
-        ),
-        subtitle: Text(
-          'La phrase est scellée sur cet appareil, relisible par ${empreinte.nom} seul.',
-          style: TextStyle(color: gc.estompe, fontSize: 12),
+      // Le `Material` transparent n'est pas un ornement : la carte de verre pose un fond
+      // décoré **au-dessus** du `Material` du Scaffold, et une tuile qui peint son encre
+      // sur l'ancêtre le plus proche la peindrait donc dessous — invisible. Flutter le
+      // signale par une assertion, que rien ne déclenchait tant qu'aucun test n'avait
+      // affiché cette proposition : elle ne paraît que sur un appareil doté d'une
+      // biométrie, cas qu'aucun témoin ne couvrait.
+      Material(
+        type: MaterialType.transparency,
+        child: CheckboxListTile(
+          key: const Key('case.retenir'),
+          value: _retenir,
+          onChanged: (v) => setState(() => _retenir = v ?? false),
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          dense: true,
+          title: Text(
+            'Ouvrir avec ${empreinte.nom}',
+            style: TextStyle(color: gc.encre, fontSize: 14),
+          ),
+          subtitle: Text(
+            'La phrase est scellée sur cet appareil, relisible par ${empreinte.nom} seul.',
+            style: TextStyle(color: gc.estompe, fontSize: 12),
+          ),
         ),
       ),
     ];
@@ -348,7 +477,8 @@ class _EcranDeConnexionState extends State<EcranDeConnexion> {
         ),
       );
 
-  Widget _avertissement(Color teinte, IconData icone, String texte) => Row(
+  Widget _avertissement(Color teinte, IconData icone, String texte, {Key? cle}) => Row(
+        key: cle,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icone, size: 16, color: teinte),

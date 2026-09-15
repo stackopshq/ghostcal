@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
 
@@ -49,6 +50,55 @@ enum Empreinte {
   const Empreinte(this.icone, this.nom);
   final IconData icone;
   final String nom;
+}
+
+/// Ce qu'a répondu le magasin scellé.
+///
+/// **Ces cas ne sont pas une commodité : c'est la leçon de GhostPass iOS.** Là-bas, le
+/// déclenchement automatique de la biométrie a coûté trois correctifs faux, tous fondés
+/// sur la même confusion — un garde « une seule demande par présentation » qui se
+/// refermait sur une question **jamais posée**. Tant que l'écran ne reçoit qu'un `null`,
+/// il ne peut pas faire la différence entre « elle a dit non » et « on n'a pas pu lui
+/// demander », et il n'a alors le choix qu'entre harceler et rester muet.
+enum Issue {
+  /// La phrase est là.
+  ouverte,
+
+  /// La question a été posée, et le visage n'a pas ouvert — refus, ou non-reconnaissance.
+  /// C'est un choix ou un échec de l'utilisateur, pas une panne : on ne dit rien de plus
+  /// que ce que le système vient déjà d'afficher.
+  refusee,
+
+  /// La question n'a **pas pu être posée**. Le trousseau répond `interactionNotAllowed`
+  /// tant que l'application n'est pas au premier plan — l'état exact d'un premier
+  /// affichage au lancement. Ce n'est pas un refus, et les confondre fabrique soit un
+  /// bouton mort, soit une invite en rafale.
+  pasMaintenant,
+
+  /// Rien n'est scellé. C'est aussi ce que rend Apple après un nouvel enrôlement : sous
+  /// `biometryCurrentSet`, le système **supprime** l'entrée plutôt que de la refuser.
+  absente,
+
+  /// L'entrée a été invalidée par un nouvel enrôlement — chemin Android, où la clé
+  /// survit à l'invalidation et se signale par `KeyPermanentlyInvalidatedException`.
+  /// C'est la garantie qui joue, pas un défaut : il faut retaper la phrase et la resceller.
+  invalidee,
+
+  /// Autre chose. On ne devine pas : l'écran montrera le détail tel quel, plutôt que de
+  /// le ranger dans une case qui ferait passer une panne pour un refus.
+  echec,
+}
+
+/// La réponse du magasin : une issue, et la phrase quand il y en a une.
+class Rappel {
+  const Rappel(this.issue, {this.phrase, this.detail});
+
+  final Issue issue;
+  final String? phrase;
+
+  /// Ce que la plateforme a dit, quand elle a dit quelque chose qu'on n'a pas su classer.
+  /// Montré à l'écran : une panne qu'on ne nomme pas est une panne qu'on ne corrigera pas.
+  final String? detail;
 }
 
 class Biometrie {
@@ -109,14 +159,81 @@ class Biometrie {
 
   /// Redemande la phrase — c'est cet appel qui déclenche le visage ou l'empreinte.
   ///
-  /// Rend `null` sur refus, sur échec, et sur entrée invalidée par un nouvel enrôlement.
-  /// Les trois se ressemblent du point de vue de l'écran : on retombe sur la saisie.
-  Future<String?> rappeler() async {
+  /// Ne rend jamais un `null` nu : voir [Issue]. Le coût de les confondre n'est pas
+  /// théorique, il est écrit dans l'historique de GhostPass.
+  Future<Rappel> rappeler() async {
     try {
-      return await _stockage.read(key: _cle);
-    } on Object {
-      return null;
+      final phrase = await _stockage.read(key: _cle);
+      return phrase == null
+          ? const Rappel(Issue.absente)
+          : Rappel(Issue.ouverte, phrase: phrase);
+    } on PlatformException catch (e) {
+      return _classer(e);
+    } on Object catch (e) {
+      return Rappel(Issue.echec, detail: '$e');
     }
+  }
+
+  /// Range la panne de la plateforme dans une des [Issue].
+  ///
+  /// ─── Pourquoi les deux côtés ne se lisent pas pareil ───
+  ///
+  /// Apple rend un `OSStatus` **numérique** dans `details` : c'est un code stable,
+  /// documenté, et le classer est sûr.
+  ///
+  /// Android, lui, emballe tout dans `code: "Exception encountered"` avec la trace en
+  /// texte. Reconnaître le nom de la classe dans cette trace est un instrument faible, et
+  /// il faut le dire plutôt que d'en tirer une fausse assurance : une montée de version du
+  /// paquet peut changer ce texte sans rien casser à la compilation. C'est pourquoi ce qui
+  /// n'est pas reconnu tombe dans [Issue.echec] — **jamais** dans [Issue.refusee]. Ranger
+  /// l'inconnu parmi les refus rendrait l'écran muet devant une vraie panne, ce qui est
+  /// précisément le défaut que ce fichier cherche à ne pas reproduire.
+  /// Le classement, ouvert aux témoins.
+  ///
+  /// Exposé parce que c'est la seule pièce du fichier qu'un test peut réellement éprouver :
+  /// le reste demande un trousseau, donc un appareil. La règle qu'il garde — l'inconnu ne
+  /// devient jamais un refus — est aussi celle qui se perdrait le plus discrètement.
+  @visibleForTesting
+  static Issue classerPourTemoin(PlatformException e) => _classer(e).issue;
+
+  static Rappel _classer(PlatformException e) {
+    // ─── Apple : le code numérique fait foi ───
+    final statut = e.details;
+    if (statut is int) {
+      switch (statut) {
+        // errSecUserCanceled (-128) : elle a écarté l'invite.
+        // errSecAuthFailed (-25293) : le visage n'a pas été reconnu.
+        // Dans les deux cas la question a bien été posée.
+        case -128:
+        case -25293:
+          return const Rappel(Issue.refusee);
+        // errSecInteractionNotAllowed (-25308) : le trousseau n'était pas en état de
+        // présenter quoi que ce soit. La question n'a pas été posée.
+        case -25308:
+          return const Rappel(Issue.pasMaintenant);
+        // errSecItemNotFound (-25300) : plus rien de scellé — le cas d'un nouvel
+        // enrôlement sous `biometryCurrentSet`, l'entrée ayant été supprimée.
+        case -25300:
+          return const Rappel(Issue.absente);
+      }
+    }
+
+    // ─── Android : on reconnaît le nom de la classe, ou on avoue ───
+    final trace = '${e.code} ${e.message} ${e.details}';
+    if (trace.contains('KeyPermanentlyInvalidatedException')) {
+      return const Rappel(Issue.invalidee);
+    }
+    if (trace.contains('UserNotAuthenticatedException') ||
+        trace.contains('BIOMETRIC_ERROR_NONE_ENROLLED')) {
+      return const Rappel(Issue.invalidee);
+    }
+    // L'utilisateur a écarté l'invite biométrique.
+    if (trace.contains('ERROR_USER_CANCELED') ||
+        trace.contains('ERROR_NEGATIVE_BUTTON') ||
+        trace.contains('ERROR_CANCELED')) {
+      return const Rappel(Issue.refusee);
+    }
+    return Rappel(Issue.echec, detail: e.message ?? e.code);
   }
 
   /// Oublie la phrase. Appelé quand on coupe le réglage et à la déconnexion — verrouiller
