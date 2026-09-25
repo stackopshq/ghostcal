@@ -16,6 +16,8 @@ type Dict = Record<string, string>;
 const en: Dict = {
   // common
   "common.signIn": "Sign in",
+  "auth.encryptedTitles": "Event titles are encrypted",
+  "auth.privacyPolicy": "Privacy policy",
   "common.email": "Email",
   "common.password": "Password",
   "common.errGeneric": "Something went wrong. Please try again.",
@@ -598,6 +600,8 @@ const en: Dict = {
 
 const fr: Dict = {
   "common.signIn": "Se connecter",
+  "auth.encryptedTitles": "Titres d'évènements chiffrés",
+  "auth.privacyPolicy": "Politique de confidentialité",
   "common.email": "E-mail",
   "common.password": "Mot de passe",
   "common.errGeneric": "Une erreur est survenue. Réessayez.",
