@@ -8,6 +8,11 @@ import { ApiError } from "@/lib/api";
 import { beginOidcLogin, getAuthConfig, login } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 
+// Le lien de démonstration vivait sur l'ancienne page d'accueil, qui redirige désormais
+// ici. Sans ce report, `NEXT_PUBLIC_DEMO_PATH` serait restée configurée et sans effet —
+// une variable muette que personne n'aurait vue s'éteindre.
+const DEMO_PATH = process.env.NEXT_PUBLIC_DEMO_PATH;
+
 // Where to land after login: honour a ?next= destination if it's a safe internal path, else the
 // dashboard. Only same-origin relative paths are allowed — reject protocol-relative or absolute
 // URLs so ?next= can't be turned into an open redirect. Exported for unit testing.
@@ -76,6 +81,11 @@ export default function LoginPage() {
           <Link href="/register" className="text-accent hover:underline">
             {t("login.create")}
           </Link>
+          {DEMO_PATH && (
+            <Link href={DEMO_PATH} className="mt-3 block text-xs hover:text-accent">
+              {t("landing.tryDemo")}
+            </Link>
+          )}
         </>
       }
     >

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -21,9 +22,13 @@ export default function AuthCard({
   return (
     <main className="flex flex-1 items-center justify-center p-4 sm:p-8">
       <div className="glass w-full max-w-sm rounded-2xl p-8 shadow-2xl">
+        {/* Le logo de la charte, et non le rond qui tenait sa place.
+            `public/logo.svg` existe depuis le début et sert déjà dans le tableau de bord :
+            la marque n'apparaissait donc qu'**après** la connexion, là où elle a le moins
+            à prouver, et un point cyan accueillait les nouveaux venus. */}
         <div className="mb-6 flex items-center gap-2 text-sm font-medium tracking-wide text-muted">
-          <span className="text-accent">●</span>
-          <Link href="/" className="hover:text-accent">
+          <Image src="/logo.svg" alt="" width={20} height={20} className="h-5 w-5" priority />
+          <Link href="/login" className="hover:text-accent">
             GhostCal
           </Link>
         </div>

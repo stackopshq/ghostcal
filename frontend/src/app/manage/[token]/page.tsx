@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -148,8 +149,12 @@ export default function ManagePage() {
         </div>
       ) : (
         <div className={card}>
+          {/* Le logo, comme dans `AuthCard`. Les deux autres ronds du frontend restent :
+              ils précèdent le nom d'une organisation cliente ou d'un hôte, pas le nôtre.
+              Y poser le fantôme laisserait croire que cette organisation *est* GhostCal. */}
           <div className="mb-6 flex items-center gap-2 text-sm font-medium tracking-wide text-muted">
-            <span className="text-accent">●</span> GhostCal
+            <Image src="/logo.svg" alt="" width={20} height={20} className="h-5 w-5" />
+            GhostCal
           </div>
 
           <h1 className="text-xl font-semibold text-foreground">{booking.event_title}</h1>
