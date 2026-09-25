@@ -15,6 +15,7 @@ import uuid
 from datetime import date, datetime, time
 
 from sqlalchemy import (
+    BigInteger,
     CheckConstraint,
     Computed,
     Date,
@@ -137,6 +138,69 @@ class UserCredential(Base):
         ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
     password_hash: Mapped[str] = mapped_column(String(255))
+
+
+class UserTotp(TimestampMixin, Base):
+    """Le second facteur TOTP d'un compte : une ligne au plus, ou aucune.
+
+    Table à part plutôt que des colonnes sur ``users``, comme
+    ``user_credentials`` : l'absence de ligne dit « pas de second facteur »
+    sans qu'il faille lire trois colonnes nulles pour le déduire.
+
+    ``confirmed_at`` est le pivot du parcours d'activation. Une ligne existe dès
+    que l'utilisateur affiche son QR code, mais elle ne garde la porte qu'une
+    fois cette date posée, c'est-à-dire une fois qu'il a produit un premier code
+    juste. Sans cette distinction, quitter la page d'activation à mi-chemin
+    verrouillerait le compte sur un secret que personne n'a enrôlé.
+    """
+
+    __tablename__ = "user_totp"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    # Chiffré au repos avec la clé applicative (ADR-0002, comme les mots de passe
+    # CalDAV). Le serveur DOIT pouvoir le lire — vérifier six chiffres suppose de
+    # connaître la graine — donc ce n'est pas du zero-knowledge : c'est ce qui
+    # fait qu'une base volée seule ne donne pas les codes de tout le monde. Qui
+    # obtient la base ET la clé gagne quand même.
+    secret: Mapped[str] = mapped_column(EncryptedString)
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Dernière période TOTP consommée. Un code n'est accepté que si sa période est
+    # strictement supérieure : c'est l'anti-rejeu. Un code lu par-dessus l'épaule,
+    # ou capté dans un journal, ne repasse pas pendant ses trente secondes.
+    last_counter: Mapped[int] = mapped_column(BigInteger, default=0, server_default=text("0"))
+    # Essais ratés consécutifs, remis à zéro par un succès. Six chiffres, c'est un
+    # million de possibilités : sans compteur, une centaine de milliers d'essais
+    # suffisent à tomber juste, et le compteur par IP de `ratelimit.py` ne protège
+    # pas un compte — il protège une adresse, et il est fail-open.
+    failed_attempts: Mapped[int] = mapped_column(default=0, server_default=text("0"))
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class UserRecoveryCode(Base):
+    """Un code de récupération, à usage unique. Sans eux, un téléphone perdu est un compte perdu.
+
+    Seule l'empreinte est stockée, comme pour les jetons de session et de
+    vérification d'adresse : une base lue ne rend rien d'utilisable.
+
+    SHA-256 et non Argon2, délibérément : un code est tiré au hasard sur 50 bits,
+    il n'a pas de structure à deviner et ne souffre donc pas de l'attaque par
+    dictionnaire contre laquelle Argon2 défend. Et comme on retrouve la ligne
+    *par* son empreinte, un sel par code obligerait à dérouler Argon2 sur chacun
+    des dix à chaque tentative.
+    """
+
+    __tablename__ = "user_recovery_codes"
+    __table_args__ = (UniqueConstraint("user_id", "code_hash", name="uq_user_recovery_codes_code"),)
+
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    code_hash: Mapped[str] = mapped_column(String(64))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Identity(TimestampMixin, Base):
