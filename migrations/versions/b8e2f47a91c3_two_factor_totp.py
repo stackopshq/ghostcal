@@ -44,21 +44,11 @@ def upgrade() -> None:
         # NULL tant que l'utilisateur n'a pas prouvé qu'il a enrôlé son
         # application. Une ligne non confirmée ne garde aucune porte.
         sa.Column("confirmed_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column(
-            "last_counter", sa.BigInteger(), server_default=sa.text("0"), nullable=False
-        ),
-        sa.Column(
-            "failed_attempts", sa.Integer(), server_default=sa.text("0"), nullable=False
-        ),
+        sa.Column("last_counter", sa.BigInteger(), server_default=sa.text("0"), nullable=False),
+        sa.Column("failed_attempts", sa.Integer(), server_default=sa.text("0"), nullable=False),
         sa.Column("locked_until", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
-            nullable=False,
-        ),
-        sa.Column(
-            "updated_at",
             sa.DateTime(timezone=True),
             server_default=sa.text("now()"),
             nullable=False,
