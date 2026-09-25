@@ -101,9 +101,13 @@ lire_plist() {
 }
 
 controler "identifiant de paquet" "ch.stackops.ghostcal" "$(lire_plist CFBundleIdentifier)"
-controler "famille d'appareils (1 = iPhone, 2 = iPad)" "1 2" \
-  "$(/usr/libexec/PlistBuddy -c 'Print :UIDeviceFamily' "$APP/Info.plist" 2>/dev/null \
-     | tr -d ' ()' | grep -v '^$' | tr '\n' ' ' | sed 's/ $//')"
+# `plutil -extract … json`, et non `PlistBuddy`. Le second imprime un tableau pour
+# l'œil — « Array { 1 2 } » — et le découper à coups de `tr` donnait « Array{ 1 2 } ».
+# Le contrôle rougissait sur une application parfaitement universelle : c'était
+# l'instrument qui était faux, pas l'objet mesuré. `plutil` rend « [1,2] », une forme
+# qui ne se lit pas de travers.
+controler "famille d'appareils (1 = iPhone, 2 = iPad)" "[1,2]" \
+  "$(plutil -extract UIDeviceFamily json -o - "$APP/Info.plist" 2>/dev/null)"
 
 VERSION="$(lire_plist CFBundleShortVersionString)"
 BUILD="$(lire_plist CFBundleVersion)"
@@ -139,6 +143,18 @@ fi
 # L'équipe de signature, relevée sur l'archive et non sur ce qu'on a demandé.
 EQUIPE_LUE="$(codesign -dvv "$APP" 2>&1 | sed -n 's/^TeamIdentifier=//p')"
 controler "équipe de signature" "$EQUIPE" "$EQUIPE_LUE"
+
+# Le **type** d'identité, et non l'équipe. Les deux sont indépendants : une archive
+# correctement signée par l'équipe 9WHCJ5W7S6 l'est normalement avec une identité
+# « Apple Development » — c'est l'export qui la resigne en « Apple Distribution ».
+# Relevé ici pour information, tranché plus bas sur l'IPA, qui est ce qui part.
+IDENTITE="$(codesign -dvv "$APP" 2>&1 | sed -n 's/^Authority=//p' | head -1)"
+if [[ -z "$IDENTITE" ]]; then
+  gris "identité de signature — illisible"
+  fautes=$((fautes + 1))
+else
+  gris "identité de signature — $IDENTITE (l'export la remplace par une identité de diffusion)"
+fi
 
 if codesign --verify --deep --strict "$APP" 2>/dev/null; then
   vert "signature — codesign --verify --deep --strict passe"
@@ -206,18 +222,58 @@ APP_IPA="$(find "$TRAVAIL/Payload" -maxdepth 1 -name '*.app' | head -1)"
 
 if [[ -z "$APP_IPA" ]]; then
   gris "contenu du .ipa — illisible : pas de Payload/*.app"
+  fautes=$((fautes + 1))
 else
-  PROFIL="$(security cms -D -i "$APP_IPA/embedded.mobileprovision" 2>/dev/null \
-    | /usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin 2>/dev/null || true)"
+  # `security cms -D` rend un plist sur la sortie standard, et `PlistBuddy` **ne sait pas
+  # lire /dev/stdin** : il répond « Error Reading File: /dev/stdin » sur sa sortie
+  # normale, avec un code de retour nul. Le contrôle affichait donc ce message d'erreur
+  # comme s'il s'agissait du nom du profil, et concluait « ce n'est pas un profil de
+  # distribution » — sur un IPA parfaitement signé. Sixième instrument à mentir.
+  PROFIL_PLIST="$TRAVAIL/profil.plist"
+  if security cms -D -i "$APP_IPA/embedded.mobileprovision" > "$PROFIL_PLIST" 2>/dev/null; then
+    PROFIL="$(/usr/libexec/PlistBuddy -c 'Print :Name' "$PROFIL_PLIST" 2>/dev/null || true)"
+  else
+    PROFIL=""
+  fi
+
   if [[ -z "$PROFIL" ]]; then
-    gris "profil embarqué — illisible"
-  elif [[ "$PROFIL" == *Store* ]]; then
+    gris "profil embarqué — illisible : le contrôle n'a pas pu regarder"
+    fautes=$((fautes + 1))
+  elif [[ "$PROFIL" == *Store* || "$PROFIL" == *Distribution* ]]; then
     vert "profil embarqué — « $PROFIL » (distribution)"
   else
     # Un profil de développement s'exporte, s'installe, et se fait refuser à l'envoi.
     rouge "profil embarqué — « $PROFIL » : ce n'est pas un profil de distribution"
+    fautes=$((fautes + 1))
   fi
-  vert "manifeste de confidentialité dans le .ipa — $([[ -f "$APP_IPA/PrivacyInfo.xcprivacy" ]] && echo présent || echo ABSENT)"
+
+  # L'identité de signature de ce qui part réellement. Sur l'archive elle est
+  # « Apple Development » et c'est normal ; ici, elle ne doit plus l'être.
+  IDENTITE_IPA="$(codesign -dvv "$APP_IPA" 2>&1 | sed -n 's/^Authority=//p' | head -1)"
+  if [[ -z "$IDENTITE_IPA" ]]; then
+    gris "identité de signature du .ipa — illisible"
+    fautes=$((fautes + 1))
+  elif [[ "$IDENTITE_IPA" == *Distribution* ]]; then
+    vert "identité de signature — $IDENTITE_IPA"
+  else
+    rouge "identité de signature — « $IDENTITE_IPA » : ce n'est pas une identité de diffusion"
+    fautes=$((fautes + 1))
+  fi
+
+  # Deux états dans un vert n'en font pas deux : ce contrôle imprimait
+  # « ✓ … — ABSENT » quand le fichier manquait. Un absent annoncé en vert se lit comme
+  # un présent.
+  if [[ -f "$APP_IPA/PrivacyInfo.xcprivacy" ]]; then
+    vert "manifeste de confidentialité dans le .ipa — présent"
+  else
+    rouge "manifeste de confidentialité dans le .ipa — ABSENT"
+    fautes=$((fautes + 1))
+  fi
+fi
+
+if (( fautes > 0 )); then
+  rouge "$fautes contrôle(s) en défaut sur le .ipa — ne l'envoyez pas en l'état."
+  exit 1
 fi
 
 printf '\n\033[1m%s\033[0m\n' "IPA prêt : $IPA  ($(du -h "$IPA" | cut -f1))"
