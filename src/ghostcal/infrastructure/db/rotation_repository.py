@@ -43,7 +43,25 @@ class SqlRotationRepository(RotationRepository):
             await self._session.execute(
                 select(models.User.email)
                 .join(models.Membership, models.Membership.user_id == models.User.id)
-                .where(models.User.zk_public_key.is_(None))
+                .where(
+                    # Même défaut que `keypairs_repository.member_public_keys`, trouvé par
+                    # l'audit du 2026-09-25 : la jointure s'en remettait au seul `bind_org`,
+                    # donc à la RLS, et rendait les utilisateurs de **toutes** les
+                    # organisations du serveur.
+                    #
+                    # Les deux sont les seules jointures vers `memberships` du code, et
+                    # toutes deux l'avaient oublié. Ce n'est pas une inattention isolée :
+                    # c'est ce que produit une isolation dont on croit qu'elle est acquise
+                    # par la couche du dessous.
+                    #
+                    # Celle-ci est la plus lourde de conséquences des deux. Son résultat
+                    # **refuse une rotation de clé d'organisation** : un membre d'une autre
+                    # organisation sans paire de clés bloquait la rotation ici, et le
+                    # message nommait son adresse à quelqu'un qui n'avait pas à la
+                    # connaître.
+                    models.Membership.organization_id == organization_id,
+                    models.User.zk_public_key.is_(None),
+                )
                 .order_by(models.User.email)
             )
         ).all()
