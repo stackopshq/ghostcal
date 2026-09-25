@@ -43,7 +43,11 @@ async function siteOrigin(): Promise<string> {
   return `${proto}://${host}`;
 }
 
-const TITLE = "GhostCal · fast, correct scheduling";
+// L'onglet ne porte que le nom. Une barre d'onglets est étroite : la baseline y est
+// tronquée avant d'être lue, et ce qui reste visible — « GhostCal · fast, co… » — est
+// moins reconnaissable que le nom seul. Les aperçus de partage gardent la leur, par
+// `SHARE_TITLE` : c'est là qu'une accroche a de la place et un lecteur.
+const TITLE = "GhostCal";
 const DESCRIPTION =
   "Pick a time in seconds. GhostCal is a fast, dark-mode-native scheduling tool.";
 
