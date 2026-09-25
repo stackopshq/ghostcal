@@ -333,7 +333,7 @@ class AuthService:
         does not, and must not be able to undo the insert -- that is the port's business, and the
         adapter the routes pass in buffers the message until the transaction has committed. Do not
         "simplify" this by making the sender reach the network from here: that is precisely what
-        turned a Brevo 401 into a rolled-back sign-up on 2026-08-28.
+        turned a Brevo 401 into a rolled-back sign-up on 2026-09-25.
         """
         plain = secrets.token_urlsafe(32)
         expires_at = self._clock.now() + self._config.email_verification_ttl

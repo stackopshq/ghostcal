@@ -1,6 +1,6 @@
 """Sign-up must survive the email provider, and must not get ahead of its own transaction.
 
-Measured in production on 2026-08-28: `POST /v1/auth/register` answered 500 for every caller.
+Measured in production on 2026-09-25: `POST /v1/auth/register` answered 500 for every caller.
 Brevo returned 401 (the server's egress address was not on its allow-list),
 `sender.py:108 raise_for_status()` raised inside the route's `async with db_session()`, and the
 transaction rolled back. Nothing was persisted -- `login` answered 401 afterwards and a second

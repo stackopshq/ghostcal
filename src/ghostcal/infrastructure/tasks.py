@@ -280,7 +280,7 @@ def _is_worth_retrying(status_code: int) -> bool:
     """Whether a provider's refusal is about this moment or about us.
 
     A 401 or a 403 is the API key, the sending domain or the caller's egress address being wrong --
-    the exact 401 that took sign-ups down on 2026-08-28. None of that changes in ten seconds, so
+    the exact 401 that took sign-ups down on 2026-09-25. None of that changes in ten seconds, so
     three retries would produce three identical failures, delay the giving-up by a minute and bury
     the one log line an operator needs under four. A 429 is the provider asking us to come back
     later, and a 5xx is the provider being briefly unwell; both are what backoff is for. 408 joins

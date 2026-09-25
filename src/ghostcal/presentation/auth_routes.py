@@ -94,7 +94,7 @@ def _service(session: object, mailer: EmailSender | None = None) -> AuthService:
 
     `mailer` defaults to the direct sender because most routes here send nothing at all. A route
     that *does* send passes a `DeferredEmailSender` and drains it after its transaction commits --
-    which is the whole of the fix for the 500s of 2026-08-28. The default is the old synchronous
+    which is the whole of the fix for the 500s of 2026-09-25. The default is the old synchronous
     sender rather than a second outbox on purpose: if a future route sends and forgets to drain,
     it sends the slow way, which is visible. An undrained outbox would drop the mail in silence.
     """
