@@ -1,0 +1,27 @@
+GhostCal
+Copyright (c) 2026 StackOps HQ
+
+Licensed under the Elastic License 2.0. The full text is in LICENSE; it is
+Elastic's text, reproduced without modification, and it carries no copyright
+line of its own, which is why this file exists.
+
+Effective 2026-09-25.
+
+
+Licence history
+---------------
+
+GhostCal was distributed under the GNU Affero General Public License v3.0 or
+later from 2026-06-26 (commit 9fa74f5) until 2026-09-25.
+
+That change is not retroactive and does not attempt to be. Anyone holding a copy
+obtained under the AGPL keeps that licence for that copy, permanently: a grant
+already made cannot be withdrawn. The same is true of every release built from a
+commit predating this file. The last such commit is 68b93f5.
+
+In practice no such copy exists. The repository has never been public —
+github.com/stackopshq/ghostcal returns 404 — and the only contributors are Clara
+Vanacker and Kevin Allioli. The paragraph above is written because the question
+should have an answer on file, not because anyone is expected to ask it.
+
+The reasoning behind the change is in docs/adr/0013-elastic-license-v2.md.
