@@ -10,6 +10,7 @@ from __future__ import annotations
 import ipaddress
 from functools import lru_cache
 from typing import Literal
+from urllib.parse import urlparse
 
 from pydantic import Field, PostgresDsn, RedisDsn, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -222,6 +223,33 @@ class Settings(BaseSettings):
                 raise ValueError(
                     f"{name} is still a placeholder — set a real secret outside development"
                 )
+        return self
+
+    @model_validator(mode="after")
+    def _reject_development_frontend_url(self) -> Settings:
+        # Fail fast, pour la même raison que le CIDR ci-dessous : un déploiement qui garde
+        # l'URL de développement **fonctionne**. L'inscription réussit, le courriel part, et
+        # il porte un lien vers `localhost:3001` — que seul le destinataire voit échouer, sur
+        # sa machine, sans que rien ne remonte côté serveur. La panne est totale et muette.
+        #
+        # Constaté en production sur cal.ghostsuite.cloud le 25 septembre 2026 : le courriel
+        # de vérification menait à `localhost:3001/verify-email?token=…`. Aucun compte ne
+        # pouvait être validé, et rien dans les journaux ne le disait.
+        #
+        # Trois liens sortants sont construits depuis ce réglage, pas un seul — la
+        # vérification d'adresse (`application/auth.py`), les invitations d'organisation
+        # (`application/organizations.py`) et la gestion des tâches
+        # (`infrastructure/tasks.py`). Les trois cassent ensemble.
+        if self.environment == "development":
+            return self
+        hote = urlparse(self.frontend_base_url).hostname or ""
+        if hote in {"localhost", "127.0.0.1", "::1", "0.0.0.0"}:
+            raise ValueError(
+                "frontend_base_url pointe encore sur "
+                f"{self.frontend_base_url!r} — hors développement, GHOSTCAL_FRONTEND_BASE_URL "
+                "doit porter l'adresse publique du client, sans quoi tout lien envoyé par "
+                "courriel mène chez le destinataire et non chez vous"
+            )
         return self
 
     @model_validator(mode="after")
