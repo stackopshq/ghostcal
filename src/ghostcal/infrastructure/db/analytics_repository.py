@@ -42,10 +42,12 @@ class SqlAnalyticsRepository(AnalyticsRepository):
 
     async def summary(self, now: datetime) -> AnalyticsSummary:
         cutoff = now - timedelta(days=30)
-        org = {"org": str(self._org_id)}
+        # Annotée : `dict` est invariant en Python, donc un `dict[str, str]` inféré ne
+        # satisfait pas la signature `dict[str, object]` de `_scalar`. mypy le refuse, et
+        # il a raison — c'est la variance, pas une pédanterie.
+        org: dict[str, object] = {"org": str(self._org_id)}
         total = await self._scalar(
-            "SELECT count(*) FROM bookings "
-            "WHERE status = 'confirmed' AND organization_id = :org",
+            "SELECT count(*) FROM bookings WHERE status = 'confirmed' AND organization_id = :org",
             org,
         )
         upcoming = await self._scalar(
