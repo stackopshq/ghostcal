@@ -17,7 +17,8 @@ class Gc {
   factory Gc.of(BuildContext context) =>
       Gc._(Theme.of(context).brightness == Brightness.dark);
 
-  Color _c(int fonce, int clair) => Color(0xFF000000 | (sombre ? fonce : clair));
+  Color _c(int fonce, int clair) =>
+      Color(0xFF000000 | (sombre ? fonce : clair));
 
   Color get base => _c(0x21222C, 0xF5F8FC);
   Color get surface => _c(0x282A36, 0xFFFFFF);
@@ -52,8 +53,14 @@ class Gc {
     final echelle = sombre ? force : force * 0.45;
     if (echelle <= 0) return const [];
     return [
-      Shadow(color: neon.withValues(alpha: 0.60 * echelle), blurRadius: 8 * echelle),
-      Shadow(color: neon.withValues(alpha: 0.35 * echelle), blurRadius: 20 * echelle),
+      Shadow(
+        color: neon.withValues(alpha: 0.60 * echelle),
+        blurRadius: 8 * echelle,
+      ),
+      Shadow(
+        color: neon.withValues(alpha: 0.35 * echelle),
+        blurRadius: 20 * echelle,
+      ),
     ];
   }
 
@@ -68,8 +75,14 @@ class Gc {
     final echelle = sombre ? force : force * 0.45;
     if (echelle <= 0) return const [];
     return [
-      BoxShadow(color: neon.withValues(alpha: 0.60 * echelle), blurRadius: 8 * echelle),
-      BoxShadow(color: neon.withValues(alpha: 0.35 * echelle), blurRadius: 20 * echelle),
+      BoxShadow(
+        color: neon.withValues(alpha: 0.60 * echelle),
+        blurRadius: 8 * echelle,
+      ),
+      BoxShadow(
+        color: neon.withValues(alpha: 0.35 * echelle),
+        blurRadius: 20 * echelle,
+      ),
     ];
   }
 }
@@ -91,6 +104,41 @@ class Mesures {
   static const ecart = 12.0;
   static const marge = 16.0;
   static const margeCarte = 24.0;
+
+  /// Largeur au-delà de laquelle le contenu cesse de s'étirer.
+  ///
+  /// Sans elle, l'application se déclare universelle et rend, sur iPad, une mise en page
+  /// de téléphone étirée : des champs de saisie de deux mille pixels pour y écrire un
+  /// titre, des listes perdues dans une page aux deux tiers vide. Constaté le 2026-09-25
+  /// sur les captures App Store en 2064 × 2752 — rien n'y était tronqué, et tout y était
+  /// laid.
+  ///
+  /// 560 est la valeur que GhostPass emploie déjà (`GhostScreen`, `Theme.swift`) : une
+  /// ligne de texte y reste lisible sans que l'œil ait à balayer la tablette, et les deux
+  /// produits de la suite se ressemblent au lieu de diverger chacun sur sa propre valeur.
+  ///
+  /// Elle ne borne que le **contenu**. Le fond reste plein cadre — sinon le dégradé
+  /// s'arrêterait net au milieu de l'écran — et la barre d'onglets aussi, sinon la
+  /// navigation rétrécirait avec lui.
+  static const largeurMaximale = 560.0;
+}
+
+/// Borne la largeur du contenu et le centre, sans toucher à ce qui l'entoure.
+///
+/// À poser autour de ce qu'on lit, jamais autour du `Scaffold` : la barre d'onglets et le
+/// dégradé de `FondGhost` doivent rester plein cadre.
+class ContenuBorne extends StatelessWidget {
+  const ContenuBorne({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: Mesures.largeurMaximale),
+      child: child,
+    ),
+  );
 }
 
 /// Le fond de l'application : nuit profonde et halo diffusé depuis le haut — la lueur du
@@ -158,7 +206,11 @@ class FondGhost extends StatelessWidget {
 /// Le `BackdropFilter` est ce qui distingue une carte de verre d'un rectangle gris : sans
 /// lui, la translucidité ne montre rien puisque rien n'est flouté derrière.
 class CarteDeVerre extends StatelessWidget {
-  const CarteDeVerre({super.key, required this.child, this.marge = Mesures.margeCarte});
+  const CarteDeVerre({
+    super.key,
+    required this.child,
+    this.marge = Mesures.margeCarte,
+  });
 
   final Widget child;
   final double marge;
@@ -261,8 +313,7 @@ ThemeData themeGhostcal(Brightness luminosite) {
       filled: true,
       fillColor: gc.surface2,
       hintStyle: TextStyle(color: gc.estompe.withValues(alpha: 0.7)),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(Mesures.rayonChamp),
         borderSide: BorderSide(color: gc.bordure),

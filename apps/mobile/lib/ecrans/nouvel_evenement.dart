@@ -86,8 +86,10 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
     if (agenda == null || organisation == null) return;
     setState(() => _chargement = true);
     try {
-      final detail =
-          await agenda.evenement(widget.evenement!, organisation: organisation);
+      final detail = await agenda.evenement(
+        widget.evenement!,
+        organisation: organisation,
+      );
       if (!mounted) return;
       setState(() {
         _debut = detail.debut;
@@ -171,7 +173,9 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
         content: Text(L.of(context).disparaitraPourTous),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(c, false), child: Text(L.of(context).annuler)),
+            onPressed: () => Navigator.pop(c, false),
+            child: Text(L.of(context).annuler),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(c, true),
             child: Text(L.of(context).supprimer),
@@ -210,9 +214,11 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
     return FondGhost(
       child: Scaffold(
         appBar: AppBar(
-          title: Text(_modification
-            ? L.of(context).modifierLEvenement
-            : L.of(context).nouvelEvenement),
+          title: Text(
+            _modification
+                ? L.of(context).modifierLEvenement
+                : L.of(context).nouvelEvenement,
+          ),
           actions: [
             if (_modification)
               IconButton(
@@ -226,95 +232,126 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
             ),
           ],
         ),
-        body: _chargement
-            ? const Center(child: CircularProgressIndicator())
-            : ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  if (_erreur != null) ...[
-                    Text(_erreur!, style: TextStyle(color: gc.danger, fontSize: 13)),
-                    const SizedBox(height: 14),
-                  ],
-                  TextField(
-                    controller: _titre,
-                    decoration: InputDecoration(labelText: L.of(context).titre),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _lieu,
-                    decoration: InputDecoration(labelText: L.of(context).lieu),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _description,
-                    maxLines: 4,
-                    decoration: InputDecoration(labelText: L.of(context).description),
-                  ),
-                  const SizedBox(height: 8),
-                  SwitchListTile(
-                    title: Text(L.of(context).journeeEntiere),
-                    value: _journeeEntiere,
-                    onChanged: (v) => setState(() => _journeeEntiere = v),
-                  ),
-                  _dateEtHeure(gc, L.of(context).debut, _debut, (d) => setState(() {
+        body: ContenuBorne(
+          child: _chargement
+              ? const Center(child: CircularProgressIndicator())
+              : ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    if (_erreur != null) ...[
+                      Text(
+                        _erreur!,
+                        style: TextStyle(color: gc.danger, fontSize: 13),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+                    TextField(
+                      controller: _titre,
+                      decoration: InputDecoration(
+                        labelText: L.of(context).titre,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _lieu,
+                      decoration: InputDecoration(
+                        labelText: L.of(context).lieu,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _description,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        labelText: L.of(context).description,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SwitchListTile(
+                      title: Text(L.of(context).journeeEntiere),
+                      value: _journeeEntiere,
+                      onChanged: (v) => setState(() => _journeeEntiere = v),
+                    ),
+                    _dateEtHeure(
+                      gc,
+                      L.of(context).debut,
+                      _debut,
+                      (d) => setState(() {
                         final duree = _fin.difference(_debut);
                         _debut = d;
                         // La durée suit le début : déplacer un rendez-vous d'une heure ne
                         // doit pas l'allonger silencieusement jusqu'à l'ancienne fin.
                         _fin = d.add(duree);
-                      })),
-                  _dateEtHeure(gc, L.of(context).fin, _fin, (d) => setState(() => _fin = d)),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: _calendrier,
-                    decoration: InputDecoration(labelText: L.of(context).calendrier),
-                    items: [
-                      for (final c in widget.calendriers)
-                        DropdownMenuItem(value: c.id, child: Text(c.nom)),
-                    ],
-                    onChanged: (v) => setState(() => _calendrier = v),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    L.of(context).ceQuiEstChiffre,
-                    style: TextStyle(color: gc.estompe, fontSize: 12),
-                  ),
-                ],
-              ),
-    ),
+                      }),
+                    ),
+                    _dateEtHeure(
+                      gc,
+                      L.of(context).fin,
+                      _fin,
+                      (d) => setState(() => _fin = d),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: _calendrier,
+                      decoration: InputDecoration(
+                        labelText: L.of(context).calendrier,
+                      ),
+                      items: [
+                        for (final c in widget.calendriers)
+                          DropdownMenuItem(value: c.id, child: Text(c.nom)),
+                      ],
+                      onChanged: (v) => setState(() => _calendrier = v),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      L.of(context).ceQuiEstChiffre,
+                      style: TextStyle(color: gc.estompe, fontSize: 12),
+                    ),
+                  ],
+                ),
+        ),
+      ),
     );
   }
 
-  Widget _dateEtHeure(Gc gc, String titre, DateTime valeur, ValueChanged<DateTime> poser) =>
-      ListTile(
-        contentPadding: EdgeInsets.zero,
-        title: Text(titre, style: TextStyle(color: gc.estompe, fontSize: 12)),
-        subtitle: Text(
-          _journeeEntiere
-              ? DateFormat.yMMMMd('fr_FR').format(valeur)
-              : DateFormat.yMMMMd('fr_FR').add_Hm().format(valeur),
-          style: TextStyle(color: gc.encre),
-        ),
-        trailing: const Icon(Icons.edit_calendar_outlined),
-        onTap: () async {
-          final date = await showDatePicker(
-            context: context,
-            initialDate: valeur,
-            firstDate: DateTime(2000),
-            lastDate: DateTime(2100),
-          );
-          if (date == null || !mounted) return;
-          if (_journeeEntiere) {
-            poser(DateTime(date.year, date.month, date.day, valeur.hour, valeur.minute));
-            return;
-          }
-          final heure = await showTimePicker(
-            // ignore: use_build_context_synchronously
-            context: context,
-            initialTime: TimeOfDay.fromDateTime(valeur),
-          );
-          if (heure == null) return;
-          poser(DateTime(date.year, date.month, date.day, heure.hour, heure.minute));
-        },
+  Widget _dateEtHeure(
+    Gc gc,
+    String titre,
+    DateTime valeur,
+    ValueChanged<DateTime> poser,
+  ) => ListTile(
+    contentPadding: EdgeInsets.zero,
+    title: Text(titre, style: TextStyle(color: gc.estompe, fontSize: 12)),
+    subtitle: Text(
+      _journeeEntiere
+          ? DateFormat.yMMMMd('fr_FR').format(valeur)
+          : DateFormat.yMMMMd('fr_FR').add_Hm().format(valeur),
+      style: TextStyle(color: gc.encre),
+    ),
+    trailing: const Icon(Icons.edit_calendar_outlined),
+    onTap: () async {
+      final date = await showDatePicker(
+        context: context,
+        initialDate: valeur,
+        firstDate: DateTime(2000),
+        lastDate: DateTime(2100),
       );
+      if (date == null || !mounted) return;
+      if (_journeeEntiere) {
+        poser(
+          DateTime(date.year, date.month, date.day, valeur.hour, valeur.minute),
+        );
+        return;
+      }
+      final heure = await showTimePicker(
+        // ignore: use_build_context_synchronously
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(valeur),
+      );
+      if (heure == null) return;
+      poser(
+        DateTime(date.year, date.month, date.day, heure.hour, heure.minute),
+      );
+    },
+  );
 }

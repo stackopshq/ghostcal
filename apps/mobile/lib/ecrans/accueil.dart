@@ -29,7 +29,8 @@ class EcranDAccueil extends StatefulWidget {
   State<EcranDAccueil> createState() => _EcranDAccueilState();
 }
 
-class _EcranDAccueilState extends State<EcranDAccueil> with WidgetsBindingObserver {
+class _EcranDAccueilState extends State<EcranDAccueil>
+    with WidgetsBindingObserver {
   int _onglet = 0;
   DateTime? _partiEnArrierePlan;
 
@@ -71,21 +72,26 @@ class _EcranDAccueilState extends State<EcranDAccueil> with WidgetsBindingObserv
   Widget build(BuildContext context) {
     return FondGhost(
       child: Scaffold(
-        body: IndexedStack(
-          index: _onglet,
-          children: [
-            EcranDAgenda(
-              session: widget.session,
-              verrouillage: widget.verrouillage,
-            ),
-            EcranDeTaches(session: widget.session),
-            EcranDeReunions(session: widget.session),
-            EcranDeTypesDeRendezVous(session: widget.session),
-            EcranDeReglages(
-              session: widget.session,
-              verrouillage: widget.verrouillage,
-            ),
-          ],
+        // `ContenuBorne` ici et pas autour du `Scaffold` : la barre d'onglets, plus bas,
+        // doit garder toute la largeur. La borner la centrerait sur 560 points au milieu
+        // d'un iPad, ce qui est plus laid que l'étirement qu'on corrige.
+        body: ContenuBorne(
+          child: IndexedStack(
+            index: _onglet,
+            children: [
+              EcranDAgenda(
+                session: widget.session,
+                verrouillage: widget.verrouillage,
+              ),
+              EcranDeTaches(session: widget.session),
+              EcranDeReunions(session: widget.session),
+              EcranDeTypesDeRendezVous(session: widget.session),
+              EcranDeReglages(
+                session: widget.session,
+                verrouillage: widget.verrouillage,
+              ),
+            ],
+          ),
         ),
         bottomNavigationBar: NavigationBar(
           // Transparente pour laisser passer le fond ; sans cela une bande opaque
@@ -101,15 +107,25 @@ class _EcranDAccueilState extends State<EcranDAccueil> with WidgetsBindingObserv
           // constant expressions », un message qui ne nomme pas la cause.
           destinations: [
             NavigationDestination(
-                icon: const Icon(Icons.calendar_today), label: L.of(context).ongletAgenda),
+              icon: const Icon(Icons.calendar_today),
+              label: L.of(context).ongletAgenda,
+            ),
             NavigationDestination(
-                icon: const Icon(Icons.check_circle_outline), label: L.of(context).ongletTaches),
+              icon: const Icon(Icons.check_circle_outline),
+              label: L.of(context).ongletTaches,
+            ),
             NavigationDestination(
-                icon: const Icon(Icons.groups_outlined), label: L.of(context).ongletReunions),
+              icon: const Icon(Icons.groups_outlined),
+              label: L.of(context).ongletReunions,
+            ),
             NavigationDestination(
-                icon: const Icon(Icons.event_available_outlined), label: L.of(context).ongletRdv),
+              icon: const Icon(Icons.event_available_outlined),
+              label: L.of(context).ongletRdv,
+            ),
             NavigationDestination(
-                icon: const Icon(Icons.settings), label: L.of(context).ongletReglages),
+              icon: const Icon(Icons.settings),
+              label: L.of(context).ongletReglages,
+            ),
           ],
         ),
       ),

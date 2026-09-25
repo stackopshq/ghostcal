@@ -62,7 +62,9 @@ class _EcranDeSondagesState extends State<EcranDeSondages> {
     return FondGhost(
       child: Scaffold(
         appBar: AppBar(title: Text(L.of(context).sondages)),
-        body: RefreshIndicator(onRefresh: _recharger, child: _corps(gc)),
+        body: ContenuBorne(
+          child: RefreshIndicator(onRefresh: _recharger, child: _corps(gc)),
+        ),
     ),
     );
   }
@@ -209,54 +211,56 @@ class _EcranDUnSondageState extends State<EcranDUnSondage> {
               ),
           ],
         ),
-        body: detail == null
-            ? Center(
-                child: _erreur == null
-                    ? const CircularProgressIndicator()
-                    : Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Text(_erreur!, style: TextStyle(color: gc.danger)),
-                      ),
-              )
-            : ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  if (_erreur != null) ...[
-                    Text(_erreur!, style: TextStyle(color: gc.danger, fontSize: 13)),
-                    const SizedBox(height: 12),
-                  ],
-                  Text(
-                    detail.ouvert
-                        ? '${detail.duree} min · ${detail.votants.length} votants'
-                        : '${detail.duree} min · clos',
-                    style: TextStyle(color: gc.estompe, fontSize: 13),
-                  ),
-                  const SizedBox(height: 16),
-                  _titre(gc, L.of(context).creneaux),
-                  for (final option in detail.options) _creneau(gc, detail, option),
-                  if (detail.votants.isNotEmpty) ...[
-                    const SizedBox(height: 20),
-                    _titre(gc, 'Votants'),
-                    for (final votant in detail.votants)
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                        title: Text(
-                          votant.nom.isEmpty ? votant.courriel : votant.nom,
-                          style: TextStyle(color: gc.encre),
+        body: ContenuBorne(
+          child: detail == null
+              ? Center(
+                  child: _erreur == null
+                      ? const CircularProgressIndicator()
+                      : Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Text(_erreur!, style: TextStyle(color: gc.danger)),
                         ),
-                        subtitle: Text(
-                          // Le pluriel passe par ICU plutôt que par trois
-                          // interpolations conditionnelles : « créneau/créneaux » et
-                          // « retenu/retenus » ne s'accordent pas de la même façon
-                          // d'une langue à l'autre, et l'anglais n'a pas de « x ».
-                          L.of(context).creneauxRetenus(votant.options.length),
-                          style: TextStyle(fontSize: 12, color: gc.estompe),
+                )
+              : ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    if (_erreur != null) ...[
+                      Text(_erreur!, style: TextStyle(color: gc.danger, fontSize: 13)),
+                      const SizedBox(height: 12),
+                    ],
+                    Text(
+                      detail.ouvert
+                          ? '${detail.duree} min · ${detail.votants.length} votants'
+                          : '${detail.duree} min · clos',
+                      style: TextStyle(color: gc.estompe, fontSize: 13),
+                    ),
+                    const SizedBox(height: 16),
+                    _titre(gc, L.of(context).creneaux),
+                    for (final option in detail.options) _creneau(gc, detail, option),
+                    if (detail.votants.isNotEmpty) ...[
+                      const SizedBox(height: 20),
+                      _titre(gc, 'Votants'),
+                      for (final votant in detail.votants)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          title: Text(
+                            votant.nom.isEmpty ? votant.courriel : votant.nom,
+                            style: TextStyle(color: gc.encre),
+                          ),
+                          subtitle: Text(
+                            // Le pluriel passe par ICU plutôt que par trois
+                            // interpolations conditionnelles : « créneau/créneaux » et
+                            // « retenu/retenus » ne s'accordent pas de la même façon
+                            // d'une langue à l'autre, et l'anglais n'a pas de « x ».
+                            L.of(context).creneauxRetenus(votant.options.length),
+                            style: TextStyle(fontSize: 12, color: gc.estompe),
+                          ),
                         ),
-                      ),
+                    ],
                   ],
-                ],
-              ),
+                ),
+        ),
     ),
     );
   }

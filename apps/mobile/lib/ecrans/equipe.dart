@@ -61,12 +61,19 @@ class _EcranDEquipeState extends State<EcranDEquipe> {
     final confirme = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: Text('Retirer ${membre.nom.isEmpty ? membre.courriel : membre.nom} ?'),
-        content: Text(
-            L.of(context).perteDAccesOrganisation),
+        title: Text(
+          'Retirer ${membre.nom.isEmpty ? membre.courriel : membre.nom} ?',
+        ),
+        content: Text(L.of(context).perteDAccesOrganisation),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
-          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Retirer')),
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Retirer'),
+          ),
         ],
       ),
     );
@@ -99,22 +106,27 @@ class _EcranDEquipeState extends State<EcranDEquipe> {
     return FondGhost(
       child: Scaffold(
         appBar: AppBar(title: Text(L.of(context).equipe)),
-        body: RefreshIndicator(
-          onRefresh: _charger,
-          child: _erreur != null
-              ? ListView(
-                  padding: const EdgeInsets.all(20),
-                  children: [Text(_erreur!, style: TextStyle(color: gc.danger))],
-                )
-              : membres == null
-                  ? const Center(child: CircularProgressIndicator())
-                  : ListView.separated(
-                      itemCount: membres.length,
-                      separatorBuilder: (_, _) => Divider(height: 1, color: gc.bordure),
-                      itemBuilder: (_, i) => _ligne(gc, membres[i]),
-                    ),
+        body: ContenuBorne(
+          child: RefreshIndicator(
+            onRefresh: _charger,
+            child: _erreur != null
+                ? ListView(
+                    padding: const EdgeInsets.all(20),
+                    children: [
+                      Text(_erreur!, style: TextStyle(color: gc.danger)),
+                    ],
+                  )
+                : membres == null
+                ? const Center(child: CircularProgressIndicator())
+                : ListView.separated(
+                    itemCount: membres.length,
+                    separatorBuilder: (_, _) =>
+                        Divider(height: 1, color: gc.bordure),
+                    itemBuilder: (_, i) => _ligne(gc, membres[i]),
+                  ),
+          ),
         ),
-    ),
+      ),
     );
   }
 
@@ -134,12 +146,19 @@ class _EcranDEquipeState extends State<EcranDEquipe> {
           ? Icon(Icons.shield_outlined, size: 18, color: gc.estompe)
           : PopupMenuButton<String>(
               itemBuilder: (_) => [
-                const PopupMenuItem(value: 'admin', child: Text('Administrateur')),
+                const PopupMenuItem(
+                  value: 'admin',
+                  child: Text('Administrateur'),
+                ),
                 const PopupMenuItem(value: 'member', child: Text('Membre')),
-                PopupMenuItem(value: '-', child: Text(L.of(context).retirerDeLEquipe)),
+                PopupMenuItem(
+                  value: '-',
+                  child: Text(L.of(context).retirerDeLEquipe),
+                ),
               ],
-              onSelected: (choix) =>
-                  choix == '-' ? _retirer(membre) : _changerLeRole(membre, choix),
+              onSelected: (choix) => choix == '-'
+                  ? _retirer(membre)
+                  : _changerLeRole(membre, choix),
             ),
     );
   }
