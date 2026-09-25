@@ -27,15 +27,18 @@ from ghostcal.application.auth import (
 )
 from ghostcal.application.passwords import PasswordRejected
 from ghostcal.application.ports.clock import SystemClock
+from ghostcal.application.ports.email import EmailSender
 from ghostcal.config import get_settings
 from ghostcal.infrastructure.db.auth_repository import SqlAuthRepository
 from ghostcal.infrastructure.db.session import db_session
 from ghostcal.infrastructure.email import build_email_sender
+from ghostcal.infrastructure.email.outbox import DeferredEmailSender
 from ghostcal.infrastructure.ratelimit import rate_limit
 from ghostcal.infrastructure.security.hibp import HibpBreachedPasswordChecker
 from ghostcal.infrastructure.security.oidc import OIDCNotConfigured, oidc_client
 from ghostcal.infrastructure.security.passwords import Argon2PasswordHasher
 from ghostcal.infrastructure.security.tokens import JwtAccessTokenCodec
+from ghostcal.infrastructure.tasks import enqueue_email
 from ghostcal.presentation.schemas import (
     ForgotPasswordIn,
     LoginIn,
@@ -86,12 +89,20 @@ def _token_out(tokens: TokenPair) -> TokenOut:
     )
 
 
-def _service(session: object) -> AuthService:
+def _service(session: object, mailer: EmailSender | None = None) -> AuthService:
+    """Build the service for one request.
+
+    `mailer` defaults to the direct sender because most routes here send nothing at all. A route
+    that *does* send passes a `DeferredEmailSender` and drains it after its transaction commits --
+    which is the whole of the fix for the 500s of 2026-09-25. The default is the old synchronous
+    sender rather than a second outbox on purpose: if a future route sends and forgets to drain,
+    it sends the slow way, which is visible. An undrained outbox would drop the mail in silence.
+    """
     return AuthService(
         SqlAuthRepository(session),  # type: ignore[arg-type]
         _hasher,
         _codec,
-        _mailer,
+        mailer or _mailer,
         _clock,
         _config,
         _breach_checker,
@@ -142,9 +153,13 @@ async def register(payload: RegisterIn) -> RegisteredOut:
         recovery_wrapped_private_key=payload.zk_keys.recovery_wrapped_private_key,
         recovery_salt=payload.zk_keys.recovery_salt,
     )
+    # The verification token is written inside the transaction below; the email that carries it
+    # leaves this process afterwards, through the worker. Buffering it here is what keeps the two
+    # apart -- see infrastructure/email/outbox.py for the 500s that taught us the difference.
+    outbox = DeferredEmailSender(enqueue_email)
     async with db_session() as session:
         try:
-            user_id = await _service(session).register(
+            user_id = await _service(session, outbox).register(
                 email=payload.email,
                 name=payload.name,
                 password=payload.password,
@@ -156,6 +171,10 @@ async def register(payload: RegisterIn) -> RegisteredOut:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except EmailAlreadyRegistered as exc:
             raise HTTPException(status_code=409, detail="email already registered") from exc
+    # Committed: the account and its verification row exist. Only now may a worker be told, and
+    # only now can it read what it will be asked to mail about. `hand_off` never raises, so an
+    # unreachable Redis costs this user an email and not an account.
+    outbox.hand_off()
     return RegisteredOut(user_id=user_id)
 
 
@@ -208,8 +227,13 @@ async def forgot_password(payload: ForgotPasswordIn) -> None:
     Answering differently for a known and an unknown address would turn this into an
     account-enumeration oracle, and the caller is unauthenticated.
     """
+    outbox = DeferredEmailSender(enqueue_email)
     async with db_session() as session:
-        await _service(session).request_password_reset(email=payload.email)
+        await _service(session, outbox).request_password_reset(email=payload.email)
+    # Same two-step as `register`, and here it is what makes the docstring above true. Sending
+    # inside the transaction meant a provider refusal answered 500 for an address that exists and
+    # is verified, and 202 for one that does not -- an enumeration oracle built out of an outage.
+    outbox.hand_off()
 
 
 @router.get(

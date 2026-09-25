@@ -33,9 +33,7 @@ def _reglages(**surcharges: object) -> Settings:
 
 def test_le_developpement_garde_son_localhost() -> None:
     """Le défaut n'est pas la valeur, c'est la valeur *hors* de son contexte."""
-    reglages = _reglages(
-        environment="development", frontend_base_url="http://localhost:3001"
-    )
+    reglages = _reglages(environment="development", frontend_base_url="http://localhost:3001")
     assert reglages.frontend_base_url == "http://localhost:3001"
 
 
@@ -49,16 +47,12 @@ def test_le_developpement_garde_son_localhost() -> None:
         "http://0.0.0.0:3001",
     ],
 )
-def test_une_url_locale_est_refusee_hors_developpement(
-    environnement: str, url: str
-) -> None:
+def test_une_url_locale_est_refusee_hors_developpement(environnement: str, url: str) -> None:
     with pytest.raises(ValueError, match="frontend_base_url"):
         _reglages(environment=environnement, frontend_base_url=url)
 
 
 def test_une_url_publique_passe() -> None:
     """Le contrôle doit aussi savoir dire oui — sinon il bloque le déploiement correct."""
-    reglages = _reglages(
-        environment="production", frontend_base_url="https://cal.ghostsuite.cloud"
-    )
+    reglages = _reglages(environment="production", frontend_base_url="https://cal.ghostsuite.cloud")
     assert reglages.frontend_base_url == "https://cal.ghostsuite.cloud"
