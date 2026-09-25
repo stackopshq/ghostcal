@@ -204,6 +204,13 @@ class SqlCaldavConnectionRepository(CaldavConnectionRepository):
                 ],
             )
 
+    async def host_timezone(self, user_id: uuid.UUID) -> str | None:
+        return (
+            await self._session.execute(
+                select(models.User.timezone).where(models.User.id == user_id)
+            )
+        ).scalar_one_or_none()
+
     async def mark_synced(self, connection_id: uuid.UUID, when: datetime, status: str) -> None:
         await self._session.execute(
             update(models.CaldavConnection)
