@@ -28,6 +28,30 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 FROM docker.io/library/python:3.14-slim-bookworm@sha256:86f975aca15cf04a40b399eebede9aea7c82eae084d1f1a0a6ef6bcaae871a30 AS runtime
 
+# ─── Les correctifs de sécurité de la distribution ───
+#
+# L'image de base est épinglée par condensat, ce qui fige **aussi** l'état des paquets
+# Debian qu'elle embarque. Ils vieillissent pendant que le condensat, lui, ne bouge pas.
+#
+# Constaté le 2026-09-25 : Trivy a trouvé trois CVE HIGH dans `libpcre2-8-0` — écriture
+# hors limites, corruption mémoire (CVE-2026-86145, -89157, -89161) — présentes en
+# `10.42-1` et corrigées en `10.42-1+deb12u1`. Elles n'apparaissent dans aucun verrou de
+# dépendances : `osv-scanner` était vert. C'est le système sous les dépendances, et c'est
+# la plus grande surface de l'artefact déployé.
+#
+# `upgrade` plutôt que le seul paquet fautif : Trivy échoue sur tout HIGH/CRITICAL
+# **corrigé en amont**, donc n'en traiter qu'un rendrait la construction rouge à la
+# prochaine publication de Debian. Une construction qu'on ne peut pas rendre verte apprend
+# à ignorer le contrôle.
+#
+# Le condensat reste épinglé : c'est la couche de paquets qui flotte, pas l'image. On
+# échange une reproductibilité au paquet près contre des correctifs de sécurité appliqués
+# sans intervention — dans une image livrée, c'est le bon sens de l'échange.
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 # Non-root runtime user.
 RUN groupadd --system app && useradd --system --gid app --home /app app
 
