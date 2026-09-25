@@ -119,12 +119,26 @@ def upgrade() -> None:
         """
     )
 
-    # Insertion : permissive, et c'est délibéré. `provision_account`, SECURITY DEFINER,
-    # insère l'utilisateur AVANT qu'il soit membre de quoi que ce soit et sans GUC posé.
-    # Sous FORCE, elle est soumise aux politiques : une condition plus stricte ici
-    # casserait l'inscription. Insérer une ligne n'expose rien ; c'est la lecture qui est
-    # fermée, au-dessus.
-    op.execute("CREATE POLICY users_insert ON users FOR INSERT WITH CHECK (true)")
+    # Insertion : la ligne qu'on insère doit être celle qu'on déclare être.
+    #
+    # `WITH CHECK (true)` ne suffisait pas, et la raison est instructive :
+    # `provision_account` fait `INSERT INTO users … RETURNING id`, et **la clause
+    # `RETURNING` exige que la ligne soit lisible** — donc que `users_select` la laisse
+    # passer. Au moment de l'inscription, `app.current_user_id` n'est pas posé, puisque
+    # l'utilisateur n'existe pas encore. La lecture échouait, pas l'écriture.
+    #
+    # Le remède est déjà dans la fonction, deux instructions plus bas, appliqué à
+    # l'organisation : engendrer l'identifiant soi-même, poser le GUC dessus, puis insérer
+    # avec cet identifiant explicite. Son commentaire le dit — « the row that defines the
+    # tenant is the row being inserted ». La même chose valait pour `users` ; personne ne
+    # l'avait vu parce que `users` n'était sous aucune politique.
+    op.execute(
+        f"""
+        CREATE POLICY users_insert ON users
+            FOR INSERT
+            WITH CHECK (id = {_USER_GUC})
+        """
+    )
 
     # Écriture et suppression : soi-même uniquement. `WITH CHECK` autant que `USING`,
     # sinon on pourrait modifier sa propre ligne pour en faire celle d'un autre.
@@ -137,6 +151,54 @@ def upgrade() -> None:
         """
     )
     op.execute(f"CREATE POLICY users_delete ON users FOR DELETE USING (id = {_USER_GUC})")
+
+    # ── `provision_account` pose le contexte de l'utilisateur qu'elle crée ──────────
+    #
+    # Même correction que celle faite le 2026-08-?? pour l'organisation, appliquée à
+    # l'utilisateur : engendrer l'identifiant, le déclarer, puis insérer.
+    #
+    # Sans cela, `INSERT … RETURNING id` échoue sous FORCE, parce que `RETURNING` relit la
+    # ligne et qu'aucune politique ne la désigne encore. Le GUC est transaction-local
+    # (`true`) et restauré en fin de fonction, comme celui de l'organisation.
+    op.execute(
+        """
+        CREATE OR REPLACE FUNCTION provision_account(
+            p_email text, p_name text, p_password_hash text, p_org_name text, p_org_slug text
+        ) RETURNS TABLE(user_id uuid, organization_id uuid)
+        LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public
+        AS $fn$
+        DECLARE
+            v_user_id uuid;
+            v_org_id uuid;
+            v_prev_org text;
+            v_prev_user text;
+        BEGIN
+            v_user_id := gen_random_uuid();
+            v_prev_user := current_setting('app.current_user_id', true);
+            PERFORM set_config('app.current_user_id', v_user_id::text, true);
+
+            INSERT INTO users (id, email, name, timezone)
+                VALUES (v_user_id, p_email, p_name, 'UTC');
+            INSERT INTO user_credentials (user_id, password_hash)
+                VALUES (v_user_id, p_password_hash);
+
+            v_org_id := gen_random_uuid();
+            v_prev_org := current_setting('app.current_org_id', true);
+            PERFORM set_config('app.current_org_id', v_org_id::text, true);
+
+            INSERT INTO organizations (id, name, slug)
+                VALUES (v_org_id, p_org_name, p_org_slug);
+            INSERT INTO memberships (organization_id, user_id, role)
+                VALUES (v_org_id, v_user_id, 'owner');
+
+            PERFORM set_config('app.current_org_id', coalesce(v_prev_org, ''), true);
+            PERFORM set_config('app.current_user_id', coalesce(v_prev_user, ''), true);
+
+            RETURN QUERY SELECT v_user_id, v_org_id;
+        END;
+        $fn$
+        """
+    )
 
 
 def downgrade() -> None:
