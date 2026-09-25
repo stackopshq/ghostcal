@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Manifeste de confidentialité de GhostCal — exigé par Apple depuis mai 2024 ; sans lui,
+  l'envoi à l'App Store est refusé.
+
+  ─── Portée ───
+
+  Ce manifeste couvre **le binaire de l'application**, pas ses greffons. Chaque greffon
+  Flutter embarque le sien (`flutter_secure_storage`, `local_auth`, `flutter_timezone`,
+  `Flutter.framework`) ; Apple les agrège au moment de l'envoi. Recopier ici ce qu'ils
+  déclarent ne rendrait pas le relevé plus complet, seulement plus faux le jour où l'un
+  d'eux change.
+
+  ─── API à raison d'usage : aucune, et c'est une mesure ───
+
+  Les cinq catégories qu'Apple fait déclarer sont `UserDefaults`, l'horodatage de fichier,
+  le temps de démarrage, l'espace disque et les claviers actifs. Le code natif de
+  l'application se réduit à `AppDelegate.swift` et `SceneDelegate.swift`, qui n'appellent
+  aucune des cinq — vérifié par `grep -rn UserDefaults ios/Runner/`, zéro occurrence. Le
+  code Dart n'y accède que par les greffons, qui les déclarent chez eux.
+
+  `NSPrivacyAccessedAPITypes` est donc un tableau **vide**, et non absent : le vide dit
+  « regardé, rien à déclarer », l'absence dirait « pas regardé ».
+
+  ─── Données collectées : ce que le serveur détient réellement ───
+
+  Ici GhostCal diffère de GhostPass, et le recopier serait mentir.
+
+  GhostPass déclare une collecte minimale parce que son serveur n'héberge que des blocs
+  qu'il ne peut pas ouvrir. Le serveur GhostCal, lui, **lit** une partie de ce qu'il
+  stocke — il doit le lire pour envoyer les confirmations et les rappels, et pour refuser
+  deux réservations qui se chevauchent :
+
+  · `users.email`, `users.name`, `users.timezone` — en clair dans la base.
+  · `bookings.start_at` / `end_at` — en clair. Le serveur sait **quand** vos rendez-vous
+    ont lieu ; c'est la contrainte d'exclusion `no_overlap_per_host` qui l'exige.
+  · `bookings.invitee_email`, `location`, `meeting_url`, `guest_emails` — de type
+    `EncryptedString`, c'est-à-dire « chiffré au repos avec la clé de l'application ».
+    Le serveur détient cette clé et déchiffre à la lecture. C'est une protection contre
+    le vol de la base, **pas** une impossibilité de lecture.
+  · `bookings.invitee_private` — scellé au X25519 public de l'organisation. Celui-là, le
+    serveur ne peut pas l'ouvrir. C'est la seule donnée véritablement de bout en bout,
+    avec la clé privée du membre (`zk_wrapped_private_key`, enveloppée sous Argon2id).
+
+  Déclarer « aucune donnée collectée » serait donc faux. Le relevé ci-dessous vient du
+  schéma (`src/ghostcal/infrastructure/db/models.py`) et non d'une intention.
+
+  Rien n'est utilisé pour du suivi : aucun SDK d'analyse, aucun traceur, aucun rapport de
+  plantage tiers. `NSPrivacyTracking` vaut donc `false` et le tableau des domaines de
+  suivi est vide.
+-->
+<plist version="1.0">
+<dict>
+    <key>NSPrivacyTracking</key>
+    <false/>
+    <key>NSPrivacyTrackingDomains</key>
+    <array/>
+
+    <key>NSPrivacyAccessedAPITypes</key>
+    <array/>
+
+    <key>NSPrivacyCollectedDataTypes</key>
+    <array>
+        <!-- L'adresse e-mail du titulaire du compte, et celle des invités. -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeEmailAddress</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <true/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+        <!-- `users.name`, affiché sur la page de réservation publique. -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeName</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <true/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+        <!-- Les rendez-vous eux-mêmes : horaires, lieux, liens de visioconférence,
+             réponses des invités. Apple n'a pas de catégorie « agenda » pour les données
+             que l'app dépose sur son propre serveur ; « autre contenu utilisateur » est
+             la case exacte. -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeOtherUserContent</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <true/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+    </array>
+</dict>
+</plist>
