@@ -3,6 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
+import { getAuthConfig } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 
 /**
@@ -22,15 +24,21 @@ export const primaryButtonClass =
 
 // Vers quoi pointe « Politique de confidentialité ».
 //
-// La page couvre toute la suite et porte une section GhostCal nommée, qui dit ce que
-// le serveur voit. Elle est donc juste pour une instance hébergée par StackOps.
+// La page de la suite couvre tous les produits et porte une section GhostCal nommée.
+// Elle est juste pour une instance hébergée par StackOps, et **fausse pour une
+// instance auto-hébergée** : là, le responsable du traitement est l'hébergeur, et le
+// renvoyer vers notre texte lui ferait endosser des engagements qu'il n'a pas pris.
 //
-// **Elle ne l'est pas pour une instance auto-hébergée** : là, c'est l'hébergeur qui
-// est responsable du traitement, pas nous, et le renvoyer vers notre page serait lui
-// faire endosser un texte qui n'est pas le sien. D'où la dérogation par variable,
-// comme `NEXT_PUBLIC_SITE_URL` pour l'origine des aperçus.
-const PRIVACY_URL =
-  process.env.NEXT_PUBLIC_PRIVACY_URL ?? "https://ghostsuite.cloud/confidentialite/";
+// **L'adresse vient donc du serveur**, jamais d'une `NEXT_PUBLIC_*`. Next grave
+// celles-ci dans le paquet à la construction : l'auto-hébergeur tire l'image publiée,
+// poser la variable chez lui ne changerait rien, et rien ne le lui dirait. C'est
+// exactement l'incident mesuré le 2026-08-16 sur Apollo, dont `ghostmail.ts` porte le
+// récit — et j'avais réintroduit le motif ici avant qu'on me le fasse remarquer.
+//
+// Cette constante n'est plus qu'un **repli d'affichage**, le temps que la requête
+// revienne et pour le cas où elle échoue : mieux vaut la page de la suite qu'un lien
+// absent.
+const PRIVACY_PAR_DEFAUT = "https://ghostsuite.cloud/confidentialite/";
 
 export default function AuthCard({
   title,
@@ -44,6 +52,25 @@ export default function AuthCard({
   footer?: ReactNode;
 }) {
   const t = useT();
+
+  // Demandée au déploiement, comme le bouton SSO l'est déjà (voir `getAuthConfig`).
+  // L'échec ne fait pas disparaître le lien : il retombe sur la page de la suite,
+  // juste pour la grande majorité des instances.
+  const [privacyUrl, setPrivacyUrl] = useState(PRIVACY_PAR_DEFAUT);
+  useEffect(() => {
+    let vivant = true;
+    getAuthConfig()
+      .then((c) => {
+        if (vivant && c.privacy_url) setPrivacyUrl(c.privacy_url);
+      })
+      .catch(() => {
+        /* `getAuthConfig` journalise déjà le code HTTP. */
+      });
+    return () => {
+      vivant = false;
+    };
+  }, []);
+
   return (
     <main className="grid min-h-dvh place-items-center px-4 py-10">
       <div className="w-full max-w-[420px]">
@@ -99,7 +126,7 @@ export default function AuthCard({
             d'inscription. */}
         <p className="mt-3 text-center">
           <a
-            href={PRIVACY_URL}
+            href={privacyUrl}
             className="text-xs text-muted underline underline-offset-2 transition hover:text-foreground"
           >
             {t("auth.privacyPolicy")}

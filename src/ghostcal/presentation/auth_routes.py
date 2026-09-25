@@ -141,6 +141,7 @@ async def auth_config() -> dict[str, bool | str | None]:
     return {
         "oidc_enabled": _settings.oidc_enabled,
         "ghostmail_url": _settings.ghostmail_url,
+        "privacy_url": _settings.privacy_url,
     }
 
 

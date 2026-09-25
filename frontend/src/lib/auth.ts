@@ -298,6 +298,8 @@ export type AuthConfig = {
   oidc_enabled: boolean;
   /** Sibling GhostMail, or null/absent when this deployment has none. */
   ghostmail_url?: string | null;
+  /** Where "Privacy policy" points. Per-deployment: see the server-side comment. */
+  privacy_url?: string | null;
 };
 
 export async function getAuthConfig(): Promise<AuthConfig> {
