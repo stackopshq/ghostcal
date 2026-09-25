@@ -21,12 +21,15 @@ from ghostcal.application.organizations import (
     preview_invitation,
 )
 from ghostcal.application.ports.clock import SystemClock
+from ghostcal.application.two_factor import TwoFactorService
 from ghostcal.infrastructure.db.auth_repository import SqlAuthRepository
 from ghostcal.infrastructure.db.membership import primary_membership
 from ghostcal.infrastructure.db.org_repository import SqlInvitationGateway, SqlOrgRepository
 from ghostcal.infrastructure.db.session import db_session, org_session
+from ghostcal.infrastructure.db.two_factor_repository import SqlTwoFactorRepository
 from ghostcal.infrastructure.security.passwords import Argon2PasswordHasher
 from ghostcal.infrastructure.security.tokens import JwtAccessTokenCodec
+from ghostcal.infrastructure.security.totp import PyotpEngine
 from tests.integration.conftest import ZK_PLACEHOLDER
 
 pytestmark = pytest.mark.integration
@@ -64,7 +67,9 @@ class CapturingMailer:
 
 
 def _auth(session: object, mailer: CapturingMailer) -> AuthService:
-    return AuthService(SqlAuthRepository(session), _HASHER, _CODEC, mailer, _CLOCK, _CONFIG)  # type: ignore[arg-type]
+    return AuthService(
+        SqlAuthRepository(session), _HASHER, _CODEC, mailer, _CLOCK, _CONFIG, _two_factor(session)
+    )  # type: ignore[arg-type]
 
 
 def _org(session: object, org_id: uuid.UUID, mailer: CapturingMailer) -> OrganizationService:
@@ -298,3 +303,12 @@ async def test_team_key_grant_flow(admin_engine: AsyncEngine) -> None:
         for uid in (invitee_id, owner_id):
             if uid is not None:
                 await _delete_user(admin_engine, uid)
+
+
+def _two_factor(session: object) -> TwoFactorService:
+    """Le vrai service : ces tests doivent voir le second facteur tel qu'il tourne."""
+    return TwoFactorService(
+        SqlTwoFactorRepository(session),  # type: ignore[arg-type]
+        PyotpEngine(),
+        _CLOCK,
+    )

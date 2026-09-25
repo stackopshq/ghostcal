@@ -24,6 +24,10 @@ dependencies = [
     "pydantic-settings>=2.14.2",
     "pydantic[email]>=2.13.4",
     "pyjwt>=2.13.0",
+    # TOTP (RFC 6238). Bibliothèque éprouvée plutôt qu'une troncature
+    # dynamique et un base32 écrits ici : c'est court, et c'est précisément le
+    # genre de code court qu'on relit sans voir l'erreur.
+    "pyotp>=2.9.0",
     "python-dateutil>=2.9.0",
     "redis>=6.4.0",
     "sqlalchemy>=2.0.51",

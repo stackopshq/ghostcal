@@ -13,12 +13,15 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from ghostcal.application.auth import AuthConfig, AuthService
 from ghostcal.application.calendar import EventInput, create_event, get_agenda, list_calendars
 from ghostcal.application.ports.clock import SystemClock
+from ghostcal.application.two_factor import TwoFactorService
 from ghostcal.infrastructure.db.auth_repository import SqlAuthRepository
 from ghostcal.infrastructure.db.calendar_repository import SqlCalendarRepository
 from ghostcal.infrastructure.db.membership import primary_membership
 from ghostcal.infrastructure.db.session import db_session, org_session
+from ghostcal.infrastructure.db.two_factor_repository import SqlTwoFactorRepository
 from ghostcal.infrastructure.security.passwords import Argon2PasswordHasher
 from ghostcal.infrastructure.security.tokens import JwtAccessTokenCodec
+from ghostcal.infrastructure.security.totp import PyotpEngine
 from tests.integration.conftest import ZK_PLACEHOLDER
 
 pytestmark = pytest.mark.integration
@@ -50,7 +53,9 @@ class CapturingMailer:
 
 
 def _auth(session: object, mailer: CapturingMailer) -> AuthService:
-    return AuthService(SqlAuthRepository(session), _HASHER, _CODEC, mailer, _CLOCK, _CONFIG)  # type: ignore[arg-type]
+    return AuthService(
+        SqlAuthRepository(session), _HASHER, _CODEC, mailer, _CLOCK, _CONFIG, _two_factor(session)
+    )  # type: ignore[arg-type]
 
 
 async def test_calendar_agenda_expands_recurring_event(admin_engine: AsyncEngine) -> None:
@@ -116,3 +121,12 @@ async def test_calendar_agenda_expands_recurring_event(admin_engine: AsyncEngine
                     await s.execute(text("DELETE FROM organizations WHERE id = :o"), {"o": org})
                 await s.execute(text("DELETE FROM users WHERE id = :u"), {"u": user_id})
                 await s.commit()
+
+
+def _two_factor(session: object) -> TwoFactorService:
+    """Le vrai service : ces tests doivent voir le second facteur tel qu'il tourne."""
+    return TwoFactorService(
+        SqlTwoFactorRepository(session),  # type: ignore[arg-type]
+        PyotpEngine(),
+        _CLOCK,
+    )

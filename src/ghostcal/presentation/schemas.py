@@ -181,6 +181,42 @@ class VerifyEmailIn(BaseModel):
 class LoginIn(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1, max_length=200)
+    # Six chiffres (TOTP) ou un code de récupération. Absent au premier appel :
+    # le client ne sait pas encore si le compte en demande un, et c'est la
+    # réponse 401 `mfa_required` qui le lui apprend.
+    totp_code: str | None = Field(default=None, max_length=32)
+
+
+class TwoFactorStatusOut(BaseModel):
+    enabled: bool
+    pending: bool
+    recovery_codes_remaining: int
+
+
+class TwoFactorSetupIn(BaseModel):
+    """Le mot de passe est redemandé : démarrer un enrôlement remet le secret à zéro."""
+
+    password: str = Field(min_length=1, max_length=200)
+
+
+class TwoFactorSetupOut(BaseModel):
+    secret: str
+    otpauth_uri: str
+
+
+class TwoFactorCodeIn(BaseModel):
+    code: str = Field(min_length=1, max_length=32)
+
+
+class TwoFactorDisableIn(BaseModel):
+    password: str = Field(min_length=1, max_length=200)
+    code: str = Field(min_length=1, max_length=32)
+
+
+class RecoveryCodesOut(BaseModel):
+    """Les codes en clair. Rendus une seule fois — seules leurs empreintes sont gardées."""
+
+    recovery_codes: list[str]
 
 
 class RefreshIn(BaseModel):
