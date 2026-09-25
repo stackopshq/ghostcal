@@ -18,9 +18,7 @@ Relevé le 25 septembre 2026.
 
 | Ce qu'il reste | Pourquoi ça ne peut pas se faire ici |
 |---|---|
-| **Réparer `POST /v1/auth/register` sur `cal.ghostsuite.cloud`** | Rend `500` pour toute inscription. Sans lui, pas de compte de démonstration — et personne ne peut ouvrir de compte non plus. Diagnostic et identifiants de requête dans « Notes pour l'examen » |
 | **Refaire les captures** | Deux commandes ; l'outillage est éprouvé, c'est le `CoreSimulator` de la machine qui a lâché. Voir « Captures d'écran » |
-| **Créer le compte de démonstration** | Une commande, dès que le serveur répond : `tools/creer-le-compte-de-revue.sh` |
 | **Mettre la page d'assistance en ligne** | `https://ghostsuite.cloud/ghostcal/` rend 404 ; elle s'écrit ailleurs |
 | Trancher la **note 3 du §740.17(b)** et mener les démarches BIS et ANSSI | Questions de droit ; GhostPass a le même arbitrage en cours |
 | Coller la fiche et répondre au questionnaire de confidentialité | Les réponses exactes sont plus bas, mot pour mot |
@@ -241,7 +239,7 @@ l'application**. Sans compte fourni, le refus est certain.
 | Champ | Valeur |
 |---|---|
 | Serveur à saisir au premier écran | `https://cal.ghostsuite.cloud` |
-| Compte de démonstration | `appstore-review@stackops.ch` — **pas encore créé, voir ci-dessous** |
+| Compte de démonstration | `contact@stackops.ch` — **créé, vérifié et amorcé** |
 | Mot de passe / phrase | **pas écrit ici** — voir ci-dessous |
 
 **L'instance publique est `cal.ghostsuite.cloud`.** Mesurée : `/api/health` rend
@@ -249,52 +247,53 @@ l'application**. Sans compte fourni, le refus est certain.
 `ghostcal.stackops.ch`, qui figure encore dans les tests d'adresse du dépôt, **ne résout
 pas**. C'est l'analogue de la bascule de GhostPass vers `pass.ghostsuite.cloud`.
 
-### Le compte n'a pas pu être créé, et ce n'est pas un détail d'outillage
+### Le compte de démonstration, et les trois murs franchis pour l'obtenir
 
-`POST /v1/auth/register` rend **500** sur cette instance, pour toute inscription valide.
-Ce n'est pas propre à notre charge : trois tentatives, trois adresses différentes, trois
-`500`. Identifiants de requête pour les journaux du serveur :
+Créé le 2026-09-25 sur `contact@stackops.ch`, vérifié, et amorcé sans un refus : huit
+événements, cinq tâches, trois types de rendez-vous, un horaire, trois réunions réservées
+et un sondage voté — le serveur confirme ses propres comptes. C'est le jeu que
+photographient les captures.
 
-    612bff7ad468492ea545e720e9fb39a2    appstore-review@stackops.ch
-    61c24bcd43e64705b09edc70d17c8482    sonde, clés factices
-    e657a502113147e6bd30a26fe55edaa6    même sonde, seconde tentative
+Le parcours a buté sur trois choses, et chacune se présentait comme autre chose qu'elle
+n'était. Elles sont consignées ici parce qu'aucune n'est propre à GhostCal.
 
-**Ce qui est établi**, en resserrant étape par étape :
+**1. `register` rendait `500`.** Brevo refusait l'envoi — `401`, l'adresse de sortie du
+serveur n'était pas encore autorisée chez lui — et l'exception remontait jusqu'à faire
+annuler la transaction. L'échec ressemblait donc à un défaut d'inscription alors que
+c'était un défaut d'envoi de courriel. Résolu le jour même côté exploitation. La
+fragilité de conception qu'il révélait — l'inscription dépendant d'un tiers synchrone —
+est traitée séparément : l'envoi passe désormais par le worker.
 
-| Sonde | Résultat | Ce qu'elle élimine |
-|---|---|---|
-| Mot de passe de 5 caractères | `422 String should have at least 12` | La validation du corps marche |
-| « correct horse battery staple » | `422 this password has appeared in a public data breach` | Le contrôle de fuites marche, et il sort donc sur le réseau sans peine |
-| Phrase forte, clés factices | **500** | L'échec est **après** la validation |
-| `login` sur l'adresse sondée | `401`, et une seconde inscription rend `500` et non `409` | **Aucune ligne n'a été écrite** : la transaction est annulée entière |
+**2. Le lien de vérification menait à `localhost:3001`.** L'instance tournait sans
+`GHOSTCAL_FRONTEND_BASE_URL` et retombait sur la valeur de développement. L'inscription
+réussissait, le courriel partait, et **seul le destinataire voyait la panne**. Le serveur
+n'enregistrait rien. Corrigé côté exploitation, et un validateur refuse désormais de
+démarrer sur une adresse locale hors développement.
 
-L'échec est donc dans `AuthService.register`, après la politique de mot de passe :
-`provision_account`, `store_zk_keys`, ou `_send_verification` — cette dernière écrivant un
-jeton **puis** appelant le service de courriel (Brevo, `GHOSTCAL_BREVO_API_KEY`). Une clé
-absente ou invalide ferait exactement cela. Les journaux du serveur trancheront ; les trois
-identifiants ci-dessus les pointent.
+**3. L'API vit sous `/api`.** `$API/v1/me/organizations` ne rend pas une erreur : il rend
+**la page HTML du client, avec un code 200**. Le script concluait « le compte n'est pas
+exploitable » — en accusant le compte. Deux chemins masquaient le défaut, `register` et
+`login` fonctionnant nus car relayés par le client. La spécification servie à
+`/api/openapi.json` fait foi.
 
-**Bonne nouvelle : `appstore-review@stackops.ch` n'est pas immobilisée.** Les identifiants
-d'adresse sont uniques et une inscription ratée aurait pu la brûler — vérifié, elle est
-libre.
+**Et un quatrième, le plus discret : Cloudflare bannit la signature de `Python-urllib`**
+— `403 error code: 1010`, vingt-trois refus d'affilée sur l'amorçage. Le message ne parle
+ni d'agent utilisateur ni de signature, donc on cherche du côté du jeton. La même leçon
+était écrite dans la fiche de GhostPass depuis des semaines ; elle n'avait pas traversé.
 
-**Une fois le serveur réparé**, une seule commande fait tout :
+**Refaire ou déplacer le compte** tient en une commande :
 
-    GHOSTCAL_PHRASE="$(openssl rand -base64 24)" \
-      ./tools/creer-le-compte-de-revue.sh appstore-review@stackops.ch
+    GHOSTCAL_PHRASE='…' ./tools/creer-le-compte-de-revue.sh <adresse>
 
-Elle fabrique les clés avec le cœur Rust, inscrit le compte, **attend** que le lien de
-vérification reçu par courriel soit suivi — `login` rend `403 email not verified` tant
-qu'il ne l'est pas, et aucun script ne peut franchir cette étape seul —, puis amorce le
-jeu de vitrine : huit événements, cinq tâches, trois liens de réservation, un horaire,
-trois réunions réservées et un sondage voté. Le même jeu que celui des captures.
+Elle fabrique les clés avec le cœur Rust, inscrit, **attend** que le lien reçu par
+courriel soit suivi — aucun script ne franchit cette étape seul, et c'est voulu : un
+compte qu'un script vérifierait seul ne prouverait rien de l'adresse — puis amorce la
+vitrine.
 
-**La phrase ne figure pas dans le dépôt** et le script ne l'imprime pas : elle se passe par
-l'environnement. Un secret en clair dans un dépôt reste dans son historique même retiré.
-
-**Après publication, changez-la ou supprimez le compte** : elle aura transité par App Store
-Connect, dont ce n'est pas le métier de garder des secrets. C'est ce qui a été fait pour
-GhostPass.
+**Choisissez une adresse dont vous savez lire la boîte.** `appstore-review@stackops.ch`
+n'existe pas ; une première inscription y a été lancée sans le vérifier, et le courriel
+est parti dans le vide. Le compte résiduel, non vérifié et vide, est à supprimer côté
+serveur.
 
 **La phrase ne figure pas dans le dépôt.** Un secret en clair dans un dépôt reste dans son
 historique même retiré, et le balayage de secrets le refuserait à juste titre. Elle est à
@@ -424,114 +423,75 @@ réservé par la RFC 2606 qui sert de texte indicatif au champ.
 
 ## Captures d'écran
 
-**L'outillage est éprouvé ; le dépôt ne contient aucune image.** Il faut relancer la
-prise de vue — deux commandes, un quart d'heure.
-
-`tools/ios/captures-appstore.sh` monte un simulateur, y installe l'application, la promène
-devant l'objectif et mesure chaque image. Il a produit **six captures à 1320 × 2868** le
-25 septembre, sur le jeu de vitrine, et elles ont été ouvertes et regardées une par une.
-
-Elles ne sont pas versionnées, et c'est délibéré. Le dépôt portait un jeu antérieur, tiré
-du **banc d'épreuve** : deux rendez-vous sur la journée, et une ligne rouge « Contenu
-illisible — clé manquante » que ce banc dépose exprès pour vérifier qu'elle s'affiche. En
-vitrine, cette ligne se lit comme un bogue. Les garder aurait laissé à portée de main des
-images plausibles et fausses, ce qui est pire que pas d'images : on les téléverse sans les
-regarder. Elles sont donc retirées.
-
-Le jeu de vitrine, lui, n'a pas pu être refait avant la fin de la séance : après une
-vingtaine de cycles création/démarrage/suppression, `CoreSimulator` de cette machine a
-cessé de répondre — `simctl bootstatus` restant en vie indéfiniment, et `simctl spawn` se
-suspendant sur un appareil encore en démarrage. Les deux défauts sont corrigés dans le
-script (attente bornée à trois minutes, et l'ordre des appels remis à l'endroit) ; l'état
-de la machine, lui, demande un `killall -9 com.apple.CoreSimulator.CoreSimulatorService`
-ou un redémarrage.
+**Faites le 2026-09-25, sur le jeu de vitrine, et regardées une par une.** Cette dernière
+phrase est le contrôle qui compte : l'outil mesure les dimensions et compte les teintes,
+ce qui distingue une image vide d'une image pleine — et rien d'autre. Il ne sait pas dire
+qu'un texte est coupé. Une section tronquée à mi-ligne a autant de couleurs qu'une section
+entière.
 
     ./tools/banc-local.sh --vitrine    # PostgreSQL jetable + jeu de vitrine
-    ./tools/ios/captures-appstore.sh   # iPhone 17 Pro Max
+    ./tools/ios/captures-appstore.sh   # iPhone 17 Pro Max, 1320 × 2868
+
+### Les cinq à livrer
 
 | Ordre | Écran | Ce qu'elle montre |
 |---|---|---|
 | 01 | Agenda | Cinq rendez-vous sur la journée, titres, horaires, lieux |
-| 02 | Nouvel événement | Le formulaire **et** la phrase sur ce qui est chiffré — l'argument du produit |
-| 03 | Tâches | Les échéances, dont une en retard |
+| 02 | Nouvel événement | Le formulaire **et** la phrase sur ce qui est chiffré — l'argument du produit, complet et non tronqué |
+| 03 | Tâches | Cinq échéances, dont une en retard, en rouge |
 | 04 | Réunions | Trois réservations, avec le nom des invités **déchiffré sur l'appareil** |
-| 05 | RDV | Les liens de réservation, actifs et fermés, et le bouton de copie |
-| 06 | Réglages | Compte, disponibilités, sécurité — **facultative**, Apple en accepte dix |
+| 05 | RDV | Deux liens actifs, un fermé, et le bouton de copie |
 
-La quatrième est celle qui vaut le plus : « Camille Rossier » y paraît parce que le bloc
+**La quatrième est celle qui vaut le plus.** « Camille Rossier » y paraît parce que le bloc
 `invitee_private`, scellé au X25519 de l'organisation, a été ouvert **par l'application**.
-Le serveur, lui, ne peut pas le lire. C'est la seule capture qui montre le bout en bout à
+Le serveur ne peut pas le lire. C'est la seule capture qui montre le bout en bout à
 l'œuvre plutôt qu'en promesse.
 
-Il manque le **jeu iPad** : l'application se déclare universelle
-(`TARGETED_DEVICE_FAMILY = "1,2"`), et App Store Connect réclame alors les deux.
+### La sixième est produite mais **ne doit pas être livrée**
+
+`06-reglages` porte deux défauts, tous deux invisibles aux contrôles automatiques :
+
+- **« Heures de bureau » est coupé en plein milieu de sa ligne** sous la barre d'onglets.
+  C'est exactement le défaut que GhostPass a livré sur une capture iPad.
+- Le serveur affiché est `127.0.0.1:8099`, l'adresse du banc. Ce n'est pas faux, mais ça
+  annonce un banc d'essai sur une devanture.
+
+Apple en accepte dix et n'en exige pas six. Cinq racontent le produit ; celle-là n'ajoute
+qu'une liste de réglages, et au prix d'un texte tronqué.
+
+### Le jeu iPad existe, et il pose une question de produit
 
     GHOSTCAL_APPAREIL='iPad Pro 13-inch (M4)' ./tools/ios/captures-appstore.sh
 
-App Store Connect réclame **deux jeux** dès lors que l'application se déclare universelle,
-ce qui est le cas (`TARGETED_DEVICE_FAMILY = "1,2"`). Un seul jeu laisse la fiche
-incomplète.
+Six images en 2064 × 2752, **rien de tronqué** — mais c'est une mise en page de téléphone
+étirée sur une tablette : des champs de saisie de deux mille pixels de large pour y écrire
+un titre, des listes perdues dans une page aux deux tiers vide, et la barre d'état blanche
+sur fond clair.
 
-| Jeu | Appareil | Taille | Dossier |
-|---|---|---|---|
-| iPhone | iPhone 17 Pro Max (6,9 ") | 1320 × 2868, **relevée à la prise de vue** | `apps/mobile/AppStore/captures/` |
-| iPad | iPad Pro 13 " | à relever | `apps/mobile/AppStore/captures-ipad/` |
+L'application se déclare universelle (`TARGETED_DEVICE_FAMILY = "1,2"`), et App Store
+Connect réclame alors les deux jeux. **Deux voies, et c'est un arbitrage, pas un défaut à
+corriger au passage :**
 
-    ./tools/banc-local.sh              # PostgreSQL jetable + compte amorcé
-    ./tools/ios/captures-appstore.sh   # iPhone
-    GHOSTCAL_APPAREIL='iPad Pro 13-inch (M4)' ./tools/ios/captures-appstore.sh
+1. **Ne pas se déclarer universelle** — `"1"` au lieu de `"1,2"`. Plus de jeu iPad à
+   fournir, et plus de promesse qu'on ne tient pas. Immédiat.
+2. **Adapter la mise en page** — largeur maximale sur les formulaires, colonnes sur les
+   listes. Un vrai chantier.
 
-### Ce que les premières images ont montré, et qu'aucun contrôle n'aurait vu
+Déclarer un support qu'on n'a pas conçu se paie en avis d'utilisateurs, pas en refus
+d'Apple.
 
-Les images produites passent tous les contrôles automatiques : bonne taille, milliers de
-teintes, fichier présent. Les **ouvrir** a montré trois choses.
+### Pourquoi les images du dépôt sont celles-ci et pas d'autres
 
-1. **Le banc est un banc d'épreuve, pas une vitrine.** Il amorce délibérément un événement
-   scellé sous une autre clé, qui s'affiche en rouge : « Contenu illisible — clé
-   manquante ». C'est un comportement juste, et c'est ce qu'on veut éprouver — mais en
-   devanture, cela se lit comme un bogue. L'agenda ne porte par ailleurs que deux entrées
-   sur une journée, laissant les deux tiers de l'écran vides.
+Le dépôt portait un jeu antérieur tiré du **banc d'épreuve** : deux rendez-vous, et une
+ligne rouge « Contenu illisible — clé manquante » que ce banc dépose exprès pour vérifier
+qu'elle s'affiche. En vitrine, cette ligne se lit comme un bogue. Elles ont été retirées :
+des images plausibles et fausses à portée de main sont pires que pas d'images, parce qu'on
+les téléverse sans les regarder.
 
-2. **Le nom de calendrier par défaut est en anglais** : « My calendar », venu du serveur.
-   Il paraît en clair sur la capture de création d'événement.
+**Les cinq versionnées ici sont celles à téléverser.** Elles vieilliront dès que
+l'interface bougera — les refaire est deux commandes, et il faut les refaire plutôt que de
+les croire.
 
-3. **Quatre écrans n'avaient aucun fond.** `02-nouvel-evenement` sortait sur fond noir,
-   champs blancs, libellés en encre foncée à peine lisibles. J'ai d'abord cru à une
-   capture prise en pleine transition et porté l'attente de 600 ms à deux secondes : la
-   deuxième image était identique. Ce n'était pas la prise de vue, c'était l'écran.
-
-   Le thème pose `scaffoldBackgroundColor: Colors.transparent` — délibérément, le fond
-   étant peint par `FondGhost`. Les cinq onglets en héritent, `EcranDAccueil` les
-   enveloppant tous. Mais un écran **poussé** est frère de l'accueil dans la pile, pas son
-   enfant : `nouvel_evenement`, `profil`, `sondages` (deux écrans) et `equipe` n'héritaient
-   de rien. Corrigé, avec `test/fond_test.dart` qui le garde et qui a été éprouvé par
-   mutation dans les deux sens.
-
-   **Aucun test ne le voyait, et c'est le point.** Les champs étaient présents, les
-   boutons réagissaient, les valeurs remontaient : tout fonctionnait, seule la peinture
-   manquait. Il a fallu ouvrir une image.
-
-**Deux écrans ne sont pas photographiés du tout** : « Réunions » et « Sondages ». Le banc
-n'amorce ni réservation ni sondage — mesuré, `/v1/me/meetings` et `/v1/me/polls` rendent
-des listes vides. Les photographier donnerait deux états vides en vitrine, ce qui est pire
-que deux captures en moins. Les obtenir demande d'étendre `tools/amorcer_donnees.py` : un
-sondage se crée par `POST /v1/me/polls` puis se vote par `POST /v1/polls/{slug}/votes` ;
-une réservation par `POST /v1/orgs/{slug}/event-types/{slug}/bookings`, ce qui suppose un
-horaire de disponibilité que le banc ne pose pas encore.
-
-### Ce qu'il reste à décider avant de verser un jeu
-
-- ~~Un amorçage de vitrine, distinct de l'amorçage d'épreuve.~~ **Fait** :
-  `./tools/banc-local.sh --vitrine`, qui appelle `tools/amorcer_vitrine.py`. Aucun contenu
-  illisible, un horaire de disponibilité, trois réunions réellement réservées depuis la
-  page publique, un sondage voté.
-- ~~Le scénario.~~ **Fait**, six écrans. Le sixième (Réglages) reste facultatif.
-- **Ouvrir chaque image et la regarder.** Fait pour le jeu iPhone ; **à refaire pour
-  l'iPad**. Les contrôles automatiques distinguent une image vide d'une image pleine ; ils
-  ne savent pas dire qu'un texte est **coupé sous la ligne de flottaison**. Une section
-  tronquée à mi-ligne a autant de couleurs qu'une section entière et se lit comme complète.
-  GhostPass a livré une capture iPad dans cet état — et c'est justement l'iPad qui manque
-  ici.
 
 ## Ce qui reste à trancher
 

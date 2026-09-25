@@ -71,7 +71,23 @@ dire "Serveur"
 #
 # Constaté le 2026-09-25 sur `cal.ghostsuite.cloud`. La spécification servie à
 # `/api/openapi.json` fait foi : elle liste bien `/v1/me/organizations`.
-BASE="$API/api"
+# Le préfixe se DÉCOUVRE, il ne se suppose pas : c'est un fait de déploiement, pas une
+# propriété de l'application. En production, un proxy monte l'API sous `/api` et sert le
+# client à la racine. Le banc local, lui, expose uvicorn directement — `/health` répond,
+# `/api/health` rend 404. Coder `/api` en dur réparerait la production et casserait le banc.
+BASE=""
+for CANDIDAT in "$API" "$API/api"; do
+  if [[ "$(curl -s --max-time 10 "$CANDIDAT/health" || true)" == *'"status":"ok"'* ]]; then
+    BASE="$CANDIDAT"
+    break
+  fi
+done
+if [[ -z "$BASE" ]]; then
+  rouge "Pas de GhostCal en bonne santé sur $API ni sur $API/api"
+  echo "  Ni /health ni /api/health ne rendent « ok ». Le serveur est-il lancé ?" >&2
+  exit 1
+fi
+[[ "$BASE" == "$API" ]] || gris "API trouvée sous /api"
 
 SANTE="$(curl -s --max-time 10 "$BASE/health" || true)"
 if [[ "$SANTE" != *'"status":"ok"'* ]]; then
