@@ -25,15 +25,17 @@ import 'package:ghostcal/src/rust/frb_generated.dart';
 /// dimensions **natives** de la dalle et refuse toute image redimensionnée après coup.
 /// Seul `simctl` les produit.
 ///
-/// ─── Ce que ce scénario ne photographie pas, et pourquoi ───
+/// ─── Le jeu de données ───
 ///
-/// **Réunions** et **Sondages** sont absents. Ce n'est pas un oubli : `tools/banc-local.sh`
-/// n'amorce ni réservation ni sondage — mesuré, `/v1/me/meetings` et `/v1/me/polls` rendent
-/// des listes vides. Les photographier donnerait deux écrans d'état vide en vitrine, ce qui
-/// est pire que deux captures en moins.
+/// Ce scénario suppose `./tools/banc-local.sh --vitrine`, et **pas** le banc d'épreuve.
+/// Celui-ci dépose exprès un événement scellé sous une autre clé, qui s'affiche en rouge
+/// « Contenu illisible — clé manquante » : un comportement juste, qu'on veut éprouver, et
+/// qui en devanture se lit comme un bogue. La première version de ces captures en portait
+/// une, sur une journée à deux entrées laissant les deux tiers de l'écran vides.
 ///
-/// Les ajouter demande d'amorcer une réservation depuis la page publique et un sondage avec
-/// des votes. C'est un travail sur le banc, pas sur ce fichier.
+/// Le jeu de vitrine amorce en plus un horaire de disponibilité, une réunion réellement
+/// réservée depuis la page publique et un sondage voté — sans quoi « Réunions » et
+/// « Sondages » seraient des écrans vides.
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -116,23 +118,24 @@ void main() {
     await tester.enterText(find.byKey(const Key('champ.phrase')), phrase);
     await tester.pumpAndSettle();
 
-    // On valide au clavier plutôt qu'en touchant « Se connecter », et ce n'est pas un
-    // contournement : c'est le seul chemin fiable, pour une raison qui mérite d'être
-    // écrite.
+    // On valide au clavier plutôt qu'en touchant « Se connecter ».
     //
-    // Le bouton est désactivé tant que `_phrase.text` est vide — mais `_phrase` n'a
-    // **aucun écouteur**, et rien dans `connexion.dart` ne reconstruit la carte quand le
-    // texte change. Dans l'application, il se réactive quand même : le clavier logiciel
-    // qui se lève modifie `MediaQuery.viewInsets`, ce qui déclenche une reconstruction.
-    // L'état du bouton dépend donc d'un effet de bord du clavier, pas du texte saisi.
+    // Ce qui est **mesuré** : toucher le bouton ne déclenchait rien. `flutter_test` le
+    // signalait — « derived an Offset that would not hit test on the specified widget » —
+    // et le résultat du test de frappe montrait un `IgnorePointer`, donc un bouton
+    // désactivé. Le scénario continuait malgré tout, parce que c'est un **avertissement**
+    // et non une erreur, jusqu'à expirer quarante secondes plus tard sur l'écran de
+    // connexion. Un clic qui ne clique pas et ne se plaint qu'en passant.
     //
-    // `enterText` ne lève aucun clavier. Le bouton restait désactivé, le clic tombait sur
-    // un `IgnorePointer`, et `flutter_test` ne le signalait qu'en **avertissement** — le
-    // scénario continuait comme si de rien n'était, jusqu'à expirer quarante secondes plus
-    // tard sur un écran de connexion.
+    // Ce qui **n'est pas établi** : pourquoi. `_champDePhrase` porte bien un
+    // `onChanged: (_) => setState(() {})`, qui devrait rallumer le bouton dès la première
+    // frappe. La première version de ce commentaire affirmait le contraire — que rien ne
+    // reconstruisait la carte — et c'était faux : je ne l'avais pas lu.
     //
     // `receiveAction(done)` emprunte `onSubmitted`, qui appelle `_valider()` directement.
-    // C'est ce que fait un utilisateur qui appuie sur Entrée.
+    // C'est le geste d'un utilisateur qui appuie sur Entrée, et il ne dépend d'aucun état
+    // de bouton. À préférer ici pour cette seule raison — pas parce que le bouton serait
+    // cassé dans le produit : rien ne l'a montré.
     await tester.testTextInput.receiveAction(TextInputAction.done);
 
     // La connexion parle au réseau : `pumpAndSettle` seul rendrait la main avant la
@@ -184,17 +187,26 @@ void main() {
     await tester.pumpAndSettle();
     await photographier(tester, '03-taches');
 
-    // ── 04 · Liens de réservation ──
+    // ── 04 · Réunions réservées ──
+    //
+    // L'écran que le jeu d'épreuve ne pouvait pas montrer : il faut une réservation prise
+    // depuis la page publique, donc un horaire de disponibilité, que le banc d'épreuve ne
+    // posait pas.
+    await tester.tap(find.text('Réunions'));
+    await tester.pumpAndSettle();
+    await photographier(tester, '04-reunions');
+
+    // ── 05 · Liens de réservation ──
     await tester.tap(find.text('RDV'));
     await tester.pumpAndSettle();
-    await photographier(tester, '04-rendez-vous');
+    await photographier(tester, '05-rendez-vous');
 
-    // ── 05 · Réglages ──
+    // ── 06 · Réglages ──
     //
-    // Retenu plutôt que « Réunions » : celui-ci a du contenu (organisation, disponibilités,
-    // sécurité), l'autre serait vide faute d'amorçage.
+    // La sixième est **facultative** : Apple en accepte dix, et celle-ci montre le compte,
+    // les disponibilités et la sécurité. À garder ou à écarter au montage de la fiche.
     await tester.tap(find.text('Réglages'));
     await tester.pumpAndSettle();
-    await photographier(tester, '05-reglages');
+    await photographier(tester, '06-reglages');
   }, timeout: const Timeout(Duration(minutes: 5)));
 }

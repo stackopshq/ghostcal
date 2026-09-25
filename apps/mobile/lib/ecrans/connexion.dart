@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/biometrie.dart';
 import '../services/session.dart';
 import '../theme.dart';
+import '../l10n/generated/app_localisations.dart';
 
 /// Entrer dans GhostCal — **le même écran que le déverrouillage de GhostPass**, aux
 /// couleurs et à la marque de GhostCal.
@@ -112,7 +113,7 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
     // plus. Sans ce chemin, l'écran se contenterait de ne plus afficher le bouton, et la
     // garantie jouerait sans que personne ne l'apprenne.
     if (etat == Issue.invalidee || etat == Issue.echec) {
-      await _traiter(Rappel(etat, detail: 'le sceau est illisible'));
+      await _traiter(Rappel(etat, detail: L.of(context).sceauIllisible));
       return;
     }
     // Troisième chemin : la condition ne devient vraie qu'**ici**, après deux appels de
@@ -170,9 +171,7 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
           setState(() {
             _scellee = false;
             _phrase.clear();
-            _motDeLaBiometrie =
-                "La phrase scellée n'ouvre plus ce coffre — elle a sans doute changé "
-                "depuis. Tapez-la pour la resceller.";
+            _motDeLaBiometrie = L.of(context).phraseScelleeObsolete;
           });
         }
       case Issue.refusee:
@@ -195,15 +194,13 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
           // Android, `flutter_secure_storage` perd le type de l'exception, et un sceau
           // mort par nouvel enrôlement se présente comme un sceau mort par changement
           // d'algorithme. La conduite à tenir est la même, et c'est elle qu'on énonce.
-          _motDeLaBiometrie =
-              "L'ouverture par ${_empreinte?.nom ?? 'la biométrie'} a été désactivée : "
-              "le sceau posé sur cet appareil n'est plus lisible — le plus souvent parce "
-              "qu'une biométrie y a été ajoutée ou retirée. Tapez votre phrase pour la "
-              "resceller.";
+          _motDeLaBiometrie = L.of(context).biometrieDesactivee(
+              _empreinte?.nom ?? L.of(context).laBiometrie);
         });
       case Issue.echec:
-        setState(() => _motDeLaBiometrie =
-            "Le magasin sécurisé n'a pas pu être lu : ${rappel.detail ?? 'raison inconnue'}.");
+        setState(() => _motDeLaBiometrie = L
+            .of(context)
+            .magasinIllisible(rappel.detail ?? L.of(context).raisonInconnue));
     }
   }
 
@@ -297,8 +294,8 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
         const SizedBox(height: 2),
         Text(
           _reprise || _coffreFerme
-              ? 'Coffre enregistré sur cet appareil'
-              : 'Agenda chiffré de bout en bout',
+              ? L.of(context).coffreEnregistre
+              : L.of(context).agendaChiffre,
           style: TextStyle(fontSize: 13, color: gc.estompe),
         ),
       ],
@@ -337,7 +334,9 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
                     width: 18,
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: Gc.surAccent))
-                : Text(_coffreFerme || _reprise ? 'Déverrouiller' : 'Se connecter'),
+                : Text(_coffreFerme || _reprise
+                    ? L.of(context).deverrouiller
+                    : L.of(context).seConnecter),
           ),
           ..._biometrique(gc),
           ..._liens(gc),
@@ -362,7 +361,7 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
         // c'est une **action**, et sans elle un lecteur d'écran annoncerait « bouton »
         // sans dire lequel.
         Semantics(
-          label: 'Ouvrir avec ${empreinte.nom}',
+          label: L.of(context).ouvrirAvec(empreinte.nom),
           button: true,
           child: OutlinedButton(
             onPressed: session.occupe ? null : _ouvrirParBiometrie,
@@ -395,11 +394,11 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
           controlAffinity: ListTileControlAffinity.leading,
           dense: true,
           title: Text(
-            'Ouvrir avec ${empreinte.nom}',
+            L.of(context).ouvrirAvec(empreinte.nom),
             style: TextStyle(color: gc.encre, fontSize: 14),
           ),
           subtitle: Text(
-            'La phrase est scellée sur cet appareil, relisible par ${empreinte.nom} seul.',
+            L.of(context).phraseSceleeSurAppareil(empreinte.nom),
             style: TextStyle(color: gc.estompe, fontSize: 12),
           ),
         ),
@@ -415,8 +414,8 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
         _avertissement(
           gc.estompe,
           Icons.lock_outline,
-          'Vous êtes connecté, mais le coffre est resté fermé : '
-          '${session.raisonDuCoffre ?? "cette phrase ne l'ouvre pas."}',
+          L.of(context).connecteMaisCoffreFerme(
+              session.raisonDuCoffre ?? L.of(context).phraseNOuvrePasLeCoffre),
         ),
         const SizedBox(height: 18),
         _champDePhrase(gc),
@@ -441,10 +440,10 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
         clavier: TextInputType.url,
       ),
       const SizedBox(height: 18),
-      _champ(gc, 'Adresse e-mail',
+      _champ(gc, L.of(context).adresseElectronique,
           controleur: _email,
           cle: const Key('champ.email'),
-          indice: 'vous@exemple.ch',
+          indice: L.of(context).exempleAdresse,
           clavier: TextInputType.emailAddress),
       const SizedBox(height: 18),
       _champDePhrase(gc),
@@ -459,12 +458,12 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
         _lien(
           gc,
           _parRecuperation
-              ? 'Utiliser mon mot de passe'
-              : 'Utiliser ma phrase de récupération',
+              ? L.of(context).utiliserMonMotDePasse
+              : L.of(context).utiliserMaPhraseDeRecuperation,
           () => setState(() => _parRecuperation = !_parRecuperation),
         ),
       if (_reprise)
-        _lien(gc, 'Utiliser un autre compte', () {
+        _lien(gc, L.of(context).utiliserUnAutreCompte, () {
           setState(() {
             _changerDeCompte = true;
             _parRecuperation = false;
@@ -556,7 +555,9 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
 
   Widget _champDePhrase(Gc gc) => _champ(
         gc,
-        _parRecuperation ? 'Phrase de récupération' : 'Mot de passe maître',
+        _parRecuperation
+            ? L.of(context).phraseDeRecuperation
+            : L.of(context).motDePasseMaitre,
         enfant: TextField(
           key: const Key('champ.phrase'),
           controller: _phrase,
@@ -568,7 +569,7 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
           onChanged: (_) => setState(() {}),
           onSubmitted: (_) => _valider(),
           decoration: InputDecoration(
-            hintText: 'Votre mot de passe',
+            hintText: L.of(context).votreMotDePasse,
             suffixIcon: IconButton(
               icon: Icon(_phraseVisible ? Icons.visibility_off : Icons.visibility),
               // Une phrase de récupération fait douze mots : la taper à l'aveugle

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../services/reglages.dart';
 import '../services/session.dart';
 import '../theme.dart';
+import '../l10n/generated/app_localisations.dart';
 
 /// Les sondages de créneaux : ce que les invités ont voté, et le créneau qu'on retient.
 class EcranDeSondages extends StatefulWidget {
@@ -60,7 +61,7 @@ class _EcranDeSondagesState extends State<EcranDeSondages> {
     // Vu sur une capture d'écran ; aucun test ne le voyait.
     return FondGhost(
       child: Scaffold(
-        appBar: AppBar(title: const Text('Sondages')),
+        appBar: AppBar(title: Text(L.of(context).sondages)),
         body: RefreshIndicator(onRefresh: _recharger, child: _corps(gc)),
     ),
     );
@@ -78,7 +79,7 @@ class _EcranDeSondagesState extends State<EcranDeSondages> {
     if (sondages.isEmpty) {
       return ListView(
         padding: const EdgeInsets.all(20),
-        children: [Text('Aucun sondage.', style: TextStyle(color: gc.estompe))],
+        children: [Text(L.of(context).aucunSondage, style: TextStyle(color: gc.estompe))],
       );
     }
     return ListView.separated(
@@ -91,8 +92,8 @@ class _EcranDeSondagesState extends State<EcranDeSondages> {
           title: Text(sondage.titre,
               style: TextStyle(color: sondage.ouvert ? gc.encre : gc.estompe)),
           subtitle: Text(
-            '${sondage.nombreDOptions} créneaux · ${sondage.nombreDeVotes} votes'
-            '${sondage.ouvert ? '' : ' · clos'}',
+            '${L.of(context).creneauxEtVotes(sondage.nombreDOptions, sondage.nombreDeVotes)}'
+            '${sondage.ouvert ? '' : ' · ${L.of(context).clos}'}',
             style: TextStyle(fontSize: 12, color: gc.estompe),
           ),
           trailing: const Icon(Icons.chevron_right),
@@ -153,10 +154,10 @@ class _EcranDUnSondageState extends State<EcranDUnSondage> {
     final confirme = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Retenir ce créneau ?'),
+        title: Text(L.of(context).retenirCeCreneauQuestion),
         content: Text(
-          'Le sondage se ferme et l’événement est créé le '
-          '${DateFormat.yMMMMEEEEd('fr_FR').add_Hm().format(option.debut)}.',
+          L.of(context).sondageSeFermeEtEvenementCree(
+              DateFormat.yMMMMEEEEd('fr_FR').add_Hm().format(option.debut)),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
@@ -203,7 +204,7 @@ class _EcranDUnSondageState extends State<EcranDUnSondage> {
             if (detail != null && detail.ouvert)
               IconButton(
                 icon: const Icon(Icons.delete_outline),
-                tooltip: 'Supprimer le sondage',
+                tooltip: L.of(context).supprimerLeSondage,
                 onPressed: _occupe ? null : _supprimer,
               ),
           ],
@@ -231,7 +232,7 @@ class _EcranDUnSondageState extends State<EcranDUnSondage> {
                     style: TextStyle(color: gc.estompe, fontSize: 13),
                   ),
                   const SizedBox(height: 16),
-                  _titre(gc, 'Créneaux'),
+                  _titre(gc, L.of(context).creneaux),
                   for (final option in detail.options) _creneau(gc, detail, option),
                   if (detail.votants.isNotEmpty) ...[
                     const SizedBox(height: 20),
@@ -245,9 +246,11 @@ class _EcranDUnSondageState extends State<EcranDUnSondage> {
                           style: TextStyle(color: gc.encre),
                         ),
                         subtitle: Text(
-                          '${votant.options.length} créneau'
-                          '${votant.options.length > 1 ? 'x' : ''} retenu'
-                          '${votant.options.length > 1 ? 's' : ''}',
+                          // Le pluriel passe par ICU plutôt que par trois
+                          // interpolations conditionnelles : « créneau/créneaux » et
+                          // « retenu/retenus » ne s'accordent pas de la même façon
+                          // d'une langue à l'autre, et l'anglais n'a pas de « x ».
+                          L.of(context).creneauxRetenus(votant.options.length),
                           style: TextStyle(fontSize: 12, color: gc.estompe),
                         ),
                       ),
@@ -304,7 +307,7 @@ class _EcranDUnSondageState extends State<EcranDUnSondage> {
               children: [
                 Icon(Icons.check_circle, size: 16, color: gc.succes),
                 const SizedBox(width: 6),
-                Text('Créneau retenu',
+                Text(L.of(context).creneauRetenu,
                     style: TextStyle(color: gc.succes, fontSize: 12)),
               ],
             ),
@@ -314,7 +317,7 @@ class _EcranDUnSondageState extends State<EcranDUnSondage> {
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: _occupe ? null : () => _finaliser(option),
-                child: const Text('Retenir ce créneau'),
+                child: Text(L.of(context).retenirCeCreneau),
               ),
             ),
           ],
@@ -329,8 +332,8 @@ class _EcranDUnSondageState extends State<EcranDUnSondage> {
     final confirme = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Supprimer ce sondage ?'),
-        content: const Text('Les votes déjà exprimés seront perdus.'),
+        title: Text(L.of(context).supprimerCeSondage),
+        content: Text(L.of(context).votesPerdus),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
           TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Supprimer')),

@@ -10,6 +10,14 @@ import 'package:ghostcal/services/api.dart';
 import 'package:ghostcal/services/reglages.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:flutter/widgets.dart';
+import 'package:ghostcal/l10n/generated/app_localisations.dart';
+
+// Les deux traductions, chargées directement : `roleLisible` prend un `L` et n'a besoin
+// d'aucun arbre de widgets. Les instancier ici permet d'éprouver les deux langues dans le
+// même test, plutôt que de croire l'une sur parole.
+final fr = lookupL(const Locale('fr'));
+final en = lookupL(const Locale('en'));
 
 void main() {
   group('La convention des jours', () {
@@ -100,17 +108,20 @@ void main() {
     Membre membre(String role) => Membre.depuisJson(
         {'user_id': 'u', 'name': 'X', 'email': 'x@example.com', 'role': role});
 
-    test('les rôles connus se disent en français', () {
-      expect(membre('owner').roleLisible, 'Propriétaire');
-      expect(membre('admin').roleLisible, 'Administrateur');
-      expect(membre('member').roleLisible, 'Membre');
+    test('les rôles connus se disent dans les deux langues', () {
+      expect(membre('owner').roleLisible(fr), 'Propriétaire');
+      expect(membre('admin').roleLisible(fr), 'Administrateur');
+      expect(membre('member').roleLisible(fr), 'Membre');
+      expect(membre('owner').roleLisible(en), 'Owner');
+      expect(membre('member').roleLisible(en), 'Member');
     });
 
     test("un rôle inconnu s'affiche tel quel", () {
       // Un serveur plus récent peut en introduire. Le masquer, ou le ramener à « membre »,
       // présenterait quelqu'un comme moins puissant qu'il n'est — ce qui est pire que de
       // l'afficher en anglais.
-      expect(membre('billing_manager').roleLisible, 'billing_manager');
+      expect(membre('billing_manager').roleLisible(fr), 'billing_manager');
+      expect(membre('billing_manager').roleLisible(en), 'billing_manager');
     });
   });
 }

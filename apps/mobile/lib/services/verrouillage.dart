@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'trousseau.dart';
+import '../l10n/generated/app_localisations.dart';
 
 /// Au bout de combien de temps le coffre se referme quand l'application passe en arrière-plan.
 ///
@@ -10,17 +11,32 @@ import 'trousseau.dart';
 /// réglable, **immédiat par défaut** : c'est le choix sûr, et celui qui se desserre
 /// sciemment.
 enum DelaiDeVerrouillage {
-  immediat(null, 'Immédiatement'),
-  uneMinute(Duration(minutes: 1), 'Après 1 minute'),
-  cinqMinutes(Duration(minutes: 5), 'Après 5 minutes'),
-  quinzeMinutes(Duration(minutes: 15), 'Après 15 minutes');
+  immediat(null),
+  uneMinute(Duration(minutes: 1)),
+  cinqMinutes(Duration(minutes: 5)),
+  quinzeMinutes(Duration(minutes: 15));
 
-  const DelaiDeVerrouillage(this.delai, this.libelle);
+  const DelaiDeVerrouillage(this.delai);
+
+  /// Le libellé, dans la langue de l'appareil.
+  ///
+  /// C'était une constante française portée par l'énumération. Une énumération est une
+  /// donnée : le texte qui la nomme dépend de la langue et n'a rien à y faire en dur.
+  ///
+  /// La correspondance reste ici, collée aux valeurs, parce qu'un `switch` sur une
+  /// énumération est **exhaustif** : ajouter un délai sans lui donner de libellé ne
+  /// compile pas. Une table posée ailleurs laisserait passer l'oubli, et l'écran
+  /// afficherait un vide là où un délai devrait se lire.
+  String libelle(L l) => switch (this) {
+        DelaiDeVerrouillage.immediat => l.verrouillageImmediat,
+        DelaiDeVerrouillage.uneMinute => l.verrouillage1Minute,
+        DelaiDeVerrouillage.cinqMinutes => l.verrouillage5Minutes,
+        DelaiDeVerrouillage.quinzeMinutes => l.verrouillage15Minutes,
+      };
 
   /// Nul veut dire « tout de suite », et non « jamais ». La distinction compte : un nul lu
   /// comme « pas de verrouillage » ouvrirait le coffre en grand.
   final Duration? delai;
-  final String libelle;
 }
 
 /// Le réglage, retenu entre deux lancements.

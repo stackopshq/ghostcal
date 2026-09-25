@@ -8,6 +8,7 @@ import 'reglages.dart';
 import 'reunions.dart';
 import 'types_de_rendez_vous.dart';
 import 'taches.dart';
+import '../l10n/generated/app_localisations.dart';
 
 /// L'application une fois le coffre ouvert.
 ///
@@ -94,12 +95,21 @@ class _EcranDAccueilState extends State<EcranDAccueil> with WidgetsBindingObserv
           indicatorColor: Gc.of(context).accent.withValues(alpha: 0.18),
           selectedIndex: _onglet,
           onDestinationSelected: (i) => setState(() => _onglet = i),
-          destinations: const [
-            NavigationDestination(icon: Icon(Icons.calendar_today), label: 'Agenda'),
-            NavigationDestination(icon: Icon(Icons.check_circle_outline), label: 'Tâches'),
-            NavigationDestination(icon: Icon(Icons.groups_outlined), label: 'Réunions'),
-            NavigationDestination(icon: Icon(Icons.event_available_outlined), label: 'RDV'),
-            NavigationDestination(icon: Icon(Icons.settings), label: 'Réglages'),
+          // `const` a sauté : les libellés viennent maintenant de `L.of(context)`, qui
+          // dépend du contexte et ne peut donc pas être constant. Le laisser ferait
+          // échouer la compilation sur « Arguments of a constant creation must be
+          // constant expressions », un message qui ne nomme pas la cause.
+          destinations: [
+            NavigationDestination(
+                icon: const Icon(Icons.calendar_today), label: L.of(context).ongletAgenda),
+            NavigationDestination(
+                icon: const Icon(Icons.check_circle_outline), label: L.of(context).ongletTaches),
+            NavigationDestination(
+                icon: const Icon(Icons.groups_outlined), label: L.of(context).ongletReunions),
+            NavigationDestination(
+                icon: const Icon(Icons.event_available_outlined), label: L.of(context).ongletRdv),
+            NavigationDestination(
+                icon: const Icon(Icons.settings), label: L.of(context).ongletReglages),
           ],
         ),
       ),

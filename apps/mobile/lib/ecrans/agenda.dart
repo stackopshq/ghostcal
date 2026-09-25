@@ -6,6 +6,7 @@ import '../services/session.dart';
 import '../services/verrouillage.dart';
 import '../theme.dart';
 import 'nouvel_evenement.dart';
+import '../l10n/generated/app_localisations.dart';
 
 /// L'agenda du jour, jour par jour.
 ///
@@ -83,7 +84,21 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
     final inscriptibles = _calendriers.where((c) => c.inscriptible).toList();
     return Scaffold(
       appBar: AppBar(
-        title: Text(DateFormat.yMMMMEEEEd('fr_FR').format(_jour)),
+        // `FittedBox` plutôt qu'une troncature. « vendredi 25 septembre 2026 » ne tient
+        // pas à côté de trois boutons, et la barre coupait l'année : « vendredi
+        // 25 septembre 20… ». Vu sur la première capture App Store.
+        //
+        // Une année tronquée n'est pas une gêne d'affichage, c'est une information
+        // fausse : en naviguant loin, rien ne dit plus de quelle année on parle. Réduire
+        // le corps garde la date entière ; la couper la rend muette sur ce qui compte.
+        //
+        // `alignment` à gauche pour que la date reste alignée quand elle rétrécit, et
+        // `BoxFit.scaleDown` pour ne jamais **agrandir** un texte court.
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(DateFormat.yMMMMEEEEd('fr_FR').format(_jour)),
+        ),
         actions: [
           // Un cadenas plutôt que « Verrouiller » : la barre porte déjà trois flèches et
           // une date longue, et le mot y prendrait la place des jours.
@@ -102,14 +117,14 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
             builder: (_, _) => widget.verrouillage.cadenasVisible
                 ? IconButton(
                     icon: const Icon(Icons.lock_outline),
-                    tooltip: 'Verrouiller le coffre',
+                    tooltip: L.of(context).verrouillerLeCoffre,
                     onPressed: widget.session.verrouiller,
                   )
                 : const SizedBox.shrink(),
           ),
           IconButton(
             icon: const Icon(Icons.chevron_left),
-            tooltip: 'Jour précédent',
+            tooltip: L.of(context).jourPrecedent,
             onPressed: () => _deplacer(-1),
           ),
           IconButton(
@@ -122,7 +137,7 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
           ),
           IconButton(
             icon: const Icon(Icons.chevron_right),
-            tooltip: 'Jour suivant',
+            tooltip: L.of(context).jourSuivant,
             onPressed: () => _deplacer(1),
           ),
         ],
@@ -139,7 +154,7 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
               // deux plutôt qu'un seul, pour qu'un troisième onglet ne réveille pas le
               // défaut en silence.
               heroTag: 'agenda',
-              tooltip: 'Nouvel événement',
+              tooltip: L.of(context).nouvelEvenement,
               onPressed: () async {
                 final cree = await Navigator.of(context).push<bool>(
                   MaterialPageRoute(
@@ -176,7 +191,7 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
       return ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text('Rien ce jour-là.', style: TextStyle(color: gc.estompe)),
+          Text(L.of(context).rienCeJourLa, style: TextStyle(color: gc.estompe)),
           if (_charge) const LinearProgressIndicator(),
         ],
       );
@@ -191,7 +206,7 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
 
   Widget _ligne(Gc gc, LigneDAgenda ligne) {
     final heure = ligne.journeeEntiere
-        ? 'Journée'
+        ? L.of(context).journee
         : '${DateFormat.Hm().format(ligne.debut)} – ${DateFormat.Hm().format(ligne.fin)}';
 
     // La règle qui traverse toute la suite : ce qui ne se déchiffre pas s'affiche quand
@@ -201,11 +216,11 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
       ProvenanceDuTitre.dechiffre => (ligne.titre, TextStyle(color: gc.encre)),
       ProvenanceDuTitre.enClair => (ligne.titre, TextStyle(color: gc.encre)),
       ProvenanceDuTitre.illisible => (
-          'Contenu illisible — clé manquante',
+          L.of(context).contenuIllisible,
           TextStyle(color: gc.danger, fontStyle: FontStyle.italic)
         ),
       ProvenanceDuTitre.sansTitre => (
-          'Sans titre',
+          L.of(context).sansTitre,
           TextStyle(color: gc.estompe, fontStyle: FontStyle.italic)
         ),
     };

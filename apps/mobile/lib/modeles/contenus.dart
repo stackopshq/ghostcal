@@ -87,14 +87,32 @@ class ContenuDInvite {
     try {
       final json = jsonDecode(texte);
       if (json is! Map<String, dynamic>) return null;
+      // **Un champ absent n'est pas un contenu corrompu**, et la nuance décidait de ce
+      // que l'écran affichait.
+      //
+      // Ces trois clés étaient toutes exigées. Une réservation sans notes — le cas
+      // ordinaire d'un invité qui n'écrit rien — rendait `null`, et l'écran Réunions
+      // annonçait « nom illisible » en rouge, à côté d'une adresse parfaitement lisible.
+      // Le sceau s'était pourtant ouvert sans peine : seule une clé facultative manquait.
+      // Vu sur la capture App Store du 25 septembre, jamais en test.
+      //
+      // « Illisible » veut dire « la clé n'ouvre pas ». Le dire quand un champ est
+      // simplement vide accuse la cryptographie d'une panne qui n'a pas eu lieu, et
+      // inquiète sur ce qui marche.
+      //
+      // Le vrai échec de déchiffrement est **déjà** distingué en amont : `auth.ouvrir`
+      // rend `null`, et l'appelant choisit alors « illisible ». Ici, on tient des octets
+      // qu'on a su ouvrir — donc les nôtres. Être tolérant sur des champs facultatifs
+      // n'ouvre aucune porte : un document qui n'est pas un objet reste refusé.
       final nom = json['name'];
       final notes = json['notes'];
       final reponses = json['answers'];
-      if (nom is! String || notes is! String || reponses is! Map) return null;
       return ContenuDInvite(
-        name: nom,
-        answers: reponses.map((cle, valeur) => MapEntry('$cle', '$valeur')),
-        notes: notes,
+        name: nom is String ? nom : '',
+        answers: reponses is Map
+            ? reponses.map((cle, valeur) => MapEntry('$cle', '$valeur'))
+            : const <String, String>{},
+        notes: notes is String ? notes : '',
       );
     } on FormatException {
       return null;

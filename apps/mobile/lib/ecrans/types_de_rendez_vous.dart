@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../services/session.dart';
 import '../services/types_de_rendez_vous.dart';
 import '../theme.dart';
+import '../l10n/generated/app_localisations.dart';
 
 /// Ce qu'on propose à réserver : vérifier ce qui est ouvert, partager un lien, couper un
 /// créneau qu'on ne veut plus.
@@ -62,7 +63,7 @@ class _EcranDeTypesDeRendezVousState extends State<EcranDeTypesDeRendezVous> {
   Widget build(BuildContext context) {
     final gc = Gc.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Rendez-vous')),
+      appBar: AppBar(title: Text(L.of(context).rendezVous)),
       body: RefreshIndicator(onRefresh: _recharger, child: _corps(gc)),
     );
   }
@@ -80,11 +81,10 @@ class _EcranDeTypesDeRendezVousState extends State<EcranDeTypesDeRendezVous> {
       return ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text('Aucun type de rendez-vous.', style: TextStyle(color: gc.estompe)),
+          Text(L.of(context).aucunTypeDeRendezVous, style: TextStyle(color: gc.estompe)),
           const SizedBox(height: 8),
           Text(
-            'Ils se créent depuis le web : une quinzaine de réglages qui se règlent mal '
-            'à un pouce.',
+            L.of(context).typesCreesDepuisLeWeb,
             style: TextStyle(color: gc.estompe, fontSize: 12),
           ),
         ],
@@ -110,7 +110,7 @@ class _EcranDeTypesDeRendezVousState extends State<EcranDeTypesDeRendezVous> {
       subtitle: Text(
         [
           '${type.duree} min',
-          if (!type.actif) 'fermé',
+          if (!type.actif) L.of(context).ferme,
         ].join(' · '),
         style: TextStyle(fontSize: 12, color: type.actif ? gc.estompe : gc.danger),
       ),
@@ -120,14 +120,14 @@ class _EcranDeTypesDeRendezVousState extends State<EcranDeTypesDeRendezVous> {
           if (lien != null)
             IconButton(
               icon: const Icon(Icons.link),
-              tooltip: 'Copier le lien de réservation',
+              tooltip: L.of(context).copierLeLienDeReservation,
               onPressed: () async {
                 await Clipboard.setData(ClipboardData(text: lien.toString()));
                 // `mounted` de l'État, pas du contexte : c'est celui-là qui garantit que
                 // l'écran existe encore après l'attente.
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Lien copié : $lien')),
+                  SnackBar(content: Text(L.of(context).lienCopie(lien.toString()))),
                 );
               },
             ),

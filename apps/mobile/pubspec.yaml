@@ -73,6 +73,11 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
+  # Exigé par `flutter gen-l10n` : sans lui, la génération s'arrête en disant que le code
+  # produit « ne sera pas importable ». Le message est juste et se lit mal — il décrit la
+  # conséquence, pas le réglage manquant.
+  generate: true
+
   assets:
     # Rendus par tools/brand/render-assets.sh depuis le SVG de la charte. Ce sont des
     # sorties : les retoucher condamne le prochain changement de teinte à de la peinture

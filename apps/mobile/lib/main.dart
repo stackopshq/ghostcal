@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+
+import 'l10n/generated/app_localisations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'ecrans/accueil.dart';
@@ -30,6 +32,7 @@ class GhostcalApp extends StatelessWidget {
     required this.session,
     required this.verrouillage,
     this.accueilDEpreuve,
+    this.locale,
   });
 
   final Session session;
@@ -45,6 +48,15 @@ class GhostcalApp extends StatelessWidget {
   /// `null` en production, donc sans effet sur ce qui est livré.
   final Widget? accueilDEpreuve;
 
+  /// La langue à imposer, pour les seuls tests.
+  ///
+  /// `null` en production : l'application suit alors le réglage de l'appareil, ce qui est
+  /// le comportement voulu depuis qu'elle parle deux langues. `test/langue_test.dart` s'en
+  /// sert pour éprouver le français et l'anglais dans le même processus — sans quoi il
+  /// faudrait deux exécutions et un réglage global, et le test mesurerait l'environnement
+  /// plutôt que l'application.
+  final Locale? locale;
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -52,27 +64,50 @@ class GhostcalApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: themeGhostcal(Brightness.light),
       darkTheme: themeGhostcal(Brightness.dark),
-      // Sans ces trois lignes, les composants **d'Apple et de Flutter** restent en
-      // anglais, sur un iPhone pourtant réglé en français : le sélecteur de date affiche
-      // « Select date », « CANCEL », « OK », et les noms de jours y sont anglais. On
-      // obtient un écran de création d'événement à moitié traduit — sur le parcours
-      // principal du produit, celui que l'examinateur d'Apple verra en premier.
+      // Sans ces délégués, les composants **fournis par Flutter** restent en anglais sur
+      // un appareil réglé en français : le sélecteur de date affiche « Select date »,
+      // « CANCEL », « OK », et les jours y sont notés S M T W T F S. On obtenait un écran
+      // de création d'événement à moitié traduit — sur le parcours principal du produit,
+      // celui que l'examinateur d'Apple voit en premier.
       //
-      // Ce n'est pas la francisation de l'application, qui est faite : ses propres textes
-      // sont en dur en français. C'est celle de ce que Flutter fournit.
-      //
-      // `supportedLocales` ne déclare **que** le français. Y ajouter l'anglais ferait
-      // basculer les composants système en anglais sur un appareil réglé ainsi, pendant
-      // que les textes de l'application resteraient français — un mélange pire que le
-      // tout-français. Le jour où les textes seront extraits en `.arb`, cette liste
-      // s'allongera en même temps qu'eux, pas avant.
+      // `L.delegate` porte les textes de l'application, les trois autres ceux de Flutter.
+      // Les quatre sont nécessaires : traduire les nôtres sans les siens laisserait les
+      // sélecteurs en anglais, et l'inverse laisserait les écrans en français.
       localizationsDelegates: const [
+        L.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [Locale('fr')],
-      locale: const Locale('fr'),
+      // Français et anglais, comme GhostPass sur iOS et sur Android.
+      //
+      // La liste vient de `L.supportedLocales`, donc des fichiers `.arb`, et n'est pas
+      // recopiée à la main : une langue ajoutée aux traductions sans l'être ici se
+      // chargerait pour rien, et rien ne le dirait.
+      supportedLocales: L.supportedLocales,
+      locale: locale,
+      // Le repli, rendu explicite.
+      //
+      // Sans cette fonction, Flutter retient la **première** langue de
+      // `supportedLocales` quand aucune ne correspond. Or `gen-l10n` classe cette liste
+      // par ordre alphabétique : « en » y précède « fr », et un iPhone réglé en allemand
+      // se retrouvait en anglais. Mesuré, pas supposé.
+      //
+      // Ce n'était pas un choix, c'était l'ordre de l'alphabet. GhostCal est écrit en
+      // français et vendu d'abord en Suisse romande : le français est le repli, et il
+      // l'est maintenant pour une raison qu'on peut relire.
+      localeResolutionCallback: (demandee, soutenues) {
+        if (demandee != null) {
+          for (final soutenue in soutenues) {
+            if (soutenue.languageCode == demandee.languageCode) return soutenue;
+          }
+        }
+        return const Locale('fr');
+      },
+      // Pas de `locale` imposée : on suit le réglage de l'appareil. Tant qu'une seule
+      // langue existait, l'imposer évitait qu'un appareil réglé autrement retombe sur le
+      // français par résolution implicite — un bon résultat obtenu par accident. Avec deux
+      // langues, l'imposer reviendrait à ignorer le choix de l'utilisateur.
       home: accueilDEpreuve ??
           AnimatedBuilder(
             animation: session,

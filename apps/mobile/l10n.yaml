@@ -1,0 +1,22 @@
+# Génération des traductions. `flutter gen-l10n` lit ce fichier.
+#
+# Le modèle est le **français** : c'est la langue dans laquelle le produit a été écrit, et
+# ses formulations sont pesées — « Contenu illisible — clé manquante » dit autre chose que
+# « Erreur ». Prendre l'anglais pour modèle aurait fait passer chaque phrase par une
+# traduction de la traduction.
+arb-dir: lib/l10n
+template-arb-file: app_fr.arb
+output-localization-file: app_localisations.dart
+output-class: L
+# Le code généré est écrit dans le dépôt plutôt que dans .dart_tool : il est lu par les
+# écrans, et un fichier que l'analyseur ne trouve pas rend l'arbre rouge à chaque clone.
+#
+# (`synthetic-package: false` a été retiré : cette version de Flutter le déclare sans
+# effet et l'avertit à chaque exécution. Le comportement est désormais celui-là par
+# défaut ; le garder ne ferait que du bruit.)
+output-dir: lib/l10n/generated
+nullable-getter: false
+# Une clé absente d'app_en.arb doit se voir. Sans cela, `gen-l10n` retombe en silence sur
+# le français, et l'application anglaise affiche des phrases françaises sans que rien ne
+# le signale — exactement le repli muet qu'on refuse ailleurs.
+untranslated-messages-file: lib/l10n/non-traduit.json

@@ -8,6 +8,7 @@ import '../theme.dart';
 import 'equipe.dart';
 import 'profil.dart';
 import 'sondages.dart';
+import '../l10n/generated/app_localisations.dart';
 
 /// Ce qu'on peut régler, et rien d'autre.
 ///
@@ -66,7 +67,7 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
     final ouvertes = session.auth?.organisations.toSet() ?? const <String>{};
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Réglages')),
+      appBar: AppBar(title: Text(L.of(context).ongletReglages)),
       body: ListView(
         // La dernière ligne finissait au ras de la barre d'onglets : rien n'indiquait
         // qu'il restait à faire défiler, et une section coupée après son premier élément
@@ -91,7 +92,7 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
             title: const Text('Serveur'),
             subtitle: Text(session.serveur, style: TextStyle(color: gc.estompe)),
           ),
-          _titre(gc, 'Sécurité'),
+          _titre(gc, L.of(context).securite),
           // Le délai décide aussi de l'apparition du cadenas dans la barre de l'agenda :
           // à « immédiatement », quitter l'application referme déjà, et le bouton ferait
           // doublon avec ce que le système fait seul.
@@ -107,16 +108,16 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
                 for (final choix in v.DelaiDeVerrouillage.values)
                   RadioListTile<v.DelaiDeVerrouillage>(
                     value: choix,
-                    title: Text(choix.libelle),
+                    title: Text(choix.libelle(L.of(context))),
                   ),
               ],
             ),
           ),
           ListTile(
             leading: const Icon(Icons.lock_outline),
-            title: const Text('Verrouiller le coffre'),
+            title: Text(L.of(context).verrouillerLeCoffre),
             subtitle: Text(
-              'Les clés quittent la mémoire ; la session reste ouverte.',
+              L.of(context).clesQuittentLaMemoire,
               style: TextStyle(color: gc.estompe, fontSize: 12),
             ),
             onTap: session.verrouiller,
@@ -141,7 +142,7 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
                       subtitle: Text(
                         ouvertes.contains(o.id)
                             ? o.role
-                            : '${o.role} · coffre fermé pour cette organisation',
+                            : L.of(context).coffreFermePourOrganisation(o.role),
                         style: TextStyle(
                           color: ouvertes.contains(o.id) ? gc.estompe : gc.danger,
                           fontSize: 12,
@@ -151,14 +152,14 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
                 ],
               ),
             ),
-          _titre(gc, 'Disponibilités'),
+          _titre(gc, L.of(context).disponibilites),
           if (_horaires == null)
             const Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator())
           else if (_horaires!.isEmpty)
             ListTile(
-              title: Text('Aucun horaire', style: TextStyle(color: gc.estompe)),
+              title: Text(L.of(context).aucunHoraire, style: TextStyle(color: gc.estompe)),
               subtitle: Text(
-                'Ils se définissent depuis le web.',
+                L.of(context).horairesDepuisLeWeb,
                 style: TextStyle(color: gc.estompe, fontSize: 12),
               ),
             )
@@ -167,7 +168,7 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
               ListTile(
                 title: Text(horaire.nom),
                 subtitle: Text(
-                  _resume(horaire),
+                  _resume(context, horaire),
                   style: TextStyle(color: gc.estompe, fontSize: 12),
                 ),
               ),
@@ -182,7 +183,7 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
           ),
           ListTile(
             leading: const Icon(Icons.people_outline),
-            title: const Text('Équipe'),
+            title: Text(L.of(context).equipe),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push<void>(MaterialPageRoute(
               builder: (_) => EcranDEquipe(session: session),
@@ -190,7 +191,7 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
           ),
           ListTile(
             leading: Icon(Icons.logout, color: gc.danger),
-            title: Text('Se déconnecter', style: TextStyle(color: gc.danger)),
+            title: Text(L.of(context).seDeconnecter, style: TextStyle(color: gc.danger)),
             onTap: session.seDeconnecter,
           ),
         ],
@@ -203,8 +204,8 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
   /// Le nom du jour vient de `RegleDHoraire.jour`, qui **refuse** une valeur hors bornes
   /// plutôt que de la ramener par modulo — un `weekday` de 42 affiché « lundi » serait une
   /// valeur fausse présentée avec l'assurance d'une vraie.
-  String _resume(service.Horaire horaire) {
-    if (horaire.regles.isEmpty) return 'Aucune plage · ${horaire.fuseau}';
+  String _resume(BuildContext context, service.Horaire horaire) {
+    if (horaire.regles.isEmpty) return L.of(context).aucunePlage(horaire.fuseau);
     final jours = <String>{for (final regle in horaire.regles) regle.jour};
     return '${jours.join(', ')} · ${horaire.fuseau}';
   }

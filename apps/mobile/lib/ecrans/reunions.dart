@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../services/reunions.dart';
 import '../services/session.dart';
 import '../theme.dart';
+import '../l10n/generated/app_localisations.dart';
 
 /// Les réunions réservées, à venir ou passées.
 class EcranDeReunions extends StatefulWidget {
@@ -54,15 +55,15 @@ class _EcranDeReunionsState extends State<EcranDeReunions> {
     final gc = Gc.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Réunions'),
+        title: Text(L.of(context).ongletReunions),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: SegmentedButton<PorteeDesReunions>(
-              segments: const [
-                ButtonSegment(value: PorteeDesReunions.aVenir, label: Text('À venir')),
-                ButtonSegment(value: PorteeDesReunions.passees, label: Text('Passées')),
+              segments: [
+                ButtonSegment(value: PorteeDesReunions.aVenir, label: Text(L.of(context).aVenir)),
+                ButtonSegment(value: PorteeDesReunions.passees, label: Text(L.of(context).passees)),
               ],
               selected: {_portee},
               onSelectionChanged: (choix) {
@@ -92,8 +93,8 @@ class _EcranDeReunionsState extends State<EcranDeReunions> {
         children: [
           Text(
             _portee == PorteeDesReunions.aVenir
-                ? 'Aucune réunion à venir.'
-                : 'Aucune réunion passée.',
+                ? L.of(context).aucuneReunionAVenir
+                : L.of(context).aucuneReunionPassee,
             style: TextStyle(color: gc.estompe),
           ),
         ],
@@ -130,7 +131,7 @@ class _EcranDeReunionsState extends State<EcranDeReunions> {
         ],
       ),
       trailing: annulee
-          ? Text('Annulée', style: TextStyle(fontSize: 12, color: gc.danger))
+          ? Text(L.of(context).annulee, style: TextStyle(fontSize: 12, color: gc.danger))
           : const Icon(Icons.chevron_right),
       onTap: () => _detail(reunion),
     );
@@ -151,12 +152,12 @@ class _EcranDeReunionsState extends State<EcranDeReunions> {
         ),
       NomDInvite.illisible => (
           reunion.courriel.isEmpty
-              ? 'Identité illisible — clé manquante'
+              ? L.of(context).identiteIllisible
               : '${reunion.courriel} · nom illisible',
           TextStyle(fontSize: 12, color: gc.danger)
         ),
       NomDInvite.inconnu => (
-          reunion.courriel.isEmpty ? 'Invité inconnu' : reunion.courriel,
+          reunion.courriel.isEmpty ? L.of(context).inviteInconnu : reunion.courriel,
           TextStyle(fontSize: 12, color: gc.estompe, fontStyle: FontStyle.italic)
         ),
     };
@@ -214,7 +215,7 @@ class _FeuilleDeReunion extends StatelessWidget {
             // Le fuseau de l'invité, pas le nôtre : c'est dans celui-là qu'il a lu
             // l'heure au moment de réserver, et c'est ce qu'il faut savoir avant de lui
             // proposer un report.
-            Text('Fuseau de l’invité : ${reunion.fuseau}',
+            Text(L.of(context).fuseauDeLInvite(reunion.fuseau),
                 style: TextStyle(color: gc.estompe, fontSize: 12)),
             if (reunion.lieu != null) ...[
               const SizedBox(height: 12),
@@ -226,7 +227,7 @@ class _FeuilleDeReunion extends StatelessWidget {
               _ligne(gc, Icons.mail_outline, reunion.courriel),
             if (reunion.reponses.isNotEmpty) ...[
               const SizedBox(height: 16),
-              Text('RÉPONSES',
+              Text(L.of(context).reponses,
                   style: TextStyle(
                       color: gc.estompe,
                       fontSize: 11,
@@ -264,16 +265,15 @@ class _FeuilleDeReunion extends StatelessWidget {
                   final confirme = await showDialog<bool>(
                     context: context,
                     builder: (c) => AlertDialog(
-                      title: const Text('Annuler cette réunion ?'),
-                      content: const Text(
-                          'L’invité en sera informé par le serveur.'),
+                      title: Text(L.of(context).annulerCetteReunion),
+                      content: Text(L.of(context).invitePrevenuParServeur),
                       actions: [
                         TextButton(
                             onPressed: () => Navigator.pop(c, false),
                             child: const Text('Retour')),
                         TextButton(
                             onPressed: () => Navigator.pop(c, true),
-                            child: const Text('Annuler la réunion')),
+                            child: Text(L.of(context).annulerLaReunion)),
                       ],
                     ),
                   );
@@ -282,7 +282,7 @@ class _FeuilleDeReunion extends StatelessWidget {
                   annuler!();
                 },
                 icon: Icon(Icons.event_busy, color: gc.danger),
-                label: Text('Annuler la réunion', style: TextStyle(color: gc.danger)),
+                label: Text(L.of(context).annulerLaReunion, style: TextStyle(color: gc.danger)),
               ),
             ],
           ],

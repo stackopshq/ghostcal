@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ghostcal/ecrans/connexion.dart';
 import 'package:ghostcal/services/biometrie.dart';
 import 'package:ghostcal/services/session.dart';
+import 'harnais.dart';
 
 /// Un magasin qui répond ce qu'on lui dit de répondre, et qui **compte les questions**.
 ///
@@ -93,9 +94,8 @@ Future<MagasinFeint> afficher(
 }) async {
   final magasin = MagasinFeint(reponses,
       empreinte: empreinte, scellee: scellee, etatDuSceau: etatDuSceau);
-  await tester.pumpWidget(MaterialApp(
-    home: EcranDeConnexion(session: session ?? sessionReprise(), biometrie: magasin),
-  ));
+  await tester.pumpWidget(appDEpreuve(
+      EcranDeConnexion(session: session ?? sessionReprise(), biometrie: magasin)));
   await tester.pump();
   await deroulerLaFenetre(tester);
   return magasin;

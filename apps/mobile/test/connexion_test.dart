@@ -9,9 +9,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ghostcal/ecrans/connexion.dart';
 import 'package:ghostcal/services/agenda.dart';
 import 'package:ghostcal/services/session.dart';
+import 'harnais.dart';
 
 Future<void> afficher(WidgetTester tester, Session session) async {
-  await tester.pumpWidget(MaterialApp(home: EcranDeConnexion(session: session)));
+  await tester.pumpWidget(appDEpreuve(EcranDeConnexion(session: session)));
   await tester.pump();
 }
 

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ghostcal/ecrans/reglages.dart';
 import 'package:ghostcal/services/session.dart';
 import 'package:ghostcal/services/verrouillage.dart' as v;
+import 'harnais.dart';
 
 /// Ce test monte **l'écran réel**, pas une maquette qui lui ressemble.
 ///
@@ -16,9 +17,8 @@ import 'package:ghostcal/services/verrouillage.dart' as v;
 void main() {
   testWidgets('choisir un délai déplace la sélection', (tester) async {
     final verrouillage = v.Verrouillage();
-    await tester.pumpWidget(MaterialApp(
-      home: EcranDeReglages(session: Session(), verrouillage: verrouillage),
-    ));
+    await tester.pumpWidget(
+        appDEpreuve(EcranDeReglages(session: Session(), verrouillage: verrouillage)));
     await tester.pump();
 
     // Pas de `pumpAndSettle` : les deux sections encore en chargement animent un
@@ -57,9 +57,8 @@ void main() {
   /// ce qu'il ne permet pas aujourd'hui.
   testWidgets('Sécurité passe avant le reste, et aucun titre ne se répète',
       (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      home: EcranDeReglages(session: Session(), verrouillage: v.Verrouillage()),
-    ));
+    await tester.pumpWidget(
+        appDEpreuve(EcranDeReglages(session: Session(), verrouillage: v.Verrouillage())));
     await tester.pump();
 
     final titres = <String>[];

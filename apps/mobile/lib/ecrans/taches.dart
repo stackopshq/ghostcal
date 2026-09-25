@@ -5,6 +5,7 @@ import '../services/agenda.dart' show ProvenanceDuTitre;
 import '../services/session.dart';
 import '../services/taches.dart';
 import '../theme.dart';
+import '../l10n/generated/app_localisations.dart';
 
 /// Les tâches : ce qui presse d'abord, ce qui est fait à la fin.
 class EcranDeTaches extends StatefulWidget {
@@ -98,12 +99,12 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tâches'),
+        title: Text(L.of(context).ongletTaches),
         actions: [
           if (faites > 0)
             TextButton(
               onPressed: () => setState(() => _montrerLesFaites = !_montrerLesFaites),
-              child: Text(_montrerLesFaites ? 'Masquer les faites' : 'Faites ($faites)'),
+              child: Text(_montrerLesFaites ? L.of(context).masquerLesFaites : 'Faites ($faites)'),
             ),
         ],
       ),
@@ -115,7 +116,7 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
         // la mise en page et les gestes.
         heroTag: 'taches',
         onPressed: _nouvelle,
-        tooltip: 'Nouvelle tâche',
+        tooltip: L.of(context).nouvelleTache,
         child: const Icon(Icons.add),
       ),
       body: RefreshIndicator(
@@ -138,7 +139,7 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
         padding: const EdgeInsets.all(20),
         children: [
           Text(
-            _montrerLesFaites ? 'Aucune tâche.' : 'Rien à faire.',
+            _montrerLesFaites ? L.of(context).aucuneTache : L.of(context).rienAFaire,
             style: TextStyle(color: gc.estompe),
           ),
         ],
@@ -164,11 +165,11 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
           )
         ),
       ProvenanceDuTitre.illisible => (
-          'Contenu illisible — clé manquante',
+          L.of(context).contenuIllisible,
           TextStyle(color: gc.danger, fontStyle: FontStyle.italic)
         ),
       ProvenanceDuTitre.sansTitre => (
-          'Sans titre',
+          L.of(context).sansTitre,
           TextStyle(color: gc.estompe, fontStyle: FontStyle.italic)
         ),
     };
@@ -208,7 +209,7 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
     final confirme = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Supprimer cette tâche ?'),
+        title: Text(L.of(context).supprimerCetteTache),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
@@ -289,7 +290,7 @@ class _FeuilleDeNouvelleTacheState extends State<_FeuilleDeNouvelleTache> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Nouvelle tâche',
+          Text(L.of(context).nouvelleTache,
               style: TextStyle(
                   fontSize: 18, fontWeight: FontWeight.bold, color: gc.encre)),
           const SizedBox(height: 16),
@@ -313,7 +314,7 @@ class _FeuilleDeNouvelleTacheState extends State<_FeuilleDeNouvelleTache> {
             leading: Icon(Icons.event_outlined, color: gc.estompe),
             title: Text(
               _echeance == null
-                  ? 'Sans échéance'
+                  ? L.of(context).sansEcheance
                   : DateFormat.yMMMMd('fr_FR').format(_echeance!),
               style: TextStyle(color: gc.encre),
             ),
@@ -321,7 +322,7 @@ class _FeuilleDeNouvelleTacheState extends State<_FeuilleDeNouvelleTache> {
                 ? null
                 : IconButton(
                     icon: const Icon(Icons.close),
-                    tooltip: "Retirer l'échéance",
+                    tooltip: L.of(context).retirerLEcheance,
                     onPressed: () => setState(() => _echeance = null),
                   ),
             onTap: () async {
@@ -346,7 +347,7 @@ class _FeuilleDeNouvelleTacheState extends State<_FeuilleDeNouvelleTache> {
                     height: 18,
                     width: 18,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Gc.surAccent))
-                : const Text('Créer'),
+                : Text(L.of(context).creer),
           ),
         ],
       ),

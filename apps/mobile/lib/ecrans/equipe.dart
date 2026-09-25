@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/reglages.dart';
 import '../services/session.dart';
 import '../theme.dart';
+import '../l10n/generated/app_localisations.dart';
 
 /// Les membres de l'organisation, et ce qu'on peut leur faire.
 class EcranDEquipe extends StatefulWidget {
@@ -61,8 +62,8 @@ class _EcranDEquipeState extends State<EcranDEquipe> {
       context: context,
       builder: (c) => AlertDialog(
         title: Text('Retirer ${membre.nom.isEmpty ? membre.courriel : membre.nom} ?'),
-        content: const Text(
-            'Cette personne perdra l’accès aux calendriers de l’organisation.'),
+        content: Text(
+            L.of(context).perteDAccesOrganisation),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
           TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Retirer')),
@@ -97,7 +98,7 @@ class _EcranDEquipeState extends State<EcranDEquipe> {
     // Vu sur une capture d'écran ; aucun test ne le voyait.
     return FondGhost(
       child: Scaffold(
-        appBar: AppBar(title: const Text('Équipe')),
+        appBar: AppBar(title: Text(L.of(context).equipe)),
         body: RefreshIndicator(
           onRefresh: _charger,
           child: _erreur != null
@@ -124,7 +125,9 @@ class _EcranDEquipeState extends State<EcranDEquipe> {
     return ListTile(
       title: Text(membre.nom.isEmpty ? membre.courriel : membre.nom),
       subtitle: Text(
-        membre.nom.isEmpty ? membre.roleLisible : '${membre.courriel} · ${membre.roleLisible}',
+        membre.nom.isEmpty
+            ? membre.roleLisible(L.of(context))
+            : '${membre.courriel} · ${membre.roleLisible(L.of(context))}',
         style: TextStyle(fontSize: 12, color: gc.estompe),
       ),
       trailing: !modifiable
@@ -133,7 +136,7 @@ class _EcranDEquipeState extends State<EcranDEquipe> {
               itemBuilder: (_) => [
                 const PopupMenuItem(value: 'admin', child: Text('Administrateur')),
                 const PopupMenuItem(value: 'member', child: Text('Membre')),
-                const PopupMenuItem(value: '-', child: Text("Retirer de l'équipe")),
+                PopupMenuItem(value: '-', child: Text(L.of(context).retirerDeLEquipe)),
               ],
               onSelected: (choix) =>
                   choix == '-' ? _retirer(membre) : _changerLeRole(membre, choix),

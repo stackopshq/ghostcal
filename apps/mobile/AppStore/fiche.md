@@ -18,51 +18,50 @@ Relevé le 25 septembre 2026.
 
 | Ce qu'il reste | Pourquoi ça ne peut pas se faire ici |
 |---|---|
-| **Un jeu de captures livrable** | L'outillage marche et produit des images à la bonne taille ; le banc qu'il photographie est un banc d'épreuve, pas une vitrine. Voir « Captures d'écran » |
-| **Le compte de démonstration** pour l'examinateur | Il doit vivre sur une instance joignable de l'extérieur |
-| **L'instance publique** à indiquer dans les notes | Question d'exploitation |
-| Les **URL** de confidentialité et d'assistance | Aucune page GhostCal en ligne au 25/09 — voir « URL » |
+| **Réparer `POST /v1/auth/register` sur `cal.ghostsuite.cloud`** | Rend `500` pour toute inscription. Sans lui, pas de compte de démonstration — et personne ne peut ouvrir de compte non plus. Diagnostic et identifiants de requête dans « Notes pour l'examen » |
+| **Refaire les captures** | Deux commandes ; l'outillage est éprouvé, c'est le `CoreSimulator` de la machine qui a lâché. Voir « Captures d'écran » |
+| **Créer le compte de démonstration** | Une commande, dès que le serveur répond : `tools/creer-le-compte-de-revue.sh` |
+| **Mettre la page d'assistance en ligne** | `https://ghostsuite.cloud/ghostcal/` rend 404 ; elle s'écrit ailleurs |
 | Trancher la **note 3 du §740.17(b)** et mener les démarches BIS et ANSSI | Questions de droit ; GhostPass a le même arbitrage en cours |
 | Coller la fiche et répondre au questionnaire de confidentialité | Les réponses exactes sont plus bas, mot pour mot |
 | Envoyer l'archive | `tools/ios/archiver-appstore.sh` la construit et la mesure ; l'envoi reste une décision |
 
-Ce qui est prêt : `ExportOptions.plist`, le manifeste de confidentialité (câblé dans la
-cible et **mesuré dans le paquet construit**), l'outillage d'archive avec ses contrôles,
-le contrôle d'autonomie éprouvé par mutation, les icônes, et les textes ci-dessous.
+Ce qui est prêt : `ExportOptions.plist` ; le manifeste de confidentialité, câblé dans la
+cible et **mesuré dans le paquet construit** ; l'outillage d'archive et ses contrôles ; le
+contrôle d'autonomie, éprouvé par mutation ; les icônes ; **l'URL de confidentialité**,
+vérifiée au contenu et non au code de retour ; **l'application en français et en
+anglais** ; l'amorçage de vitrine et le harnais de prise de vue, tous deux éprouvés ; et
+les textes ci-dessous.
 
 ## Identité
 
 | Champ | Valeur |
 |---|---|
 | Nom | GhostCal |
-| Sous-titre (30 car. max) | **[à trancher]** — propositions ci-dessous |
-| Catégorie principale | **[à trancher]** — Productivité ou Entreprise |
+| Sous-titre (30 car. max) | **Agenda chiffré, auto-hébergé** (28 car.) |
+| Catégorie principale | **Productivité** |
 | Catégorie secondaire | Utilitaires |
-| Classification d'âge | **[à trancher]** — 4+ *a priori* |
+| Classification d'âge | **4+** |
+| Langues | **Français et anglais** |
 | Appareils | iPhone **et** iPad (`TARGETED_DEVICE_FAMILY = "1,2"`, relevé dans le projet) |
 | Prix | **Gratuit** |
 
-**Sous-titre — trois propositions, aucune tranchée.** Chacune est vraie du produit livré :
+**Le sous-titre retenu : « Agenda chiffré, auto-hébergé » (28 caractères).**
 
-| Proposition | Caractères | Ce qu'elle met en avant |
-|---|---|---|
-| Votre agenda, sur votre serveur | 31 — **trop long d'un** | L'auto-hébergement |
-| Agenda chiffré, auto-hébergé | 28 | Les deux arguments |
-| Vos rendez-vous, chiffrés | 25 | Le chiffrement |
-| Votre agenda sur votre serveur | 30 | L'auto-hébergement, sans virgule |
+Quatre candidats avaient été proposés. « Votre agenda, sur votre serveur » (31) dépassait
+d'un caractère et « Votre agenda sur votre serveur » (30) tenait tout juste — mais aucun
+des deux ne dit le chiffrement, qui est l'argument que la concurrence ne peut pas copier.
+« Vos rendez-vous, chiffrés » (25) dit le chiffrement et tait l'auto-hébergement.
 
-**Catégorie — pourquoi ce n'est pas évident.** GhostPass est en « Utilitaires », ce qui
-convient à un coffre. GhostCal fait de la prise de rendez-vous et de la gestion d'équipe :
-« Productivité » est plus juste, et c'est là que vivent les produits comparables.
-« Entreprise » réduirait fortement la visibilité. Je propose **Productivité** en
-principale et **Utilitaires** en secondaire, mais c'est un choix de positionnement.
+Le retenu porte **les deux** en vingt-huit caractères : le premier mot dit ce que c'est,
+les deux suivants disent pourquoi on le choisirait plutôt que Calendly. Il a de plus
+l'avantage de ne rien promettre de faux — l'application affiche elle-même, à l'écran de
+création, ce qui est chiffré et ce qui ne l'est pas.
 
-**Classification d'âge.** L'application ne contient aucun contenu généré par des tiers et
-n'ouvre aucun navigateur. Elle affiche en revanche des **liens de visioconférence** saisis
-par l'utilisateur, et le questionnaire d'Apple demande si l'app donne accès à du contenu
-web non filtré. Le code ne les ouvre pas — il les affiche en texte (`reunions.dart`) — ce
-qui plaide pour **4+**. À confirmer en remplissant le formulaire, qui pose la question
-autrement chaque année.
+**Classification d'âge — 4+.** L'application ne contient aucun contenu généré par des tiers
+et n'ouvre aucun navigateur. Elle affiche des liens de visioconférence saisis par
+l'utilisateur, mais ne les ouvre pas : `reunions.dart` les rend en texte. Si le formulaire
+d'Apple demande l'accès à du contenu web non filtré, la réponse est non.
 
 ## Description (français)
 
@@ -170,7 +169,7 @@ serait tentant d'écrire.
 | **Changement de mot de passe ou de phrase** | La fonction Rust qui le ferait (`chiffrerSymetrique`) n'est appelée nulle part dans `lib/` |
 | **Photo de profil** | On peut la retirer, jamais l'ajouter. Aucun sélecteur d'image |
 | **Import / export** | Aucun |
-| **Application en anglais** | Les textes sont en dur en français. Seuls les composants fournis par Flutter sont traduits, et uniquement en français. Ne déclarer que « Français » dans App Store Connect |
+| **Autres langues que FR et EN** | L'application parle français et anglais. Une langue inconnue retombe sur le **français**, délibérément |
 
 **Un point à assumer plutôt qu'à découvrir en revue :** plusieurs fonctions renvoient
 explicitement au web. C'est cohérent et l'application le dit poliment, mais un examinateur
@@ -203,23 +202,31 @@ Première version.
 
 ## URL
 
-| Champ | Valeur proposée | État au 25/09/2026 |
+| Champ | Valeur | État au 25/09/2026 |
 |---|---|---|
-| Politique de confidentialité | **[à créer]** | **rien en ligne** |
-| Assistance | **[à créer]** | **rien en ligne** |
+| Politique de confidentialité | `https://ghostsuite.cloud/confidentialite/` | **en ligne — à inscrire** |
+| Assistance | `https://ghostsuite.cloud/ghostcal/` | **404 — ne pas inscrire encore** |
 | Marketing | `https://ghostsuite.cloud/` | en ligne, facultatif |
 
-Les deux premières sont **obligatoires** chez Apple, et **c'est le point bloquant le plus
-certain de cette fiche**. GhostPass a pu lier `https://ghostsuite.cloud/confidentialite/`,
-qui couvre les produits nommément ; il faut vérifier que **GhostCal y est nommé**, et non
-supposer que la page suffit parce qu'elle existe.
+Les deux premières sont **obligatoires** chez Apple.
 
-Le dépôt n'a **pas** de brouillon de politique de confidentialité pour GhostCal — GhostPass
-a `docs/confidentialite.md`, GhostCal n'a pas d'équivalent. Et le texte ne peut pas être
-recopié : les données collectées ne sont pas les mêmes (voir la section suivante).
+**La politique de confidentialité est prête, et elle est juste.** Vérifiée au contenu, pas
+au code de retour : la page rend 200, fait 17 682 octets, nomme GhostCal deux fois et porte
+la phrase « GhostCal ne peut pas être aveugle, et le dire est plus honnête que de laisser
+croire le contraire ». C'est exactement ce que dit le schéma de la base — le serveur lit les
+horaires, et il doit les lire. Rien à écrire : on lie cette page telle quelle.
 
-**Vérifier que chaque URL répond avant de l'inscrire dans App Store Connect.** Une URL
-d'assistance morte est un motif de refus, et elle ne se voit pas depuis le dépôt.
+**L'assistance rend un vrai 404**, et c'est vérifié comme tel plutôt que supposé : la page
+d'erreur fait 4 382 octets et porte le titre « 404 Page not found · Ghost Suite » —
+**exactement** ce que rend un chemin inventé de toutes pièces
+(`/ce-chemin-nexiste-pas-xyzzy/`). Sur ces domaines, une redirection peut rendre 200 pour
+n'importe quel chemin ; comparer à un témoin absurde est le seul moyen de distinguer une
+vraie page d'un attrape-tout. Ici, le 404 est sincère.
+
+La page est en cours d'écriture ailleurs (`suite/site/content/ghostcal.md`). **Ne
+l'inscrivez pas avant qu'elle réponde, et vérifiez alors son contenu, pas son code.** Une
+URL d'assistance morte est un motif de refus, et une vitrine qui contredirait la liste des
+fonctions absentes de cette fiche en est un autre.
 
 ## Notes pour l'examen (App Review)
 
@@ -233,17 +240,61 @@ l'application**. Sans compte fourni, le refus est certain.
 
 | Champ | Valeur |
 |---|---|
-| Serveur à saisir au premier écran | **[à trancher]** — une instance joignable de l'extérieur |
-| Compte de démonstration | **[à créer]** |
+| Serveur à saisir au premier écran | `https://cal.ghostsuite.cloud` |
+| Compte de démonstration | `appstore-review@stackops.ch` — **pas encore créé, voir ci-dessous** |
 | Mot de passe / phrase | **pas écrit ici** — voir ci-dessous |
 
-**Le compte doit être amorcé, pas seulement créé.** Un compte vide donne un agenda vide,
-une liste de tâches vide, aucune réunion, aucun sondage : l'examinateur verra cinq écrans
-blancs et conclura à une application non fonctionnelle. Il faut au minimum, dans
-l'organisation du compte : quelques événements sur la journée en cours et les suivantes,
-deux ou trois tâches dont une en retard, une réunion réservée à venir, un type de rendez-vous
-actif, et un sondage avec des votes. `tools/amorcer_donnees.py` existe dans le dépôt et
-est le point de départ ; il n'a pas été éprouvé contre une instance publique.
+**L'instance publique est `cal.ghostsuite.cloud`.** Mesurée : `/api/health` rend
+`{"status":"ok","version":"0.1.0"}` et la racine sert bien GhostCal.
+`ghostcal.stackops.ch`, qui figure encore dans les tests d'adresse du dépôt, **ne résout
+pas**. C'est l'analogue de la bascule de GhostPass vers `pass.ghostsuite.cloud`.
+
+### Le compte n'a pas pu être créé, et ce n'est pas un détail d'outillage
+
+`POST /v1/auth/register` rend **500** sur cette instance, pour toute inscription valide.
+Ce n'est pas propre à notre charge : trois tentatives, trois adresses différentes, trois
+`500`. Identifiants de requête pour les journaux du serveur :
+
+    612bff7ad468492ea545e720e9fb39a2    appstore-review@stackops.ch
+    61c24bcd43e64705b09edc70d17c8482    sonde, clés factices
+    e657a502113147e6bd30a26fe55edaa6    même sonde, seconde tentative
+
+**Ce qui est établi**, en resserrant étape par étape :
+
+| Sonde | Résultat | Ce qu'elle élimine |
+|---|---|---|
+| Mot de passe de 5 caractères | `422 String should have at least 12` | La validation du corps marche |
+| « correct horse battery staple » | `422 this password has appeared in a public data breach` | Le contrôle de fuites marche, et il sort donc sur le réseau sans peine |
+| Phrase forte, clés factices | **500** | L'échec est **après** la validation |
+| `login` sur l'adresse sondée | `401`, et une seconde inscription rend `500` et non `409` | **Aucune ligne n'a été écrite** : la transaction est annulée entière |
+
+L'échec est donc dans `AuthService.register`, après la politique de mot de passe :
+`provision_account`, `store_zk_keys`, ou `_send_verification` — cette dernière écrivant un
+jeton **puis** appelant le service de courriel (Brevo, `GHOSTCAL_BREVO_API_KEY`). Une clé
+absente ou invalide ferait exactement cela. Les journaux du serveur trancheront ; les trois
+identifiants ci-dessus les pointent.
+
+**Bonne nouvelle : `appstore-review@stackops.ch` n'est pas immobilisée.** Les identifiants
+d'adresse sont uniques et une inscription ratée aurait pu la brûler — vérifié, elle est
+libre.
+
+**Une fois le serveur réparé**, une seule commande fait tout :
+
+    GHOSTCAL_PHRASE="$(openssl rand -base64 24)" \
+      ./tools/creer-le-compte-de-revue.sh appstore-review@stackops.ch
+
+Elle fabrique les clés avec le cœur Rust, inscrit le compte, **attend** que le lien de
+vérification reçu par courriel soit suivi — `login` rend `403 email not verified` tant
+qu'il ne l'est pas, et aucun script ne peut franchir cette étape seul —, puis amorce le
+jeu de vitrine : huit événements, cinq tâches, trois liens de réservation, un horaire,
+trois réunions réservées et un sondage voté. Le même jeu que celui des captures.
+
+**La phrase ne figure pas dans le dépôt** et le script ne l'imprime pas : elle se passe par
+l'environnement. Un secret en clair dans un dépôt reste dans son historique même retiré.
+
+**Après publication, changez-la ou supprimez le compte** : elle aura transité par App Store
+Connect, dont ce n'est pas le métier de garder des secrets. C'est ce qui a été fait pour
+GhostPass.
 
 **La phrase ne figure pas dans le dépôt.** Un secret en clair dans un dépôt reste dans son
 historique même retiré, et le balayage de secrets le refuserait à juste titre. Elle est à
@@ -373,12 +424,49 @@ réservé par la RFC 2606 qui sert de texte indicatif au champ.
 
 ## Captures d'écran
 
-**L'outillage existe et fonctionne ; le jeu livrable, non.** `tools/ios/captures-appstore.sh`
-monte un simulateur, y installe l'application, la promène devant l'objectif et mesure
-chaque image. Les fichiers produits sont à la taille native — **1320 × 2868**, vérifié —
-avec la barre d'état figée à 9 h 41 et l'interface en français.
+**L'outillage est éprouvé ; le dépôt ne contient aucune image.** Il faut relancer la
+prise de vue — deux commandes, un quart d'heure.
 
-Ce qui manque n'est plus l'outil : c'est **de quoi photographier**.
+`tools/ios/captures-appstore.sh` monte un simulateur, y installe l'application, la promène
+devant l'objectif et mesure chaque image. Il a produit **six captures à 1320 × 2868** le
+25 septembre, sur le jeu de vitrine, et elles ont été ouvertes et regardées une par une.
+
+Elles ne sont pas versionnées, et c'est délibéré. Le dépôt portait un jeu antérieur, tiré
+du **banc d'épreuve** : deux rendez-vous sur la journée, et une ligne rouge « Contenu
+illisible — clé manquante » que ce banc dépose exprès pour vérifier qu'elle s'affiche. En
+vitrine, cette ligne se lit comme un bogue. Les garder aurait laissé à portée de main des
+images plausibles et fausses, ce qui est pire que pas d'images : on les téléverse sans les
+regarder. Elles sont donc retirées.
+
+Le jeu de vitrine, lui, n'a pas pu être refait avant la fin de la séance : après une
+vingtaine de cycles création/démarrage/suppression, `CoreSimulator` de cette machine a
+cessé de répondre — `simctl bootstatus` restant en vie indéfiniment, et `simctl spawn` se
+suspendant sur un appareil encore en démarrage. Les deux défauts sont corrigés dans le
+script (attente bornée à trois minutes, et l'ordre des appels remis à l'endroit) ; l'état
+de la machine, lui, demande un `killall -9 com.apple.CoreSimulator.CoreSimulatorService`
+ou un redémarrage.
+
+    ./tools/banc-local.sh --vitrine    # PostgreSQL jetable + jeu de vitrine
+    ./tools/ios/captures-appstore.sh   # iPhone 17 Pro Max
+
+| Ordre | Écran | Ce qu'elle montre |
+|---|---|---|
+| 01 | Agenda | Cinq rendez-vous sur la journée, titres, horaires, lieux |
+| 02 | Nouvel événement | Le formulaire **et** la phrase sur ce qui est chiffré — l'argument du produit |
+| 03 | Tâches | Les échéances, dont une en retard |
+| 04 | Réunions | Trois réservations, avec le nom des invités **déchiffré sur l'appareil** |
+| 05 | RDV | Les liens de réservation, actifs et fermés, et le bouton de copie |
+| 06 | Réglages | Compte, disponibilités, sécurité — **facultative**, Apple en accepte dix |
+
+La quatrième est celle qui vaut le plus : « Camille Rossier » y paraît parce que le bloc
+`invitee_private`, scellé au X25519 de l'organisation, a été ouvert **par l'application**.
+Le serveur, lui, ne peut pas le lire. C'est la seule capture qui montre le bout en bout à
+l'œuvre plutôt qu'en promesse.
+
+Il manque le **jeu iPad** : l'application se déclare universelle
+(`TARGETED_DEVICE_FAMILY = "1,2"`), et App Store Connect réclame alors les deux.
+
+    GHOSTCAL_APPAREIL='iPad Pro 13-inch (M4)' ./tools/ios/captures-appstore.sh
 
 App Store Connect réclame **deux jeux** dès lors que l'application se déclare universelle,
 ce qui est le cas (`TARGETED_DEVICE_FAMILY = "1,2"`). Un seul jeu laisse la fiche
@@ -433,25 +521,23 @@ horaire de disponibilité que le banc ne pose pas encore.
 
 ### Ce qu'il reste à décider avant de verser un jeu
 
-- **Un amorçage de vitrine, distinct de l'amorçage d'épreuve.** GhostPass avait un drapeau
-  `--vitrine` pour exactement cette raison. Il faut un agenda plein et plausible, pas un
-  agenda qui montre ce qui casse.
-- **Le scénario**, et notamment si « Réglages » mérite une des cinq places.
-- **Ouvrir chaque image et la regarder.** Les contrôles automatiques distinguent une image
-  vide d'une image pleine ; ils ne savent pas dire qu'un texte est **coupé sous la ligne de
-  flottaison**. Une section tronquée à mi-ligne a autant de couleurs qu'une section
-  entière et se lit comme complète. GhostPass a livré une capture iPad dans cet état.
+- ~~Un amorçage de vitrine, distinct de l'amorçage d'épreuve.~~ **Fait** :
+  `./tools/banc-local.sh --vitrine`, qui appelle `tools/amorcer_vitrine.py`. Aucun contenu
+  illisible, un horaire de disponibilité, trois réunions réellement réservées depuis la
+  page publique, un sondage voté.
+- ~~Le scénario.~~ **Fait**, six écrans. Le sixième (Réglages) reste facultatif.
+- **Ouvrir chaque image et la regarder.** Fait pour le jeu iPhone ; **à refaire pour
+  l'iPad**. Les contrôles automatiques distinguent une image vide d'une image pleine ; ils
+  ne savent pas dire qu'un texte est **coupé sous la ligne de flottaison**. Une section
+  tronquée à mi-ligne a autant de couleurs qu'une section entière et se lit comme complète.
+  GhostPass a livré une capture iPad dans cet état — et c'est justement l'iPad qui manque
+  ici.
 
 ## Ce qui reste à trancher
 
 Rien de ce qui suit n'est technique — tout engage l'entreprise ou le produit :
 
-- le **sous-titre** (quatre propositions ci-dessus, dont une trop longue d'un caractère) ;
-- la **catégorie** principale : Productivité ou Utilitaires ;
-- la **classification d'âge**, à confirmer sur le formulaire en vigueur ;
-- l'**hébergement d'une politique de confidentialité** qui nomme GhostCal — elle n'existe
-  pas, et celle de GhostPass ne convient pas : les données collectées diffèrent ;
-- l'**adresse d'assistance** ;
-- le **compte de démonstration**, l'instance publique qui le porte, et son amorçage ;
-- un **amorçage de vitrine** distinct de l'amorçage d'épreuve, et le scénario de captures ;
+- l'**adresse d'assistance**, dès que la page répond ;
+- le **jeu iPad** : l'application se déclare universelle, Apple réclame donc deux jeux, et seul celui de l'iPhone est produit. Une commande : `GHOSTCAL_APPAREIL='iPad Pro 13-inch (M4)' ./tools/ios/captures-appstore.sh` — mais **chaque image est à ouvrir** : l'iPad est plus large et plus court, et c'est là que GhostPass a livré une feuille coupée à mi-ligne ;
+- garder ou écarter la **sixième capture** (Réglages), Apple en acceptant dix ;
 - les déclarations **BIS** et **ANSSI**, et le dossier technique qui les accompagne.

@@ -1,4 +1,5 @@
 import 'api.dart';
+import '../l10n/generated/app_localisations.dart';
 
 // ─── Disponibilités ───
 
@@ -221,10 +222,10 @@ class Membre {
   /// « membre » : un serveur plus récent peut en introduire, et taire le rôle de quelqu'un
   /// — ou le présenter comme moins puissant qu'il n'est — serait pire que l'afficher en
   /// anglais.
-  String get roleLisible => switch (role) {
-        'owner' => 'Propriétaire',
-        'admin' => 'Administrateur',
-        'member' => 'Membre',
+  String roleLisible(L l) => switch (role) {
+        'owner' => l.roleProprietaire,
+        'admin' => l.roleAdministrateur,
+        'member' => l.roleMembre,
         _ => role,
       };
 }

@@ -287,38 +287,47 @@ consommer de numéro de version.
 
 ## Ce qui n'est pas prêt et qu'il vaut mieux savoir
 
-**L'application est en français seulement**, et il faut distinguer deux choses que l'on
-confond volontiers.
+**L'application parle français et anglais**, depuis le 25 septembre 2026. GhostPass livre
+les deux sur iOS comme sur Android ; GhostCal les livre désormais aussi.
 
-*Ce qui était cassé et ne l'est plus.* `MaterialApp` ne déclarait ni
-`localizationsDelegates` ni `supportedLocales`, et `flutter_localizations` n'était pas dans
-`pubspec.yaml`. Conséquence : les composants **fournis par Flutter** — sélecteur de date,
-sélecteur d'heure, boutons d'un dialogue, étiquettes d'accessibilité — restaient en
-**anglais** sur un iPhone réglé en français. L'écran de création d'un événement affichait
-« Nouvel événement », puis « Select date », « Cancel », et des jours notés
-`S M T W T F S`. Un écran à moitié traduit, sur le parcours principal, celui que
-l'examinateur voit en premier.
+*Ce qui a été fait.* Cent vingt-deux messages extraits vers `lib/l10n/app_fr.arb` et
+`app_en.arb`, le français servant de modèle — c'est la langue dans laquelle le produit a
+été pensé, et ses formulations sont pesées : « Contenu illisible — clé manquante » ne dit
+pas la même chose que « Erreur ». Les écrans appellent `L.of(context)` ; il ne reste **zéro
+littéral français** dans `lib/ecrans/`, et `test/traduction_test.dart` le mesure.
 
-Corrigé le 25 septembre 2026 : trois lignes dans `main.dart`, plus `flutter_localizations`
-et une remontée d'`intl` de `^0.19.0` à `^0.20.3` — le SDK l'exige, et pub refuse
-autrement de résoudre. `test/langue_test.dart` le mesure, et **sait rougir** : la
-localisation retirée, les trois assertions tombent en donnant « Cancel » et
-`['S','M','T','W','T','F','S']`. Éprouvé dans les deux sens.
+*Trois choses que la traduction a révélées, et qu'elle seule pouvait révéler.*
 
-`supportedLocales` ne déclare **que** le français, délibérément. Y ajouter l'anglais ferait
-basculer les composants système en anglais sur un appareil réglé ainsi, pendant que les
-textes de l'application resteraient français — un mélange pire que le tout-français.
+1. **Les composants de Flutter restaient en anglais.** Sans `flutter_localizations`, un
+   iPhone réglé en français affichait « Select date », « Cancel » et des jours notés
+   S M T W T F S sur l'écran de création d'événement — le parcours principal.
 
-*Ce qui reste, et qui est un chantier à part.* Les textes de l'application sont en dur en
-français dans le Dart : environ 200 littéraux, dont 165 à 180 messages distincts, concentrés
-dans `ecrans/sondages.dart`, `ecrans/connexion.dart`, `ecrans/reunions.dart` et
-`ecrans/nouvel_evenement.dart`. Les extraire vers des `.arb` et écrire la traduction
-anglaise est un travail à part entière, non entamé. Le jour où il le sera,
-`supportedLocales` s'allongera en même temps — et `test/langue_test.dart` rougira, ce qui
-est le moment prévu pour le relire.
+2. **Le repli d'une langue inconnue tombait sur l'anglais.** `gen-l10n` classe
+   `supportedLocales` par ordre alphabétique : « en » précède « fr », et Flutter retient la
+   première quand rien ne correspond. Ce n'était pas un choix, c'était l'alphabet. Un
+   `localeResolutionCallback` explicite ramène le français, pour un produit écrit en
+   français et vendu d'abord en Suisse romande.
 
-GhostPass livre FR et EN sur iOS comme sur Android. GhostCal, non. Il faut soit l'assumer et
-ne déclarer que le français dans App Store Connect, soit mener le chantier.
+3. **Deux énumérations portaient leur texte en constante.** `DelaiDeVerrouillage` et le
+   rôle d'un membre. Elles rendent maintenant `libelle(L)` et `roleLisible(L)` : la
+   correspondance reste collée aux valeurs, parce qu'un `switch` sur une énumération est
+   **exhaustif** — ajouter un délai sans lui donner de libellé ne compile pas —, mais le
+   texte vient des `.arb`.
+
+*Ce qui reste, et qui est nommé.* Huit messages produits **au fond des services**, qui
+n'ont pas de `BuildContext` : deux dans `auth.dart`, trois dans `biometrie.dart`, deux dans
+`session.dart`, un dans `api.dart`. Les corriger demande qu'ils rendent un code que l'écran
+traduirait — un chantier d'architecture, pas un remplacement de chaîne.
+
+`test/traduction_test.dart` les **compte fichier par fichier** et échoue dans les deux sens :
+si un nouveau littéral apparaît, et si l'un disparaît sans que la liste soit raccourcie.
+Éprouvé par mutation dans les deux sens. Écrire « il reste quelques chaînes » dans une
+documentation vieillit mal ; un test qui les nomme, non.
+
+`untranslated-messages-file` est activé dans `l10n.yaml` : `gen-l10n` y écrirait toute clé
+présente en français et absente en anglais. Sans ce réglage, la version anglaise
+retomberait **en silence** sur des phrases françaises. Le fichier est vide, et
+`test/langue_test.dart` échoue s'il cesse de l'être.
 
 **Les messages d'erreur ne sont pas tous en français** : le code fait
 `setState(() => _erreur = '$e')`, ce qui affiche le message brut de l'exception. Une panne

@@ -2,7 +2,13 @@
 # Monte un GhostCal jetable et l'amorce, pour éprouver les clients mobiles contre de
 # vraies données. Laisse tout allumé et rend la main.
 #
-#   ./tools/banc-local.sh
+#   ./tools/banc-local.sh              # jeu d'épreuve
+#   ./tools/banc-local.sh --vitrine    # jeu de vitrine, pour les captures App Store
+#
+# Les deux jeux ne servent pas la même chose, et les confondre s'est vu en image. Le jeu
+# d'épreuve dépose exprès un événement illisible, pour vérifier qu'il s'affiche au lieu de
+# disparaître ; en devanture, la même ligne rouge se lit comme un bogue. Voir l'en-tête de
+# `tools/amorcer_vitrine.py`.
 #
 # ─── Pourquoi ce banc existe ───
 #
@@ -22,6 +28,9 @@
 set -euo pipefail
 
 RACINE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+VITRINE=0
+[[ "${1:-}" == "--vitrine" ]] && VITRINE=1
+
 TRAVAIL="${GHOSTCAL_BANC:-${TMPDIR:-/tmp}/ghostcal-banc}"
 PGDATA="$TRAVAIL/pgdata"
 PGPORT=55432
@@ -123,7 +132,16 @@ import datetime as d
 print((d.datetime.now(d.timezone.utc) + d.timedelta(hours=$1)).strftime('%Y-%m-%dT%H:%M:%S+00:00'))"; }
 
 dire "Données"
-python3 "$RACINE/tools/amorcer_donnees.py" "$API" "$ACCES" "$ORG" "$PUBLIQUE" "$CAL" "$AMORCER"
+if (( VITRINE )); then
+  # Le slug de l'organisation : la réservation passe par la route publique
+  # `/v1/orgs/{slug}/…`, comme un invité le ferait. Le prendre ici plutôt que de le
+  # deviner — il est tiré du nom du compte et porte un suffixe aléatoire.
+  SLUG="$(curl -s "${AUTH[@]}" "$API/v1/me/organizations" | jq_ "[0]['slug']")"
+  [[ -n "$SLUG" ]] || { echo "Slug d'organisation introuvable" >&2; exit 1; }
+  python3 "$RACINE/tools/amorcer_vitrine.py" "$API" "$ACCES" "$ORG" "$PUBLIQUE" "$CAL" "$AMORCER" "$SLUG"
+else
+  python3 "$RACINE/tools/amorcer_donnees.py" "$API" "$ACCES" "$ORG" "$PUBLIQUE" "$CAL" "$AMORCER"
+fi
 
 printf '\n\033[1mTout est prêt.\033[0m\n' >&2
 cat >&2 <<FIN
@@ -138,7 +156,7 @@ cat >&2 <<FIN
   l'adresse de ce Mac sur le réseau, et le serveur écoute en clair, ce que l'application
   refuse hors boucle locale.
 
-  Ce qu'on regarde :
+  Ce qu'on regarde, JEU D'ÉPREUVE (sans --vitrine) :
 
     Agenda    trois événements, dont un scellé sous une autre clé. Il doit s'AFFICHER
               comme illisible, pas disparaître — une ligne absente se lit « libre ».
@@ -146,6 +164,16 @@ cat >&2 <<FIN
     RDV       un type actif, dont le lien public se copie.
     Réunions  vide tant que personne n'a réservé depuis la page publique.
     Réglages  profil, disponibilités, équipe.
+
+  Ce qu'on regarde, JEU DE VITRINE (--vitrine) :
+
+    Agenda    cinq entrées sur la journée, trois sur les suivantes. AUCUNE illisible :
+              en devanture, la ligne rouge se lit comme un bogue.
+    Tâches    cinq, dont une en retard — un état normal, pas une panne.
+    RDV       deux liens actifs, un inactif.
+    Réunions  une réservation réellement prise depuis la page publique, avec son nom
+              et ses réponses scellés à l'organisation.
+    Réglages  profil, horaire « Heures de bureau », équipe.
 
   Pour tout couper :
 

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../services/agenda.dart';
 import '../services/session.dart';
 import '../theme.dart';
+import '../l10n/generated/app_localisations.dart';
 
 /// Créer ou modifier un événement.
 ///
@@ -100,8 +101,7 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
         // Un contenu scellé qu'on n'a pas su ouvrir : enregistrer écraserait un titre
         // qu'on n'a jamais lu. On le dit, et on empêche.
         if (detail.contenu == null) {
-          _erreur = "Le contenu de cet événement n'a pas pu être déchiffré. "
-              "L'enregistrer remplacerait un titre que vous n'avez pas pu lire.";
+          _erreur = L.of(context).contenuNonDechiffre;
         }
       });
     } on Object catch (e) {
@@ -120,7 +120,7 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
     final calendrier = _calendrier;
     if (agenda == null || organisation == null || calendrier == null) return;
     if (_fin.isBefore(_debut)) {
-      setState(() => _erreur = "La fin est avant le début.");
+      setState(() => _erreur = L.of(context).finAvantDebut);
       return;
     }
     setState(() {
@@ -167,14 +167,14 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
     final confirme = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Supprimer cet événement ?'),
-        content: const Text('Il disparaîtra pour tous les participants.'),
+        title: Text(L.of(context).supprimerCetEvenement),
+        content: Text(L.of(context).disparaitraPourTous),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
+              onPressed: () => Navigator.pop(c, false), child: Text(L.of(context).annuler)),
           TextButton(
             onPressed: () => Navigator.pop(c, true),
-            child: const Text('Supprimer'),
+            child: Text(L.of(context).supprimer),
           ),
         ],
       ),
@@ -210,17 +210,19 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
     return FondGhost(
       child: Scaffold(
         appBar: AppBar(
-          title: Text(_modification ? "Modifier l'événement" : 'Nouvel événement'),
+          title: Text(_modification
+            ? L.of(context).modifierLEvenement
+            : L.of(context).nouvelEvenement),
           actions: [
             if (_modification)
               IconButton(
                 icon: const Icon(Icons.delete_outline),
-                tooltip: 'Supprimer',
+                tooltip: L.of(context).supprimer,
                 onPressed: _occupe ? null : _supprimer,
               ),
             TextButton(
               onPressed: _occupe || _illisible ? null : _enregistrer,
-              child: const Text('Enregistrer'),
+              child: Text(L.of(context).enregistrer),
             ),
           ],
         ),
@@ -235,37 +237,37 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
                   ],
                   TextField(
                     controller: _titre,
-                    decoration: const InputDecoration(labelText: 'Titre'),
+                    decoration: InputDecoration(labelText: L.of(context).titre),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _lieu,
-                    decoration: const InputDecoration(labelText: 'Lieu'),
+                    decoration: InputDecoration(labelText: L.of(context).lieu),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _description,
                     maxLines: 4,
-                    decoration: const InputDecoration(labelText: 'Description'),
+                    decoration: InputDecoration(labelText: L.of(context).description),
                   ),
                   const SizedBox(height: 8),
                   SwitchListTile(
-                    title: const Text('Journée entière'),
+                    title: Text(L.of(context).journeeEntiere),
                     value: _journeeEntiere,
                     onChanged: (v) => setState(() => _journeeEntiere = v),
                   ),
-                  _dateEtHeure(gc, 'Début', _debut, (d) => setState(() {
+                  _dateEtHeure(gc, L.of(context).debut, _debut, (d) => setState(() {
                         final duree = _fin.difference(_debut);
                         _debut = d;
                         // La durée suit le début : déplacer un rendez-vous d'une heure ne
                         // doit pas l'allonger silencieusement jusqu'à l'ancienne fin.
                         _fin = d.add(duree);
                       })),
-                  _dateEtHeure(gc, 'Fin', _fin, (d) => setState(() => _fin = d)),
+                  _dateEtHeure(gc, L.of(context).fin, _fin, (d) => setState(() => _fin = d)),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     initialValue: _calendrier,
-                    decoration: const InputDecoration(labelText: 'Calendrier'),
+                    decoration: InputDecoration(labelText: L.of(context).calendrier),
                     items: [
                       for (final c in widget.calendriers)
                         DropdownMenuItem(value: c.id, child: Text(c.nom)),
@@ -274,9 +276,7 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Le titre, le lieu et la description sont chiffrés sur cet appareil. '
-                    'Les heures partent en clair : sans elles, le serveur ne pourrait ni '
-                    'répondre « occupé » à un lien de réservation, ni envoyer de rappel.',
+                    L.of(context).ceQuiEstChiffre,
                     style: TextStyle(color: gc.estompe, fontSize: 12),
                   ),
                 ],

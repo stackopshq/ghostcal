@@ -4,6 +4,7 @@ import '../services/agenda.dart' show Agenda;
 import '../services/reglages.dart';
 import '../services/session.dart';
 import '../theme.dart';
+import '../l10n/generated/app_localisations.dart';
 
 /// Le profil : le nom, le fuseau, et la photo.
 ///
@@ -84,7 +85,7 @@ class _EcranDeProfilState extends State<EcranDeProfil> {
       setState(() {
         _profil = mis;
         _retirerLaPhoto = false;
-        _message = 'Profil enregistré.';
+        _message = L.of(context).profilEnregistre;
       });
     } on Object catch (e) {
       if (mounted) setState(() => _erreur = '$e');
@@ -112,7 +113,7 @@ class _EcranDeProfilState extends State<EcranDeProfil> {
     // Vu sur une capture d'écran ; aucun test ne le voyait.
     return FondGhost(
       child: Scaffold(
-        appBar: AppBar(title: const Text('Profil')),
+        appBar: AppBar(title: Text(L.of(context).profil)),
         body: profil == null
             ? Center(
                 child: _erreur == null
@@ -143,14 +144,14 @@ class _EcranDeProfilState extends State<EcranDeProfil> {
                         // Une adresse non vérifiée se dit : le serveur n'enverra pas les
                         // rappels dessus, et rien d'autre à l'écran ne l'expliquerait.
                         if (!profil.courrielVerifie)
-                          Text('non vérifiée',
+                          Text(L.of(context).nonVerifiee,
                               style: TextStyle(color: gc.danger, fontSize: 12)),
                       ],
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'La changer demande une vérification, qui se fait depuis le web.',
+                    L.of(context).changementDAdresseParLeWeb,
                     style: TextStyle(color: gc.estompe, fontSize: 12),
                   ),
                   const SizedBox(height: 18),
@@ -167,15 +168,15 @@ class _EcranDeProfilState extends State<EcranDeProfil> {
                       final ici = await Agenda.fuseauCourant();
                       if (mounted) setState(() => _fuseau.text = ici);
                     },
-                    child: const Text('Utiliser le fuseau de cet appareil'),
+                    child: Text(L.of(context).utiliserLeFuseauDeLAppareil),
                   ),
                   if (profil.avatar != null) ...[
                     const SizedBox(height: 8),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Retirer la photo'),
+                      title: Text(L.of(context).retirerLaPhoto),
                       subtitle: Text(
-                        'Elle sera effacée à l’enregistrement.',
+                        L.of(context).photoEffaceeALEnregistrement,
                         style: TextStyle(color: gc.estompe, fontSize: 12),
                       ),
                       value: _retirerLaPhoto,

@@ -30,13 +30,19 @@
 # le simulateur, jamais fabriquées — et les dimensions obtenues sont relevées à la prise de
 # vue, non écrites d'avance.
 #
-# ─── Ce que ce script ne photographie pas ───
+# ─── Quel jeu de données, et pourquoi ça compte ───
 #
-# Ni « Réunions » ni « Sondages ». `tools/banc-local.sh` n'amorce ni réservation ni sondage
-# — mesuré le 25 septembre 2026 : `/v1/me/meetings` et `/v1/me/polls` rendent des listes
-# vides. Les photographier donnerait deux écrans d'état vide en vitrine, ce qui est pire
-# que deux captures en moins. Les obtenir demande d'amorcer une réservation depuis la page
-# publique ; c'est un travail sur le banc, pas ici.
+# `./tools/banc-local.sh --vitrine`, **pas** le banc d'épreuve.
+#
+# Le jeu d'épreuve dépose exprès un événement scellé sous une autre clé, que l'agenda
+# affiche en rouge « Contenu illisible — clé manquante ». C'est juste, et c'est ce qu'on
+# veut éprouver : une ligne absente se lirait « libre ». En devanture, la même ligne se lit
+# comme un bogue — et la première version de ces captures en portait une, sur une journée
+# à deux entrées laissant les deux tiers de l'écran vides.
+#
+# Le jeu de vitrine pose en plus un horaire de disponibilité, une réunion réservée depuis
+# la page publique et un sondage voté. Sans eux, « Réunions » et « Sondages » sont des
+# écrans vides, et deux captures manquent.
 set -euo pipefail
 
 RACINE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -57,6 +63,25 @@ MESURER_SEULEMENT=0
 [[ "${1:-}" == "--mesurer" ]] && MESURER_SEULEMENT=1
 
 dire() { printf "\n\033[1m▸ %s\033[0m\n" "$*" >&2; }
+
+# `timeout` n'existe pas de base sur macOS, et `gtimeout` suppose coreutils. On borne donc
+# l'attente nous-mêmes : on lance `bootstatus` en fond et on le tue s'il s'éternise.
+attendre_le_demarrage() {
+  local appareil="$1" limite=180 attendu=0 pid
+  xcrun simctl bootstatus "$appareil" -b >/dev/null 2>&1 &
+  pid=$!
+  while kill -0 "$pid" 2>/dev/null; do
+    if (( attendu >= limite )); then
+      kill -9 "$pid" 2>/dev/null
+      wait "$pid" 2>/dev/null || true
+      return 1
+    fi
+    sleep 2
+    attendu=$((attendu + 2))
+  done
+  wait "$pid" 2>/dev/null || true
+  return 0
+}
 vert() { printf "\033[32m✓ %s\033[0m\n" "$*"; }
 rouge() { printf "\033[31m✗ %s\033[0m\n" "$*"; }
 gris() { printf "\033[33m· %s\033[0m\n" "$*"; }
@@ -122,8 +147,33 @@ print(sorted(r, key=lambda x: [int(n) for n in x["version"].split(".")])[-1]["id
 ')"
 APPAREIL_ID="$(xcrun simctl create "captures-appstore-ghostcal" "$TYPE" "$RUNTIME")"
 xcrun simctl boot "$APPAREIL_ID" >/dev/null 2>&1 || true
+# `bootstatus` **sans garde-fou se pend**, et il se pend en emportant le sous-système.
+# Observé le 25 septembre après une vingtaine de cycles création/démarrage/suppression :
+# deux processus `simctl bootstatus` restés en vie indéfiniment, que ni le `trap` de ce
+# script ni un `pkill` sur son propre nom n'atteignaient — ils ne portent pas son nom. Le
+# script suivant repartait, se bloquait au même endroit, et n'affichait rien de plus que
+# « ▸ Simulateur ». Une attente muette ressemble à une construction lente.
+#
+# Trois minutes suffisent très largement à démarrer un simulateur ; au-delà, c'est qu'il
+# ne démarrera pas. On le dit, et on continue : le `flutter drive` qui suit échouera de
+# façon lisible, plutôt que de laisser ce script pendu pour toujours.
+if ! attendre_le_demarrage "$APPAREIL_ID"; then
+  gris "le simulateur n'a pas confirmé son démarrage en trois minutes — on tente quand même"
+  gris "(si la suite échoue : killall -9 com.apple.CoreSimulator.CoreSimulatorService)"
+fi
+
+# La langue du simulateur, **après** le démarrage et pas avant.
+#
+# `simctl spawn` sur un appareil qui démarre encore ne rend pas une erreur : il **attend**,
+# et il attend indéfiniment. Le `|| true` qui suivait protégeait le code de sortie, pas le
+# blocage — la nuance a coûté quatre prises de vue, chacune restée quinze minutes sur
+# « ▸ Simulateur » sans rien imprimer de plus. Une attente muette ressemble à une
+# construction lente ; c'est ce qui la rend coûteuse.
+#
+# Le remède n'est pas un délai, c'est l'ordre : on ne parle à un simulateur qu'une fois
+# qu'il a dit être prêt.
 xcrun simctl spawn "$APPAREIL_ID" defaults write .GlobalPreferences AppleLanguages -array fr || true
-xcrun simctl bootstatus "$APPAREIL_ID" -b >/dev/null 2>&1 || true
+
 
 # Barre d'état figée : c'est l'usage pour une fiche App Store, et cela évite qu'une heure
 # ou un niveau de batterie différents à chaque prise fassent croire à des captures
@@ -194,7 +244,7 @@ fi  # fin de la prise de vue
 # Trois contrôles, et le troisième est celui qui aurait attrapé les images blanches.
 dire "Ce que valent les images"
 fautes=0
-attendues=(01-agenda 02-nouvel-evenement 03-taches 04-rendez-vous 05-reglages)
+attendues=(01-agenda 02-nouvel-evenement 03-taches 04-reunions 05-rendez-vous 06-reglages)
 
 for nom in "${attendues[@]}"; do
   fichier="$SORTIE/$nom.png"
