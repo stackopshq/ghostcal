@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
 import uuid
@@ -14,8 +15,9 @@ from ghostcal.application.calendars import NotConnected, sync_connection
 from ghostcal.application.event_reminders import dispatch_event_reminders
 from ghostcal.application.ports.calendar import CalendarError
 from ghostcal.application.ports.clock import SystemClock
+from ghostcal.application.ports.email import Attachment
 from ghostcal.application.reminders import DueReminder, dispatch_reminders
-from ghostcal.application.retention import purge_expired_bookings as purge_expired
+from ghostcal.application.retention import PurgeResult, purge_one_organization
 from ghostcal.application.subscriptions import FeedUnreachable, refresh_subscription
 from ghostcal.application.task_reminders import dispatch_task_reminders
 from ghostcal.application.webhooks import sign_payload
@@ -32,6 +34,7 @@ from ghostcal.infrastructure.db.subscriptions_repository import SqlSubscriptionR
 from ghostcal.infrastructure.db.task_reminders_repository import SqlTaskReminderGateway
 from ghostcal.infrastructure.db.webhooks_repository import SqlWebhookRepository
 from ghostcal.infrastructure.email import build_email_sender
+from ghostcal.infrastructure.email.outbox import PendingEmail
 from ghostcal.infrastructure.security.egress import BlockedOutboundURL, assert_public_url
 from ghostcal.infrastructure.security.encryption import SecretBox
 from ghostcal.infrastructure.security.tokens import BookingManagementCodec
@@ -53,6 +56,14 @@ def _manage_url(reminder: DueReminder) -> str:
 
 class WebhookDeliveryIncomplete(Exception):
     """At least one endpoint failed in a way worth retrying."""
+
+
+class EmailDeferred(Exception):
+    """The provider could not take the message this time, but might in a minute."""
+
+
+class EmailRefused(Exception):
+    """The provider said no, and would say no again. Retrying only multiplies the log lines."""
 
 
 @celery_app.task(name="ghostcal.sync_all_calendars")  # type: ignore[untyped-decorator]
@@ -265,6 +276,115 @@ def emit_event(organization_id: uuid.UUID, event_type: str, payload: dict[str, o
         logger.warning("could not enqueue webhook event %s", event_type)
 
 
+def _is_worth_retrying(status_code: int) -> bool:
+    """Whether a provider's refusal is about this moment or about us.
+
+    A 401 or a 403 is the API key, the sending domain or the caller's egress address being wrong --
+    the exact 401 that took sign-ups down on 2026-09-25. None of that changes in ten seconds, so
+    three retries would produce three identical failures, delay the giving-up by a minute and bury
+    the one log line an operator needs under four. A 429 is the provider asking us to come back
+    later, and a 5xx is the provider being briefly unwell; both are what backoff is for. 408 joins
+    them: the request never landed.
+    """
+    return status_code in (408, 429) or status_code >= 500
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    name="ghostcal.send_email",
+    bind=True,
+    autoretry_for=(EmailDeferred,),
+    retry_backoff=_settings.task_retry_backoff_seconds,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    max_retries=_settings.task_max_retries,
+)
+def send_email(
+    self: object,
+    to: str,
+    subject: str,
+    html: str,
+    attachments: list[dict[str, str]] | None = None,
+) -> None:
+    """Send one transactional email, off the request path.
+
+    Lives here so that a provider outage costs a user their *email*, not their account. The caller
+    that queued this has already committed; see `infrastructure/email/outbox.py` for why the order
+    matters.
+
+    No `reset_engine()` in a `finally` unlike its neighbours: this task opens no session, and
+    calling it would build an engine purely to dispose of it.
+    """
+    asyncio.run(_send_email(to, subject, html, attachments or []))
+
+
+async def _send_email(to: str, subject: str, html: str, attachments: list[dict[str, str]]) -> None:
+    domain = PendingEmail(to=to, subject=subject, html=html).recipient_domain
+    decoded = tuple(
+        Attachment(
+            filename=a["filename"],
+            content=base64.b64decode(a["content"]),
+            content_type=a.get("content_type", "application/octet-stream"),
+        )
+        for a in attachments
+    )
+    try:
+        await _mailer.send(to=to, subject=subject, html=html, attachments=decoded or None)
+    except httpx.HTTPStatusError as exc:
+        status = exc.response.status_code
+        if _is_worth_retrying(status):
+            logger.warning(
+                "email provider returned %s, will retry: subject=%r recipient_domain=%s",
+                status,
+                subject,
+                domain,
+            )
+            raise EmailDeferred(f"provider returned {status}") from exc
+        # Raised, not swallowed: the task ends in FAILURE, which is what puts it on the worker's
+        # `celery_tasks{outcome="failure"}` counter and through `_log_failure`. A best-effort send
+        # that returned quietly here would leave the user with no email and the estate with no
+        # sign that anything happened -- the same invisible breakage as the verification links
+        # that pointed at localhost.
+        logger.error(
+            "email refused by the provider and dropped: status=%s subject=%r recipient_domain=%s",
+            status,
+            subject,
+            domain,
+        )
+        raise EmailRefused(f"provider returned {status}") from exc
+    except httpx.HTTPError as exc:
+        # Timeouts, DNS, connection resets: the provider never got to answer. Always transient.
+        logger.warning(
+            "email provider unreachable, will retry: subject=%r recipient_domain=%s",
+            subject,
+            domain,
+        )
+        raise EmailDeferred(str(exc)) from exc
+    logger.info("email sent: subject=%r recipient_domain=%s", subject, domain)
+
+
+def enqueue_email(message: PendingEmail) -> None:
+    """Put one message on the queue. Raises if the broker will not take it.
+
+    Deliberately *not* best-effort, unlike `emit_event` above: the swallowing happens one layer up,
+    in `DeferredEmailSender.hand_off`, so exactly one place decides that a lost email must not cost
+    a user their account -- and so a future caller of this function gets an exception rather than a
+    silence it did not ask for.
+    """
+    send_email.delay(
+        message.to,
+        message.subject,
+        message.html,
+        [
+            {
+                "filename": a.filename,
+                "content": base64.b64encode(a.content).decode("ascii"),
+                "content_type": a.content_type,
+            }
+            for a in message.attachments
+        ],
+    )
+
+
 @celery_app.task(name="ghostcal.purge_expired_bookings")  # type: ignore[untyped-decorator]
 def purge_expired_bookings() -> int:
     """Purge bookings past their org's retention window. Returns how many were destroyed."""
@@ -274,8 +394,7 @@ def purge_expired_bookings() -> int:
 async def _purge_expired_bookings() -> int:
     total = 0
     try:
-        async with db_session() as session:
-            results = await purge_expired(SqlRetentionRepository(session))
+        results = await _purge_every_organization()
         # Irreversible, so never silent: say which organization lost how many rows.
         for result in results:
             logger.info(
@@ -287,3 +406,29 @@ async def _purge_expired_bookings() -> int:
     finally:
         await reset_engine()
     return total
+
+
+async def _purge_every_organization() -> list[PurgeResult]:
+    """Enumerate, then bind, then delete — one organization at a time.
+
+    The same shape as `sync_all_calendars` above, and for the same reason: each organization needs
+    its own bound session. The enumeration is the only cross-tenant step, it goes through a function
+    whose return type is an id and a number of days, and the deletion that follows runs under the
+    ordinary policy.
+
+    One organization failing must not stop the others: a purge that abandons the rest of the estate
+    because one tenant errored is a retention window quietly unhonoured for everyone after it.
+    """
+    async with db_session() as session:
+        windows = await SqlRetentionRepository(session).retention_windows()
+
+    results: list[PurgeResult] = []
+    for window in windows:
+        try:
+            async with org_session(window.organization_id) as session:
+                results.append(
+                    await purge_one_organization(SqlRetentionRepository(session), window)
+                )
+        except Exception:
+            logger.exception("purge failed for organization=%s", window.organization_id)
+    return results

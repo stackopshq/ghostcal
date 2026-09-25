@@ -22,6 +22,7 @@ from ghostcal.application.organizations import (
     PendingInvitation,
 )
 from ghostcal.infrastructure.db import models
+from ghostcal.infrastructure.db.session import bind_org, bind_user
 
 
 class SqlOrgRepository(OrgRepository):
@@ -240,6 +241,23 @@ class SqlInvitationGateway(InvitationGateway):
         wrapped_private_key: str,
         wrap_salt: str,
     ) -> None:
+        # Declare both contexts before the definer function runs, exactly as
+        # `_bind_user_and_org` does in the auth repository, and for the same reason: SECURITY
+        # DEFINER changes the role a function runs as, never the session it runs in. Under FORCE
+        # ROW LEVEL SECURITY it therefore inherits no sight of its own.
+        #
+        # The user GUC opens the self-read policy on `memberships`, which is what the function's
+        # own membership check reads; the org GUC opens `tenant_isolation` on `org_member_keys`,
+        # which is what it writes. Without the first it refused with "user X is not a member of
+        # organization Y" — a false refusal, the membership being right there — and with only the
+        # first it got past that and was refused by the policy on the insert instead.
+        #
+        # Binding an organization the caller does not belong to grants nothing: the membership
+        # check inside the function is the gate, and it runs after these declarations. Same trust
+        # model as everywhere else here — the application declares, the policies enforce, row by
+        # row, with no bypass.
+        await bind_user(self._session, user_id)
+        await bind_org(self._session, org_id)
         await self._session.execute(
             text("SELECT store_member_org_key(:o, :u, :w, :s)"),
             {"o": str(org_id), "u": str(user_id), "w": wrapped_private_key, "s": wrap_salt},

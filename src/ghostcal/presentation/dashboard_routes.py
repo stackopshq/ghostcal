@@ -24,6 +24,8 @@ from ghostcal.application.calendars import (
     disconnect_calendar,
     list_available_calendars,
     list_connections,
+    set_connection_color,
+    set_mirror_detail,
     sync_all_for_user,
     sync_connection,
 )
@@ -86,11 +88,13 @@ from ghostcal.presentation.schemas import (
     CalendarConnectIn,
     CalendarCredentialsIn,
     CalendarInfoOut,
+    CalendarPatchIn,
     ConnectionOut,
     CreatedOut,
     EventTypeDetailOut,
     EventTypeIn,
     MeetingOut,
+    MirrorDetailIn,
     OrganizationIn,
     OrganizationOut,
     OrgMembershipOut,
@@ -463,6 +467,7 @@ def _connection_out(record: ConnectionRecord) -> ConnectionOut:
         calendar_name=record.calendar_name,
         color=record.color,
         mirror_bookings=record.mirror_bookings,
+        mirror_detail=record.mirror_detail,
         status=record.status,
         last_synced_at=record.last_synced_at,
     )
@@ -584,6 +589,46 @@ async def choose_mirror_endpoint(
         repo = SqlCaldavConnectionRepository(session, member.organization_id)
         try:
             await choose_mirror_target(repo, connection_id, member.user.id)
+        except NotConnected as exc:
+            raise HTTPException(status_code=404, detail="no such connected calendar") from exc
+
+
+@router.patch("/calendar/connections/{connection_id}", status_code=204)
+async def recolor_connection_endpoint(
+    connection_id: uuid.UUID,
+    payload: CalendarPatchIn,
+    member: Member = Depends(current_member),
+) -> None:
+    """Change the overlay colour of a connected calendar.
+
+    It was assigned by cycling a palette at connection time and could not be changed afterwards:
+    the only way was to disconnect and reconnect, which means re-entering the server password.
+    """
+    async with org_session(member.organization_id) as session:
+        repo = SqlCaldavConnectionRepository(session, member.organization_id)
+        try:
+            await set_connection_color(repo, connection_id, member.user.id, payload.color)
+        except NotConnected as exc:
+            raise HTTPException(status_code=404, detail="no such connected calendar") from exc
+
+
+@router.put("/calendar/connections/{connection_id}/mirror-detail", status_code=204)
+async def set_mirror_detail_endpoint(
+    connection_id: uuid.UUID,
+    payload: MirrorDetailIn,
+    member: Member = Depends(current_member),
+) -> None:
+    """Choose what a mirrored booking says on the host's external calendar.
+
+    Until 2026-08-31 there was no choice: every mirrored booking carried the event title and the
+    invitee's email address onto a calendar hosted by whoever the host connected. New connections
+    now start at "busy"; existing ones kept their behaviour, because a migration must not change
+    what a running deployment sends to a third party without telling anyone.
+    """
+    async with org_session(member.organization_id) as session:
+        repo = SqlCaldavConnectionRepository(session, member.organization_id)
+        try:
+            await set_mirror_detail(repo, connection_id, member.user.id, payload.mirror_detail)
         except NotConnected as exc:
             raise HTTPException(status_code=404, detail="no such connected calendar") from exc
 

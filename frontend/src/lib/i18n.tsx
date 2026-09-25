@@ -233,12 +233,36 @@ const en: Dict = {
   "calendar.locked":
     "Locked. Log in again to unlock your calendar in this browser.",
   "calendar.busy": "Busy",
+  "forgot.title": "Forgotten password",
+  "forgot.subtitle": "We will email you a link.",
+  "forgot.send": "Send the link",
+  "forgot.sent": "If that address has an account, a link is on its way. It expires in an hour.",
+  "forgot.backToLogin": "Back to sign in",
+  "forgot.phraseWarning":
+    "You will need the recovery phrase shown when the account was created. We do not hold a copy, so without it the link cannot open your calendar.",
+  "reset.title": "Choose a new password",
+  "reset.subtitle": "Your recovery phrase unlocks the calendar; the new password re-locks it.",
+  "reset.phrasePlaceholder": "Recovery phrase",
+  "reset.newPassword": "New password",
+  "reset.submit": "Reset my password",
+  "reset.wrongPhrase":
+    "That phrase does not open this account. Nothing has changed and the link still works.",
+  "reset.badLinkTitle": "This link cannot be used",
+  "reset.badLinkBody":
+    "It has expired, or it has already been used. Reset links last an hour and work once.",
+  "reset.askAgain": "Ask for a new link",
+  "reset.nothingRecoverable":
+    "The recovery phrase cannot reopen anything on this account: its keys reached it another way, and no copy of them is wrapped under the phrase. Ask an administrator of your organisation to grant you access again.",
+  "reset.partialWarning":
+    "{n} key generation(s) will stay locked: they were granted after your account was set up, and the recovery phrase has no copy of them. Everything else reopens. An administrator can grant the rest back.",
+  "calendar.recolor": "Change this calendar's colour",
   "calendar.untitled": "(untitled)",
   "calendar.newEvent": "New event",
   "calendar.newCalendar": "New calendar",
   "calendar.externalCalendar": "External",
   "calendar.connectExternal": "Connect a calendar",
   "calendar.subscribe": "Subscribe to a calendar",
+  "calendar.subscribeWhatFor": "A calendar you follow.",
   "calendar.subscribeHint":
     "Paste a public iCal/ICS feed URL (holidays, sports fixtures, a shared calendar). It stays read-only and refreshes automatically.",
   "calendar.subscribeError": "Could not fetch that feed. Check the URL.",
@@ -389,6 +413,8 @@ const en: Dict = {
   "profile.updatePassword": "Update password",
   "profile.updated": "Updated ✓",
   "profile.errCurrentWrong": "Current password is incorrect.",
+  "profile.errRewrap":
+    "Your password was changed, but your data could not be re-secured under it. Stay on this page and try again — do not sign out.",
   "profile.errPassword": "Could not change your password (min 8 characters).",
   // settings
   "settings.title": "Settings",
@@ -505,6 +531,7 @@ const en: Dict = {
   "et.editTitle": "Edit event type",
   "et.newTitle": "New event type",
   "et.titlePh": "Title (e.g. Intro call)",
+  "et.descriptionPh": "Description shown on your booking page (optional)",
   "et.duration": "Duration (min)",
   "et.slotEvery": "Slot every (min)",
   "et.location": "Location",
@@ -568,6 +595,7 @@ const en: Dict = {
   "cal.synced": "Synced {n} busy block(s).",
   "cal.confirmDisconnect": "Disconnect this calendar?",
   "cal.title": "Connected calendar",
+  "cal.whatFor": "A calendar you edit.",
   "cal.sub":
     "Connect a CalDAV calendar (iCloud, Nextcloud, Fastmail…) so your busy times block availability and bookings appear on it.",
   "cal.calendarFallback": "Calendar",
@@ -576,6 +604,44 @@ const en: Dict = {
   "cal.syncNow": "Sync now",
   "cal.disconnect": "Disconnect",
   "cal.serverPh": "CalDAV server URL (e.g. https://caldav.fastmail.com/)",
+  "cal.providerLabel": "Where is this calendar hosted?",
+  "cal.serverLabel": "Server address",
+  "cal.passwordLabel": "App password",
+  "cal.provider.icloud": "Apple iCloud",
+  "cal.provider.fastmail": "Fastmail",
+  "cal.provider.mailbox": "mailbox.org",
+  "cal.provider.microsoft": "Outlook / Microsoft 365",
+  "cal.provider.proton": "Proton Calendar",
+  "cal.user.mailbox": "mailbox.org address (your full email)",
+  "cal.help.mailbox":
+    "Sign in with your full mailbox.org address. If two-factor authentication is on, create an application password in Settings → Security → Application passwords, and use that one.",
+  "cal.help.microsoft":
+    "GhostCal cannot connect to an Outlook or Microsoft 365 calendar: it signs in with a password, and Microsoft offers no calendar address that accepts one. If your calendar can be published as an iCal address, add that address under Subscribed calendars further down this page — it is read-only, which is what a subscription is.",
+  "cal.help.proton":
+    "GhostCal cannot connect to a Proton calendar: Proton publishes no calendar server to sign in to. If your calendar can be shared as an iCal address, add that address under Subscribed calendars further down this page.",
+  "cal.provider.infomaniak": "Infomaniak kSuite",
+  "cal.provider.nextcloud": "Nextcloud or another self-hosted server",
+  "cal.provider.google": "Google Calendar",
+  "cal.provider.other": "Another CalDAV server",
+  "cal.user.icloud": "Apple ID (your iCloud email address)",
+  "cal.user.fastmail": "Fastmail address",
+  "cal.user.infomaniak": "Infomaniak address (your full email)",
+  "cal.user.nextcloud": "Nextcloud username",
+  "cal.user.other": "Username",
+  "cal.tpl.nextcloud": "https://your-server.example/remote.php/dav",
+  "cal.tpl.other": "https://caldav.example.com/",
+  "cal.help.icloud":
+    "Your Apple account password will be refused. Create an app-specific password at appleid.apple.com → Sign-In and Security → App-Specific Passwords, and paste that one.",
+  "cal.help.fastmail":
+    "Your account password will be refused. Create an app password in Fastmail under Settings → Privacy & Security → App Passwords, with calendar access.",
+  "cal.help.infomaniak":
+    "Sign in with your full Infomaniak address. If two-factor authentication is on, create an application password in the Infomaniak manager under My profile → Security → Application passwords, and use that one.",
+  "cal.help.nextcloud":
+    "The address ends in /remote.php/dav. If two-factor authentication is on, create a device password under Settings → Security.",
+  "cal.help.google":
+    "Google does not allow password sign-in. Use your calendar's secret iCal address — your busy times will block your availability just the same. You will find it in Google Calendar under Settings → Integrate calendar, then add it under Subscribed calendars further down this page.",
+  "cal.feedNotServer":
+    "That is a published calendar file, not a CalDAV server — it is read-only. Add it under Subscribed calendars, further down this page, where this exact kind of link belongs.",
   "cal.username": "Username",
   "cal.appPassword": "App password",
   "cal.checking": "Checking…",
@@ -584,11 +650,21 @@ const en: Dict = {
   "cal.connect": "Connect",
   "cal.addAnother": "+ Connect another calendar",
   "cal.publishTitle": "Publish your calendars",
+  "cal.publishWhatFor": "A calendar you take with you.",
   "cal.publishSub":
-    "Send a GhostCal calendar to one of the accounts above, so its events show up on your phone. It is still encrypted here: your browser opens each event and hands it over to be forwarded, and the server keeps none of it. Which means a publish waits for a browser: nothing runs in the background, because nothing in the background can read your events.",
+    "Your appointments go to one of the accounts above. Your browser is what decrypts them to send, never the server — so publishing only moves forward while this page is open.",
   "cal.publishNowhere": "Don't publish",
   "cal.published": "Published: {n} event(s) sent.",
   "cal.mirrorTarget": "Bookings land here",
+  "cal.mirrorDetailTitle": "What appears on that calendar",
+  "cal.mirrorBusy": "Busy only",
+  "cal.mirrorDetailed": "Title and invitee's address",
+  "cal.mirrorWarnKnown":
+    "Choosing this sends the event title and the invitee's email address to {host}, who hosts that calendar. Everything else about the invitee stays sealed; this does not.",
+  "cal.mirrorWarnUnknown":
+    "Choosing this sends the event title and the invitee's email address to the calendar you entered. Everything else about the invitee stays sealed; this does not.",
+  "cal.mirrorBusyNote":
+    "Busy only: the slot is blocked, with no title, no address and no location.",
   "cal.makeMirror": "Put bookings here",
   "cal.mirrorHint":
     "Meetings booked with you are written to one of these calendars. Writing them to all of them would show every meeting several times.",
@@ -810,12 +886,37 @@ const fr: Dict = {
   "calendar.locked":
     "Verrouillé. Reconnectez-vous pour déverrouiller votre calendrier dans ce navigateur.",
   "calendar.busy": "Occupé",
+  "forgot.title": "Mot de passe oublié",
+  "forgot.subtitle": "Nous vous envoyons un lien par courriel.",
+  "forgot.send": "Envoyer le lien",
+  "forgot.sent": "Si cette adresse a un compte, un lien est parti. Il expire dans une heure.",
+  "forgot.backToLogin": "Retour à la connexion",
+  "forgot.phraseWarning":
+    "Il vous faudra la phrase de récupération affichée à la création du compte. Nous n'en gardons aucune copie : sans elle, le lien ne peut pas ouvrir votre agenda.",
+  "reset.title": "Choisir un nouveau mot de passe",
+  "reset.subtitle":
+    "Votre phrase de récupération déverrouille l'agenda ; le nouveau mot de passe le referme.",
+  "reset.phrasePlaceholder": "Phrase de récupération",
+  "reset.newPassword": "Nouveau mot de passe",
+  "reset.submit": "Réinitialiser mon mot de passe",
+  "reset.wrongPhrase":
+    "Cette phrase n'ouvre pas ce compte. Rien n'a changé et le lien fonctionne toujours.",
+  "reset.badLinkTitle": "Ce lien n'est plus utilisable",
+  "reset.badLinkBody":
+    "Il a expiré, ou il a déjà servi. Un lien de réinitialisation dure une heure et ne sert qu'une fois.",
+  "reset.askAgain": "Demander un nouveau lien",
+  "reset.nothingRecoverable":
+    "La phrase de récupération ne peut rien rouvrir sur ce compte : ses clés lui sont parvenues autrement, et aucune copie n'en est enveloppée sous la phrase. Demandez à un administrateur de votre organisation de vous redonner l'accès.",
+  "reset.partialWarning":
+    "{n} génération(s) de clé resteront verrouillées : elles ont été octroyées après la création de votre compte, et la phrase de récupération n'en a pas de copie. Tout le reste se rouvre. Un administrateur peut vous rendre le reste.",
+  "calendar.recolor": "Changer la couleur de ce calendrier",
   "calendar.untitled": "(sans titre)",
   "calendar.newEvent": "Nouvel événement",
   "calendar.newCalendar": "Nouveau calendrier",
   "calendar.externalCalendar": "Externe",
   "calendar.connectExternal": "Connecter un calendrier",
   "calendar.subscribe": "S'abonner à un calendrier",
+  "calendar.subscribeWhatFor": "Un calendrier que vous suivez.",
   "calendar.subscribeHint":
     "Collez l'URL d'un flux iCal/ICS public (jours fériés, matchs, calendrier partagé). Il reste en lecture seule et se met à jour automatiquement.",
   "calendar.subscribeError":
@@ -964,6 +1065,8 @@ const fr: Dict = {
   "profile.updatePassword": "Mettre à jour le mot de passe",
   "profile.updated": "Mis à jour ✓",
   "profile.errCurrentWrong": "Le mot de passe actuel est incorrect.",
+  "profile.errRewrap":
+    "Votre mot de passe a été changé, mais vos données n'ont pas pu être resécurisées avec. Restez sur cette page et réessayez — ne vous déconnectez pas.",
   "profile.errPassword":
     "Impossible de changer votre mot de passe (8 caractères min.).",
   "settings.title": "Réglages",
@@ -1082,6 +1185,7 @@ const fr: Dict = {
   "et.editTitle": "Modifier le type d'événement",
   "et.newTitle": "Nouveau type d'événement",
   "et.titlePh": "Titre (ex. Appel découverte)",
+  "et.descriptionPh": "Description affichée sur votre page de réservation (facultatif)",
   "et.duration": "Durée (min)",
   "et.slotEvery": "Créneau toutes les (min)",
   "et.location": "Lieu",
@@ -1147,6 +1251,7 @@ const fr: Dict = {
   "cal.synced": "{n} plage(s) occupée(s) synchronisée(s).",
   "cal.confirmDisconnect": "Déconnecter ce calendrier ?",
   "cal.title": "Calendrier connecté",
+  "cal.whatFor": "Un calendrier que vous modifiez.",
   "cal.sub":
     "Connectez un calendrier CalDAV (iCloud, Nextcloud, Fastmail…) pour que vos créneaux occupés bloquent vos disponibilités et que les réservations y apparaissent.",
   "cal.calendarFallback": "Calendrier",
@@ -1155,6 +1260,44 @@ const fr: Dict = {
   "cal.syncNow": "Synchroniser",
   "cal.disconnect": "Déconnecter",
   "cal.serverPh": "URL du serveur CalDAV (ex. https://caldav.fastmail.com/)",
+  "cal.providerLabel": "Où ce calendrier est-il hébergé ?",
+  "cal.serverLabel": "Adresse du serveur",
+  "cal.passwordLabel": "Mot de passe d'application",
+  "cal.provider.icloud": "Apple iCloud",
+  "cal.provider.fastmail": "Fastmail",
+  "cal.provider.mailbox": "mailbox.org",
+  "cal.provider.microsoft": "Outlook / Microsoft 365",
+  "cal.provider.proton": "Proton Calendar",
+  "cal.user.mailbox": "Adresse mailbox.org (votre courriel complet)",
+  "cal.help.mailbox":
+    "Connectez-vous avec votre adresse mailbox.org complète. Si la double authentification est active, créez un mot de passe d'application sous Paramètres → Sécurité → Mots de passe d'application, et utilisez celui-là.",
+  "cal.help.microsoft":
+    "GhostCal ne peut pas se connecter à un agenda Outlook ou Microsoft 365 : il s'authentifie par mot de passe, et Microsoft ne propose aucune adresse d'agenda qui en accepte un. Si votre agenda peut être publié sous forme d'adresse iCal, ajoutez cette adresse sous Calendriers abonnés, plus bas sur cette page — c'est en lecture seule, ce qu'est un abonnement.",
+  "cal.help.proton":
+    "GhostCal ne peut pas se connecter à un agenda Proton : Proton ne publie aucun serveur d'agenda où s'authentifier. Si votre agenda peut être partagé sous forme d'adresse iCal, ajoutez cette adresse sous Calendriers abonnés, plus bas sur cette page.",
+  "cal.provider.infomaniak": "Infomaniak kSuite",
+  "cal.provider.nextcloud": "Nextcloud ou un autre serveur auto-hébergé",
+  "cal.provider.google": "Google Agenda",
+  "cal.provider.other": "Un autre serveur CalDAV",
+  "cal.user.icloud": "Identifiant Apple (votre adresse iCloud)",
+  "cal.user.fastmail": "Adresse Fastmail",
+  "cal.user.infomaniak": "Adresse Infomaniak (votre courriel complet)",
+  "cal.user.nextcloud": "Nom d'utilisateur Nextcloud",
+  "cal.user.other": "Nom d'utilisateur",
+  "cal.tpl.nextcloud": "https://votre-serveur.exemple/remote.php/dav",
+  "cal.tpl.other": "https://caldav.exemple.com/",
+  "cal.help.icloud":
+    "Le mot de passe de votre compte Apple sera refusé. Créez un mot de passe pour application sur appleid.apple.com → Connexion et sécurité → Mots de passe pour application, et collez celui-là.",
+  "cal.help.fastmail":
+    "Le mot de passe de votre compte sera refusé. Créez un mot de passe d'application dans Fastmail, sous Settings → Privacy & Security → App Passwords, avec l'accès au calendrier.",
+  "cal.help.infomaniak":
+    "Connectez-vous avec votre adresse Infomaniak complète. Si la double authentification est active, créez un mot de passe d'application dans le manager Infomaniak, sous Mon profil → Sécurité → Mots de passe d'application, et utilisez celui-là.",
+  "cal.help.nextcloud":
+    "L'adresse se termine par /remote.php/dav. Si la double authentification est active, créez un mot de passe d'appareil sous Paramètres → Sécurité.",
+  "cal.help.google":
+    "Google n'autorise pas la connexion par mot de passe. Utilisez l'adresse iCal secrète de votre agenda — vos créneaux occupés bloqueront vos disponibilités de la même façon. Vous la trouverez dans Google Agenda, sous Paramètres → Intégrer l'agenda, puis ajoutez-la sous Calendriers abonnés, plus bas sur cette page.",
+  "cal.feedNotServer":
+    "Ceci est un calendrier publié, pas un serveur CalDAV — il est en lecture seule. Ajoutez-le sous Calendriers abonnés, plus bas sur cette page : c'est exactement le champ qui attend ce genre de lien.",
   "cal.username": "Nom d'utilisateur",
   "cal.appPassword": "Mot de passe d'application",
   "cal.checking": "Vérification…",
@@ -1163,11 +1306,21 @@ const fr: Dict = {
   "cal.connect": "Connecter",
   "cal.addAnother": "+ Connecter un autre calendrier",
   "cal.publishTitle": "Publier vos calendriers",
+  "cal.publishWhatFor": "Un calendrier que vous emportez.",
   "cal.publishSub":
-    "Envoyez un calendrier GhostCal vers l'un des comptes ci-dessus, pour que ses événements apparaissent sur votre téléphone. Il reste chiffré ici : votre navigateur ouvre chaque événement et le remet pour transmission, et le serveur n'en garde rien. Ce qui veut dire qu'une publication attend un navigateur : rien ne tourne en arrière-plan, parce que rien en arrière-plan ne sait lire vos événements.",
+    "Vos rendez-vous partent vers l'un des comptes ci-dessus. C'est votre navigateur qui les déchiffre pour les envoyer, jamais le serveur : la publication n'avance donc que pendant que cette page est ouverte.",
   "cal.publishNowhere": "Ne pas publier",
   "cal.published": "Publié : {n} événement(s) envoyé(s).",
   "cal.mirrorTarget": "Les réservations arrivent ici",
+  "cal.mirrorDetailTitle": "Ce qui apparaît sur ce calendrier",
+  "cal.mirrorBusy": "Occupé seulement",
+  "cal.mirrorDetailed": "Titre et adresse de l'invité",
+  "cal.mirrorWarnKnown":
+    "Ce choix envoie le titre de l'événement et l'adresse de l'invité à {host}, qui héberge ce calendrier. Tout le reste de l'invité reste scellé ; pas ceci.",
+  "cal.mirrorWarnUnknown":
+    "Ce choix envoie le titre de l'événement et l'adresse de l'invité sur le calendrier que vous avez indiqué. Tout le reste de l'invité reste scellé ; pas ceci.",
+  "cal.mirrorBusyNote":
+    "Occupé seulement : le créneau est bloqué, sans titre, sans adresse et sans lieu.",
   "cal.makeMirror": "Y envoyer les réservations",
   "cal.mirrorHint":
     "Les rendez-vous pris avec vous sont écrits sur l'un de ces calendriers. Les écrire sur tous ferait apparaître chaque réunion plusieurs fois.",

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { inputClass, primaryButtonClass } from "@/components/AuthCard";
 import { ApiError } from "@/lib/api";
-import { logout } from "@/lib/auth";
+import { logout, rewrapAllForNewPassword } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 import { changePassword, getProfile, updateProfile } from "@/lib/profile";
 import { MIN_PASSWORD_LENGTH } from "@/lib/passwords";
@@ -47,14 +47,14 @@ function Avatar({
         src={url}
         alt=""
         onError={onBroken}
-        className="h-14 w-14 shrink-0 rounded-full border border-border-strong object-cover"
+        className="h-14 w-14 shrink-0 rounded-pill border border-border-strong object-cover"
       />
     );
   }
   return (
     <span
       aria-hidden
-      className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border-strong bg-surface-2 text-lg font-semibold text-muted"
+      className="flex h-14 w-14 shrink-0 items-center justify-center rounded-pill border border-border-strong bg-surface-2 text-lg font-semibold text-muted"
     >
       {initials}
     </span>
@@ -119,8 +119,29 @@ export default function ProfileSettings() {
     e.preventDefault();
     setPasswordError(null);
     setSavedPassword(false);
+    let rewrapFailed = false;
     try {
       await changePassword({ current_password: current, new_password: next });
+
+      // Ré-envelopper les clés d'organisation sous le NOUVEAU mot de passe, et
+      // le faire ICI — après le changement, avant la déconnexion.
+      //
+      // La clé privée d'organisation est enveloppée sous une clé dérivée du mot
+      // de passe. Le serveur ne peut pas la ré-envelopper : il ne voit jamais la
+      // clé privée, c'est tout l'objet du zero-knowledge. Si le client ne le
+      // fait pas, l'enveloppe reste scellée sous l'ANCIEN mot de passe et la
+      // connexion suivante ne peut plus l'ouvrir : on entre, l'authentification
+      // marche, et l'agenda est vide. Les données ne sont pas perdues, elles
+      // sont définitivement illisibles — ce qui revient au même.
+      //
+      // L'ordre n'est pas négociable. Avant `changePassword`, on n'a pas encore
+      // le droit d'écrire les nouvelles enveloppes ; après `logout`,
+      // `clearUnlockedKeys` a effacé les clés déverrouillées et il n'y a plus
+      // rien à ré-envelopper. La fenêtre est exactement ici.
+      rewrapFailed = true;
+      await rewrapAllForNewPassword(next);
+      rewrapFailed = false;
+
       setCurrent("");
       setNext("");
       setSavedPassword(true);
@@ -130,6 +151,16 @@ export default function ProfileSettings() {
       await logout();
       window.location.assign("/login?reason=password-changed");
     } catch (err) {
+      // Un échec APRÈS le changement de mot de passe est d'une autre nature : le
+      // mot de passe a changé mais les enveloppes non, donc le compte est
+      // exactement dans l'état que ce correctif existe pour éviter. On ne
+      // déconnecte pas — tant que la session vit, les clés déverrouillées sont
+      // encore en mémoire et un nouvel essai peut réussir. Déconnecter ici
+      // rendrait la panne irréversible.
+      if (rewrapFailed) {
+        setPasswordError(t("profile.errRewrap"));
+        return;
+      }
       setPasswordError(
         err instanceof ApiError && err.status === 403
           ? t("profile.errCurrentWrong")

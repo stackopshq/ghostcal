@@ -134,7 +134,7 @@ export default function KeyRotationSettings() {
           type="button"
           onClick={() => setArmed(true)}
           disabled={members === null || orgId === null || notReady.length > 0}
-          className="mt-4 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition hover:bg-surface-2 disabled:opacity-40"
+          className="mt-4 rounded-pill border border-border px-4 py-2 text-sm font-medium text-foreground transition hover:bg-surface-2 disabled:opacity-40"
         >
           {t("rotation.rotate")}
         </button>
@@ -148,7 +148,7 @@ export default function KeyRotationSettings() {
               type="button"
               onClick={rotate}
               disabled={rotating}
-              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-black transition hover:opacity-90 disabled:opacity-40"
+              className="rounded-pill bg-accent px-4 py-2 text-sm font-medium text-black transition hover:opacity-90 disabled:opacity-40"
             >
               {rotating ? t("rotation.rotating") : t("rotation.confirmRotate")}
             </button>
@@ -187,7 +187,7 @@ export default function KeyRotationSettings() {
           <button
             type="button"
             onClick={runReseal}
-            className="mt-3 rounded-lg border border-amber-500/60 px-4 py-2 text-sm font-medium text-amber-300 transition hover:bg-amber-500/10"
+            className="mt-3 rounded-pill border border-amber-500/60 px-4 py-2 text-sm font-medium text-amber-300 transition hover:bg-amber-500/10"
           >
             {t("reseal.resume")}
           </button>

@@ -5,6 +5,8 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "jsdom",
+    setupFiles: ["./vitest.setup.ts"],
+    // Voir vitest.setup.ts : le stockage de jsdom, que le global de Node masque.
     include: ["src/**/*.test.ts"],
     globals: false,
     // The zero-knowledge tests derive real Argon2id keys — deliberately expensive work that

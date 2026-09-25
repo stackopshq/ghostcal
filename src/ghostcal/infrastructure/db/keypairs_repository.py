@@ -59,7 +59,41 @@ class SqlKeypairRepository(KeypairRepository):
         )
         return bool(result.rowcount)  # type: ignore[attr-defined]
 
+    async def rewrap(
+        self, user_id: uuid.UUID, *, public_key: str, wrapped_private_key: str, wrap_salt: str
+    ) -> bool:
+        # `zk_public_key` is in the WHERE clause and NOT in the SET clause. That is the whole
+        # difference from `set` above: the write-once rule exists to stop a public key changing,
+        # and this statement cannot change one. Matching it also proves the caller is re-wrapping
+        # the keypair that is actually stored — a browser holding a stale one updates nothing.
+        result = await self._session.execute(
+            update(models.User)
+            .where(models.User.id == user_id, models.User.zk_public_key == public_key)
+            .values(zk_wrapped_private_key=wrapped_private_key, zk_wrap_salt=wrap_salt)
+        )
+        return bool(result.rowcount)  # type: ignore[attr-defined]
+
     async def member_public_keys(self, organization_id: uuid.UUID) -> list[MemberPublicKey]:
+        # ─── Le filtre d'organisation est ici, pas seulement dans la RLS ───
+        #
+        # Cette requête s'en remettait au seul `bind_org`, c'est-à-dire à la sécurité au
+        # niveau ligne de PostgreSQL. Mesuré en production le 2026-09-25 : elle rendait
+        # **les utilisateurs de toutes les organisations du serveur**, avec leur nom, leur
+        # adresse et leur clé publique.
+        #
+        # Le symptôme, côté écran : « ces membres n'ont pas encore de clé de chiffrement »
+        # nommait des comptes d'autres organisations. On lit d'abord une erreur d'affichage,
+        # alors que c'est la réponse du serveur qui déborde.
+        #
+        # `/members`, servie par `org_repository`, filtrait correctement — d'où un écran
+        # qui montrait un membre et un autre qui en montrait trois, sur la même
+        # organisation. C'est ce désaccord qui a mis sur la piste.
+        #
+        # `org_repository` pose ce filtre explicitement à sept endroits. Celui-ci était le
+        # seul à ne pas le faire. La RLS reste la seconde barrière, et c'est son rôle : une
+        # défense qui dépend d'une politique pour être correcte se casse dès qu'une
+        # politique permissive est ajoutée ailleurs — `memberships_self_read` en est une, et
+        # PostgreSQL combine les politiques permissives par OU.
         await bind_org(self._session, organization_id)
         rows = (
             await self._session.execute(
@@ -70,6 +104,7 @@ class SqlKeypairRepository(KeypairRepository):
                     models.User.zk_public_key,
                 )
                 .join(models.Membership, models.Membership.user_id == models.User.id)
+                .where(models.Membership.organization_id == organization_id)
                 .order_by(models.User.name)
             )
         ).all()

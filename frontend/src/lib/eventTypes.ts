@@ -35,6 +35,7 @@ export type EventType = {
 
 export type EventTypeInput = {
   title: string;
+  description: string | null;
   duration_min: number;
   slot_interval_min: number;
   buffer_before_min: number;
@@ -50,6 +51,60 @@ export type EventTypeInput = {
   capacity: number;
   redirect_url: string | null;
 };
+
+/**
+ * Fields the server owns. Everything else on an event type is the client's to send back.
+ */
+type ServerAssigned = "id" | "organization_id" | "organization_slug" | "slug";
+
+/**
+ * `EventTypeInput` must cover every editable field of `EventType`, and this line is what says so.
+ *
+ * `PUT /v1/me/event-types/{id}` REPLACES the object: a field missing from the body is not left
+ * alone, it goes back to the schema default. `description` was missing from this type until
+ * 2026-08-30, so every save — and every flick of the active switch, which posts the same body —
+ * silently blanked a field that the public booking page renders (`app/[org]/page.tsx`).
+ *
+ * A test could only ever have caught the field someone thought to write a test for. This fails the
+ * type check instead, on the next field added to `EventType` and forgotten here.
+ */
+type _EveryEditableFieldIsSendable = Exclude<
+  keyof Omit<EventType, ServerAssigned>,
+  keyof EventTypeInput
+> extends never
+  ? true
+  : never;
+const _everyEditableFieldIsSendable: _EveryEditableFieldIsSendable = true;
+void _everyEditableFieldIsSendable;
+
+/**
+ * The body to send back for an event type, from anything that carries its fields.
+ *
+ * Lives here rather than in the page because the page cannot be tested — this suite renders no
+ * components — and because all three callers need it: saving the form, opening the editor, and
+ * toggling `active` from the list. That last one is why a dropped field is expensive: it looks
+ * like a switch, and it rewrites the whole object.
+ */
+export function toEventTypeInput(x: EventTypeInput): EventTypeInput {
+  return {
+    title: x.title,
+    description: x.description,
+    duration_min: x.duration_min,
+    slot_interval_min: x.slot_interval_min,
+    buffer_before_min: x.buffer_before_min,
+    buffer_after_min: x.buffer_after_min,
+    min_notice_min: x.min_notice_min,
+    date_window_days: x.date_window_days,
+    max_per_day: x.max_per_day,
+    location_type: x.location_type,
+    active: x.active,
+    questions: x.questions,
+    kind: x.kind,
+    host_ids: x.host_ids,
+    capacity: x.capacity,
+    redirect_url: x.redirect_url,
+  };
+}
 
 export const LOCATION_LABELS: Record<string, string> = {
   google_meet: "Google Meet",

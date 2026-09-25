@@ -11,14 +11,14 @@ export default function Home() {
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 p-8 text-center">
       <div className="flex items-center gap-3">
-        <span className="text-3xl text-accent">●</span>
-        <h1 className="text-4xl font-semibold tracking-tight text-foreground">GhostCal</h1>
+        <span className="text-2xl text-accent">●</span>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">GhostCal</h1>
       </div>
       <p className="max-w-md text-muted">{t("landing.tagline")}</p>
       <div className="flex flex-wrap items-center justify-center gap-3">
         <Link
           href="/register"
-          className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.45)] transition hover:brightness-110"
+          className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)] transition hover:brightness-110"
         >
           {t("landing.getStarted")}
         </Link>

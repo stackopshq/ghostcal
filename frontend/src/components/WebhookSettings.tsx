@@ -107,7 +107,7 @@ export default function WebhookSettings() {
           placeholder="https://example.com/webhook"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          className="rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
+          className="rounded border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
         />
         <div className="flex flex-wrap gap-2">
           {events.map((ev) => {
@@ -118,7 +118,7 @@ export default function WebhookSettings() {
                 type="button"
                 onClick={() => toggle(ev)}
                 className={[
-                  "rounded-lg border px-3 py-1.5 text-xs transition",
+                  "rounded-pill border px-3 py-1.5 text-xs transition",
                   on ? "border-accent text-accent" : "border-border-strong text-muted",
                 ].join(" ")}
               >
@@ -130,7 +130,7 @@ export default function WebhookSettings() {
         {error && <p className="text-sm text-red-400">{error}</p>}
         <button
           type="submit"
-          className="self-start rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.45)] transition hover:brightness-110"
+          className="self-start rounded-pill bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)] transition hover:brightness-110"
         >
           {t("webhooks.add")}
         </button>

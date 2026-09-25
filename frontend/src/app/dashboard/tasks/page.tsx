@@ -19,6 +19,9 @@ import {
   openWithOrgKeys,
   sealTaskContent,
 } from "@/lib/zk";
+import {
+  BellIcon,
+} from "@/components/icons";
 
 type Decorated = Task & { title: string; notes: string };
 
@@ -216,12 +219,12 @@ export default function TasksPage() {
               value={quick}
               onChange={(e) => setQuick(e.target.value)}
               placeholder={t("tasks.quickAdd")}
-              className="flex-1 rounded-lg border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+              className="flex-1 rounded border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
             />
             <button
               type="submit"
               disabled={busy || !quick.trim()}
-              className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-40"
+              className="rounded-pill bg-accent px-3 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-40"
             >
               {busy ? t("common.saving") : t("tasks.add")}
             </button>
@@ -253,7 +256,7 @@ export default function TasksPage() {
                       type="button"
                       aria-label={t("tasks.complete")}
                       onClick={() => toggle(task)}
-                      className="h-4 w-4 shrink-0 rounded-full border border-border-strong transition hover:border-accent"
+                      className="h-4 w-4 shrink-0 rounded-pill border border-border-strong transition hover:border-accent"
                     />
                     <button
                       type="button"
@@ -280,7 +283,7 @@ export default function TasksPage() {
                             task.reminder_minutes != null ? "text-accent" : ""
                           }
                         >
-                          🔔
+                          <BellIcon />
                         </span>
                         <select
                           value={task.reminder_minutes ?? ""}
@@ -330,7 +333,7 @@ export default function TasksPage() {
                     type="button"
                     aria-label={t("tasks.reopen")}
                     onClick={() => toggle(task)}
-                    className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-accent text-[10px] text-accent-ink"
+                    className="flex h-4 w-4 shrink-0 items-center justify-center rounded-pill bg-accent text-2xs text-accent-ink"
                   >
                     ✓
                   </button>

@@ -8,6 +8,9 @@ import { isAuthenticated, setActiveOrg } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 import { acceptInvitation, storeMemberKey } from "@/lib/team";
 import { rewrapForPassword, storeUnlockedKey, unwrapKeyFromGrant } from "@/lib/zk";
+import {
+  KeyIcon,
+} from "@/components/icons";
 
 export default function InvitationPage() {
   const t = useT();
@@ -69,7 +72,7 @@ export default function InvitationPage() {
 
   return (
     <main className="flex flex-1 items-center justify-center p-4 sm:p-8">
-      <div className="glass w-full max-w-md rounded-2xl p-8 text-center shadow-2xl">
+      <div className="glass w-full max-w-md rounded-lg p-8 text-center shadow-2xl">
         {loading ? (
           <p className="text-sm text-muted">{t("common.loading")}</p>
         ) : !preview ? (
@@ -94,14 +97,14 @@ export default function InvitationPage() {
                 {hasGrant && (
                   <div className="text-left">
                     <p className="mb-1 flex items-center gap-1.5 text-xs text-accent">
-                      <span aria-hidden>🔑</span> {t("inv.unlockTitle")}
+                      <KeyIcon /> {t("inv.unlockTitle")}
                     </p>
                     <input
                       type="password"
                       placeholder={t("inv.unlockPasswordPh")}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
+                      className="w-full rounded border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
                     />
                   </div>
                 )}
@@ -109,7 +112,7 @@ export default function InvitationPage() {
                   type="button"
                   onClick={accept}
                   disabled={accepting || (hasGrant && !password)}
-                  className="w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.45)] transition hover:brightness-110 disabled:opacity-60"
+                  className="w-full rounded-pill bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)] transition hover:brightness-110 disabled:opacity-60"
                 >
                   {accepting ? t("inv.joining") : t("inv.accept")}
                 </button>

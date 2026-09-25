@@ -129,6 +129,12 @@ class CalendarRepository:
     ) -> CalendarRecord:
         raise NotImplementedError
 
+    async def set_calendar_color(
+        self, owner_id: uuid.UUID, calendar_id: uuid.UUID, color: str
+    ) -> bool:
+        """Recolour a calendar the owner owns. False if it is not theirs, or does not exist."""
+        raise NotImplementedError
+
     async def share_calendar(
         self, owner_id: uuid.UUID, calendar_id: uuid.UUID, user_id: uuid.UUID, *, can_edit: bool
     ) -> bool:
@@ -189,6 +195,23 @@ async def list_calendars(repo: CalendarRepository, owner_id: uuid.UUID) -> list[
     if not any(not c.is_shared for c in calendars):
         return [await repo.ensure_default_calendar(owner_id), *calendars]
     return calendars
+
+
+async def set_calendar_color(
+    repo: CalendarRepository, owner_id: uuid.UUID, calendar_id: uuid.UUID, color: str
+) -> None:
+    """Change a calendar's colour after it exists.
+
+    It could only be chosen at creation, so the sole way to recolour a calendar was to delete it —
+    which takes its events with it. The colour carries no meaning to the server; it is how its owner
+    tells two overlays apart at a glance, and that is exactly the kind of thing people get wrong the
+    first time and want to fix later.
+
+    Ownership is enforced in the repository's WHERE clause rather than by reading the row first: a
+    check followed by a write is two statements another request can slip between.
+    """
+    if not await repo.set_calendar_color(owner_id, calendar_id, color):
+        raise CalendarNotFound(str(calendar_id))
 
 
 async def share_calendar(

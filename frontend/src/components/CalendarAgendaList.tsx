@@ -2,6 +2,9 @@
 
 import { useMemo } from "react";
 import type { GridItem } from "@/components/CalendarTimeGrid";
+import {
+  LockIcon,
+} from "@/components/icons";
 
 /**
  * What is coming up, as a list.
@@ -44,7 +47,7 @@ export default function CalendarAgendaList({
 
   if (days.length === 0) {
     return (
-      <div className="glass rounded-2xl p-10 text-center text-sm text-muted">
+      <div className="glass rounded-lg p-10 text-center text-sm text-muted">
         {labels.empty}
       </div>
     );
@@ -57,7 +60,7 @@ export default function CalendarAgendaList({
     d.getDate() === today.getDate();
 
   return (
-    <div className="glass flex flex-col divide-y divide-border rounded-2xl">
+    <div className="glass flex flex-col divide-y divide-border rounded-lg">
       {days.map(({ date, items: dayItems }) => (
         <div
           key={date.toISOString()}
@@ -83,11 +86,11 @@ export default function CalendarAgendaList({
                 <button
                   type="button"
                   onClick={() => onEventClick(item)}
-                  className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left transition hover:bg-surface-2/60"
+                  className="flex w-full items-center gap-3 rounded-pill px-2 py-1.5 text-left transition hover:bg-surface-2/60"
                 >
                   <span
                     aria-hidden
-                    className="h-8 w-1 shrink-0 rounded-full"
+                    className="h-8 w-1 shrink-0 rounded-pill"
                     style={{ backgroundColor: item.color ?? "var(--accent)" }}
                   />
                   {/* `w-16 sm:w-24` : « 13:40 » n'a jamais eu besoin de 96 px.
@@ -120,7 +123,7 @@ export default function CalendarAgendaList({
                       className="shrink-0 text-xs text-muted"
                     >
                       <span aria-hidden className="sm:hidden">
-                        🔒
+                        <LockIcon />
                       </span>
                       <span className="sr-only sm:not-sr-only">
                         {labels.sharedReadOnly}

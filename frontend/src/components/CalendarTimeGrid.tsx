@@ -78,7 +78,7 @@ export default function CalendarTimeGrid({
   const hasAllDay = days.some((d) => allDayForDay(d).length > 0);
 
   return (
-    <div className="glass overflow-hidden rounded-2xl">
+    <div className="glass overflow-hidden rounded-lg">
       {/* Day headers */}
       <div className="grid border-b border-border" style={{ gridTemplateColumns: cols }}>
         <div />
@@ -87,7 +87,7 @@ export default function CalendarTimeGrid({
           const wx = weatherByDay?.get(ymd(day));
           return (
             <div key={ymd(day)} className="border-l border-border py-2 text-center">
-              <div className="text-[11px] uppercase text-muted">
+              <div className="text-2xs uppercase text-muted">
                 {day.toLocaleDateString(locale, { weekday: "short" })}
               </div>
               {onDayClick ? (
@@ -96,7 +96,7 @@ export default function CalendarTimeGrid({
                   onClick={() => onDayClick(day)}
                   title={labels.openDay}
                   aria-label={`${labels.openDay}, ${day.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}`}
-                  className={`rounded px-1.5 text-sm hover:bg-surface-2 hover:text-accent ${
+                  className={`rounded-pill px-1.5 text-sm hover:bg-surface-2 hover:text-accent ${
                     isToday ? "font-semibold text-accent" : "text-foreground"
                   }`}
                 >
@@ -111,7 +111,7 @@ export default function CalendarTimeGrid({
               )}
               {wx && (
                 <div
-                  className="mt-0.5 text-[10px] text-muted"
+                  className="mt-0.5 text-2xs text-muted"
                   title={`${Math.round(wx.tmin)}° / ${Math.round(wx.tmax)}°`}
                 >
                   <span aria-hidden>{wx.glyph}</span> {Math.round(wx.tmax)}°
@@ -128,7 +128,7 @@ export default function CalendarTimeGrid({
           className="grid border-b border-border bg-surface-2/20"
           style={{ gridTemplateColumns: cols }}
         >
-          <div className="py-1 pr-1 text-right text-[10px] text-muted">{labels.allDay}</div>
+          <div className="py-1 pr-1 text-right text-2xs text-muted">{labels.allDay}</div>
           {days.map((day) => (
             <div key={ymd(day)} className="flex flex-col gap-0.5 border-l border-border p-1">
               {allDayForDay(day).map((it, i) => (
@@ -138,7 +138,7 @@ export default function CalendarTimeGrid({
                   title={it.read_only ? labels.sharedReadOnly : undefined}
                   onClick={() => onEventClick(it)}
                   style={eventStyle(it)}
-                  className={`truncate rounded px-1.5 py-0.5 text-left text-[11px] ${eventClasses(it)}`}
+                  className={`truncate rounded-pill px-1.5 py-0.5 text-left text-2xs ${eventClasses(it)}`}
                 >
                   {it.label}
                 </button>
@@ -157,7 +157,7 @@ export default function CalendarTimeGrid({
               <div
                 key={h}
                 style={{ height: HOUR_PX }}
-                className="pr-1 text-right text-[10px] text-muted"
+                className="pr-1 text-right text-2xs text-muted"
               >
                 <span className="relative -top-1.5">{h > 0 ? `${String(h).padStart(2, "0")}:00` : ""}</span>
               </div>
@@ -195,10 +195,10 @@ export default function CalendarTimeGrid({
                     title={it.read_only ? labels.sharedReadOnly : undefined}
                     onClick={() => onEventClick(it)}
                     style={{ top, height, ...eventStyle(it) }}
-                    className={`absolute inset-x-0.5 overflow-hidden rounded px-1.5 py-0.5 text-left text-[11px] leading-tight ${eventClasses(it)}`}
+                    className={`absolute inset-x-0.5 overflow-hidden rounded px-1.5 py-0.5 text-left text-2xs leading-tight ${eventClasses(it)}`}
                   >
                     <span className="font-medium">{it.label}</span>
-                    <span className="block text-[10px] opacity-70">{hm(it.start)}</span>
+                    <span className="block text-2xs opacity-70">{hm(it.start)}</span>
                   </button>
                 );
               })}

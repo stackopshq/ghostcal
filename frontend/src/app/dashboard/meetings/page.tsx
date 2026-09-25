@@ -15,6 +15,10 @@ import {
   openWithOrgKeys,
   type InviteePrivate,
 } from "@/lib/zk";
+import {
+  LockIcon,
+  UnlockIcon,
+} from "@/components/icons";
 
 function fmtDay(iso: string, tz: string): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -130,8 +134,8 @@ export default function MeetingsPage() {
       </div>
 
       {locked && (
-        <p className="glass flex items-center gap-2 rounded-xl border-l-[3px] border-l-accent p-3 text-sm text-accent/90">
-          <span aria-hidden>🔒</span> {t("meetings.locked")}
+        <p className="glass flex items-center gap-2 rounded border-l-[3px] border-l-accent p-3 text-sm text-accent/90">
+          <LockIcon /> {t("meetings.locked")}
         </p>
       )}
 
@@ -148,7 +152,7 @@ export default function MeetingsPage() {
         {meetings.map((m) => (
           <div
             key={m.id}
-            className="glass flex flex-col gap-2 rounded-2xl border-l-[3px] border-l-accent p-5 sm:flex-row sm:items-center sm:justify-between"
+            className="glass flex flex-col gap-2 rounded-lg border-l-[3px] border-l-accent p-5 sm:flex-row sm:items-center sm:justify-between"
           >
             <div>
               <p className="font-medium text-foreground">{m.event_title}</p>
@@ -174,7 +178,7 @@ export default function MeetingsPage() {
                 <button
                   type="button"
                   onClick={() => cancel(m.id)}
-                  className="rounded-lg border border-border-strong px-3 py-2 text-sm text-muted transition hover:border-red-400 hover:text-red-400"
+                  className="rounded-pill border border-border-strong px-3 py-2 text-sm text-muted transition hover:border-red-400 hover:text-red-400"
                 >
                   {t("meetings.cancel")}
                 </button>
@@ -199,7 +203,7 @@ function MeetingDetails({
   return (
     <div className="mt-2 rounded-lg border border-border bg-surface-2/60 p-3 text-xs">
       <p className="mb-1 flex items-center gap-1 text-accent/80">
-        <span aria-hidden>🔓</span> {label}
+        <UnlockIcon /> {label}
       </p>
       <dl className="flex flex-col gap-0.5">
         {entries.map(([k, v]) => (

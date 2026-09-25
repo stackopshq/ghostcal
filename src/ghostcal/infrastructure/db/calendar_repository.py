@@ -184,6 +184,26 @@ class SqlCalendarRepository(CalendarRepository):
         ).scalar_one()
         return _calendar(row)
 
+    async def set_calendar_color(
+        self, owner_id: uuid.UUID, calendar_id: uuid.UUID, color: str
+    ) -> bool:
+        # `owner_id` in the WHERE clause, not in a prior SELECT: it is what stops one member
+        # recolouring another's calendar, and it has to be part of the same statement to do so.
+        # A shared calendar is deliberately not covered — the viewer sees the owner's colour.
+        row = (
+            await self._session.execute(
+                update(models.Calendar)
+                .where(
+                    models.Calendar.id == calendar_id,
+                    models.Calendar.owner_id == owner_id,
+                    models.Calendar.organization_id == self._org_id,
+                )
+                .values(color=color)
+                .returning(models.Calendar.id)
+            )
+        ).scalar_one_or_none()
+        return row is not None
+
     async def get_event(self, owner_id: uuid.UUID, event_id: uuid.UUID) -> EventRecord | None:
         row = (
             await self._session.execute(

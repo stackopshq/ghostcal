@@ -43,6 +43,14 @@ export function setSubscriptionBlocking(id: string, blocking: boolean): Promise<
   });
 }
 
+/** Recolore un abonnement existant. Les deux champs du PATCH sont facultatifs. */
+export function setSubscriptionColor(id: string, color: string): Promise<void> {
+  return authedFetch<void>(`/v1/me/calendar/subscriptions/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ color }),
+  });
+}
+
 export function refreshSubscription(id: string): Promise<void> {
   return authedFetch<void>(`/v1/me/calendar/subscriptions/${id}/refresh`, { method: "POST" });
 }

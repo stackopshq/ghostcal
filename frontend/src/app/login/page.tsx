@@ -76,6 +76,13 @@ export default function LoginPage() {
           <Link href="/register" className="text-accent hover:underline">
             {t("login.create")}
           </Link>
+          <br />
+          <Link
+            href="/forgot-password"
+            className="text-muted hover:text-accent"
+          >
+            {t("forgot.title")}
+          </Link>
         </>
       }
     >
@@ -110,7 +117,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={beginOidcLogin}
-              className="rounded-lg border border-border-strong px-4 py-2 text-sm font-medium text-foreground transition hover:border-accent hover:text-accent"
+              className="rounded-pill border border-border-strong px-4 py-2 text-sm font-medium text-foreground transition hover:border-accent hover:text-accent"
             >
               {t("login.sso")}
             </button>
