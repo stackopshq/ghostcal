@@ -194,79 +194,94 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
   @override
   Widget build(BuildContext context) {
     final gc = Gc.of(context);
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_modification ? "Modifier l'événement" : 'Nouvel événement'),
-        actions: [
-          if (_modification)
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: 'Supprimer',
-              onPressed: _occupe ? null : _supprimer,
+    // `FondGhost` parce que cet écran est **poussé** sur la pile, et non logé dans
+    // `EcranDAccueil`.
+    //
+    // Le thème pose `scaffoldBackgroundColor: Colors.transparent` — délibérément : le
+    // fond est peint par `FondGhost`, qu'un Scaffold opaque masquerait. Les cinq onglets
+    // en héritent, `EcranDAccueil` les enveloppant tous. Un écran poussé est frère de
+    // celui-là dans la pile, pas son enfant : il n'hérite de rien, et son Scaffold
+    // transparent laissait voir le noir du dessous.
+    //
+    // Le symptôme ne ressemblait pas à un fond manquant : en thème clair, les champs
+    // restaient blancs sur noir et les libellés — encre foncée — devenaient presque
+    // illisibles. Cela se lit comme un thème sombre mal fichu, pas comme un fond absent.
+    // Vu sur une capture d'écran ; aucun test ne le voyait.
+    return FondGhost(
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_modification ? "Modifier l'événement" : 'Nouvel événement'),
+          actions: [
+            if (_modification)
+              IconButton(
+                icon: const Icon(Icons.delete_outline),
+                tooltip: 'Supprimer',
+                onPressed: _occupe ? null : _supprimer,
+              ),
+            TextButton(
+              onPressed: _occupe || _illisible ? null : _enregistrer,
+              child: const Text('Enregistrer'),
             ),
-          TextButton(
-            onPressed: _occupe || _illisible ? null : _enregistrer,
-            child: const Text('Enregistrer'),
-          ),
-        ],
-      ),
-      body: _chargement
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                if (_erreur != null) ...[
-                  Text(_erreur!, style: TextStyle(color: gc.danger, fontSize: 13)),
-                  const SizedBox(height: 14),
-                ],
-                TextField(
-                  controller: _titre,
-                  decoration: const InputDecoration(labelText: 'Titre'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _lieu,
-                  decoration: const InputDecoration(labelText: 'Lieu'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _description,
-                  maxLines: 4,
-                  decoration: const InputDecoration(labelText: 'Description'),
-                ),
-                const SizedBox(height: 8),
-                SwitchListTile(
-                  title: const Text('Journée entière'),
-                  value: _journeeEntiere,
-                  onChanged: (v) => setState(() => _journeeEntiere = v),
-                ),
-                _dateEtHeure(gc, 'Début', _debut, (d) => setState(() {
-                      final duree = _fin.difference(_debut);
-                      _debut = d;
-                      // La durée suit le début : déplacer un rendez-vous d'une heure ne
-                      // doit pas l'allonger silencieusement jusqu'à l'ancienne fin.
-                      _fin = d.add(duree);
-                    })),
-                _dateEtHeure(gc, 'Fin', _fin, (d) => setState(() => _fin = d)),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: _calendrier,
-                  decoration: const InputDecoration(labelText: 'Calendrier'),
-                  items: [
-                    for (final c in widget.calendriers)
-                      DropdownMenuItem(value: c.id, child: Text(c.nom)),
+          ],
+        ),
+        body: _chargement
+            ? const Center(child: CircularProgressIndicator())
+            : ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  if (_erreur != null) ...[
+                    Text(_erreur!, style: TextStyle(color: gc.danger, fontSize: 13)),
+                    const SizedBox(height: 14),
                   ],
-                  onChanged: (v) => setState(() => _calendrier = v),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Le titre, le lieu et la description sont chiffrés sur cet appareil. '
-                  'Les heures partent en clair : sans elles, le serveur ne pourrait ni '
-                  'répondre « occupé » à un lien de réservation, ni envoyer de rappel.',
-                  style: TextStyle(color: gc.estompe, fontSize: 12),
-                ),
-              ],
-            ),
+                  TextField(
+                    controller: _titre,
+                    decoration: const InputDecoration(labelText: 'Titre'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _lieu,
+                    decoration: const InputDecoration(labelText: 'Lieu'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _description,
+                    maxLines: 4,
+                    decoration: const InputDecoration(labelText: 'Description'),
+                  ),
+                  const SizedBox(height: 8),
+                  SwitchListTile(
+                    title: const Text('Journée entière'),
+                    value: _journeeEntiere,
+                    onChanged: (v) => setState(() => _journeeEntiere = v),
+                  ),
+                  _dateEtHeure(gc, 'Début', _debut, (d) => setState(() {
+                        final duree = _fin.difference(_debut);
+                        _debut = d;
+                        // La durée suit le début : déplacer un rendez-vous d'une heure ne
+                        // doit pas l'allonger silencieusement jusqu'à l'ancienne fin.
+                        _fin = d.add(duree);
+                      })),
+                  _dateEtHeure(gc, 'Fin', _fin, (d) => setState(() => _fin = d)),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: _calendrier,
+                    decoration: const InputDecoration(labelText: 'Calendrier'),
+                    items: [
+                      for (final c in widget.calendriers)
+                        DropdownMenuItem(value: c.id, child: Text(c.nom)),
+                    ],
+                    onChanged: (v) => setState(() => _calendrier = v),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Le titre, le lieu et la description sont chiffrés sur cet appareil. '
+                    'Les heures partent en clair : sans elles, le serveur ne pourrait ni '
+                    'répondre « occupé » à un lien de réservation, ni envoyer de rappel.',
+                    style: TextStyle(color: gc.estompe, fontSize: 12),
+                  ),
+                ],
+              ),
+    ),
     );
   }
 

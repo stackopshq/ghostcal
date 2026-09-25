@@ -146,6 +146,43 @@ La cause : dès qu'une chaîne Dart contient un caractère au-delà de U+00FF, e
 mutation, la faille serait passée en production du contrôle — et le contrôle aurait été
 cru.
 
+## Ce qu'une capture d'écran a trouvé et que 84 tests ne voyaient pas
+
+Le 25 septembre, la deuxième image du jeu App Store — l'écran de création d'un
+événement — est sortie sur **fond noir**, champs blancs, libellés en encre foncée à peine
+lisibles.
+
+Premier diagnostic, faux : une capture prise en pleine transition de page. L'attente est
+passée de 600 ms à deux secondes ; la deuxième image était identique. Ce n'était pas la
+prise de vue, c'était l'écran.
+
+`theme.dart` pose `scaffoldBackgroundColor: Colors.transparent`, délibérément : le fond
+est un dégradé et un halo peints par `FondGhost`, qu'un `Scaffold` opaque masquerait. Les
+cinq onglets n'ont rien à faire, `EcranDAccueil` les enveloppant tous. Mais un écran
+**poussé** par `Navigator.push` est frère de l'accueil dans la pile, pas son enfant : il
+n'hérite de rien.
+
+Quatre écrans étaient dans ce cas, dont celui du parcours principal :
+
+| Écran | Atteint depuis |
+|---|---|
+| `nouvel_evenement.dart` | le « + » de l'agenda, et l'appui sur une ligne |
+| `profil.dart` | Réglages > Compte > Profil |
+| `sondages.dart` (deux écrans) | Réglages > Collaboration > Sondages |
+| `equipe.dart` | Réglages > Collaboration > Équipe |
+
+**Pourquoi 84 tests n'en disaient rien.** Le symptôme ne ressemble pas à la cause. En
+thème clair, cela se lit comme un thème sombre mal fichu, pas comme un fond absent. Et
+aucun test ne mesurait la peinture : les champs étaient présents, les boutons
+réagissaient, les valeurs remontaient. Tout fonctionnait.
+
+`test/fond_test.dart` garde désormais la propriété, en lisant le source plutôt qu'en
+montant les écrans — ceux-ci n'existent qu'une fois le coffre ouvert, et un tel test
+mesurerait surtout ses propres bouchons. Il porte deux gardes contre lui-même : il échoue
+si `lib/ecrans` est introuvable ou contient moins de dix fichiers (le cas où il se croirait
+vert sans rien avoir lu), et il vérifie que l'accueil porte bien le `FondGhost` dont
+dépendent les cinq écrans qu'il dispense. Éprouvé par mutation dans les deux sens.
+
 ## À faire hors du dépôt
 
 ### Compte et identifiants

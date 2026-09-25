@@ -82,23 +82,38 @@ class _EcranDEquipeState extends State<EcranDEquipe> {
   Widget build(BuildContext context) {
     final gc = Gc.of(context);
     final membres = _membres;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Équipe')),
-      body: RefreshIndicator(
-        onRefresh: _charger,
-        child: _erreur != null
-            ? ListView(
-                padding: const EdgeInsets.all(20),
-                children: [Text(_erreur!, style: TextStyle(color: gc.danger))],
-              )
-            : membres == null
-                ? const Center(child: CircularProgressIndicator())
-                : ListView.separated(
-                    itemCount: membres.length,
-                    separatorBuilder: (_, _) => Divider(height: 1, color: gc.bordure),
-                    itemBuilder: (_, i) => _ligne(gc, membres[i]),
-                  ),
-      ),
+    // `FondGhost` parce que cet écran est **poussé** sur la pile, et non logé dans
+    // `EcranDAccueil`.
+    //
+    // Le thème pose `scaffoldBackgroundColor: Colors.transparent` — délibérément : le
+    // fond est peint par `FondGhost`, qu'un Scaffold opaque masquerait. Les cinq onglets
+    // en héritent, `EcranDAccueil` les enveloppant tous. Un écran poussé est frère de
+    // celui-là dans la pile, pas son enfant : il n'hérite de rien, et son Scaffold
+    // transparent laissait voir le noir du dessous.
+    //
+    // Le symptôme ne ressemblait pas à un fond manquant : en thème clair, les champs
+    // restaient blancs sur noir et les libellés — encre foncée — devenaient presque
+    // illisibles. Cela se lit comme un thème sombre mal fichu, pas comme un fond absent.
+    // Vu sur une capture d'écran ; aucun test ne le voyait.
+    return FondGhost(
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Équipe')),
+        body: RefreshIndicator(
+          onRefresh: _charger,
+          child: _erreur != null
+              ? ListView(
+                  padding: const EdgeInsets.all(20),
+                  children: [Text(_erreur!, style: TextStyle(color: gc.danger))],
+                )
+              : membres == null
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView.separated(
+                      itemCount: membres.length,
+                      separatorBuilder: (_, _) => Divider(height: 1, color: gc.bordure),
+                      itemBuilder: (_, i) => _ligne(gc, membres[i]),
+                    ),
+        ),
+    ),
     );
   }
 

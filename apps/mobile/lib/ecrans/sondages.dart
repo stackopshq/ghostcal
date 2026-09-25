@@ -45,9 +45,24 @@ class _EcranDeSondagesState extends State<EcranDeSondages> {
   @override
   Widget build(BuildContext context) {
     final gc = Gc.of(context);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Sondages')),
-      body: RefreshIndicator(onRefresh: _recharger, child: _corps(gc)),
+    // `FondGhost` parce que cet écran est **poussé** sur la pile, et non logé dans
+    // `EcranDAccueil`.
+    //
+    // Le thème pose `scaffoldBackgroundColor: Colors.transparent` — délibérément : le
+    // fond est peint par `FondGhost`, qu'un Scaffold opaque masquerait. Les cinq onglets
+    // en héritent, `EcranDAccueil` les enveloppant tous. Un écran poussé est frère de
+    // celui-là dans la pile, pas son enfant : il n'hérite de rien, et son Scaffold
+    // transparent laissait voir le noir du dessous.
+    //
+    // Le symptôme ne ressemblait pas à un fond manquant : en thème clair, les champs
+    // restaient blancs sur noir et les libellés — encre foncée — devenaient presque
+    // illisibles. Cela se lit comme un thème sombre mal fichu, pas comme un fond absent.
+    // Vu sur une capture d'écran ; aucun test ne le voyait.
+    return FondGhost(
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Sondages')),
+        body: RefreshIndicator(onRefresh: _recharger, child: _corps(gc)),
+    ),
     );
   }
 
@@ -167,64 +182,79 @@ class _EcranDUnSondageState extends State<EcranDUnSondage> {
   Widget build(BuildContext context) {
     final gc = Gc.of(context);
     final detail = _detail;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(detail?.titre ?? 'Sondage'),
-        actions: [
-          if (detail != null && detail.ouvert)
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: 'Supprimer le sondage',
-              onPressed: _occupe ? null : _supprimer,
-            ),
-        ],
-      ),
-      body: detail == null
-          ? Center(
-              child: _erreur == null
-                  ? const CircularProgressIndicator()
-                  : Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Text(_erreur!, style: TextStyle(color: gc.danger)),
-                    ),
-            )
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                if (_erreur != null) ...[
-                  Text(_erreur!, style: TextStyle(color: gc.danger, fontSize: 13)),
-                  const SizedBox(height: 12),
-                ],
-                Text(
-                  detail.ouvert
-                      ? '${detail.duree} min · ${detail.votants.length} votants'
-                      : '${detail.duree} min · clos',
-                  style: TextStyle(color: gc.estompe, fontSize: 13),
-                ),
-                const SizedBox(height: 16),
-                _titre(gc, 'Créneaux'),
-                for (final option in detail.options) _creneau(gc, detail, option),
-                if (detail.votants.isNotEmpty) ...[
-                  const SizedBox(height: 20),
-                  _titre(gc, 'Votants'),
-                  for (final votant in detail.votants)
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
-                      title: Text(
-                        votant.nom.isEmpty ? votant.courriel : votant.nom,
-                        style: TextStyle(color: gc.encre),
+    // `FondGhost` parce que cet écran est **poussé** sur la pile, et non logé dans
+    // `EcranDAccueil`.
+    //
+    // Le thème pose `scaffoldBackgroundColor: Colors.transparent` — délibérément : le
+    // fond est peint par `FondGhost`, qu'un Scaffold opaque masquerait. Les cinq onglets
+    // en héritent, `EcranDAccueil` les enveloppant tous. Un écran poussé est frère de
+    // celui-là dans la pile, pas son enfant : il n'hérite de rien, et son Scaffold
+    // transparent laissait voir le noir du dessous.
+    //
+    // Le symptôme ne ressemblait pas à un fond manquant : en thème clair, les champs
+    // restaient blancs sur noir et les libellés — encre foncée — devenaient presque
+    // illisibles. Cela se lit comme un thème sombre mal fichu, pas comme un fond absent.
+    // Vu sur une capture d'écran ; aucun test ne le voyait.
+    return FondGhost(
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(detail?.titre ?? 'Sondage'),
+          actions: [
+            if (detail != null && detail.ouvert)
+              IconButton(
+                icon: const Icon(Icons.delete_outline),
+                tooltip: 'Supprimer le sondage',
+                onPressed: _occupe ? null : _supprimer,
+              ),
+          ],
+        ),
+        body: detail == null
+            ? Center(
+                child: _erreur == null
+                    ? const CircularProgressIndicator()
+                    : Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Text(_erreur!, style: TextStyle(color: gc.danger)),
                       ),
-                      subtitle: Text(
-                        '${votant.options.length} créneau'
-                        '${votant.options.length > 1 ? 'x' : ''} retenu'
-                        '${votant.options.length > 1 ? 's' : ''}',
-                        style: TextStyle(fontSize: 12, color: gc.estompe),
+              )
+            : ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  if (_erreur != null) ...[
+                    Text(_erreur!, style: TextStyle(color: gc.danger, fontSize: 13)),
+                    const SizedBox(height: 12),
+                  ],
+                  Text(
+                    detail.ouvert
+                        ? '${detail.duree} min · ${detail.votants.length} votants'
+                        : '${detail.duree} min · clos',
+                    style: TextStyle(color: gc.estompe, fontSize: 13),
+                  ),
+                  const SizedBox(height: 16),
+                  _titre(gc, 'Créneaux'),
+                  for (final option in detail.options) _creneau(gc, detail, option),
+                  if (detail.votants.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    _titre(gc, 'Votants'),
+                    for (final votant in detail.votants)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        title: Text(
+                          votant.nom.isEmpty ? votant.courriel : votant.nom,
+                          style: TextStyle(color: gc.encre),
+                        ),
+                        subtitle: Text(
+                          '${votant.options.length} créneau'
+                          '${votant.options.length > 1 ? 'x' : ''} retenu'
+                          '${votant.options.length > 1 ? 's' : ''}',
+                          style: TextStyle(fontSize: 12, color: gc.estompe),
+                        ),
                       ),
-                    ),
+                  ],
                 ],
-              ],
-            ),
+              ),
+    ),
     );
   }
 

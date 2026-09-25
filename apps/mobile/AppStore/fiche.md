@@ -18,7 +18,7 @@ Relevé le 25 septembre 2026.
 
 | Ce qu'il reste | Pourquoi ça ne peut pas se faire ici |
 |---|---|
-| **Les captures d'écran** — aucune n'existe | Voir « Captures d'écran » : il faut un serveur amorcé, et la décision d'un scénario |
+| **Un jeu de captures livrable** | L'outillage marche et produit des images à la bonne taille ; le banc qu'il photographie est un banc d'épreuve, pas une vitrine. Voir « Captures d'écran » |
 | **Le compte de démonstration** pour l'examinateur | Il doit vivre sur une instance joignable de l'extérieur |
 | **L'instance publique** à indiquer dans les notes | Question d'exploitation |
 | Les **URL** de confidentialité et d'assistance | Aucune page GhostCal en ligne au 25/09 — voir « URL » |
@@ -373,47 +373,74 @@ réservé par la RFC 2606 qui sert de texte indicatif au champ.
 
 ## Captures d'écran
 
-**Aucune n'existe au 25 septembre 2026.** C'est, avec les URL et le compte de démonstration,
-ce qui empêche la soumission.
+**L'outillage existe et fonctionne ; le jeu livrable, non.** `tools/ios/captures-appstore.sh`
+monte un simulateur, y installe l'application, la promène devant l'objectif et mesure
+chaque image. Les fichiers produits sont à la taille native — **1320 × 2868**, vérifié —
+avec la barre d'état figée à 9 h 41 et l'interface en français.
 
-App Store Connect en réclame **deux jeux** dès lors que l'application se déclare
-universelle, ce qui est le cas (`TARGETED_DEVICE_FAMILY = "1,2"`). Un seul jeu laisse la
-fiche incomplète.
+Ce qui manque n'est plus l'outil : c'est **de quoi photographier**.
 
-| Jeu | Appareil | Taille native | Dossier prévu |
+App Store Connect réclame **deux jeux** dès lors que l'application se déclare universelle,
+ce qui est le cas (`TARGETED_DEVICE_FAMILY = "1,2"`). Un seul jeu laisse la fiche
+incomplète.
+
+| Jeu | Appareil | Taille | Dossier |
 |---|---|---|---|
-| iPhone | iPhone 17 Pro Max (6,9 ") | 1320 × 2868 | `apps/mobile/AppStore/captures/` |
-| iPad | iPad Pro 13 " | à relever à la prise de vue | `apps/mobile/AppStore/captures-ipad/` |
+| iPhone | iPhone 17 Pro Max (6,9 ") | 1320 × 2868, **relevée à la prise de vue** | `apps/mobile/AppStore/captures/` |
+| iPad | iPad Pro 13 " | à relever | `apps/mobile/AppStore/captures-ipad/` |
 
-Les dimensions doivent être celles que rend **nativement** le simulateur, relevées à la
-prise de vue et non figées dans un script : une image redimensionnée après coup est
-refusée.
+    ./tools/banc-local.sh              # PostgreSQL jetable + compte amorcé
+    ./tools/ios/captures-appstore.sh   # iPhone
+    GHOSTCAL_APPAREIL='iPad Pro 13-inch (M4)' ./tools/ios/captures-appstore.sh
 
-Scénario proposé, un écran par onglet plus la création :
+### Ce que les premières images ont montré, et qu'aucun contrôle n'aurait vu
 
-| Ordre | Écran | Ce qu'elle montre |
-|---|---|---|
-| 01 | Agenda | La journée, ses créneaux, plusieurs calendriers |
-| 02 | Nouvel événement | Titre, lieu, horaires — et la phrase sur ce qui est chiffré |
-| 03 | Tâches | Les échéances, une tâche en retard |
-| 04 | Réunions | Une réunion réservée et son détail |
-| 05 | RDV | Les liens de réservation et le bouton de copie |
+Les images produites passent tous les contrôles automatiques : bonne taille, milliers de
+teintes, fichier présent. Les **ouvrir** a montré trois choses.
 
-**Deux difficultés à connaître avant de commencer**, et aucune n'est résolue :
+1. **Le banc est un banc d'épreuve, pas une vitrine.** Il amorce délibérément un événement
+   scellé sous une autre clé, qui s'affiche en rouge : « Contenu illisible — clé
+   manquante ». C'est un comportement juste, et c'est ce qu'on veut éprouver — mais en
+   devanture, cela se lit comme un bogue. L'agenda ne porte par ailleurs que deux entrées
+   sur une journée, laissant les deux tiers de l'écran vides.
 
-1. **Il faut un serveur amorcé.** GhostPass photographiait un serveur Node jetable en
-   SQLite, amorcé par un exemple Rust. Le serveur GhostCal est en Python et demande
-   **PostgreSQL** — la contrainte d'exclusion `no_overlap_per_host` est un index GiST, qui
-   n'existe pas en SQLite. La prise de vue suppose donc un PostgreSQL éphémère, ce que
-   `tools/banc-local.sh` sait peut-être faire ; non vérifié.
+2. **Le nom de calendrier par défaut est en anglais** : « My calendar », venu du serveur.
+   Il paraît en clair sur la capture de création d'événement.
 
-2. **La deuxième capture est la plus importante et la plus délicate.** L'écran de création
-   porte la phrase qui explique ce qui est chiffré et ce qui ne l'est pas. C'est l'argument
-   du produit, et c'est aussi une phrase longue : elle doit tenir dans le cadre sans être
-   **coupée sous la ligne de flottaison**. GhostPass a livré une capture iPad coupée à
-   mi-ligne, qui se lit comme une page complète tant qu'on ne l'ouvre pas. **Ouvrir chaque
-   image et la regarder**, une par une, avant de les verser — une image blanche de la bonne
-   taille et du bon nom se dépose sans rien dire.
+3. **Quatre écrans n'avaient aucun fond.** `02-nouvel-evenement` sortait sur fond noir,
+   champs blancs, libellés en encre foncée à peine lisibles. J'ai d'abord cru à une
+   capture prise en pleine transition et porté l'attente de 600 ms à deux secondes : la
+   deuxième image était identique. Ce n'était pas la prise de vue, c'était l'écran.
+
+   Le thème pose `scaffoldBackgroundColor: Colors.transparent` — délibérément, le fond
+   étant peint par `FondGhost`. Les cinq onglets en héritent, `EcranDAccueil` les
+   enveloppant tous. Mais un écran **poussé** est frère de l'accueil dans la pile, pas son
+   enfant : `nouvel_evenement`, `profil`, `sondages` (deux écrans) et `equipe` n'héritaient
+   de rien. Corrigé, avec `test/fond_test.dart` qui le garde et qui a été éprouvé par
+   mutation dans les deux sens.
+
+   **Aucun test ne le voyait, et c'est le point.** Les champs étaient présents, les
+   boutons réagissaient, les valeurs remontaient : tout fonctionnait, seule la peinture
+   manquait. Il a fallu ouvrir une image.
+
+**Deux écrans ne sont pas photographiés du tout** : « Réunions » et « Sondages ». Le banc
+n'amorce ni réservation ni sondage — mesuré, `/v1/me/meetings` et `/v1/me/polls` rendent
+des listes vides. Les photographier donnerait deux états vides en vitrine, ce qui est pire
+que deux captures en moins. Les obtenir demande d'étendre `tools/amorcer_donnees.py` : un
+sondage se crée par `POST /v1/me/polls` puis se vote par `POST /v1/polls/{slug}/votes` ;
+une réservation par `POST /v1/orgs/{slug}/event-types/{slug}/bookings`, ce qui suppose un
+horaire de disponibilité que le banc ne pose pas encore.
+
+### Ce qu'il reste à décider avant de verser un jeu
+
+- **Un amorçage de vitrine, distinct de l'amorçage d'épreuve.** GhostPass avait un drapeau
+  `--vitrine` pour exactement cette raison. Il faut un agenda plein et plausible, pas un
+  agenda qui montre ce qui casse.
+- **Le scénario**, et notamment si « Réglages » mérite une des cinq places.
+- **Ouvrir chaque image et la regarder.** Les contrôles automatiques distinguent une image
+  vide d'une image pleine ; ils ne savent pas dire qu'un texte est **coupé sous la ligne de
+  flottaison**. Une section tronquée à mi-ligne a autant de couleurs qu'une section
+  entière et se lit comme complète. GhostPass a livré une capture iPad dans cet état.
 
 ## Ce qui reste à trancher
 
@@ -426,5 +453,5 @@ Rien de ce qui suit n'est technique — tout engage l'entreprise ou le produit :
   pas, et celle de GhostPass ne convient pas : les données collectées diffèrent ;
 - l'**adresse d'assistance** ;
 - le **compte de démonstration**, l'instance publique qui le porte, et son amorçage ;
-- le **scénario de captures**, et la décision d'y consacrer un PostgreSQL éphémère ;
+- un **amorçage de vitrine** distinct de l'amorçage d'épreuve, et le scénario de captures ;
 - les déclarations **BIS** et **ANSSI**, et le dossier technique qui les accompagne.
