@@ -326,6 +326,15 @@ class AuthService:
         )
 
     async def _send_verification(self, user_id: uuid.UUID, email: str) -> None:
+        """Record the verification token and ask for the email that carries it.
+
+        The two lines do different kinds of work and only one of them belongs to the caller's
+        transaction. The insert does: a token nobody can present is worse than no token. The send
+        does not, and must not be able to undo the insert -- that is the port's business, and the
+        adapter the routes pass in buffers the message until the transaction has committed. Do not
+        "simplify" this by making the sender reach the network from here: that is precisely what
+        turned a Brevo 401 into a rolled-back sign-up on 2026-09-25.
+        """
         plain = secrets.token_urlsafe(32)
         expires_at = self._clock.now() + self._config.email_verification_ttl
         await self._repo.add_email_verification(user_id, _hash_token(plain), expires_at)
