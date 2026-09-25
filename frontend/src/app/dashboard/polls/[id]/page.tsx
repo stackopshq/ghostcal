@@ -84,7 +84,7 @@ export default function PollDetailPage() {
             <div
               key={o.id}
               className={[
-                "flex items-center justify-between rounded-xl border p-4",
+                "flex items-center justify-between rounded border p-4",
                 won ? "border-accent" : "border-border",
               ].join(" ")}
             >
@@ -100,7 +100,7 @@ export default function PollDetailPage() {
                   type="button"
                   disabled={busy}
                   onClick={() => finalize(o.id)}
-                  className="rounded-lg border border-border-strong px-3 py-1.5 text-sm text-foreground transition hover:border-accent hover:text-accent disabled:opacity-60"
+                  className="rounded-pill border border-border-strong px-3 py-1.5 text-sm text-foreground transition hover:border-accent hover:text-accent disabled:opacity-60"
                 >
                   {t("pollsh.pickThis")}
                 </button>

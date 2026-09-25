@@ -167,6 +167,23 @@ class EmailVerificationToken(TimestampMixin, Base):
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class PasswordResetToken(TimestampMixin, Base):
+    """Single-use password-reset token. Only the hash is stored.
+
+    Holding one is not enough to reset anything: the org key envelope it unlocks is sealed under
+    the recovery phrase, 24 random bytes shown once at sign-up. Mailbox access alone gets a
+    ciphertext and an Argon2id wall.
+    """
+
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    token_hash: Mapped[str] = mapped_column(String(128), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class RefreshToken(TimestampMixin, Base):
     """Rotating refresh token. Only the hash is stored; rotation revokes the previous one."""
 
@@ -447,6 +464,12 @@ class CaldavConnection(TimestampMixin, Base):
     # The one calendar bookings are mirrored onto. At most one per (org, user) — enforced by the
     # partial unique index uq_caldav_one_mirror_per_user.
     mirror_bookings: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
+    # What a mirrored booking says on the host's external calendar: 'busy' writes a placeholder
+    # title and nothing else, 'detailed' writes the event title and the invitee's address. New
+    # connections default to 'busy' — the address belongs to someone who is not choosing here.
+    mirror_detail: Mapped[str] = mapped_column(
+        String(20), default="busy", server_default=text("'busy'")
+    )
     status: Mapped[str] = mapped_column(String(20), default="active")
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

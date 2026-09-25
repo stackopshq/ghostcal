@@ -15,6 +15,14 @@ class Attachment:
 
 
 class EmailSender(Protocol):
+    """Ask for a message to be sent.
+
+    "Sent" is deliberately vague about when. An implementation may reach the provider before it
+    returns, or merely accept the message and hand it to a worker later
+    (`infrastructure/email/outbox.py`). Callers inside a database transaction must assume the
+    latter and must not depend on delivery having been attempted by the time `send` returns.
+    """
+
     async def send(
         self,
         *,

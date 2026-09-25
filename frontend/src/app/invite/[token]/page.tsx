@@ -5,6 +5,9 @@ import { useCallback, useEffect, useState } from "react";
 import { primaryButtonClass } from "@/components/AuthCard";
 import { type InvitePreview, getEventInvite, respondEventInvite } from "@/lib/agenda";
 import { useI18n } from "@/lib/i18n";
+import {
+  CalendarIcon,
+} from "@/components/icons";
 
 // Public RSVP page for a personal-event invitation. Zero-knowledge: the server only knows the time
 // (the invitee already got the full details in the emailed ICS). No account required.
@@ -46,10 +49,10 @@ export default function InvitePage() {
 
   return (
     <main className="flex flex-1 items-center justify-center p-6">
-      <div className="glass flex w-full max-w-md flex-col gap-4 rounded-2xl p-6 sm:p-8">
+      <div className="glass flex w-full max-w-md flex-col gap-4 rounded-lg p-6 sm:p-8">
         <div className="flex items-center gap-2">
           <span aria-hidden className="text-2xl text-accent">
-            📅
+            <CalendarIcon />
           </span>
           <h1 className="text-xl font-semibold text-foreground">{t("invite.title")}</h1>
         </div>
@@ -79,14 +82,14 @@ export default function InvitePage() {
                 <button
                   type="button"
                   onClick={() => respond("tentative")}
-                  className="rounded-lg border border-border-strong px-4 py-2 text-sm text-foreground hover:bg-surface"
+                  className="rounded-pill border border-border-strong px-4 py-2 text-sm text-foreground hover:bg-surface"
                 >
                   {t("invite.maybe")}
                 </button>
                 <button
                   type="button"
                   onClick={() => respond("declined")}
-                  className="rounded-lg border border-border-strong px-4 py-2 text-sm text-muted hover:text-red-400"
+                  className="rounded-pill border border-border-strong px-4 py-2 text-sm text-muted hover:text-red-400"
                 >
                   {t("invite.decline")}
                 </button>

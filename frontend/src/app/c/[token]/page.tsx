@@ -5,8 +5,12 @@ import {
   type PublicCalendar,
   type PublicEvent,
   fetchPublicCalendar,
+  publicCalendarRows,
 } from "@/lib/links";
 import { keyFromFragment, openContent } from "@/lib/zk";
+import {
+  LockIcon,
+} from "@/components/icons";
 
 /**
  * A shared calendar, for someone with no GhostCal account (ADR-0009).
@@ -17,6 +21,10 @@ import { keyFromFragment, openContent } from "@/lib/zk";
  *
  * If the fragment is missing, the page has a calendar and no way to open it. It says so, rather than
  * rendering a wall of "(encrypted)" and letting the visitor think the app is broken.
+ *
+ * What it must never do is hide an entry it cannot read. This is the only public screen built for
+ * judging whether someone is free, and an absent row reads as an empty slot. A visible gap is a
+ * question the visitor can act on; a missing row is a wrong answer they cannot see.
  */
 export default function PublicCalendarPage({
   params,
@@ -56,7 +64,8 @@ export default function PublicCalendarPage({
                 (await openContent(event.content_sealed, key)).title,
               );
             } catch {
-              // A key that does not fit this calendar. Leaving the entry out is honest.
+              // A key that does not fit this entry. The index is simply left unset, and the row
+              // renders locked further down — it keeps its time, which is what the visitor needs.
             }
           }),
         );
@@ -83,7 +92,7 @@ export default function PublicCalendarPage({
   if (state === "nokey") {
     return (
       <main className="flex min-h-screen items-center justify-center p-8">
-        <div className="glass max-w-md rounded-2xl p-8 text-center">
+        <div className="glass max-w-md rounded-lg p-8 text-center">
           <h1 className="text-lg font-semibold text-foreground">
             This link is missing its key
           </h1>
@@ -100,7 +109,7 @@ export default function PublicCalendarPage({
   if (state === "gone" || !calendar) {
     return (
       <main className="flex min-h-screen items-center justify-center p-8">
-        <div className="glass max-w-md rounded-2xl p-8 text-center">
+        <div className="glass max-w-md rounded-lg p-8 text-center">
           <h1 className="text-lg font-semibold text-foreground">
             This calendar is no longer shared
           </h1>
@@ -112,10 +121,8 @@ export default function PublicCalendarPage({
     );
   }
 
-  const sorted = calendar.events
-    .map((event, i) => ({ event, title: titles.get(i) }))
-    .filter((x) => x.title !== undefined)
-    .sort((a, b) => a.event.start_at.localeCompare(b.event.start_at));
+  const rows = publicCalendarRows(calendar.events, titles);
+  const locked = rows.filter((r) => r.title === null).length;
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6 sm:p-10">
@@ -129,15 +136,27 @@ export default function PublicCalendarPage({
         </p>
       </div>
 
-      {sorted.length === 0 ? (
-        <div className="glass rounded-2xl p-10 text-center text-sm text-muted">
+      {locked > 0 && (
+        <p className="text-xs text-muted">
+          {locked === rows.length
+            ? "This link's key does not open any of these entries."
+            : `${locked} of these entries did not open with this link's key.`}{" "}
+          Their times are shown anyway, so the calendar still says when its owner
+          is busy. Only the titles stay sealed.
+        </p>
+      )}
+
+      {rows.length === 0 ? (
+        <div className="glass rounded-lg p-10 text-center text-sm text-muted">
           Nothing on this calendar yet.
         </div>
       ) : (
-        <ul className="glass flex flex-col divide-y divide-border rounded-2xl">
-          {sorted.map(({ event, title }) => (
+        <ul className="glass flex flex-col divide-y divide-border rounded-lg">
+          {rows.map(({ event, title }, i) => (
             <li
-              key={event.start_at + (title ?? "")}
+              // Index, not the title: two locked entries starting at the same minute are
+              // indistinguishable by content, and that is precisely the case this page now renders.
+              key={`${event.start_at}-${i}`}
               className="flex items-center gap-4 p-4 sm:gap-6 sm:p-5"
             >
               <div className="w-24 shrink-0 sm:w-32">
@@ -157,9 +176,15 @@ export default function PublicCalendarPage({
                       })}
                 </p>
               </div>
-              <span className="flex-1 truncate text-sm text-foreground">
-                {title}
-              </span>
+              {title === null ? (
+                <span className="flex-1 truncate text-sm italic text-muted">
+                  <LockIcon /> Locked — this link&rsquo;s key does not open this entry
+                </span>
+              ) : (
+                <span className="flex-1 truncate text-sm text-foreground">
+                  {title}
+                </span>
+              )}
             </li>
           ))}
         </ul>

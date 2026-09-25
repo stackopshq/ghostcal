@@ -1,0 +1,32 @@
+# Avis connus, écartés avec leur raison et une date de réexamen.
+#
+# Ce fichier n'est pas un interrupteur. Chaque entrée porte pourquoi l'avis ne
+# s'applique pas ici, et une échéance après laquelle osv-scanner le fera
+# ressortir de lui-même. Un « ignore » sans date est un oubli qui se déguise en
+# décision.
+
+[[IgnoredVulns]]
+id = "GHSA-82fw-gwwq-j7x9"
+ignoreUntil = 2026-12-31
+reason = """
+Vitest — lecture de fichier arbitraire via une redirection du serveur de
+développement de @vitest/mocker. CVSS 5.9.
+
+Pourquoi écarté : c'est une dépendance de DÉVELOPPEMENT, absente de tout
+artefact livré, et l'attaque suppose qu'un navigateur visite le serveur de
+développement de Vitest — lequel ne tourne ni en CI ni en production.
+
+Pourquoi pas corrigé : le correctif est vitest 4.1.11, une version MAJEURE.
+Essayée et mesurée le 2026-09-25 : elle casse 12 tests supplémentaires, parce
+que vitest 4 ne fournit plus l'environnement `jsdom` de la même façon et que
+`localStorage` devient indéfini. Ajouter `jsdom` en dépendance ne suffit pas :
+il est déjà déclaré en ^25.0.1.
+
+Une migration majeure de framework de test n'a pas sa place dans une montée de
+sécurité : elle change ce qu'on mesure en même temps qu'on répare, et on ne
+sait plus lequel des deux a cassé quoi. Elle mérite son propre travail, avec
+les 11 tests déjà rouges sur `main` traités au passage.
+
+Réexamen fin 2026 : si la migration n'a pas eu lieu d'ici là, cet avis doit
+revenir poser la question plutôt que de rester poli.
+"""

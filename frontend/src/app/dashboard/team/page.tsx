@@ -14,6 +14,9 @@ import {
   revokeInvitation,
 } from "@/lib/team";
 import { getUnlockedKeys, wrapKeyForGrant } from "@/lib/zk";
+import {
+  KeyIcon,
+} from "@/components/icons";
 
 const ROLES = ["member", "admin", "owner"];
 
@@ -115,7 +118,7 @@ export default function TeamPage() {
             {members.map((m) => (
               <div
                 key={m.user_id}
-                className="glass flex items-center justify-between gap-3 rounded-xl p-4"
+                className="glass flex items-center justify-between gap-3 rounded p-4"
               >
                 <div>
                   <p className="font-medium text-foreground">{m.name}</p>
@@ -125,7 +128,7 @@ export default function TeamPage() {
                   <select
                     value={m.role}
                     onChange={(e) => onRole(m.user_id, e.target.value)}
-                    className="rounded-lg border border-border-strong bg-surface-2 px-2 py-1.5 text-sm text-foreground outline-none focus:border-accent"
+                    className="rounded border border-border-strong bg-surface-2 px-2 py-1.5 text-sm text-foreground outline-none focus:border-accent"
                   >
                     {ROLES.map((r) => (
                       <option key={r} value={r}>
@@ -136,7 +139,7 @@ export default function TeamPage() {
                   <button
                     type="button"
                     onClick={() => onRemove(m.user_id)}
-                    className="rounded-lg border border-border-strong px-3 py-1.5 text-sm text-muted transition hover:border-red-400 hover:text-red-400"
+                    className="rounded-pill border border-border-strong px-3 py-1.5 text-sm text-muted transition hover:border-red-400 hover:text-red-400"
                   >
                     {t("team.remove")}
                   </button>
@@ -154,12 +157,12 @@ export default function TeamPage() {
                 placeholder="teammate@example.com"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
-                className="flex-1 rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
+                className="flex-1 rounded border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
               />
               <select
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value)}
-                className="rounded-lg border border-border-strong bg-surface-2 px-3 py-2.5 text-sm text-foreground outline-none focus:border-accent"
+                className="rounded border border-border-strong bg-surface-2 px-3 py-2.5 text-sm text-foreground outline-none focus:border-accent"
               >
                 {ROLES.map((r) => (
                   <option key={r} value={r}>
@@ -169,16 +172,16 @@ export default function TeamPage() {
               </select>
               <button
                 type="submit"
-                className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.45)] transition hover:brightness-110"
+                className="rounded-pill bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)] transition hover:brightness-110"
               >
                 {t("team.inviteBtn")}
               </button>
             </form>
 
             {secureLink && (
-              <div className="rounded-xl border border-accent/40 bg-surface-2/60 p-4">
+              <div className="rounded border border-accent/40 bg-surface-2/60 p-4">
                 <p className="mb-1 flex items-center gap-1.5 text-sm font-medium text-accent">
-                  <span aria-hidden>🔑</span> {t("team.secureLinkTitle")}
+                  <KeyIcon /> {t("team.secureLinkTitle")}
                 </p>
                 <p className="mb-2 text-xs text-muted">{t("team.secureLinkSub")}</p>
                 <code className="block break-all rounded-lg bg-base/80 px-3 py-2 font-mono text-xs text-foreground">

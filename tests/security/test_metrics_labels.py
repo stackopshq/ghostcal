@@ -9,6 +9,8 @@ These tests pin the rule that prevents it, and the cardinality bound that comes 
 
 from __future__ import annotations
 
+import logging
+
 from fastapi.testclient import TestClient
 
 from ghostcal.presentation.api import create_app
@@ -26,6 +28,43 @@ def test_a_token_in_the_url_never_reaches_a_metric_label() -> None:
     assert _SECRET_TOKEN not in body
     # The template is what should appear, so the series is still useful.
     assert "/v1/bookings/manage/{token}" in body
+
+
+def test_a_token_in_the_url_never_reaches_the_access_log() -> None:
+    """The same rule as above, for the other sink that sees every request.
+
+    The rule was written for both — the comment above `route_template()` names
+    booking-management tokens explicitly — but only the metrics half was pinned by a
+    test, and the access log went on writing `request.url.path` verbatim. A token
+    there is a live capability: `/v1/bookings/manage/{token}` cancels and reschedules
+    on the token alone, so anyone who can read the log can act on the booking.
+
+    `caplog` is deliberately not used: `configure_logging()` sets `propagate = False`
+    on this logger, so the fixture's root handler never sees these records and every
+    assertion below would pass against an empty list. The handler is attached to the
+    logger itself instead, and the first assertion fails loudly if nothing was
+    captured — an empty log must never read as a clean result.
+    """
+    records: list[logging.LogRecord] = []
+
+    class _Capture(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            records.append(record)
+
+    access_logger = logging.getLogger("ghostcal.access")
+    handler = _Capture(level=logging.INFO)
+    access_logger.addHandler(handler)
+    try:
+        with TestClient(create_app()) as client:
+            client.get(f"/v1/bookings/manage/{_SECRET_TOKEN}")
+    finally:
+        access_logger.removeHandler(handler)
+
+    lines = [r.getMessage() for r in records]
+    assert lines, "the access log recorded nothing, so this test proves nothing"
+    assert not any(_SECRET_TOKEN in line for line in lines)
+    # The template still appears, so the log stays useful for reading traffic.
+    assert any("/v1/bookings/manage/{token}" in line for line in lines)
 
 
 def test_unmatched_paths_collapse_to_one_series() -> None:

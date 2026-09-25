@@ -33,7 +33,7 @@
   <img alt="Crypto" src="https://img.shields.io/badge/crypto-WebCrypto%20%2B%20hash--wasm-00F0FF?style=flat-square">
   <img alt="Lint: Ruff" src="https://img.shields.io/badge/lint-ruff-00F0FF?style=flat-square&logo=ruff&logoColor=white">
   <img alt="Types: mypy strict" src="https://img.shields.io/badge/types-mypy%20strict-00F0FF?style=flat-square">
-  <img alt="License: AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-00F0FF?style=flat-square">
+  <img alt="License: Elastic-2.0" src="https://img.shields.io/badge/license-Elastic--2.0-00F0FF?style=flat-square">
 </p>
 
 ---
@@ -311,5 +311,7 @@ is injected — so availability is deterministic and property-testable. See
 
 ## License
 
-[GNU AGPL-3.0-or-later](LICENSE). Network use is distribution: anyone interacting with a modified
-GhostCal over a network must be offered the corresponding source.
+[Elastic License 2.0](LICENSE). Read it, audit it, self-host it, modify it, run it for your own
+organisation. What it reserves is resale: you may not provide GhostCal to third parties as a hosted
+or managed service. That is source available, not open source in the OSI sense. GhostCal was
+AGPL-3.0-or-later until 2026-08-31 and that change is not retroactive; see [NOTICE](NOTICE).

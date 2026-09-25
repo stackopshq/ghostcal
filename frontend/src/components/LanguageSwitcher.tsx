@@ -12,7 +12,7 @@ export default function LanguageSwitcher({ className = "" }: { className?: strin
           type="button"
           onClick={() => setLocale(l.code)}
           className={[
-            "rounded px-1.5 py-0.5 transition",
+            "rounded-pill px-1.5 py-0.5 transition",
             locale === l.code ? "text-accent" : "text-muted/60 hover:text-foreground",
           ].join(" ")}
           aria-pressed={locale === l.code}

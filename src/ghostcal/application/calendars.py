@@ -56,6 +56,8 @@ class ConnectionRecord:
     calendar_name: str | None
     color: str
     mirror_bookings: bool
+    """What a mirrored booking discloses: 'busy' or 'detailed'."""
+    mirror_detail: str
     status: str
     last_synced_at: datetime | None
 
@@ -98,6 +100,16 @@ class CaldavConnectionRepository:
 
     async def set_mirror_target(self, connection_id: uuid.UUID, user_id: uuid.UUID) -> bool:
         """Make this the calendar bookings mirror onto, clearing whichever one was."""
+        raise NotImplementedError
+
+    async def set_color(self, connection_id: uuid.UUID, user_id: uuid.UUID, color: str) -> bool:
+        """Recolour a connected calendar. False if it is not this user's."""
+        raise NotImplementedError
+
+    async def set_mirror_detail(
+        self, connection_id: uuid.UUID, user_id: uuid.UUID, detail: str
+    ) -> bool:
+        """Set what a mirrored booking discloses. False if the connection is not this user's."""
         raise NotImplementedError
 
     async def replace_busy(
@@ -154,6 +166,37 @@ async def connect_calendar(
         color=PALETTE[len(existing) % len(PALETTE)],
         mirror_bookings=not existing,
     )
+
+
+MIRROR_DETAILS = ("busy", "detailed")
+
+
+async def set_mirror_detail(
+    repo: CaldavConnectionRepository, connection_id: uuid.UUID, user_id: uuid.UUID, detail: str
+) -> None:
+    """Choose what a mirrored booking says on the host's external calendar.
+
+    Validated here rather than trusted from the wire: the values are a contract with
+    `mirror._disclosed`, and an unrecognised one there falls back to the quiet form. Refusing it at
+    the door means the database never holds a setting nothing can honour.
+    """
+    if detail not in MIRROR_DETAILS:
+        raise ValueError(f"mirror detail must be one of {MIRROR_DETAILS}")
+    if not await repo.set_mirror_detail(connection_id, user_id, detail):
+        raise NotConnected()
+
+
+async def set_connection_color(
+    repo: CaldavConnectionRepository, connection_id: uuid.UUID, user_id: uuid.UUID, color: str
+) -> None:
+    """Recolour a connected calendar.
+
+    The colour a connection gets is `PALETTE[len(existing) % len(PALETTE)]` — cycled so two accounts
+    do not land on the same overlay, which is a good default and nothing more. It was also final:
+    the only way to change it was to disconnect and reconnect, re-entering the server password.
+    """
+    if not await repo.set_color(connection_id, user_id, color):
+        raise NotConnected()
 
 
 async def disconnect_calendar(

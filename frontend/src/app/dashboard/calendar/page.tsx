@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ColorPicker from "@/components/ColorPicker";
 import UnlockBanner from "@/components/UnlockBanner";
 import { getActiveOrg } from "@/lib/auth";
 import {
   type Connection,
   listConnections,
   syncAllCalendars,
+  setConnectionColor,
 } from "@/lib/calendar";
 import {
   type AgendaItem,
@@ -25,6 +27,7 @@ import {
   shareCalendar,
   unshareCalendar,
   updateEvent,
+  setCalendarColor,
 } from "@/lib/agenda";
 import {
   addSubscription,
@@ -32,8 +35,10 @@ import {
   listSubscriptions,
   refreshSubscription,
   setSubscriptionBlocking,
+  setSubscriptionColor,
   type Subscription,
 } from "@/lib/subscriptions";
+import { CAL_COLORS } from "@/lib/colors";
 import {
   geocode,
   getForecast,
@@ -74,6 +79,13 @@ import {
   sealContent,
   type EventContent,
 } from "@/lib/zk";
+import {
+  LockIcon,
+  MailIcon,
+  PinIcon,
+  UnlockIcon,
+  WarningIcon,
+} from "@/components/icons";
 
 const TZ =
   typeof Intl !== "undefined"
@@ -381,6 +393,23 @@ export default function CalendarPage() {
 
   async function toggleSubscriptionBlocking(sub: Subscription) {
     await setSubscriptionBlocking(sub.id, !sub.blocks_availability);
+    await load();
+  }
+
+  // Recolouring reloads rather than patching state in place: the colour appears on every event
+  // overlay as well as on the dot, and `load()` is what already keeps those in step.
+  async function recolorCalendar(id: string, color: string) {
+    await setCalendarColor(id, color);
+    await load();
+  }
+
+  async function recolorSubscription(id: string, color: string) {
+    await setSubscriptionColor(id, color);
+    await load();
+  }
+
+  async function recolorConnection(id: string, color: string) {
+    await setConnectionColor(id, color);
     await load();
   }
 
@@ -883,21 +912,21 @@ export default function CalendarPage() {
               <button
                 type="button"
                 onClick={() => step(-1)}
-                className="rounded-lg border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
+                className="rounded-pill border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
               >
                 ‹
               </button>
               <button
                 type="button"
                 onClick={() => setCursor(new Date())}
-                className="rounded-lg border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
+                className="rounded-pill border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
               >
                 {t("calendar.today")}
               </button>
               <button
                 type="button"
                 onClick={() => step(1)}
-                className="rounded-lg border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
+                className="rounded-pill border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
               >
                 ›
               </button>
@@ -907,7 +936,7 @@ export default function CalendarPage() {
             <button
               type="button"
               onClick={() => setShareOpen(true)}
-              className="rounded-lg border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
+              className="rounded-pill border border-border-strong px-3 py-1.5 text-sm text-muted hover:text-accent"
             >
               {t("calendar.share")}
             </button>
@@ -932,12 +961,12 @@ export default function CalendarPage() {
               value={quickText}
               onChange={(e) => setQuickText(e.target.value)}
               placeholder={t("calendar.quickAdd")}
-              className="flex-1 rounded-lg border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+              className="flex-1 rounded border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
             />
             <button
               type="submit"
               disabled={!quickParsed || quickBusy}
-              className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-40"
+              className="rounded-pill bg-accent px-3 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-40"
             >
               {quickBusy ? t("common.saving") : t("calendar.quickAddCreate")}
             </button>
@@ -949,7 +978,7 @@ export default function CalendarPage() {
                 setDraft(draftFromQuick(quickParsed));
                 setQuickText("");
               }}
-              className="flex flex-wrap items-center gap-x-2 gap-y-1 self-start rounded-lg border border-border bg-surface-2/40 px-3 py-1.5 text-left text-xs"
+              className="flex flex-wrap items-center gap-x-2 gap-y-1 self-start rounded-pill border border-border bg-surface-2/40 px-3 py-1.5 text-left text-xs"
             >
               <span className="font-medium text-foreground">
                 {quickParsed.title || t("calendar.untitled")}
@@ -981,36 +1010,52 @@ export default function CalendarPage() {
           {calendars.map((c) => {
             const off = hidden.has(c.id);
             return (
-              <button
+              // A <div>, not a <button>: the swatch is a button of its own now, and a button
+              // inside a button is markup a browser resolves by dropping one of them.
+              <div
                 key={c.id}
-                type="button"
-                onClick={() => toggleCalendar(c.id)}
-                className={`flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs transition ${
+                className={`flex items-center gap-1.5 rounded-pill border border-border px-2.5 py-1 text-xs transition ${
                   off ? "opacity-40" : "hover:bg-surface-2/40"
                 }`}
                 title={c.is_shared ? (c.owner_name ?? undefined) : undefined}
               >
-                <span
-                  aria-hidden
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{
-                    backgroundColor: off ? "transparent" : c.color,
-                    boxShadow: `inset 0 0 0 1.5px ${c.color}`,
-                  }}
-                />
-                <span className="text-foreground">{c.name}</span>
+                {/* A shared calendar shows its owner's colour, and only its owner may change it. */}
+                {c.is_shared ? (
+                  <span
+                    aria-hidden
+                    className="h-2.5 w-2.5 rounded-pill"
+                    style={{
+                      backgroundColor: off ? "transparent" : c.color,
+                      boxShadow: `inset 0 0 0 1.5px ${c.color}`,
+                    }}
+                  />
+                ) : (
+                  <ColorPicker
+                    value={c.color}
+                    hidden={off}
+                    label={t("calendar.recolor")}
+                    onPick={(col) => void recolorCalendar(c.id, col)}
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={() => toggleCalendar(c.id)}
+                  className="text-foreground hover:text-accent"
+                >
+                  {c.name}
+                </button>
                 {/* A bare dot said nothing. Two people's default calendars are both "My calendar",
                     so a shared one has to name its owner to be tellable apart at a glance. */}
                 {c.is_shared && (
                   <span className="text-muted">· {c.owner_name}</span>
                 )}
-              </button>
+              </div>
             );
           })}
           <button
             type="button"
             onClick={() => setNewCalOpen(true)}
-            className="rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent"
+            className="rounded-pill border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent"
           >
             + {t("calendar.newCalendar")}
           </button>
@@ -1019,35 +1064,33 @@ export default function CalendarPage() {
           {connections.length > 0 ? (
             <>
               {connections.map((c) => (
-                <button
+                <div
                   key={c.id}
-                  type="button"
-                  onClick={() => toggleCalendar(c.id)}
-                  className={`flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs transition ${
+                  className={`flex items-center gap-1.5 rounded-pill border border-border px-2.5 py-1 text-xs transition ${
                     hidden.has(c.id) ? "opacity-40" : "hover:bg-surface-2/40"
                   }`}
                   title={`${c.username}@${c.server_url}`}
                 >
-                  <span
-                    aria-hidden
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{
-                      backgroundColor: hidden.has(c.id)
-                        ? "transparent"
-                        : c.color,
-                      boxShadow: `inset 0 0 0 1.5px ${c.color}`,
-                    }}
+                  <ColorPicker
+                    value={c.color}
+                    hidden={hidden.has(c.id)}
+                    label={t("calendar.recolor")}
+                    onPick={(col) => void recolorConnection(c.id, col)}
                   />
-                  <span className="text-foreground">
+                  <button
+                    type="button"
+                    onClick={() => toggleCalendar(c.id)}
+                    className="text-foreground hover:text-accent"
+                  >
                     {c.calendar_name || t("calendar.externalCalendar")}
-                  </span>
-                </button>
+                  </button>
+                </div>
               ))}
               <button
                 type="button"
                 onClick={runSync}
                 disabled={syncing}
-                className="rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent disabled:opacity-50"
+                className="rounded-pill border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent disabled:opacity-50"
               >
                 {syncing ? t("common.saving") : `↻ ${t("calendar.syncNow")}`}
               </button>
@@ -1055,7 +1098,7 @@ export default function CalendarPage() {
           ) : (
             <Link
               href="/dashboard/settings"
-              className="rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent"
+              className="rounded-pill border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent"
             >
               + {t("calendar.connectExternal")}
             </Link>
@@ -1068,7 +1111,7 @@ export default function CalendarPage() {
             return (
               <span
                 key={s.id}
-                className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
+                className={`flex items-center gap-1.5 rounded-pill border px-2.5 py-1 text-xs transition ${
                   errored ? "border-danger/50" : "border-border"
                 } ${off ? "opacity-40" : ""}`}
                 title={
@@ -1077,21 +1120,19 @@ export default function CalendarPage() {
                     : (s.last_synced_at ?? undefined)
                 }
               >
+                <ColorPicker
+                  value={s.color}
+                  hidden={off}
+                  label={t("calendar.recolor")}
+                  onPick={(col) => void recolorSubscription(s.id, col)}
+                />
                 <button
                   type="button"
                   onClick={() => toggleCalendar(s.id)}
                   className="flex items-center gap-1.5 hover:text-accent"
                 >
-                  <span
-                    aria-hidden
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{
-                      backgroundColor: off ? "transparent" : s.color,
-                      boxShadow: `inset 0 0 0 1.5px ${s.color}`,
-                    }}
-                  />
                   <span className="text-foreground">{s.name}</span>
-                  {errored && <span aria-hidden>⚠</span>}
+                  {errored && <WarningIcon />}
                 </button>
                 {/* Un calendrier visible et un calendrier qui vous rend
                     occupée sont deux choses différentes : ce cadenas est le
@@ -1112,7 +1153,7 @@ export default function CalendarPage() {
                       : "text-muted opacity-50 hover:text-accent hover:opacity-100"
                   }
                 >
-                  {s.blocks_availability ? "🔒" : "🔓"}
+                  {s.blocks_availability ? <LockIcon /> : <UnlockIcon />}
                 </button>
                 <button
                   type="button"
@@ -1137,20 +1178,20 @@ export default function CalendarPage() {
           <button
             type="button"
             onClick={() => setSubOpen(true)}
-            className="rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent"
+            className="rounded-pill border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent"
           >
             + {t("calendar.subscribe")}
           </button>
 
           {/* Weather: pick a location (client-side only) to overlay the daily forecast. */}
           {weatherLoc ? (
-            <span className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs">
+            <span className="flex items-center gap-1.5 rounded-pill border border-border px-2.5 py-1 text-xs">
               <button
                 type="button"
                 onClick={() => setWeatherOpen(true)}
                 className="flex items-center gap-1 text-foreground hover:text-accent"
               >
-                <span aria-hidden>📍</span>
+                <PinIcon />
                 {weatherLoc.name}
               </button>
               <button
@@ -1166,7 +1207,7 @@ export default function CalendarPage() {
             <button
               type="button"
               onClick={() => setWeatherOpen(true)}
-              className="rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent"
+              className="rounded-pill border border-dashed border-border px-2.5 py-1 text-xs text-muted hover:text-accent"
             >
               + {t("calendar.weather")}
             </button>
@@ -1235,7 +1276,7 @@ export default function CalendarPage() {
       )}
 
       {!locked && view === "month" && (
-        <div className="glass overflow-hidden rounded-2xl">
+        <div className="glass overflow-hidden rounded-lg">
           <div className="grid grid-cols-7 border-b border-border text-center text-xs text-muted">
             {weekdayNames.map((d) => (
               <div key={d.long} className="py-2">
@@ -1291,7 +1332,7 @@ export default function CalendarPage() {
                     </span>
                     {weatherByDay.get(key) && (
                       <span
-                        className="text-[10px] text-muted"
+                        className="text-2xs text-muted"
                         title={`${Math.round(weatherByDay.get(key)!.tmin)}° / ${Math.round(weatherByDay.get(key)!.tmax)}°`}
                       >
                         <span aria-hidden>{weatherByDay.get(key)!.glyph}</span>{" "}
@@ -1335,7 +1376,7 @@ export default function CalendarPage() {
                             : undefined
                         }
                         className={[
-                          "truncate rounded px-1.5 py-0.5 text-[11px]",
+                          "truncate rounded px-1.5 py-0.5 text-2xs",
                           c
                             ? ""
                             : it.source !== "event"
@@ -1349,7 +1390,7 @@ export default function CalendarPage() {
                     );
                   })}
                   {dayItems.length > 3 && (
-                    <span className="text-[10px] text-muted">
+                    <span className="text-2xs text-muted">
                       +{dayItems.length - 3}
                     </span>
                   )}
@@ -1391,15 +1432,6 @@ export default function CalendarPage() {
   );
 }
 
-const CAL_COLORS = [
-  "#00f0ff",
-  "#a3ff00",
-  "#ff2d95",
-  "#ffb020",
-  "#8b5cff",
-  "#ff5c5c",
-  "#00d68f",
-];
 
 function NewCalendarModal({
   onClose,
@@ -1426,7 +1458,7 @@ function NewCalendarModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="glass w-full max-w-sm rounded-2xl p-6 shadow-2xl">
+      <div className="glass w-full max-w-sm rounded-lg p-6 shadow-2xl">
         <h2 className="mb-4 text-lg font-semibold text-foreground">
           {t("calendar.newCalendar")}
         </h2>
@@ -1435,7 +1467,7 @@ function NewCalendarModal({
           placeholder={t("calendar.calendarName")}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+          className="w-full rounded border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
         />
         <div className="mt-4 flex flex-wrap gap-2">
           {CAL_COLORS.map((c) => (
@@ -1444,7 +1476,7 @@ function NewCalendarModal({
               type="button"
               aria-label={c}
               onClick={() => setColor(c)}
-              className={`h-6 w-6 rounded-full transition ${color === c ? "ring-2 ring-offset-2 ring-offset-surface" : ""}`}
+              className={`h-6 w-6 rounded-pill transition ${color === c ? "ring-2 ring-offset-2 ring-offset-surface" : ""}`}
               style={{
                 backgroundColor: c,
                 boxShadow: color === c ? `0 0 0 2px ${c}` : undefined,
@@ -1456,7 +1488,7 @@ function NewCalendarModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-border-strong px-4 py-2 text-sm text-muted hover:text-foreground"
+            className="rounded-pill border border-border-strong px-4 py-2 text-sm text-muted hover:text-foreground"
           >
             {t("calendar.cancel")}
           </button>
@@ -1464,7 +1496,7 @@ function NewCalendarModal({
             type="button"
             onClick={submit}
             disabled={busy || !name.trim()}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-60"
+            className="rounded-pill bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-60"
           >
             {t("calendar.save")}
           </button>
@@ -1513,17 +1545,22 @@ function SubscribeModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="glass w-full max-w-sm rounded-2xl p-6 shadow-2xl">
+      <div className="glass w-full max-w-sm rounded-lg p-6 shadow-2xl">
         <h2 className="mb-1 text-lg font-semibold text-foreground">
           {t("calendar.subscribe")}
         </h2>
+        {/* The other half of the pair. Read before pasting, it settles the question the two forms
+            were silently asking. */}
+        <p className="mb-1 text-sm font-medium text-foreground">
+          {t("calendar.subscribeWhatFor")}
+        </p>
         <p className="mb-4 text-xs text-muted">{t("calendar.subscribeHint")}</p>
         <input
           autoFocus
           placeholder={t("calendar.calendarName")}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+          className="w-full rounded border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
         />
         <input
           // Volontairement PAS type="url" : le navigateur marque alors le champ
@@ -1535,7 +1572,7 @@ function SubscribeModal({
           placeholder="https://… ou webcal://…"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          className="mt-3 w-full rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+          className="mt-3 w-full rounded border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
         />
         {/* Le choix se pose ICI, pas dans un réglage qu'on ne trouvera pas :
             c'est au moment où l'on ajoute un agenda qu'on sait s'il décrit
@@ -1560,7 +1597,7 @@ function SubscribeModal({
               type="button"
               aria-label={c}
               onClick={() => setColor(c)}
-              className={`h-6 w-6 rounded-full transition ${color === c ? "ring-2 ring-offset-2 ring-offset-surface" : ""}`}
+              className={`h-6 w-6 rounded-pill transition ${color === c ? "ring-2 ring-offset-2 ring-offset-surface" : ""}`}
               style={{
                 backgroundColor: c,
                 boxShadow: color === c ? `0 0 0 2px ${c}` : undefined,
@@ -1573,7 +1610,7 @@ function SubscribeModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-border-strong px-4 py-2 text-sm text-muted hover:text-foreground"
+            className="rounded-pill border border-border-strong px-4 py-2 text-sm text-muted hover:text-foreground"
           >
             {t("calendar.cancel")}
           </button>
@@ -1581,7 +1618,7 @@ function SubscribeModal({
             type="button"
             onClick={submit}
             disabled={busy || !name.trim() || !url.trim()}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-60"
+            className="rounded-pill bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-60"
           >
             {busy ? t("common.saving") : t("calendar.save")}
           </button>
@@ -1638,7 +1675,7 @@ function WeatherModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="glass w-full max-w-sm rounded-2xl p-6 shadow-2xl">
+      <div className="glass w-full max-w-sm rounded-lg p-6 shadow-2xl">
         <h2 className="mb-1 text-lg font-semibold text-foreground">
           {t("calendar.weather")}
         </h2>
@@ -1655,12 +1692,12 @@ function WeatherModal({
             placeholder={t("calendar.weatherSearch")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="flex-1 rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+            className="flex-1 rounded border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
           />
           <button
             type="submit"
             disabled={busy || query.trim().length < 2}
-            className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-60"
+            className="rounded-pill bg-accent px-3 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-60"
           >
             {busy ? "…" : t("calendar.weatherSearchGo")}
           </button>
@@ -1679,7 +1716,7 @@ function WeatherModal({
                       longitude: p.longitude,
                     })
                   }
-                  className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm hover:bg-surface-2/40"
+                  className="flex w-full items-center justify-between rounded-pill px-2 py-1.5 text-left text-sm hover:bg-surface-2/40"
                 >
                   <span className="text-foreground">{p.name}</span>
                   {p.country && (
@@ -1696,16 +1733,22 @@ function WeatherModal({
             type="button"
             onClick={useMyLocation}
             disabled={geoBusy}
-            className="rounded-lg border border-border-strong px-3 py-2 text-xs text-muted hover:text-accent disabled:opacity-60"
+            className="rounded-pill border border-border-strong px-3 py-2 text-xs text-muted hover:text-accent disabled:opacity-60"
           >
-            {geoBusy ? "…" : `📍 ${t("calendar.weatherMyLocation")}`}
+            {geoBusy ? (
+              "…"
+            ) : (
+              <>
+                <PinIcon /> {t("calendar.weatherMyLocation")}
+              </>
+            )}
           </button>
           <div className="flex gap-2">
             {current && (
               <button
                 type="button"
                 onClick={() => onChoose(null)}
-                className="rounded-lg border border-border-strong px-3 py-2 text-xs text-muted hover:text-danger"
+                className="rounded-pill border border-border-strong px-3 py-2 text-xs text-muted hover:text-danger"
               >
                 {t("calendar.weatherTurnOff")}
               </button>
@@ -1713,7 +1756,7 @@ function WeatherModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-border-strong px-3 py-2 text-xs text-muted hover:text-foreground"
+              className="rounded-pill border border-border-strong px-3 py-2 text-xs text-muted hover:text-foreground"
             >
               {t("calendar.cancel")}
             </button>
@@ -1825,7 +1868,7 @@ function ShareModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="glass max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl p-6 shadow-2xl">
+      <div className="glass max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg p-6 shadow-2xl">
         <h2 className="mb-1 text-lg font-semibold text-foreground">
           {t("calendar.shareTitle")}
         </h2>
@@ -1847,7 +1890,7 @@ function ShareModal({
                   onChange={(e) =>
                     void setAccessFor(m.user_id, e.target.value as Access)
                   }
-                  className="rounded-lg border border-border bg-surface-2 px-2 py-1 text-xs text-foreground"
+                  className="rounded border border-border bg-surface-2 px-2 py-1 text-xs text-foreground"
                 >
                   <option value="none">{t("calendar.shareNone")}</option>
                   <option value="read">{t("calendar.shareRead")}</option>
@@ -1872,7 +1915,7 @@ function ShareModal({
               <button
                 type="button"
                 onClick={() => void navigator.clipboard.writeText(freshLink)}
-                className="mt-2 rounded-lg border border-border px-3 py-1 text-xs text-muted transition hover:text-accent"
+                className="mt-2 rounded-pill border border-border px-3 py-1 text-xs text-muted transition hover:text-accent"
               >
                 {t("calendar.linkCopy")}
               </button>
@@ -1914,13 +1957,13 @@ function ShareModal({
               value={linkName}
               onChange={(e) => setLinkName(e.target.value)}
               placeholder={t("calendar.linkNamePh")}
-              className="flex-1 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-foreground placeholder:text-muted"
+              className="flex-1 rounded border border-border bg-surface-2 px-3 py-2 text-sm text-foreground placeholder:text-muted"
             />
             <button
               type="button"
               onClick={() => void mintLink()}
               disabled={minting}
-              className="shrink-0 rounded-lg border border-border-strong px-3 py-2 text-sm text-muted transition hover:border-accent hover:text-accent disabled:opacity-50"
+              className="shrink-0 rounded-pill border border-border-strong px-3 py-2 text-sm text-muted transition hover:border-accent hover:text-accent disabled:opacity-50"
             >
               {minting ? t("common.saving") : t("calendar.linkCreate")}
             </button>
@@ -1947,7 +1990,7 @@ function ShareModal({
                   onClick={() =>
                     void navigator.clipboard.writeText(freshBusyLink)
                   }
-                  className="rounded-lg border border-border px-3 py-1 text-xs text-muted transition hover:text-accent"
+                  className="rounded-pill border border-border px-3 py-1 text-xs text-muted transition hover:text-accent"
                 >
                   {t("calendar.linkCopy")}
                 </button>
@@ -1967,9 +2010,9 @@ function ShareModal({
                         ),
                       });
                     }}
-                    className="rounded-lg border border-border px-3 py-1 text-xs text-muted transition hover:text-accent"
+                    className="rounded-pill border border-border px-3 py-1 text-xs text-muted transition hover:text-accent"
                   >
-                    ✉ {t("calendar.busyEmail")}
+                    <MailIcon /> {t("calendar.busyEmail")}
                   </button>
                 )}
               </div>
@@ -2003,12 +2046,12 @@ function ShareModal({
               value={busyName}
               onChange={(e) => setBusyName(e.target.value)}
               placeholder={t("calendar.busyNamePh")}
-              className="flex-1 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-foreground placeholder:text-muted"
+              className="flex-1 rounded border border-border bg-surface-2 px-3 py-2 text-sm text-foreground placeholder:text-muted"
             />
             <button
               type="button"
               onClick={() => void mintBusyLink()}
-              className="shrink-0 rounded-lg border border-border-strong px-3 py-2 text-sm text-muted transition hover:border-accent hover:text-accent"
+              className="shrink-0 rounded-pill border border-border-strong px-3 py-2 text-sm text-muted transition hover:border-accent hover:text-accent"
             >
               {t("calendar.linkCreate")}
             </button>
@@ -2019,7 +2062,7 @@ function ShareModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110"
+            className="rounded-pill bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110"
           >
             {t("common.done")}
           </button>
@@ -2046,12 +2089,12 @@ function EventModal({
 }) {
   const t = useT();
   const input =
-    "w-full rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent";
+    "w-full rounded border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent";
   const set = (patch: Partial<Draft>) => setDraft({ ...draft, ...patch });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="glass w-full max-w-md rounded-2xl p-6 shadow-2xl">
+      <div className="glass w-full max-w-md rounded-lg p-6 shadow-2xl">
         <h2 className="mb-4 text-lg font-semibold text-foreground">
           {draft.id ? t("calendar.editEvent") : t("calendar.newEvent")}
         </h2>
@@ -2185,7 +2228,7 @@ function EventModal({
             />
           )}
           <p className="flex items-center gap-1.5 text-xs text-accent/80">
-            <span aria-hidden>🔒</span> {t("calendar.zkNotice")}
+            <LockIcon /> {t("calendar.zkNotice")}
           </p>
         </div>
         <div className="mt-5 flex items-center justify-between">
@@ -2204,7 +2247,7 @@ function EventModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-border-strong px-4 py-2 text-sm text-muted hover:text-foreground"
+              className="rounded-pill border border-border-strong px-4 py-2 text-sm text-muted hover:text-foreground"
             >
               {t("calendar.cancel")}
             </button>
@@ -2212,7 +2255,7 @@ function EventModal({
               type="button"
               onClick={onSave}
               disabled={!draft.title.trim()}
-              className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-60"
+              className="rounded-pill bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-60"
             >
               {t("calendar.save")}
             </button>

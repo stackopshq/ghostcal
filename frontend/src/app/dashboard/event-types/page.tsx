@@ -14,6 +14,7 @@ import {
   embedSnippet,
   type EventType,
   type EventTypeInput,
+  toEventTypeInput,
   listEventTypes,
   LOCATION_LABELS,
   publicLink,
@@ -26,6 +27,7 @@ type FormState = EventTypeInput & { id: string | null };
 const BLANK: FormState = {
   id: null,
   title: "",
+  description: null,
   duration_min: 30,
   slot_interval_min: 30,
   buffer_before_min: 0,
@@ -51,25 +53,6 @@ const KINDS: { value: string; labelKey: string }[] = [
 
 const QUESTION_TYPES = ["text", "textarea", "phone", "select", "checkbox"] as const;
 
-function toInput(x: EventTypeInput): EventTypeInput {
-  return {
-    title: x.title,
-    duration_min: x.duration_min,
-    slot_interval_min: x.slot_interval_min,
-    buffer_before_min: x.buffer_before_min,
-    buffer_after_min: x.buffer_after_min,
-    min_notice_min: x.min_notice_min,
-    date_window_days: x.date_window_days,
-    max_per_day: x.max_per_day,
-    location_type: x.location_type,
-    active: x.active,
-    questions: x.questions,
-    kind: x.kind,
-    host_ids: x.host_ids,
-    capacity: x.capacity,
-    redirect_url: x.redirect_url,
-  };
-}
 
 export default function EventTypesPage() {
   const t = useT();
@@ -98,13 +81,13 @@ export default function EventTypesPage() {
 
   async function toggleActive(item: EventType) {
     setOpenMenu(null);
-    await updateEventType(item.id, toInput({ ...item, active: !item.active }));
+    await updateEventType(item.id, toEventTypeInput({ ...item, active: !item.active }));
     await reload();
   }
 
   function startEdit(item: EventType) {
     setOpenMenu(null);
-    setForm({ id: item.id, ...toInput(item) });
+    setForm({ id: item.id, ...toEventTypeInput(item) });
   }
 
   useEffect(() => {
@@ -125,7 +108,7 @@ export default function EventTypesPage() {
     if (!form) return;
     setSaving(true);
     setError(null);
-    const body = toInput(form);
+    const body = toEventTypeInput(form);
     try {
       if (form.id) await updateEventType(form.id, body);
       else await createEventType(body);
@@ -182,7 +165,7 @@ export default function EventTypesPage() {
 
       {host && (
         <div className="flex items-center gap-3 border-b border-border pb-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-accent/30 to-accent/5 text-xs font-semibold text-accent ring-1 ring-border-strong">
+          <div className="flex h-9 w-9 items-center justify-center rounded-pill bg-gradient-to-br from-accent/30 to-accent/5 text-xs font-semibold text-accent ring-1 ring-border-strong">
             {hostInitials}
           </div>
           <span className="text-sm font-medium text-foreground">{host.name}</span>
@@ -190,7 +173,7 @@ export default function EventTypesPage() {
       )}
 
       {form && (
-        <section className="glass flex flex-col gap-4 rounded-2xl p-6">
+        <section className="glass flex flex-col gap-4 rounded-lg p-6">
           <h2 className="text-sm font-medium text-foreground">
             {form.id ? t("et.editTitle") : t("et.newTitle")}
           </h2>
@@ -198,6 +181,17 @@ export default function EventTypesPage() {
             placeholder={t("et.titlePh")}
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
+            className={inputClass}
+          />
+          {/* The public booking page renders this under the title. It had no editor at all until
+              2026-08-30 — the field existed, was served, and could only be set through the API. */}
+          <textarea
+            placeholder={t("et.descriptionPh")}
+            value={form.description ?? ""}
+            onChange={(e) =>
+              setForm({ ...form, description: e.target.value || null })
+            }
+            rows={3}
             className={inputClass}
           />
           <div className="grid gap-4 sm:grid-cols-3">
@@ -355,7 +349,7 @@ export default function EventTypesPage() {
                         })
                       }
                       className={[
-                        "rounded-lg border px-3 py-1.5 text-sm transition",
+                        "rounded-pill border px-3 py-1.5 text-sm transition",
                         on
                           ? "border-accent text-accent"
                           : "border-border-strong text-muted hover:text-foreground",
@@ -407,7 +401,7 @@ export default function EventTypesPage() {
         {items.map((item) => (
           <div
             key={item.id}
-            className="glass flex flex-col gap-3 rounded-2xl border-l-[3px] border-l-accent p-5 sm:flex-row sm:items-center sm:justify-between"
+            className="glass flex flex-col gap-3 rounded-lg border-l-[3px] border-l-accent p-5 sm:flex-row sm:items-center sm:justify-between"
             data-kind={item.kind}
           >
             <div>
@@ -428,14 +422,14 @@ export default function EventTypesPage() {
                 href={publicLink(item)}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-lg border border-border-strong px-3 py-2 text-sm text-foreground transition hover:border-accent hover:text-accent"
+                className="rounded border border-border-strong px-3 py-2 text-sm text-foreground transition hover:border-accent hover:text-accent"
               >
                 {t("et.open")}
               </a>
               <button
                 type="button"
                 onClick={() => copy(item)}
-                className="rounded-lg border border-border-strong px-3 py-2 text-sm text-foreground transition hover:border-accent hover:text-accent"
+                className="rounded-pill border border-border-strong px-3 py-2 text-sm text-foreground transition hover:border-accent hover:text-accent"
               >
                 {copied === item.id ? t("et.copied") : t("et.copyLink")}
               </button>
@@ -444,7 +438,7 @@ export default function EventTypesPage() {
                   type="button"
                   aria-label="More actions"
                   onClick={() => setOpenMenu(openMenu === item.id ? null : item.id)}
-                  className="rounded-lg border border-border-strong px-3 py-2 text-sm text-foreground transition hover:border-accent hover:text-accent"
+                  className="rounded-pill border border-border-strong px-3 py-2 text-sm text-foreground transition hover:border-accent hover:text-accent"
                 >
                   ⋮
                 </button>
@@ -509,7 +503,7 @@ function QuestionsBuilder({
 }) {
   const t = useT();
   const cls =
-    "rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent";
+    "rounded border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent";
 
   function update(i: number, patch: Partial<BookingQuestion>) {
     onChange(questions.map((q, idx) => (idx === i ? { ...q, ...patch } : q)));
@@ -554,7 +548,7 @@ function QuestionsBuilder({
             <button
               type="button"
               onClick={() => onChange(questions.filter((_, idx) => idx !== i))}
-              className="rounded-lg border border-border-strong px-2 text-sm text-muted hover:text-red-400"
+              className="rounded-pill border border-border-strong px-2 text-sm text-muted hover:text-red-400"
             >
               ✕
             </button>

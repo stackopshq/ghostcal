@@ -1,6 +1,9 @@
 # ADR-0001: Stack and architecture
 
-- Status: Proposed
+- Status: Proposed. **The licence clause is superseded by ADR-0013 (2026-08-31),
+  which moves GhostCal from AGPL-3.0-or-later to the Elastic License 2.0.** The
+  original wording below is kept as written; a decision register that gets
+  rewritten stops being a register. Everything else in this ADR still stands.
 - Date: 2026-06-26
 
 ## Context
@@ -31,6 +34,8 @@ public booking pages fast (<200 ms) and integrate with Google / Microsoft calend
   non-`BYPASSRLS`), with repository-layer scoping as defence in depth.
 - **License: GNU AGPL-3.0-or-later.** Network use counts as distribution, so SaaS modifications
   must offer their source — matching the open-alternative positioning (as Cal.com does).
+  *Superseded by ADR-0013 (2026-08-31): AGPL obliges a competing operator to disclose their
+  changes, which is not the same as reserving resale. Elastic License 2.0 reserves it.*
 - **Auth owned in-house, four methods at launch:** email/password (Argon2), Google, Microsoft,
   generic OIDC SSO — all converging on one `users` row via an `identities` table. Login identity
   is kept separate from calendar OAuth grants.
@@ -49,3 +54,6 @@ public booking pages fast (<200 ms) and integrate with Google / Microsoft calend
   schema migrations and the session/transaction layer own this from Phase 1.
 - AGPL obliges us (and any operator of a modified GhostCal) to offer source on network use;
   third-party dependencies must stay license-compatible (no proprietary/Apache-incompatible-only).
+  *Superseded by ADR-0013 (2026-08-31). Under the Elastic License 2.0 there is no source-disclosure
+  trigger; the dependency-compatibility discipline stays, and gets stricter, since a copyleft
+  dependency can no longer be absorbed by our own copyleft.*

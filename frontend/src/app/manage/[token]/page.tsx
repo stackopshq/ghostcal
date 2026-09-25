@@ -58,11 +58,11 @@ function longWhen(iso: string, tz: string): string {
 
 type Mode = "view" | "rescheduling" | "cancelled" | "rescheduled";
 
-const card = "glass w-full max-w-lg rounded-2xl p-8 shadow-2xl";
+const card = "glass w-full max-w-lg rounded-lg p-8 shadow-2xl";
 const dangerBtn =
-  "rounded-lg border border-border-strong px-4 py-2.5 text-sm text-muted transition hover:border-red-400 hover:text-red-400";
+  "rounded-pill border border-border-strong px-4 py-2.5 text-sm text-muted transition hover:border-red-400 hover:text-red-400";
 const accentBtn =
-  "rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.45)] transition hover:brightness-110 disabled:opacity-60";
+  "rounded-pill bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)] transition hover:brightness-110 disabled:opacity-60";
 
 export default function ManagePage() {
   const t = useT();
@@ -205,7 +205,7 @@ export default function ManagePage() {
                             setNewStart(null);
                           }}
                           className={[
-                            "rounded-lg border px-3 py-2 text-sm font-medium transition",
+                            "rounded-pill border px-3 py-2 text-sm font-medium transition",
                             active
                               ? "border-accent text-accent"
                               : "border-border-strong text-foreground hover:border-accent",
@@ -223,7 +223,7 @@ export default function ManagePage() {
                         type="button"
                         onClick={() => setNewStart(s.start)}
                         className={[
-                          "rounded-lg border px-4 py-2 text-sm font-medium transition",
+                          "rounded-pill border px-4 py-2 text-sm font-medium transition",
                           newStart === s.start
                             ? "border-accent bg-accent text-accent-ink"
                             : "border-border-strong text-foreground hover:border-accent hover:text-accent",

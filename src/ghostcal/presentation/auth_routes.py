@@ -23,23 +23,29 @@ from ghostcal.application.auth import (
     TokenPair,
     ZkKeyMaterial,
     ZkKeysAlreadySet,
+    ZkRewrap,
 )
 from ghostcal.application.passwords import PasswordRejected
 from ghostcal.application.ports.clock import SystemClock
+from ghostcal.application.ports.email import EmailSender
 from ghostcal.config import get_settings
 from ghostcal.infrastructure.db.auth_repository import SqlAuthRepository
 from ghostcal.infrastructure.db.session import db_session
 from ghostcal.infrastructure.email import build_email_sender
+from ghostcal.infrastructure.email.outbox import DeferredEmailSender
 from ghostcal.infrastructure.ratelimit import rate_limit
 from ghostcal.infrastructure.security.hibp import HibpBreachedPasswordChecker
 from ghostcal.infrastructure.security.oidc import OIDCNotConfigured, oidc_client
 from ghostcal.infrastructure.security.passwords import Argon2PasswordHasher
 from ghostcal.infrastructure.security.tokens import JwtAccessTokenCodec
+from ghostcal.infrastructure.tasks import enqueue_email
 from ghostcal.presentation.schemas import (
+    ForgotPasswordIn,
     LoginIn,
     RefreshIn,
     RegisteredOut,
     RegisterIn,
+    ResetPasswordIn,
     TokenOut,
     UserOut,
     VerifyEmailIn,
@@ -69,6 +75,7 @@ _config = AuthConfig(
     access_ttl=timedelta(seconds=_settings.access_token_ttl_seconds),
     refresh_ttl=timedelta(seconds=_settings.refresh_token_ttl_seconds),
     email_verification_ttl=timedelta(seconds=_settings.email_verification_ttl_seconds),
+    password_reset_ttl=timedelta(seconds=_settings.password_reset_ttl_seconds),
     frontend_base_url=_settings.frontend_base_url,
 )
 
@@ -82,12 +89,20 @@ def _token_out(tokens: TokenPair) -> TokenOut:
     )
 
 
-def _service(session: object) -> AuthService:
+def _service(session: object, mailer: EmailSender | None = None) -> AuthService:
+    """Build the service for one request.
+
+    `mailer` defaults to the direct sender because most routes here send nothing at all. A route
+    that *does* send passes a `DeferredEmailSender` and drains it after its transaction commits --
+    which is the whole of the fix for the 500s of 2026-09-25. The default is the old synchronous
+    sender rather than a second outbox on purpose: if a future route sends and forgets to drain,
+    it sends the slow way, which is visible. An undrained outbox would drop the mail in silence.
+    """
     return AuthService(
         SqlAuthRepository(session),  # type: ignore[arg-type]
         _hasher,
         _codec,
-        _mailer,
+        mailer or _mailer,
         _clock,
         _config,
         _breach_checker,
@@ -138,9 +153,13 @@ async def register(payload: RegisterIn) -> RegisteredOut:
         recovery_wrapped_private_key=payload.zk_keys.recovery_wrapped_private_key,
         recovery_salt=payload.zk_keys.recovery_salt,
     )
+    # The verification token is written inside the transaction below; the email that carries it
+    # leaves this process afterwards, through the worker. Buffering it here is what keeps the two
+    # apart -- see infrastructure/email/outbox.py for the 500s that taught us the difference.
+    outbox = DeferredEmailSender(enqueue_email)
     async with db_session() as session:
         try:
-            user_id = await _service(session).register(
+            user_id = await _service(session, outbox).register(
                 email=payload.email,
                 name=payload.name,
                 password=payload.password,
@@ -152,6 +171,10 @@ async def register(payload: RegisterIn) -> RegisteredOut:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except EmailAlreadyRegistered as exc:
             raise HTTPException(status_code=409, detail="email already registered") from exc
+    # Committed: the account and its verification row exist. Only now may a worker be told, and
+    # only now can it read what it will be asked to mail about. `hand_off` never raises, so an
+    # unreachable Redis costs this user an email and not an account.
+    outbox.hand_off()
     return RegisteredOut(user_id=user_id)
 
 
@@ -195,6 +218,77 @@ async def setup_zk_keys(payload: ZkKeyMaterialIn, user: CurrentUser) -> None:
             await _service(session).setup_zk_keys(user.id, material)
         except ZkKeysAlreadySet as exc:
             raise HTTPException(status_code=409, detail="keys already set") from exc
+
+
+@router.post("/forgot-password", status_code=202, dependencies=_AUTH_RL)
+async def forgot_password(payload: ForgotPasswordIn) -> None:
+    """Start a password reset. Always 202, whether or not the address is known.
+
+    Answering differently for a known and an unknown address would turn this into an
+    account-enumeration oracle, and the caller is unauthenticated.
+    """
+    outbox = DeferredEmailSender(enqueue_email)
+    async with db_session() as session:
+        await _service(session, outbox).request_password_reset(email=payload.email)
+    # Same two-step as `register`, and here it is what makes the docstring above true. Sending
+    # inside the transaction meant a provider refusal answered 500 for an address that exists and
+    # is verified, and 202 for one that does not -- an enumeration oracle built out of an outage.
+    outbox.hand_off()
+
+
+@router.get(
+    "/reset-password/{token}/zk-keys", response_model=list[ZkKeysOut], dependencies=_AUTH_RL
+)
+async def reset_password_zk_keys(token: str) -> list[ZkKeysOut]:
+    """The key envelopes for a live reset token, so the browser can open them with the phrase.
+
+    Unauthenticated by necessity: the whole point is that the caller cannot log in. Safe because
+    every envelope returned is sealed under the recovery phrase — 24 random bytes, 192 bits, behind
+    Argon2id — so the link alone yields ciphertext.
+
+    A read, not a spend: a wrong recovery phrase must not burn the link.
+    """
+    async with db_session() as session:
+        try:
+            bundles = await _service(session).zk_keys_for_reset(token=token)
+        except InvalidToken as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return [
+        ZkKeysOut(
+            organization_id=b.organization_id,
+            public_key=b.public_key,
+            generation=b.generation,
+            sealed_org_key=b.sealed_org_key,
+            wrapped_private_key=b.wrapped_private_key,
+            wrap_salt=b.wrap_salt,
+            recovery_wrapped_private_key=b.recovery_wrapped_private_key,
+            recovery_salt=b.recovery_salt,
+        )
+        for b in bundles
+    ]
+
+
+@router.post("/reset-password", status_code=204, dependencies=_AUTH_RL)
+async def reset_password(payload: ResetPasswordIn) -> None:
+    """Finish a reset: the new password and the re-wrapped envelopes, together."""
+    async with db_session() as session:
+        try:
+            await _service(session).reset_password(
+                token=payload.token,
+                new_password=payload.new_password,
+                envelopes=[
+                    ZkRewrap(
+                        organization_id=e.organization_id,
+                        wrapped_private_key=e.wrapped_private_key,
+                        wrap_salt=e.wrap_salt,
+                    )
+                    for e in payload.envelopes
+                ],
+            )
+        except PasswordRejected as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except InvalidToken as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/zk-rewrap", status_code=204, dependencies=_AUTH_RL)
