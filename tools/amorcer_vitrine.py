@@ -56,7 +56,21 @@ def _appel(chemin: str, corps: dict | None, methode: str, authentifie: bool):
     c'est ce qu'on photographierait sans le savoir.
     """
     global fautes
-    entetes = {"content-type": "application/json"}
+    # ─── L'agent utilisateur n'est pas cosmétique ───
+    #
+    # `cal.ghostsuite.cloud` est derrière Cloudflare, qui **bannit la signature de
+    # `Python-urllib`** : toute requête sans agent déclaré rend `403 error code: 1010`,
+    # « the owner of this website has banned your access based on your browser's
+    # signature ». Ce n'est ni un jeton invalide ni un droit manquant, et le message ne
+    # le dit pas — on cherche longtemps du côté de l'authentification.
+    #
+    # Constaté le 2026-09-25 : vingt-trois refus d'affilée sur l'amorçage de vitrine.
+    # La même leçon est écrite dans `ghostpass/apps/ios/AppStore/fiche.md` depuis des
+    # semaines. Elle n'avait pas traversé jusqu'ici.
+    entetes = {
+        "content-type": "application/json",
+        "user-agent": "ghostcal-amorcage-vitrine/1.0",
+    }
     if authentifie:
         entetes["authorization"] = f"Bearer {jeton}"
         entetes["x-organization-id"] = organisation

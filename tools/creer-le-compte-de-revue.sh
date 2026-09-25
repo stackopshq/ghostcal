@@ -58,7 +58,22 @@ jq_() { python3 -c "import json,sys;d=json.load(sys.stdin);print(d$1)" 2>/dev/nu
 
 # ── Le serveur répond-il, et est-ce bien GhostCal ? ───────────────────────────
 dire "Serveur"
-SANTE="$(curl -s --max-time 10 "$API/api/health" || true)"
+# ─── `/api`, et pourquoi ce n'est pas un détail ───
+#
+# Le serveur de production sert le CLIENT à la racine et l'API sous `/api`. Un appel à
+# `$API/v1/me/organizations` ne rend donc pas une erreur : il rend **la page HTML du
+# client**, avec un code 200. `jq` n'y trouve rien, la variable reste vide, et le script
+# annonce « le compte n'est pas exploitable » — en accusant le compte, qui va très bien.
+#
+# Deux chemins échappaient à la règle et masquaient le défaut : `/v1/auth/register` et
+# `/v1/auth/login` fonctionnent nus, relayés par le client pour son propre usage. Le début
+# du parcours passait donc, et seule l'étape des données trébuchait.
+#
+# Constaté le 2026-09-25 sur `cal.ghostsuite.cloud`. La spécification servie à
+# `/api/openapi.json` fait foi : elle liste bien `/v1/me/organizations`.
+BASE="$API/api"
+
+SANTE="$(curl -s --max-time 10 "$BASE/health" || true)"
 if [[ "$SANTE" != *'"status":"ok"'* ]]; then
   rouge "Pas de GhostCal en bonne santé sur $API — obtenu : ${SANTE:0:120}"
   exit 1
@@ -93,7 +108,7 @@ print(json.dumps({
     "password": os.environ["PHRASE"],
     "zk_keys": json.loads(os.environ["MATERIEL"]),
 }))')"
-REPONSE="$(curl -s -w '\n%{http_code}' --max-time 20 -X POST "$API/v1/auth/register" \
+REPONSE="$(curl -s -w '\n%{http_code}' --max-time 20 -X POST "$BASE/v1/auth/register" \
   -H 'content-type: application/json' -d "$CORPS")"
 CODE="$(printf '%s' "$REPONSE" | tail -1)"
 CORPS_REPONSE="$(printf '%s' "$REPONSE" | sed '$d')"
@@ -110,7 +125,7 @@ echo "  Ouvrez le courriel envoyé à $ADRESSE et suivez le lien." >&2
 echo "  Ce script réessaie la connexion toutes les cinq secondes." >&2
 ACCES=""
 for _ in $(seq 1 120); do   # dix minutes
-  SORTIE="$(curl -s -w '\n%{http_code}' --max-time 15 -X POST "$API/v1/auth/login" \
+  SORTIE="$(curl -s -w '\n%{http_code}' --max-time 15 -X POST "$BASE/v1/auth/login" \
     -H 'content-type: application/json' \
     -d "$(ADRESSE="$ADRESSE" PHRASE="$PHRASE" python3 -c '
 import json, os
@@ -149,15 +164,15 @@ vert "connexion réelle établie — l'adresse est vérifiée"
 # par construction puisque c'est celui qu'on photographie.
 dire "Données de vitrine"
 AUTH=(-H "authorization: Bearer $ACCES")
-PUBLIQUE="$(curl -s "${AUTH[@]}" "$API/v1/auth/zk-keys" | jq_ "[0]['public_key']")"
-ORG="$(curl -s "${AUTH[@]}" "$API/v1/me/organizations" | jq_ "[0]['id']")"
-SLUG="$(curl -s "${AUTH[@]}" "$API/v1/me/organizations" | jq_ "[0]['slug']")"
-CAL="$(curl -s "${AUTH[@]}" -H "x-organization-id: $ORG" "$API/v1/me/calendars" | jq_ "[0]['id']")"
+PUBLIQUE="$(curl -s "${AUTH[@]}" "$BASE/v1/auth/zk-keys" | jq_ "[0]['public_key']")"
+ORG="$(curl -s "${AUTH[@]}" "$BASE/v1/me/organizations" | jq_ "[0]['id']")"
+SLUG="$(curl -s "${AUTH[@]}" "$BASE/v1/me/organizations" | jq_ "[0]['slug']")"
+CAL="$(curl -s "${AUTH[@]}" -H "x-organization-id: $ORG" "$BASE/v1/me/calendars" | jq_ "[0]['id']")"
 for nom in PUBLIQUE ORG SLUG CAL; do
   [[ -n "${!nom}" ]] || { rouge "$nom introuvable — le compte n'est pas exploitable"; exit 1; }
 done
 
-python3 "$RACINE/tools/amorcer_vitrine.py" "$API" "$ACCES" "$ORG" "$PUBLIQUE" "$CAL" "$AMORCER" "$SLUG"
+python3 "$RACINE/tools/amorcer_vitrine.py" "$BASE" "$ACCES" "$ORG" "$PUBLIQUE" "$CAL" "$AMORCER" "$SLUG"
 
 dire "Prêt"
 cat >&2 <<FIN
