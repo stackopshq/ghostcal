@@ -203,6 +203,7 @@ class SqlAuthRepository(AuthRepository):
                 models.User.name,
                 models.User.timezone,
                 models.User.avatar_url,
+                models.User.avatar_updated_at,
                 models.User.email_verified_at,
                 models.UserCredential.password_hash,
             )
@@ -224,6 +225,7 @@ class SqlAuthRepository(AuthRepository):
                 models.User.name,
                 models.User.timezone,
                 models.User.avatar_url,
+                models.User.avatar_updated_at,
                 models.User.email_verified_at,
                 models.UserCredential.password_hash,
             )
