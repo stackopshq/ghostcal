@@ -54,7 +54,7 @@ export default function ColorPicker({
         }}
       />
       {open && (
-        <span className="glass absolute left-0 top-4 z-20 flex gap-1.5 rounded-lg border border-border p-2">
+        <span className="glass glass-opaque absolute left-0 top-4 z-20 flex gap-1.5 rounded-lg border border-border p-2">
           {CAL_COLORS.map((c) => (
             <button
               key={c}

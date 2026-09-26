@@ -445,7 +445,7 @@ export default function EventTypesPage() {
                 {openMenu === item.id && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)} />
-                    <div className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-lg border border-border-strong bg-surface shadow-2xl">
+                    <div className="glass-opaque absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-lg border border-border-strong shadow-2xl">
                       <button
                         type="button"
                         onClick={() => startEdit(item)}

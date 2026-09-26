@@ -213,7 +213,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             onClick={() => setNavOpen(false)}
           />
           <aside
-            className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col overflow-y-auto border-r border-border bg-surface-2 p-4"
+            // `glass-opaque` et non `bg-surface-2` : ce tiroir se pose SUR le
+            // contenu, et `--color-surface-2` est translucide par conception
+            // (blanc à 5 %). Les rendez-vous se lisaient donc à travers le menu
+            // en thème sombre — vu en capture, pas déduit du CSS.
+            className="glass-opaque absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col overflow-y-auto border-r border-border p-4"
             onClick={(e) => {
               if ((e.target as HTMLElement).closest("a")) setNavOpen(false);
             }}
