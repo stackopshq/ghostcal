@@ -21,10 +21,13 @@ from ghostcal.application.auth import (
     ZkKeysAlreadySet,
 )
 from ghostcal.application.ports.clock import SystemClock
+from ghostcal.application.two_factor import TwoFactorService
 from ghostcal.infrastructure.db.auth_repository import SqlAuthRepository
 from ghostcal.infrastructure.db.session import db_session
+from ghostcal.infrastructure.db.two_factor_repository import SqlTwoFactorRepository
 from ghostcal.infrastructure.security.passwords import Argon2PasswordHasher
 from ghostcal.infrastructure.security.tokens import JwtAccessTokenCodec
+from ghostcal.infrastructure.security.totp import PyotpEngine
 from tests.integration.conftest import ZK_PLACEHOLDER
 
 pytestmark = pytest.mark.integration
@@ -47,7 +50,15 @@ class _NullMailer:
 
 
 def _service(session: object) -> AuthService:
-    return AuthService(SqlAuthRepository(session), _HASHER, _CODEC, _NullMailer(), _CLOCK, _CONFIG)  # type: ignore[arg-type]
+    return AuthService(
+        SqlAuthRepository(session),  # type: ignore[arg-type]
+        _HASHER,
+        _CODEC,
+        _NullMailer(),
+        _CLOCK,
+        _CONFIG,
+        _two_factor(session),
+    )
 
 
 async def _delete_user(admin_engine: AsyncEngine, user_id: uuid.UUID) -> None:
@@ -287,3 +298,12 @@ async def test_a_returning_identity_is_unaffected_by_the_email_checks(
     finally:
         if user_id is not None:
             await _delete_user(admin_engine, user_id)
+
+
+def _two_factor(session: object) -> TwoFactorService:
+    """Le vrai service : ces tests doivent voir le second facteur tel qu'il tourne."""
+    return TwoFactorService(
+        SqlTwoFactorRepository(session),  # type: ignore[arg-type]
+        PyotpEngine(),
+        _CLOCK,
+    )

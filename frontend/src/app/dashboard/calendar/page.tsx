@@ -1458,7 +1458,7 @@ function NewCalendarModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="glass w-full max-w-sm rounded-lg p-6 shadow-2xl">
+      <div className="glass glass-opaque w-full max-w-sm rounded-lg p-6 shadow-2xl">
         <h2 className="mb-4 text-lg font-semibold text-foreground">
           {t("calendar.newCalendar")}
         </h2>
@@ -1545,7 +1545,7 @@ function SubscribeModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="glass w-full max-w-sm rounded-lg p-6 shadow-2xl">
+      <div className="glass glass-opaque w-full max-w-sm rounded-lg p-6 shadow-2xl">
         <h2 className="mb-1 text-lg font-semibold text-foreground">
           {t("calendar.subscribe")}
         </h2>
@@ -1675,7 +1675,7 @@ function WeatherModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="glass w-full max-w-sm rounded-lg p-6 shadow-2xl">
+      <div className="glass glass-opaque w-full max-w-sm rounded-lg p-6 shadow-2xl">
         <h2 className="mb-1 text-lg font-semibold text-foreground">
           {t("calendar.weather")}
         </h2>
@@ -1868,7 +1868,7 @@ function ShareModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="glass max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg p-6 shadow-2xl">
+      <div className="glass glass-opaque max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg p-6 shadow-2xl">
         <h2 className="mb-1 text-lg font-semibold text-foreground">
           {t("calendar.shareTitle")}
         </h2>
@@ -2094,7 +2094,7 @@ function EventModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="glass w-full max-w-md rounded-lg p-6 shadow-2xl">
+      <div className="glass glass-opaque w-full max-w-md rounded-lg p-6 shadow-2xl">
         <h2 className="mb-4 text-lg font-semibold text-foreground">
           {draft.id ? t("calendar.editEvent") : t("calendar.newEvent")}
         </h2>

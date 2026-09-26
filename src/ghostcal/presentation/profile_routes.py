@@ -39,6 +39,7 @@ def _out(record: AuthUserRecord) -> ProfileOut:
         timezone=record.timezone,
         email_verified=record.email_verified,
         avatar_url=record.avatar_url,
+        avatar_updated_at=record.avatar_updated_at,
     )
 
 

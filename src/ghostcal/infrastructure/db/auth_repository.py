@@ -367,6 +367,7 @@ def _to_record(row: object) -> AuthUserRecord | None:
         email_verified=row.email_verified_at is not None,  # type: ignore[attr-defined]
         password_hash=row.password_hash,  # type: ignore[attr-defined]
         avatar_url=row.avatar_url,  # type: ignore[attr-defined]
+        avatar_updated_at=row.avatar_updated_at,  # type: ignore[attr-defined]
     )
 
 

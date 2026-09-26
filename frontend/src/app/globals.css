@@ -9,6 +9,12 @@
  * icônes ET le thème, ou aucun des deux. Le retoucher ici serait écrasé à la
  * régénération, et la CI de ghostsuite refuse un fichier généré qui a dérivé.
  *
+ * Depuis le 2026-09-26 ce fichier porte les DEUX modes, les classes de
+ * composants et la pastille de marque — 197 lignes contre les 40 de la copie
+ * précédente. Le bloc clair écrit à la main ici disparaît donc : c'est le §0 de
+ * la charte, « interdiction de diverger de ghost-theme.css ». Un produit qui a
+ * besoin d'une valeur l'ajoute au générateur, pas chez lui.
+ *
  * Avant le 2026-08-29 cette feuille ne déclarait AUCUNE taille de police ni
  * aucun rayon. Elle n'écrivait donc pas de valeurs fausses — elle n'en écrivait
  * pas du tout, et l'interface prenait celles de Tailwind par défaut. L'écart
@@ -41,44 +47,60 @@
  * couche locale du produit plutôt que dans le fichier généré — qu'une
  * régénération écraserait sans rien dire.
  *
- * `--glass` est le fond du verre fumé, en mode sombre. La charte décrit des
- * surfaces (`--color-surface`, `--color-surface-2`) mais pas de recette de
- * carte ; ghostpass a tranché la même question dans son propre fichier, avec
- * son utilitaire `carte`. On reprend sa valeur pour que les deux produits aient
- * la même matière. Le raisonnement de la mesure est au pied du fichier, sur
- * `.glass`. */
+ * LES DEUX MATIÈRES, et c'est la distinction qui manquait.
+ *
+ * `--glass` est le fond du verre fumé. La charte décrit des surfaces
+ * (`--color-surface`, `--color-surface-2`) mais pas de recette de carte ;
+ * ghostpass a tranché la même question dans son propre fichier, avec son
+ * utilitaire `carte`. On reprend sa valeur pour que les deux produits aient la
+ * même matière. Le raisonnement de la mesure est au pied du fichier, sur
+ * `.glass`.
+ *
+ * `--glass-opaque` est la MÊME teinte, mais composée sur `--color-base` au lieu
+ * du transparent. Elle est pour ce qui se superpose à du CONTENU et doit le
+ * masquer : les cinq boîtes de dialogue du calendrier, la palette de commandes,
+ * la bulle de notification, le nuancier de couleurs, le tiroir de navigation
+ * mobile, le menu des types d'événement et la pastille flottante de
+ * thème/langue. Tous laissaient lire la page à travers eux en thème sombre —
+ * `--color-surface` vaut `rgba(255, 255, 255, 0.03)`, et `--glass` 4 % du
+ * texte : un voile, pas un fond.
+ *
+ * Même recette, un seul paramètre de différence : ce qu'on met derrière. Aucune
+ * des deux ne dépend de `--color-surface`, donc aucune ne casse si la charte
+ * rend cette surface plus ou moins translucide. `--color-base` est le seul
+ * jeton opaque dans les deux thèmes ET dans les deux modes. */
 :root {
   --glass: color-mix(in srgb, var(--color-foreground) 4%, transparent);
+  --glass-opaque: color-mix(in srgb, var(--color-foreground) 4%, var(--color-base));
 }
 
-/* Mode clair — même identité cyan, surfaces de plein jour. Basculé par
- * `data-theme` sur <html>.
+/* Mode clair — ce qu'il en RESTE ici.
  *
- * Le thème généré est SOMBRE et unique : la charte ne produit pas encore de
- * variante claire, et ghostcal est le seul des huit produits à en avoir une. Ce
- * bloc reste donc ici, par-dessus l'import, jusqu'à ce que le générateur sache
- * émettre les deux. Il ne redéclare que des couleurs — l'échelle typographique
- * et les rayons ne dépendent pas de la lumière et viennent de la charte dans les
- * deux modes.
+ * Le générateur sait désormais émettre les deux modes : `ghost-theme.css` porte
+ * son propre `:root[data-theme="light"]`, neutres et accent compris. Les neuf
+ * jetons que ce bloc redéclarait sont donc partis, et avec eux la dérive qu'ils
+ * portaient — l'accent clair était #0891b2, posé à l'œil et commenté « deeper
+ * cyan for contrast ». La charte le DÉRIVE à #007a82 : on multiplie les trois
+ * canaux par un même facteur, ce qui préserve teinte et saturation, jusqu'au
+ * premier palier qui atteint 4,50:1 sur #eef3f9, le plus sombre des fonds de ce
+ * mode. Le cyan de plein jour change donc de nuance, et c'est l'intention : il
+ * est mesuré au lieu d'être choisi.
  *
- * Il l'emporte sur le `:root` du thème généré par sa spécificité, pas par
- * l'ordre des règles : déplacer l'import ne le casserait pas en silence. */
+ * Ne subsiste que `--glass`, que la charte ne porte pas : c'est la seule des
+ * deux matières qui dépende de la lumière. En plein jour la surface du thème
+ * est OPAQUE (#ffffff) et la recette d'origine tient — 65 % de blanc sur une
+ * page bleutée se détache franchement. C'est seulement en mode sombre que la
+ * surface est translucide et que le mélange ne donnait plus rien.
+ *
+ * `--glass-opaque` n'a PAS besoin d'être redéclaré ici : il se compose sur
+ * `--color-base`, qui est opaque dans les deux modes, donc la même écriture
+ * vaut pour les deux. En clair, 4 % de #0f1b2d sur #f5f8fc rend #ecf0f4 — à
+ * deux points près le #eef3f9 que le tiroir portait avant.
+ *
+ * Ce bloc l'emporte sur celui du thème généré par l'ordre des règles à
+ * spécificité égale : il est plus bas dans la cascade, l'import étant en tête
+ * de fichier. */
 :root[data-theme="light"] {
-  --color-base: #f5f8fc;
-  --color-surface: #ffffff;
-  --color-surface-2: #eef3f9;
-  --color-foreground: #0f1b2d;
-  --color-muted: #5b6b82;
-  --color-accent: #0891b2; /* deeper cyan for contrast on light surfaces */
-  --color-accent-ink: #ffffff;
-  --color-border: rgba(15, 23, 42, 0.1);
-  --color-border-strong: rgba(15, 23, 42, 0.16);
-  --aurora: rgba(8, 145, 178, 0.1);
-
-  /* En plein jour la surface de ce bloc est OPAQUE (#ffffff), donc la recette
-   * d'origine tient : 65 % de blanc sur une page bleutée se détache. C'est
-   * seulement en mode sombre que la surface est devenue translucide et que le
-   * mélange ne donnait plus rien — voir `--glass` sous le thème généré. */
   --glass: color-mix(in srgb, var(--color-surface) 65%, transparent);
 }
 
@@ -160,7 +182,15 @@ body {
   background-attachment: fixed;
 }
 
-/* Theme toggle icon: show the sun in dark mode (→ switch to light), the moon in light mode. */
+/* Theme toggle icon: show the sun in dark mode (→ switch to light), the moon in light mode.
+   `inline-flex` et non `inline` : chaque porteuse contient désormais un SVG de charte et son
+   libellé `sr-only`, et un conteneur en ligne poserait l'icône sur la ligne de base du texte
+   plutôt qu'en son milieu. C'est aussi ce qui fait que le nom accessible du bouton suit le
+   thème sans état React — la porteuse cachée sort de l'arbre d'accessibilité avec son texte. */
+.theme-icon-sun {
+  display: inline-flex;
+  align-items: center;
+}
 .theme-icon-moon {
   display: none;
 }
@@ -168,7 +198,8 @@ body {
   display: none;
 }
 :root[data-theme="light"] .theme-icon-moon {
-  display: inline;
+  display: inline-flex;
+  align-items: center;
 }
 
 /* Verre fumé.
@@ -198,4 +229,20 @@ body {
   background: var(--glass);
   border: 1px solid var(--color-border);
   backdrop-filter: blur(12px);
+}
+
+/* Verre OPAQUE — ce qui se superpose à du CONTENU et doit le masquer.
+ *
+ * `.glass` laisse passer ce qu'il y a derrière : c'est juste pour une carte
+ * posée sur l'aurore, qui n'a rien à cacher. Ça ne l'est pas pour une boîte de
+ * dialogue posée sur le calendrier, ni pour un tiroir posé sur la liste des
+ * rendez-vous. Mesuré au navigateur sur la construction livrée : le fond calculé
+ * du tiroir mobile était `rgba(255, 255, 255, 0.05)`, et les jours du mois se
+ * lisaient à travers les boîtes de dialogue.
+ *
+ * Le liseré et le flou sont laissés à l'appelant : un tiroir n'en veut qu'un, à
+ * droite, et une bulle de notification n'en veut pas au même endroit qu'un
+ * menu. C'est la seule différence de forme avec `.glass`, qui les impose. */
+.glass-opaque {
+  background: var(--glass-opaque);
 }

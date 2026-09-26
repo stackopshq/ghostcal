@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime, time, timedelta
 from urllib.parse import urljoin
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from icalendar import Calendar as ICalendar
 
@@ -71,25 +72,113 @@ def _ics_text(value: str) -> str:
     )
 
 
-def _as_utc_range(start_value: object, end_value: object) -> TimeRange | None:
-    """Normalise le début et la fin d'un événement en une plage UTC."""
+def _as_utc_range(start_value: object, end_value: object, *, zone: ZoneInfo) -> TimeRange | None:
+    """Normalise le début et la fin d'un événement en une plage UTC.
 
-    def to_dt(value: object, *, end: bool) -> datetime | None:
+    Deux conventions d'iCalendar se rejoignent ici, et les manquer toutes les
+    deux étalait une journée entière sur **trois** jours civils :
+
+    - **DTEND est exclusif** (RFC 5545 §3.6.1). Sur une date nue, il nomme le
+      lendemain matin : ``DTSTART:20260901`` / ``DTEND:20260902``, c'est le 1er
+      septembre et rien d'autre. Lui rajouter un jour, comme on le faisait pour
+      « couvrir le jour complet », en ajoutait un de trop.
+    - **Une date nue n'a pas de fuseau**, et une heure sans ``Z`` ni ``TZID``
+      non plus (RFC 5545 §3.3.5 : elle est dite *flottante*). Les lire en UTC
+      décale l'événement de l'offset du calendrier ; à Paris, minuit tombe la
+      veille à 22:00 ou 23:00 UTC, ce qui suffit à mordre sur le jour d'avant.
+
+    Le passage par ``ZoneInfo`` plutôt que par un offset figé n'est pas un
+    raffinement : un séjour à cheval sur le dernier dimanche de mars dure 71
+    heures et non 72, et c'est la seule façon de le dire juste des deux côtés.
+    """
+
+    def to_dt(value: object) -> datetime | None:
         if isinstance(value, datetime):
-            return value if value.tzinfo else value.replace(tzinfo=UTC)
+            # Heure flottante : c'est l'heure locale du calendrier, pas de l'UTC.
+            return value if value.tzinfo else value.replace(tzinfo=zone)
         if isinstance(value, date):
-            # Journée entière : couvre le jour complet, traité comme occupé.
-            base = datetime.combine(value, time(0, 0), tzinfo=UTC)
-            return base + timedelta(days=1) if end else base
+            return datetime.combine(value, time(0, 0), tzinfo=zone)
         return None
 
-    start = to_dt(start_value, end=False)
-    end = to_dt(end_value, end=True)
+    # datetime hérite de date : tester datetime en premier, sinon toute heure
+    # passerait pour une journée entière.
+    all_day = isinstance(start_value, date) and not isinstance(start_value, datetime)
+    start = to_dt(start_value)
     if start is None:
         return None
+    end = to_dt(end_value)
     if end is None or end <= start:
-        end = start + timedelta(minutes=30)
-    return TimeRange(start, end)
+        # Rien d'exploitable en face : une journée entière dure un jour, un
+        # événement horaire garde le créneau court qu'on lui donnait déjà.
+        # L'addition se fait sur l'heure murale, donc un jour reste un jour même
+        # quand la nuit en compte 23 ou 25.
+        end = start + (timedelta(days=1) if all_day else timedelta(minutes=30))
+    return TimeRange(start.astimezone(UTC), end.astimezone(UTC))
+
+
+def _zone(name: object) -> ZoneInfo | None:
+    """Le fuseau nommé, ou ``None`` si la base de fuseaux ne le connaît pas.
+
+    ``None`` dit « je n'ai pas pu lire celui-là », pas « prends UTC » : c'est à
+    l'appelant de passer au candidat suivant, et de se plaindre s'il n'en reste
+    aucun. Des serveurs émettent des TZID maison (« Customized Time Zone ») ;
+    ils ne doivent coûter ni l'événement, ni la vérité sur les autres.
+    """
+    if not name:
+        return None
+    try:
+        return ZoneInfo(str(name))
+    except ZoneInfoNotFoundError, ValueError:
+        return None
+
+
+def _busy_from_ical(text: str, *, default_timezone: str) -> list[BusyEvent]:
+    """Les créneaux occupés d'un objet iCalendar rendu par le serveur.
+
+    Séparé de ``fetch_busy`` pour que la conversion soit éprouvable sans réseau :
+    ce qui se casse ici tient à la forme du calendrier, pas au transport.
+
+    Le fuseau appliqué aux dates nues et aux heures flottantes se choisit dans
+    cet ordre : le ``TZID`` du composant, puis le ``X-WR-TIMEZONE`` du
+    calendrier, puis celui de l'utilisateur. Les deux premiers manquent souvent
+    dans une réponse CalDAV — le profil est donc le cas courant, pas l'exception.
+    """
+    try:
+        cal = ICalendar.from_ical(text)
+    except Exception:
+        # Un événement illisible ne doit pas faire échouer la fenêtre entière :
+        # le reste du calendrier reste utilisable, et un créneau manquant se
+        # voit, alors qu'une erreur globale masque tout.
+        return []
+
+    fallback = _zone(default_timezone)
+    if fallback is None:
+        # Pas de repli sur UTC : il rendrait un agenda d'apparence normale et
+        # décalé de quelques heures, ce qui ne se voit pas. Mieux vaut que la
+        # synchronisation dise qu'elle n'a pas pu regarder.
+        raise CalendarError(f"unknown timezone: {default_timezone!r}")
+    calendar_zone = _zone(cal.get("x-wr-timezone")) or fallback
+
+    busy: list[BusyEvent] = []
+    for comp in cal.walk("VEVENT"):
+        if str(comp.get("transp", "")).upper() == "TRANSPARENT":
+            continue
+        if str(comp.get("status", "")).upper() == "CANCELLED":
+            continue
+        dtstart = comp.get("dtstart")
+        dtend = comp.get("dtend")
+        zone = _zone(dtstart.params.get("TZID")) if dtstart is not None else None
+        tr = _as_utc_range(
+            dtstart.dt if dtstart else None,
+            dtend.dt if dtend else None,
+            zone=zone or calendar_zone,
+        )
+        if tr is not None:
+            summary = comp.get("summary")
+            busy.append(
+                BusyEvent(start=tr.start, end=tr.end, summary=str(summary) if summary else None)
+            )
+    return busy
 
 
 def _translate(exc: Exception) -> Exception:
@@ -135,7 +224,13 @@ class CaldavCalendarClient:
         return result
 
     async def fetch_busy(
-        self, creds: CalendarCredentials, calendar_url: str, start: datetime, end: datetime
+        self,
+        creds: CalendarCredentials,
+        calendar_url: str,
+        start: datetime,
+        end: datetime,
+        *,
+        default_timezone: str = "UTC",
     ) -> list[BusyEvent]:
         _guard(creds.server_url)
         _guard(calendar_url)
@@ -151,28 +246,7 @@ class CaldavCalendarClient:
             data = resp.find(".//c:calendar-data", NS)
             if data is None or not data.text:
                 continue
-            try:
-                cal = ICalendar.from_ical(data.text)
-            except Exception:
-                # Un événement illisible ne doit pas faire échouer la fenêtre
-                # entière : le reste du calendrier reste utilisable, et un créneau
-                # manquant se voit, alors qu'une erreur globale masque tout.
-                continue
-            for comp in cal.walk("VEVENT"):
-                if str(comp.get("transp", "")).upper() == "TRANSPARENT":
-                    continue
-                if str(comp.get("status", "")).upper() == "CANCELLED":
-                    continue
-                dtstart = comp.get("dtstart")
-                dtend = comp.get("dtend")
-                tr = _as_utc_range(dtstart.dt if dtstart else None, dtend.dt if dtend else None)
-                if tr is not None:
-                    summary = comp.get("summary")
-                    busy.append(
-                        BusyEvent(
-                            start=tr.start, end=tr.end, summary=str(summary) if summary else None
-                        )
-                    )
+            busy.extend(_busy_from_ical(data.text, default_timezone=default_timezone))
         return busy
 
     async def create_event(

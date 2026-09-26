@@ -68,6 +68,19 @@ class Settings(BaseSettings):
     # self-hosted product: most deployments run one app, not the suite.
     ghostmail_url: str | None = None
 
+    # Where "Privacy policy" points on the entry screens.
+    #
+    # The default serves this deployment's own suite page, which is right when
+    # StackOps hosts it. It is wrong for a self-hosted instance: there the data
+    # controller is whoever runs it, and pointing at our page would make them
+    # publish commitments they never made -- our contact, our processors, our
+    # retention windows. A regulatory statement about the wrong company.
+    #
+    # Same reason as ghostmail_url for living here and not in NEXT_PUBLIC_*: it
+    # is a per-deployment fact, and Next writes those into the bundle at build
+    # time. One published image, many deployments.
+    privacy_url: str = "https://ghostsuite.cloud/confidentialite/"
+
     # SSO / OIDC (single operator-configured provider). Off by default: when disabled, the OIDC
     # routes 404 and the frontend hides the SSO button. Authentication only — the zero-knowledge
     # content is still unlocked by a separate encryption passphrase (the server never sees it).

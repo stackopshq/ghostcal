@@ -16,6 +16,10 @@ type Dict = Record<string, string>;
 const en: Dict = {
   // common
   "common.signIn": "Sign in",
+  "auth.encryptedTitles": "Event titles are encrypted",
+  "auth.privacyPolicy": "Privacy policy",
+  "app.lightMode": "Switch to light theme",
+  "app.darkMode": "Switch to dark theme",
   "common.email": "Email",
   "common.password": "Password",
   "common.errGeneric": "Something went wrong. Please try again.",
@@ -402,6 +406,13 @@ const en: Dict = {
   "profile.name": "Name",
   "profile.timezone": "Time zone",
   "profile.avatarUrl": "Avatar URL",
+  "profile.avatarUpload": "Upload an image",
+  "profile.avatarRemove": "Remove",
+  "profile.avatarBusy": "Sending\u2026",
+  "profile.avatarHint": "PNG, JPEG, WebP or GIF, up to 2 MB. Resized and re-encoded on our side.",
+  "profile.avatarTooBig": "That image is over 2 MB. Pick a smaller one.",
+  "profile.avatarErr": "Could not send that image.",
+  "profile.avatarUrlToggle": "Or use an address served by this site",
   "profile.avatarBlocked":
     "That image could not be loaded. Only images served by this site are allowed: an external URL is refused on purpose.",
   "profile.save": "Save profile",
@@ -674,6 +685,10 @@ const en: Dict = {
 
 const fr: Dict = {
   "common.signIn": "Se connecter",
+  "auth.encryptedTitles": "Titres d'évènements chiffrés",
+  "auth.privacyPolicy": "Politique de confidentialité",
+  "app.lightMode": "Passer au thème clair",
+  "app.darkMode": "Passer au thème sombre",
   "common.email": "E-mail",
   "common.password": "Mot de passe",
   "common.errGeneric": "Une erreur est survenue. Réessayez.",
@@ -1053,6 +1068,13 @@ const fr: Dict = {
   "profile.name": "Nom",
   "profile.timezone": "Fuseau horaire",
   "profile.avatarUrl": "URL de l'avatar",
+  "profile.avatarUpload": "Téléverser une image",
+  "profile.avatarRemove": "Retirer",
+  "profile.avatarBusy": "Envoi\u2026",
+  "profile.avatarHint": "PNG, JPEG, WebP ou GIF, jusqu'à 2 Mo. Redimensionnée et ré-encodée chez nous.",
+  "profile.avatarTooBig": "Cette image dépasse 2 Mo. Choisissez-en une plus légère.",
+  "profile.avatarErr": "Impossible d'envoyer cette image.",
+  "profile.avatarUrlToggle": "Ou utiliser une adresse servie par ce site",
   "profile.avatarBlocked":
     "Cette image n'a pas pu être chargée. Seules les images servies par ce site sont autorisées : une URL externe est refusée volontairement.",
   "profile.save": "Enregistrer le profil",
@@ -1354,6 +1376,21 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoc(detect());
   }, []);
+
+  // L'attribut `lang` de <html> suit la langue affichée.
+  //
+  // Il était figé à « en » dans le layout, et rien ne le touchait : une page en français
+  // s'annonçait donc anglaise, pour toujours. Cet attribut pilote la césure, la
+  // correction orthographique et **la synthèse vocale** — un lecteur d'écran prononçait
+  // le français avec une voix anglaise, et le navigateur proposait de traduire une page
+  // déjà dans la langue du lecteur.
+  //
+  // Un effet sur `locale` plutôt qu'une ligne dans `setLocale` : il couvre aussi la
+  // détection au montage, qui ne passe pas par `setLocale`. Deux endroits à penser
+  // auraient fini par n'en faire qu'un.
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
 
   function setLocale(l: Locale) {
     localStorage.setItem(STORAGE_KEY, l);
