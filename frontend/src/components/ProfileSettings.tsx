@@ -1,11 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { inputClass, primaryButtonClass } from "@/components/AuthCard";
 import { ApiError } from "@/lib/api";
 import { logout, rewrapAllForNewPassword } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
-import { changePassword, getProfile, updateProfile } from "@/lib/profile";
+import {
+  AVATAR_OCTETS_MAX,
+  changePassword,
+  getProfile,
+  removeAvatar,
+  updateProfile,
+  uploadAvatar,
+} from "@/lib/profile";
 import { MIN_PASSWORD_LENGTH } from "@/lib/passwords";
 
 /** Les initiales, dessinées ici — aucun réseau, aucun tiers.
@@ -77,6 +84,16 @@ export default function ProfileSettings() {
   const [tz, setTz] = useState("UTC");
   const [avatar, setAvatar] = useState("");
   const [avatarBroken, setAvatarBroken] = useState(false);
+  // L'horodatage de l'avatar téléversé, ou `null` s'il n'y en a pas.
+  //
+  // Il sert deux fois : décider si l'on affiche l'image ou les initiales, et **casser le
+  // cache** de l'image après un envoi. Sans le second usage, le navigateur continuerait
+  // d'afficher l'ancienne — un téléversement qui paraît n'avoir rien fait.
+  const [avatarPose, setAvatarPose] = useState<string | null>(null);
+  const [profilId, setProfilId] = useState("");
+  const [avatarOccupe, setAvatarOccupe] = useState(false);
+  const [avatarErreur, setAvatarErreur] = useState<string | null>(null);
+  const fichierRef = useRef<HTMLInputElement>(null);
   const zones = useMemo(() => timezones("UTC"), []);
   const [savedProfile, setSavedProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -95,6 +112,8 @@ export default function ProfileSettings() {
         setName(p.name);
         setTz(p.timezone);
         setAvatar(p.avatar_url ?? "");
+        setAvatarPose(p.avatar_updated_at);
+        setProfilId(p.id);
       })
       .catch(() => active && setProfileError(t("profile.errLoad")));
     return () => {
@@ -102,6 +121,52 @@ export default function ProfileSettings() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** L'adresse de l'image téléversée, empreinte de cache comprise. */
+  const urlAvatarPose =
+    avatarPose && profilId
+      ? `/v1/me/profile/avatar/${profilId}?v=${encodeURIComponent(avatarPose)}`
+      : "";
+
+  async function televerser(fichier: File) {
+    setAvatarErreur(null);
+    // Le poids se vérifie ici AUSSI, alors que le serveur le fait déjà. Un aller-retour
+    // de deux mégaoctets pour s'entendre dire « trop gros » est une attente qu'on peut
+    // éviter, et le message arrive instantanément.
+    if (fichier.size > AVATAR_OCTETS_MAX) {
+      setAvatarErreur(t("profile.avatarTooBig"));
+      return;
+    }
+    setAvatarOccupe(true);
+    try {
+      await uploadAvatar(fichier);
+      const frais = await getProfile();
+      setAvatarPose(frais.avatar_updated_at);
+      setAvatarBroken(false);
+    } catch (err) {
+      // Le serveur refuse en 422 avec un motif lisible — « format non reconnu »,
+      // « fichier vide ». C'est CE motif qu'il faut montrer : « erreur » n'aide
+      // personne à choisir une autre image.
+      setAvatarErreur(
+        err instanceof ApiError && err.detail ? err.detail : t("profile.avatarErr"),
+      );
+    } finally {
+      setAvatarOccupe(false);
+    }
+  }
+
+  async function retirerAvatar() {
+    setAvatarErreur(null);
+    setAvatarOccupe(true);
+    try {
+      await removeAvatar();
+      setAvatarPose(null);
+    } catch {
+      setAvatarErreur(t("profile.avatarErr"));
+    } finally {
+      setAvatarOccupe(false);
+    }
+  }
 
   async function saveProfile(e: React.FormEvent) {
     e.preventDefault();
@@ -176,15 +241,65 @@ export default function ProfileSettings() {
       <h2 className="text-lg font-semibold text-foreground">{t("profile.yourProfile")}</h2>
 
       <form onSubmit={saveProfile} className="flex flex-col gap-4">
+        {/* Le téléversement, enfin offert.
+            L'API l'accepte depuis le 2026-09-25 — POST, DELETE, et une route qui sert
+            l'image — mais aucun écran ne l'exposait. Le champ URL ci-dessous était le
+            seul chemin proposé, et il ne mène nulle part : la politique de sécurité de
+            contenu n'autorise que les images de ce site, donc une adresse externe est
+            refusée par le navigateur. Le seul chemin qui marche est celui qu'on ne
+            montrait pas. */}
         <div className="flex items-center gap-4">
           <Avatar
-            url={avatar}
+            url={urlAvatarPose || avatar}
             name={name}
             broken={avatarBroken}
             onBroken={() => setAvatarBroken(true)}
           />
-          <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm text-muted">
-            {t("profile.avatarUrl")}
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                ref={fichierRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  // La valeur est vidée pour que rechoisir LE MÊME fichier redéclenche
+                  // l'évènement : sans cela, une seconde tentative après un refus ne
+                  // ferait rien, et l'écran paraîtrait figé.
+                  e.target.value = "";
+                  if (f) void televerser(f);
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => fichierRef.current?.click()}
+                disabled={avatarOccupe}
+                className={primaryButtonClass}
+              >
+                {avatarOccupe ? t("profile.avatarBusy") : t("profile.avatarUpload")}
+              </button>
+              {avatarPose && (
+                <button
+                  type="button"
+                  onClick={() => void retirerAvatar()}
+                  disabled={avatarOccupe}
+                  className="rounded-pill border border-border-strong px-4 py-2.5 text-sm text-muted transition hover:text-foreground"
+                >
+                  {t("profile.avatarRemove")}
+                </button>
+              )}
+            </div>
+            <span className="text-xs text-muted">{t("profile.avatarHint")}</span>
+            {avatarErreur && <span className="text-xs text-danger">{avatarErreur}</span>}
+          </div>
+        </div>
+
+        {/* Le champ URL reste, mais en repli et dit pour ce qu'il est : il ne sert que
+            pour une adresse servie par ce site. */}
+        <details className="text-sm text-muted">
+          <summary className="cursor-pointer">{t("profile.avatarUrlToggle")}</summary>
+          <label className="mt-2 flex min-w-0 flex-col gap-1">
             <input
               type="url"
               placeholder="https://…/avatar.png"
@@ -197,13 +312,13 @@ export default function ProfileSettings() {
             />
             {avatarBroken && (
               // Le champ acceptait et enregistrait une URL qui ne pouvait pas
-              // s'afficher, sans rien dire : la politique de sécurité de
-              // contenu n'autorise que les images de ce site. Un champ qui
-              // ment est pire qu'un champ qui refuse.
+              // s'afficher, sans rien dire : la politique de sécurité de contenu
+              // n'autorise que les images de ce site. Un champ qui ment est pire
+              // qu'un champ qui refuse.
               <span className="text-xs text-danger">{t("profile.avatarBlocked")}</span>
             )}
           </label>
-        </div>
+        </details>
         <label className="flex flex-col gap-1 text-sm text-muted">
           {t("common.email")}
           <input value={email} disabled className={`${inputClass} opacity-60`} />

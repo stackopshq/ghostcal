@@ -247,6 +247,9 @@ class ProfileOut(BaseModel):
     timezone: str
     email_verified: bool
     avatar_url: str | None = None
+    # `None` = aucun avatar téléversé. L'écran s'en sert pour savoir s'il affiche
+    # l'image ou les initiales, et comme empreinte de cache sur l'URL de l'image.
+    avatar_updated_at: datetime | None = None
 
 
 class ProfileUpdateIn(BaseModel):

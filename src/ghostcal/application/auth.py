@@ -71,6 +71,13 @@ class AuthUserRecord:
     email_verified: bool
     password_hash: str | None
     avatar_url: str | None = None
+    # Quand l'avatar téléversé a changé. `None` veut dire « il n'y en a pas ».
+    #
+    # Le champ existait déjà en base pour l'`ETag` ; l'exposer coûte donc une colonne
+    # déjà lue, et il sert deux fois côté client : savoir qu'un avatar existe, et casser
+    # le cache de l'image après un envoi. Sans lui, le navigateur continuerait d'afficher
+    # l'ancienne — un téléversement qui semble n'avoir rien fait.
+    avatar_updated_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)

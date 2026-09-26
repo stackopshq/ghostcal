@@ -22,6 +22,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    LargeBinary,
     SmallInteger,
     String,
     Text,
@@ -119,6 +120,12 @@ class User(TimestampMixin, Base):
     email: Mapped[str] = mapped_column(String(320), unique=True)
     name: Mapped[str] = mapped_column(String(200))
     avatar_url: Mapped[str | None] = mapped_column(String(2048))
+    # L'avatar vit en base et non sur disque : l'application n'a aucun volume monté, et une
+    # image sur le disque du conteneur disparaîtrait au premier redéploiement. Les trois
+    # colonnes vont ensemble — une contrainte de table le garantit, voir la migration.
+    avatar_bytes: Mapped[bytes | None] = mapped_column(LargeBinary)
+    avatar_mime: Mapped[str | None] = mapped_column(Text)
+    avatar_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     timezone: Mapped[str] = mapped_column(String(64), default="UTC")
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # The user's own X25519 keypair (ADR-0007). The public key is readable by the server — an org

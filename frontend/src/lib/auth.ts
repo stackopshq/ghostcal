@@ -431,11 +431,21 @@ export async function authedFetch<T>(
   init?: RequestInit,
 ): Promise<T> {
   const org = getActiveOrg();
+
+  // Un corps `FormData` ne doit PAS porter de `Content-Type` posé à la main.
+  //
+  // Le navigateur en écrit un qui contient la **frontière** séparant les parties —
+  // `multipart/form-data; boundary=----WebKitFormBoundary…` — et il ne le fait que si on
+  // ne lui en impose pas un. Forcer `application/json` ici enverrait donc un corps
+  // multipart annoncé comme du JSON, sans frontière : le serveur ne saurait pas où
+  // commence le fichier, et rendrait une erreur qui ne parlerait pas de ça.
+  const multipart = init?.body instanceof FormData;
+
   const run = async (): Promise<Response> =>
     fetch(`${base()}${path}`, {
       ...init,
       headers: {
-        "Content-Type": "application/json",
+        ...(multipart ? {} : { "Content-Type": "application/json" }),
         ...init?.headers,
         Authorization: `Bearer ${getAccessToken() ?? ""}`,
         ...(org ? { "X-Organization-Id": org } : {}),

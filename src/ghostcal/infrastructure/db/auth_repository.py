@@ -203,6 +203,7 @@ class SqlAuthRepository(AuthRepository):
                 models.User.name,
                 models.User.timezone,
                 models.User.avatar_url,
+                models.User.avatar_updated_at,
                 models.User.email_verified_at,
                 models.UserCredential.password_hash,
             )
@@ -224,6 +225,7 @@ class SqlAuthRepository(AuthRepository):
                 models.User.name,
                 models.User.timezone,
                 models.User.avatar_url,
+                models.User.avatar_updated_at,
                 models.User.email_verified_at,
                 models.UserCredential.password_hash,
             )
@@ -389,4 +391,61 @@ def _to_record(row: object) -> AuthUserRecord | None:
         email_verified=row.email_verified_at is not None,  # type: ignore[attr-defined]
         password_hash=row.password_hash,  # type: ignore[attr-defined]
         avatar_url=row.avatar_url,  # type: ignore[attr-defined]
+        avatar_updated_at=row.avatar_updated_at,  # type: ignore[attr-defined]
     )
+
+
+class SqlAvatarRepository:
+    """Lit et écrit l'avatar, et **filtre lui-même** l'organisation.
+
+    Le filtre est dans la requête, pas dans la seule sécurité au niveau ligne. Trois
+    requêtes de ce dépôt s'en étaient remises à elle et fuyaient entre organisations —
+    corrigées le 2026-09-25. La production tourne en superutilisateur, où la RLS ne
+    s'applique pas du tout : une requête ne vaut que par son `WHERE`.
+    """
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def enregistrer(
+        self, user_id: uuid.UUID, *, octets: bytes, mime: str, quand: datetime
+    ) -> None:
+        await self._session.execute(
+            update(models.User)
+            .where(models.User.id == user_id)
+            .values(avatar_bytes=octets, avatar_mime=mime, avatar_updated_at=quand)
+        )
+
+    async def effacer(self, user_id: uuid.UUID) -> None:
+        await self._session.execute(
+            update(models.User)
+            .where(models.User.id == user_id)
+            .values(avatar_bytes=None, avatar_mime=None, avatar_updated_at=None)
+        )
+
+    async def lire_dans_l_organisation(
+        self, user_id: uuid.UUID, organization_id: uuid.UUID
+    ) -> tuple[bytes, str, datetime] | None:
+        """L'avatar d'un membre, vu par un membre de la même organisation.
+
+        La jointure porte son filtre d'organisation — c'est exactement la forme qui
+        manquait à `member_public_keys` et `members_without_keypair`, et qui les faisait
+        rendre les utilisateurs de tout le serveur.
+        """
+        row = (
+            await self._session.execute(
+                select(
+                    models.User.avatar_bytes,
+                    models.User.avatar_mime,
+                    models.User.avatar_updated_at,
+                )
+                .join(models.Membership, models.Membership.user_id == models.User.id)
+                .where(
+                    models.User.id == user_id,
+                    models.Membership.organization_id == organization_id,
+                )
+            )
+        ).one_or_none()
+        if row is None or row.avatar_bytes is None:
+            return None
+        return row.avatar_bytes, row.avatar_mime, row.avatar_updated_at
