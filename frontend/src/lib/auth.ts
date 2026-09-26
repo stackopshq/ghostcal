@@ -286,10 +286,70 @@ export function verifyEmail(token: string): Promise<void> {
   return post("/v1/auth/verify-email", { token });
 }
 
-export async function login(email: string, password: string): Promise<void> {
-  const tokens = await post<Tokens>("/v1/auth/login", { email, password });
+/**
+ * @param totpCode  le code du second facteur, ou un code de récupération.
+ *
+ * Il est facultatif parce que le premier appel se fait sans : c'est le serveur qui réclame,
+ * par un 401 portant `mfa_required`. Cet argument n'existait pas, et la conséquence était
+ * qu'un compte à second facteur activé ne pouvait plus se connecter au web du tout.
+ */
+export async function login(email: string, password: string, totpCode?: string): Promise<void> {
+  const corps: Record<string, string> = { email, password };
+  const code = totpCode?.trim();
+  // Un champ vide n'est pas « pas de code » : le serveur le validerait comme une saisie.
+  if (code) corps.totp_code = code;
+  const tokens = await post<Tokens>("/v1/auth/login", corps);
   setTokens(tokens);
   await unlockZk(password);
+}
+
+// ─── Le second facteur, côté réglages ───
+//
+// Les cinq routes existaient, testées et déployées, sans un seul appelant côté interface.
+
+export type EtatDuSecondFacteur = {
+  enabled: boolean;
+  pending: boolean;
+  recovery_codes_remaining: number;
+};
+
+export function lireLeSecondFacteur(): Promise<EtatDuSecondFacteur> {
+  return authedFetch<EtatDuSecondFacteur>("/v1/auth/mfa");
+}
+
+/** Démarre l'enrôlement. Le mot de passe est redemandé : voir le commentaire de la route. */
+export function demarrerLeSecondFacteur(
+  password: string,
+): Promise<{ secret: string; otpauth_uri: string }> {
+  return authedFetch("/v1/auth/mfa/setup", {
+    method: "POST",
+    body: JSON.stringify({ password }),
+  });
+}
+
+/** Active contre un premier code, et rend les codes de récupération — une seule fois. */
+export function activerLeSecondFacteur(code: string): Promise<{ recovery_codes: string[] }> {
+  return authedFetch("/v1/auth/mfa/activate", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+}
+
+export function desactiverLeSecondFacteur(password: string, code: string): Promise<void> {
+  return authedFetch("/v1/auth/mfa/disable", {
+    method: "POST",
+    body: JSON.stringify({ password, code }),
+  });
+}
+
+export function refaireLesCodesDeRecuperation(
+  password: string,
+  code: string,
+): Promise<{ recovery_codes: string[] }> {
+  return authedFetch("/v1/auth/mfa/recovery-codes", {
+    method: "POST",
+    body: JSON.stringify({ password, code }),
+  });
 }
 
 // --- SSO / OIDC ---------------------------------------------------------------------------------

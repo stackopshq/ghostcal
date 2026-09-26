@@ -6,7 +6,8 @@ import { useEffect, useState } from "react";
 import AuthCard, { Champ, inputClass, lienDePied, primaryButtonClass } from "@/components/AuthCard";
 import { ApiError } from "@/lib/api";
 import { beginOidcLogin, getAuthConfig, login } from "@/lib/auth";
-import { useT } from "@/lib/i18n";
+import { lireLEchecDeConnexion } from "@/lib/deuxiemeFacteur";
+import { useI18n, useT } from "@/lib/i18n";
 
 // Le lien de démonstration vivait sur l'ancienne page d'accueil, qui redirige désormais
 // ici. Sans ce report, `NEXT_PUBLIC_DEMO_PATH` serait restée configurée et sans effet —
@@ -28,12 +29,19 @@ function safeNext(): string {
 
 export default function LoginPage() {
   const t = useT();
+  const { locale } = useI18n();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [ssoEnabled, setSsoEnabled] = useState(false);
+  // Le second facteur. `codeDemande` bascule l'écran quand le serveur réclame ; `verrouJusqua`
+  // porte l'échéance d'un 429, parce que « trop d'essais » n'est pas « mauvais code » et qu'il
+  // faut dire jusqu'à quand attendre plutôt que faire retaper.
+  const [codeDemande, setCodeDemande] = useState(false);
+  const [code, setCode] = useState("");
+  const [verrouJusqua, setVerrouJusqua] = useState<Date | null>(null);
 
   useEffect(() => {
     // Only offer SSO if the backend has a provider configured. Also surface a failed SSO round-trip.
@@ -58,15 +66,39 @@ export default function LoginPage() {
     setSubmitting(true);
     setError(null);
     try {
-      await login(email, password);
+      await login(email, password, codeDemande ? code : undefined);
       router.push(safeNext());
     } catch (err) {
-      if (err instanceof ApiError && err.status === 403) {
-        setError(t("login.errVerify"));
-      } else if (err instanceof ApiError && err.status === 401) {
-        setError(t("login.errInvalid"));
-      } else {
-        setError(t("common.errGeneric"));
+      // La lecture vit dans `deuxiemeFacteur.ts` : quatre codes HTTP, dont deux 401 qui
+      // veulent dire des choses opposées, et une forme `detail` imbriquée par FastAPI.
+      const suite = lireLEchecDeConnexion(err instanceof ApiError ? err : null, codeDemande);
+      switch (suite.quoi) {
+        case "demander-le-code":
+          setCodeDemande(true);
+          setError(null);
+          break;
+        case "code-refuse":
+          setError(t("login.errCode"));
+          setCode("");
+          break;
+        case "verrouille":
+          setVerrouJusqua(suite.jusqua);
+          setError(
+            suite.jusqua
+              ? t("login.errLockedUntil", {
+                  heure: suite.jusqua.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }),
+                })
+              : t("login.errLocked"),
+          );
+          break;
+        case "email-non-verifie":
+          setError(t("login.errVerify"));
+          break;
+        case "identifiants-refuses":
+          setError(t("login.errInvalid"));
+          break;
+        default:
+          setError(t("common.errGeneric"));
       }
       setSubmitting(false);
     }
@@ -119,6 +151,24 @@ export default function LoginPage() {
             className={inputClass}
           />
         </Champ>
+        {codeDemande && (
+          // L'étiquette dit « ou un code de récupération », et le champ n'impose PAS de
+          // clavier numérique. C'est le défaut mesuré sur GhostPass : ses clients annonçaient
+          // « code à 6 chiffres » et forçaient `inputMode="numeric"`, si bien qu'un code de
+          // récupération — celui dont on se sert justement quand le téléphone a disparu —
+          // était annoncé comme refusé, et physiquement impossible à taper sur mobile.
+          <Champ label={t("login.codeOrRecovery")}>
+            <input
+              required
+              autoFocus
+              autoComplete="one-time-code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              className={inputClass}
+              disabled={verrouJusqua !== null}
+            />
+          </Champ>
+        )}
         {error && <p className="text-sm text-red-400">{error}</p>}
         <button type="submit" disabled={submitting} className={primaryButtonClass}>
           {submitting ? t("login.submitting") : t("login.title")}
