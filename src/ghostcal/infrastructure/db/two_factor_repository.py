@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ghostcal.application.two_factor import TotpRecord, TwoFactorRepository
 from ghostcal.infrastructure.db import models
+from ghostcal.infrastructure.db.session import get_sessionmaker
 
 
 class SqlTwoFactorRepository(TwoFactorRepository):
@@ -95,11 +96,33 @@ class SqlTwoFactorRepository(TwoFactorRepository):
     async def record_failure(
         self, user_id: uuid.UUID, *, failed_attempts: int, locked_until: datetime | None
     ) -> None:
-        await self._session.execute(
-            update(models.UserTotp)
-            .where(models.UserTotp.user_id == user_id)
-            .values(failed_attempts=failed_attempts, locked_until=locked_until)
-        )
+        """Compte l'échec DANS SA PROPRE TRANSACTION, et c'est tout le sujet.
+
+        `db_session` valide à la sortie propre et **annule sur exception**. Or l'appelant
+        lève `TwoFactorInvalid` juste après cette écriture : dans la transaction de la
+        requête, le compteur repartait donc systématiquement à sa valeur d'avant.
+
+        Ce que ça coûtait, mesuré contre un vrai PostgreSQL le 2026-09-26 : après onze codes
+        faux, `failed_attempts` valait toujours 0. Posé à 4 à la main, un douzième échec le
+        laissait à 4. `locked_until` n'était donc JAMAIS écrit, `TwoFactorLocked` jamais levée,
+        et le verrouillage à cinq essais — la seule défense par compte contre le balayage d'un
+        code à six chiffres — entièrement inerte. Restait le limiteur par IP, qui protège une
+        adresse et non un compte.
+
+        Tout le reste marchait : la route rend bien un 429 avec `locked_until` quand la base
+        porte un verrou, et le client sait le lire. Seule l'écriture manquait.
+
+        Une session séparée est ici le remède le plus court : `user_totp` est hors RLS et
+        l'application y a tous les droits, donc cette écriture ne dépend d'aucun contexte de
+        locataire. Elle survit volontairement à l'échec de la requête — c'est précisément ce
+        qu'on attend d'un compteur d'essais ratés.
+        """
+        async with get_sessionmaker()() as session, session.begin():
+            await session.execute(
+                update(models.UserTotp)
+                .where(models.UserTotp.user_id == user_id)
+                .values(failed_attempts=failed_attempts, locked_until=locked_until)
+            )
 
     async def replace_recovery_codes(self, user_id: uuid.UUID, code_hashes: list[str]) -> None:
         await self._session.execute(
