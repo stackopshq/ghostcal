@@ -18,7 +18,7 @@
   --color-accent-light: #9CFBFF;
   --color-accent-deep: #0E8FA8;
   --color-accent-ink: #04122b;
-  --aurora: color-mix(in srgb, #00F0FF 8%, transparent);
+  --aurora: color-mix(in srgb, #00F0FF 8.0%, transparent);
 
   /* Neutres — communs à la suite.
    *
