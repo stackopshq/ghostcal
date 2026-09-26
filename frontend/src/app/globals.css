@@ -231,6 +231,29 @@ body {
   backdrop-filter: blur(12px);
 }
 
+/* LA MATIÈRE DE LA CARTE D'AUTHENTIFICATION, et c'est une TROISIÈME matière.
+ *
+ * La charte (§6) demandait « une surface translucide (`verre`, `glass`) » en
+ * nommant les deux classes comme si elles étaient la même chose. Elles ne le
+ * sont pas, et ghostpass en porte DEUX :
+ *
+ *     carte   color-mix(--color-foreground 4%,  transparent)   un voile clair
+ *     verre   color-mix(--color-base       72%, transparent)   un fond teinté
+ *
+ * `.glass` ci-dessus reprend `carte`. L'écran de connexion de ghostpass, lui,
+ * est en `verre`. Les deux produits « respectaient » donc la charte avec des
+ * cartes de matières opposées : l'une plus claire que la page, l'autre plus
+ * sombre. C'est ce que Kevin voyait en comparant les deux captures, et aucune
+ * relecture du JSX ne pouvait le trouver — la divergence était dans le CSS,
+ * sous un nom de classe qui laissait croire à l'identité.
+ *
+ * Nommer la classe ne suffit pas : c'est la RECETTE qui doit être la même. */
+.verre {
+  background: color-mix(in srgb, var(--color-base) 72%, transparent);
+  border: 1px solid var(--color-border);
+  backdrop-filter: blur(14px);
+}
+
 /* Verre OPAQUE — ce qui se superpose à du CONTENU et doit le masquer.
  *
  * `.glass` laisse passer ce qu'il y a derrière : c'est juste pour une carte

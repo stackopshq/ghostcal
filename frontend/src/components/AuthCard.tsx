@@ -17,7 +17,38 @@ import { useT } from "@/lib/i18n";
  * not sit on the same step.
  */
 export const inputClass =
-  "rounded border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent";
+  "w-full rounded border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-foreground " +
+  "placeholder:text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25";
+
+/**
+ * Un champ étiqueté — la structure de `Champ` chez ghostpass, à l'identique.
+ *
+ * GhostCal posait ses libellés en `placeholder`. Ce n'est pas la même chose :
+ * un placeholder disparaît dès la première frappe, il n'est pas rattaché au
+ * champ pour un lecteur d'écran, et le formulaire vide et le formulaire rempli
+ * ne portent pas la même information. Les deux écrans se distinguaient donc à
+ * l'œil ET à l'oreille.
+ */
+export function Champ({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-xs text-muted">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+/**
+ * Le pied de carte : la question reste du TEXTE, seule l'action est un lien.
+ *
+ * La charte (§6) porte ce défaut, mesuré sur ghostpass : quand la phrase
+ * entière est l'action, en `text-muted`, son unique signal d'interactivité est
+ * `hover:` — un état qu'un écran tactile n'atteint jamais. GhostCal le portait
+ * encore : « Mot de passe oublié » était un `text-muted hover:text-accent` sur
+ * une ligne nue, indiscernable d'un gris inerte sur téléphone.
+ */
+export const lienDePied =
+  "font-medium text-accent underline underline-offset-2 transition hover:brightness-125";
 
 export const primaryButtonClass =
   "rounded-pill bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)] transition hover:brightness-110 disabled:opacity-60";
@@ -97,20 +128,31 @@ export default function AuthCard({
           </Link>
         </div>
 
-        <section className="glass rounded-lg p-8 shadow-2xl">
-          <h1 className="text-xl font-semibold text-foreground">{title}</h1>
-          {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
-          <div className="mt-6">{children}</div>
-          {footer && <div className="mt-6 text-sm text-muted">{footer}</div>}
+        {/* `verre` et non `glass` : voir la note de `globals.css`. Et `p-6`, le
+            retrait de ghostpass — `p-8` décalait de 8 px tout ce que la carte
+            contient, ce qui suffit à faire deux écrans qu'on ne superpose pas. */}
+        <section className="verre rounded-lg border border-border p-6">
+          <h1 className="mb-4 text-lg font-semibold text-foreground">{title}</h1>
+          {subtitle && <p className="-mt-2 mb-3 text-sm text-muted">{subtitle}</p>}
+          {children}
+          {footer && <div className="mt-4 text-xs text-muted">{footer}</div>}
         </section>
 
         {/* La promesse du produit, là où l'on décide d'y entrer.
             **Et non « zero-knowledge », qui serait faux ici.** GhostPass porte cette
             mention parce qu'il ne peut rien lire ; GhostCal doit lire ce qu'il
             organise pour proposer un créneau, et sa propre politique de
-            confidentialité le dit sans détour. Ce qu'il chiffre vraiment, ce sont les
-            titres. C'est plus modeste, et c'est vrai — recopier la promesse du frère
-            aurait été la seule façon de rater cette harmonisation. */}
+            confidentialité le dit sans détour.
+
+            La phrase disait « Titres d'évènements chiffrés ». C'était exact et
+            illisible : personne ne se demande, devant un écran de connexion, ce
+            qu'est un titre d'évènement par opposition au reste. Elle nomme
+            désormais la chose (« le contenu de vos évènements ») et l'endroit
+            (« sur votre appareil »), qui est la partie qui compte pour qui lit.
+
+            Elle reste plus modeste que celle de GhostPass, et c'est voulu :
+            recopier la promesse du frère serait la seule façon de rater cette
+            harmonisation. */}
         <div className="mt-6 flex items-center justify-center gap-1.5 text-xs text-muted">
           <svg
             viewBox="0 0 24 24"
@@ -125,7 +167,7 @@ export default function AuthCard({
             <rect x="4" y="10" width="16" height="10" rx="2" />
             <path d="M8 10V7a4 4 0 0 1 8 0v3" />
           </svg>
-          <span>{t("auth.encryptedTitles")}</span>
+          <span>{t("auth.promise")}</span>
         </div>
 
         {/* Atteignable sans avoir à créer un compte : quelqu'un qui revient se

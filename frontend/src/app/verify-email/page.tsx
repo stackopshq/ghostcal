@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import AuthCard from "@/components/AuthCard";
+import AuthCard, { lienDePied } from "@/components/AuthCard";
 import { verifyEmail } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 
@@ -34,7 +34,7 @@ function VerifyInner() {
         title={t("verify.okTitle")}
         subtitle={t("verify.okSub")}
         footer={
-          <Link href="/login" className="text-accent hover:underline">
+          <Link href="/login" className={lienDePied}>
             {t("common.signIn")}
           </Link>
         }
@@ -48,7 +48,7 @@ function VerifyInner() {
       title={t("verify.failTitle")}
       subtitle={t("verify.failSub")}
       footer={
-        <Link href="/register" className="text-accent hover:underline">
+        <Link href="/register" className={lienDePied}>
           {t("verify.createNew")}
         </Link>
       }

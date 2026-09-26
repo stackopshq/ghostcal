@@ -16,7 +16,7 @@ type Dict = Record<string, string>;
 const en: Dict = {
   // common
   "common.signIn": "Sign in",
-  "auth.encryptedTitles": "Event titles are encrypted",
+  "auth.promise": "Your event details are encrypted on your device",
   "auth.privacyPolicy": "Privacy policy",
   "app.lightMode": "Switch to light theme",
   "app.darkMode": "Switch to dark theme",
@@ -64,7 +64,8 @@ const en: Dict = {
   "register.title": "Create your account",
   "register.haveAccount": "Already have an account?",
   "register.yourName": "Your name",
-  "register.passwordPh": "Password (min 8 characters)",
+  "register.password": "Password",
+  "register.passwordHint": "At least {min} characters",
   "register.submit": "Create account",
   "register.submitting": "Creating…",
   "register.errTaken": "That email is already registered.",
@@ -246,7 +247,7 @@ const en: Dict = {
     "You will need the recovery phrase shown when the account was created. We do not hold a copy, so without it the link cannot open your calendar.",
   "reset.title": "Choose a new password",
   "reset.subtitle": "Your recovery phrase unlocks the calendar; the new password re-locks it.",
-  "reset.phrasePlaceholder": "Recovery phrase",
+  "reset.phrase": "Recovery phrase",
   "reset.newPassword": "New password",
   "reset.submit": "Reset my password",
   "reset.wrongPhrase":
@@ -685,7 +686,7 @@ const en: Dict = {
 
 const fr: Dict = {
   "common.signIn": "Se connecter",
-  "auth.encryptedTitles": "Titres d'évènements chiffrés",
+  "auth.promise": "Le contenu de vos évènements est chiffré sur votre appareil",
   "auth.privacyPolicy": "Politique de confidentialité",
   "app.lightMode": "Passer au thème clair",
   "app.darkMode": "Passer au thème sombre",
@@ -729,7 +730,8 @@ const fr: Dict = {
   "register.title": "Créer votre compte",
   "register.haveAccount": "Vous avez déjà un compte ?",
   "register.yourName": "Votre nom",
-  "register.passwordPh": "Mot de passe (8 caractères min.)",
+  "register.password": "Mot de passe",
+  "register.passwordHint": "{min} caractères au minimum",
   "register.submit": "Créer le compte",
   "register.submitting": "Création…",
   "register.errTaken": "Cet e-mail est déjà enregistré.",
@@ -911,7 +913,7 @@ const fr: Dict = {
   "reset.title": "Choisir un nouveau mot de passe",
   "reset.subtitle":
     "Votre phrase de récupération déverrouille l'agenda ; le nouveau mot de passe le referme.",
-  "reset.phrasePlaceholder": "Phrase de récupération",
+  "reset.phrase": "Phrase de récupération",
   "reset.newPassword": "Nouveau mot de passe",
   "reset.submit": "Réinitialiser mon mot de passe",
   "reset.wrongPhrase":

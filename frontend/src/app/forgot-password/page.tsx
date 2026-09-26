@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import AuthCard, { inputClass, primaryButtonClass } from "@/components/AuthCard";
+import AuthCard, { Champ, inputClass, lienDePied, primaryButtonClass } from "@/components/AuthCard";
 import { useT } from "@/lib/i18n";
 import { requestPasswordReset } from "@/lib/recovery";
 
@@ -38,7 +38,7 @@ export default function ForgotPasswordPage() {
       title={t("forgot.title")}
       subtitle={t("forgot.subtitle")}
       footer={
-        <Link href="/login" className="text-accent hover:underline">
+        <Link href="/login" className={lienDePied}>
           {t("forgot.backToLogin")}
         </Link>
       }
@@ -47,14 +47,16 @@ export default function ForgotPasswordPage() {
         <p className="text-sm text-muted">{t("forgot.sent")}</p>
       ) : (
         <form className="flex flex-col gap-3" onSubmit={onSubmit}>
-          <input
-            required
-            type="email"
-            placeholder={t("common.email")}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className={inputClass}
-          />
+          <Champ label={t("common.email")}>
+            <input
+              required
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={inputClass}
+            />
+          </Champ>
           <button
             type="submit"
             disabled={submitting}

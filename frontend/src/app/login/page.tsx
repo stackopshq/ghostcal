@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import AuthCard, { inputClass, primaryButtonClass } from "@/components/AuthCard";
+import AuthCard, { Champ, inputClass, lienDePied, primaryButtonClass } from "@/components/AuthCard";
 import { ApiError } from "@/lib/api";
 import { beginOidcLogin, getAuthConfig, login } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
@@ -77,42 +77,48 @@ export default function LoginPage() {
       title={t("login.title")}
       footer={
         <>
-          {t("login.newHere")}{" "}
-          <Link href="/register" className="text-accent hover:underline">
-            {t("login.create")}
-          </Link>
-          <br />
-          <Link
-            href="/forgot-password"
-            className="text-muted hover:text-accent"
-          >
-            {t("forgot.title")}
-          </Link>
-          {DEMO_PATH && (
-            <Link href={DEMO_PATH} className="mt-3 block text-xs hover:text-accent">
-              {t("landing.tryDemo")}
+          <p>
+            {t("login.newHere")}{" "}
+            <Link href="/register" className={lienDePied}>
+              {t("login.create")}
             </Link>
+          </p>
+          <p className="mt-1.5">
+            <Link href="/forgot-password" className={lienDePied}>
+              {t("forgot.title")}
+            </Link>
+          </p>
+          {DEMO_PATH && (
+            <p className="mt-1.5">
+              <Link href={DEMO_PATH} className={lienDePied}>
+                {t("landing.tryDemo")}
+              </Link>
+            </p>
           )}
         </>
       }
     >
       <form className="flex flex-col gap-3" onSubmit={onSubmit}>
-        <input
-          required
-          type="email"
-          placeholder={t("common.email")}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className={inputClass}
-        />
-        <input
-          required
-          type="password"
-          placeholder={t("common.password")}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className={inputClass}
-        />
+        <Champ label={t("common.email")}>
+          <input
+            required
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className={inputClass}
+          />
+        </Champ>
+        <Champ label={t("common.password")}>
+          <input
+            required
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={inputClass}
+          />
+        </Champ>
         {error && <p className="text-sm text-red-400">{error}</p>}
         <button type="submit" disabled={submitting} className={primaryButtonClass}>
           {submitting ? t("login.submitting") : t("login.title")}
