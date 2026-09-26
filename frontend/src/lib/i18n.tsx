@@ -16,6 +16,10 @@ type Dict = Record<string, string>;
 const en: Dict = {
   // common
   "common.signIn": "Sign in",
+  "auth.encryptedTitles": "Event titles are encrypted",
+  "auth.privacyPolicy": "Privacy policy",
+  "app.lightMode": "Switch to light theme",
+  "app.darkMode": "Switch to dark theme",
   "common.email": "Email",
   "common.password": "Password",
   "common.errGeneric": "Something went wrong. Please try again.",
@@ -674,6 +678,10 @@ const en: Dict = {
 
 const fr: Dict = {
   "common.signIn": "Se connecter",
+  "auth.encryptedTitles": "Titres d'évènements chiffrés",
+  "auth.privacyPolicy": "Politique de confidentialité",
+  "app.lightMode": "Passer au thème clair",
+  "app.darkMode": "Passer au thème sombre",
   "common.email": "E-mail",
   "common.password": "Mot de passe",
   "common.errGeneric": "Une erreur est survenue. Réessayez.",
@@ -1354,6 +1362,21 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoc(detect());
   }, []);
+
+  // L'attribut `lang` de <html> suit la langue affichée.
+  //
+  // Il était figé à « en » dans le layout, et rien ne le touchait : une page en français
+  // s'annonçait donc anglaise, pour toujours. Cet attribut pilote la césure, la
+  // correction orthographique et **la synthèse vocale** — un lecteur d'écran prononçait
+  // le français avec une voix anglaise, et le navigateur proposait de traduire une page
+  // déjà dans la langue du lecteur.
+  //
+  // Un effet sur `locale` plutôt qu'une ligne dans `setLocale` : il couvre aussi la
+  // détection au montage, qui ne passe pas par `setLocale`. Deux endroits à penser
+  // auraient fini par n'en faire qu'un.
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
 
   function setLocale(l: Locale) {
     localStorage.setItem(STORAGE_KEY, l);

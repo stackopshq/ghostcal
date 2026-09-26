@@ -48,6 +48,23 @@ def test_oidc_routes_are_mounted() -> None:
     assert "post" in paths["/v1/auth/zk-keys"]  # first-time SSO key setup
 
 
+def test_config_serves_the_privacy_url() -> None:
+    """L'adresse de la politique vient du déploiement, pas du paquet JavaScript.
+
+    Ce test existe parce que le contraire a été livré : une `NEXT_PUBLIC_PRIVACY_URL`,
+    que Next grave à la construction. L'auto-hébergeur tire l'image publiée, donc la
+    poser chez lui n'aurait rien changé — et rien ne le lui aurait dit. C'est
+    l'incident mesuré le 2026-08-16 sur Apollo, sous une autre variable.
+
+    Le défaut vise une instance hébergée par StackOps ; il est faux pour toute autre,
+    où le responsable du traitement est l'hébergeur. D'où la possibilité d'en changer
+    **à l'exécution**, qui est tout l'objet de ce champ.
+    """
+    client = TestClient(app)
+    corps = client.get("/v1/auth/config").json()
+    assert corps["privacy_url"] == "https://ghostsuite.cloud/confidentialite/"
+
+
 def test_oidc_routes_404_when_disabled() -> None:
     # OIDC is off by default; the routes must behave as if absent (no info leak, no 500).
     client = TestClient(app)
