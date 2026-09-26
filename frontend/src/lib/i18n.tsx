@@ -33,7 +33,7 @@ const en: Dict = {
   // login
   "login.title": "Sign in",
   "login.submitting": "Signing in…",
-  "login.newHere": "New to GhostCal?",
+  "login.newHere": "No account yet?",
   "login.create": "Create an account",
   "login.errVerify": "Please verify your email before signing in.",
   "login.errInvalid": "Invalid email or password.",
@@ -701,7 +701,7 @@ const fr: Dict = {
   "landing.tryDemo": "ou essayez la page de réservation de démo →",
   "login.title": "Se connecter",
   "login.submitting": "Connexion…",
-  "login.newHere": "Nouveau sur GhostCal ?",
+  "login.newHere": "Pas encore de compte ?",
   "login.create": "Créer un compte",
   "login.errVerify": "Veuillez vérifier votre e-mail avant de vous connecter.",
   "login.errInvalid": "E-mail ou mot de passe invalide.",
