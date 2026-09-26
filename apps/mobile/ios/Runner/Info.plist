@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Sans ces deux clés, iOS ne demande jamais l'autorisation d'accès au réseau local —
+	     et le harnais de test ne retrouve jamais le processus qu'il vient de lancer. On
+	     obtient alors une application qui tourne, un écran vide, et un lanceur qui
+	     abandonne au bout de dix minutes sans dire pourquoi.
+
+	     Flutter découvre le service de débogage de l'application par mDNS ; sur iOS,
+	     publier un service Bonjour exige une permission, et une permission non déclarée
+	     n'est pas refusée : elle n'est même pas proposée. C'est ce qui rend le symptôme
+	     illisible. Ces clés ne servent qu'au développement — la version publiée n'expose
+	     aucun service de débogage. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Permet à l'outillage de développement de se connecter à l'application pendant les tests. Aucune donnée n'est échangée en usage normal.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_dartVmService._tcp</string>
+	</array>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>Ghostcal</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>ghostcal</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>UIWindowScene</string>
+					<key>UISceneConfigurationName</key>
+					<string>flutter</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+					<key>UISceneStoryboardFile</key>
+					<string>Main</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+	<!-- Sans cette clé, iOS refuse de présenter Face ID — et le refus ne ressemble pas à
+	     un refus : `canCheckBiometrics` échoue, `disponible()` rend `null`, et l'écran
+	     conclut que l'appareil n'a pas de biométrie. Le bouton ne paraît jamais, sur un
+	     iPhone qui en est pourtant équipé. La formulation suit celle de GhostPass : elle
+	     dit ce que le visage ouvre, pas qu'on « utilise Face ID ».
+
+	     La chaîne ci-dessous est celle du **développement** (`developmentRegion = en`) :
+	     c'est elle que sert iOS quand aucun `InfoPlist.strings` ne correspond à la langue
+	     de l'appareil. Elle était en français, donc tout le monde la lisait en français —
+	     y compris sur un iPhone réglé en anglais. Les traductions vivent désormais dans
+	     `en.lproj/` et `fr.lproj/`, et celle-ci est le repli anglais. -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>Face ID unlocks your calendar without retyping the master password.</string>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+</dict>
+</plist>

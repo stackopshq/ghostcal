@@ -40,3 +40,36 @@ compose.override.yaml
 # email addresses and encrypted-at-rest credentials — never commit one.
 backups/
 *.dump
+
+# Application iOS : tout ce que `xcodegen` et `xcodebuild` reconstruisent.
+# Un .xcodeproj ne se fusionne pas à deux ; sa description vit dans project.yml.
+
+# Maquette Flutter : produits de construction
+apps/mobile/build/
+apps/mobile/.dart_tool/
+apps/mobile/rust/target/
+apps/mobile/ios/Pods/
+apps/mobile/macos/Pods/
+
+# Sorties de compilation du mobile que les règles ci-dessus ne couvraient pas.
+#
+# `.build-appareil/` à lui seul portait 2 643 fichiers non ignorés — et il est
+# NOMMÉ dans `docs/appstore.md`. On savait qu'il existait, on ne l'excluait pas.
+# Au total 2 692 fichiers et 156 Mo passaient au travers, prêts à être commis
+# par un `git add -A` distrait.
+apps/mobile/ios/.build-appareil/
+apps/mobile/ios/.build-simulateur/
+apps/mobile/ios/.build-temoin/
+apps/mobile/ios/Flutter/ephemeral/
+apps/mobile/ios/Flutter/flutter_export_environment.sh
+apps/mobile/ios/Runner/GeneratedPluginRegistrant.*
+apps/mobile/macos/Flutter/ephemeral/
+apps/mobile/android/.gradle/
+apps/mobile/android/local.properties
+apps/mobile/android/app/src/main/java/io/flutter/plugins/
+**/xcuserdata/
+
+# Le wrapper Gradle n'est PAS suivi, et c'est volontaire : `flutter build`
+# appelle `injectGradleWrapperIfNeeded`, qui le copie depuis le cache du SDK
+# quand il manque, sans écraser ce qui existe. Le `.gitignore` d'Android livré
+# par `flutter create` l'exclut lui-même. Un clone neuf n'est donc pas cassé.

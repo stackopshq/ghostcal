@@ -1,0 +1,286 @@
+{
+  "@@locale": "fr",
+  "ongletAgenda": "Agenda",
+  "ongletTaches": "Tâches",
+  "ongletReunions": "Réunions",
+  "ongletRdv": "RDV",
+  "ongletReglages": "Réglages",
+  "verrouillerLeCoffre": "Verrouiller le coffre",
+  "jourPrecedent": "Jour précédent",
+  "jourSuivant": "Jour suivant",
+  "allerAUneDate": "Aller à une date",
+  "nouvelEvenement": "Nouvel événement",
+  "modifierLEvenement": "Modifier l'événement",
+  "rienCeJourLa": "Rien ce jour-là.",
+  "journee": "Journée",
+  "contenuIllisible": "Contenu illisible — clé manquante",
+  "@contenuIllisible": {
+    "description": "Un événement ou une tâche que la clé du trousseau n'ouvre pas. La ligne reste affichée : une ligne absente se lirait « libre », ce qui serait faux."
+  },
+  "sansTitre": "Sans titre",
+  "sceauIllisible": "le sceau est illisible",
+  "phraseScelleeObsolete": "La phrase scellée n'ouvre plus ce coffre — elle a sans doute changé depuis. Tapez-la pour la resceller.",
+  "biometrieDesactivee": "L'ouverture par {biometrie} a été désactivée : le sceau posé sur cet appareil n'est plus lisible — le plus souvent parce qu'une biométrie y a été ajoutée ou retirée. Tapez votre phrase pour la rétablir.",
+  "@biometrieDesactivee": {
+    "placeholders": {
+      "biometrie": {
+        "type": "String"
+      }
+    }
+  },
+  "magasinIllisible": "Le magasin sécurisé n'a pas pu être lu : {raison}.",
+  "@magasinIllisible": {
+    "placeholders": {
+      "raison": {
+        "type": "String"
+      }
+    }
+  },
+  "biometriePasDemandee": "{biometrie} n'a pas pu être demandé : l'appareil n'était pas en état de présenter la demande. Rien n'a changé — touchez l'icône dans un instant, ou tapez votre phrase.",
+  "@biometriePasDemandee": {
+    "description": "Le troisième état du trousseau, celui qui n'est ni un succès ni un refus : la question n'a pas été posée. Le taire laisse une icône qui ne fait rien — la panne muette de GhostPass du 2026-09-25. La formulation dit explicitement que le sceau est intact, pour qu'on n'aille pas croire qu'il faut tout refaire.",
+    "placeholders": {
+      "biometrie": {
+        "type": "String"
+      }
+    }
+  },
+  "raisonInconnue": "raison inconnue",
+  "laBiometrie": "la biométrie",
+  "coffreEnregistre": "Coffre enregistré sur cet appareil",
+  "agendaChiffre": "Agenda chiffré de bout en bout",
+  "deverrouiller": "Déverrouiller",
+  "seConnecter": "Se connecter",
+  "ouvrirAvec": "Ouvrir avec {biometrie}",
+  "@ouvrirAvec": {
+    "placeholders": {
+      "biometrie": {
+        "type": "String"
+      }
+    }
+  },
+  "phraseSceleeSurAppareil": "La phrase est scellée sur cet appareil, relisible par {biometrie} seul. Ajouter ou retirer un visage ou une empreinte annule cet accès.",
+  "@phraseSceleeSurAppareil": {
+    "description": "La seconde phrase vient de BiometricSetupView de GhostPass : sans elle, l'invalidation au prochain enrôlement ressemble à une panne. Annoncée d'avance, c'est une garantie.",
+    "placeholders": {
+      "biometrie": {
+        "type": "String"
+      }
+    }
+  },
+  "afficherLaPhrase": "Afficher la phrase",
+  "masquerLaPhrase": "Masquer la phrase",
+  "connecteMaisCoffreFerme": "Vous êtes connecté, mais le coffre est resté fermé : {raison}",
+  "@connecteMaisCoffreFerme": {
+    "placeholders": {
+      "raison": {
+        "type": "String"
+      }
+    }
+  },
+  "phraseNOuvrePasLeCoffre": "cette phrase n'ouvre pas le coffre",
+  "serveur": "Serveur",
+  "adresseElectronique": "Adresse e-mail",
+  "exempleAdresse": "vous@exemple.ch",
+  "retenirCetAppareil": "Retenir cet appareil",
+  "utiliserMonMotDePasse": "Utiliser mon mot de passe",
+  "utiliserMaPhraseDeRecuperation": "Utiliser ma phrase de récupération",
+  "utiliserUnAutreCompte": "Utiliser un autre compte",
+  "phraseDeRecuperation": "Phrase de récupération",
+  "motDePasseMaitre": "Mot de passe maître",
+  "votreMotDePasse": "Votre mot de passe",
+  "ouvrirLeCoffre": "Ouvrir le coffre",
+  "utiliserLaPhrase": "Utiliser la phrase",
+  "equipe": "Équipe",
+  "retirerDeLEquipe": "Retirer de l'équipe",
+  "perteDAccesOrganisation": "Cette personne perdra l’accès aux calendriers de l’organisation.",
+  "proprietaire": "Propriétaire",
+  "contenuNonDechiffre": "Le contenu de cet événement n'a pas pu être déchiffré. L'enregistrer remplacerait un titre que vous n'avez pas pu lire.",
+  "finAvantDebut": "La fin est avant le début.",
+  "supprimerCetEvenement": "Supprimer cet événement ?",
+  "disparaitraPourTous": "Il disparaîtra pour tous les participants.",
+  "titre": "Titre",
+  "lieu": "Lieu",
+  "description": "Description",
+  "journeeEntiere": "Journée entière",
+  "debut": "Début",
+  "fin": "Fin",
+  "calendrier": "Calendrier",
+  "enregistrer": "Enregistrer",
+  "supprimer": "Supprimer",
+  "annuler": "Annuler",
+  "creer": "Créer",
+  "ceQuiEstChiffre": "Le titre, le lieu et la description sont chiffrés sur cet appareil. Les heures partent en clair : sans elles, le serveur ne pourrait ni répondre « occupé » à un lien de réservation, ni envoyer de rappel.",
+  "@ceQuiEstChiffre": {
+    "description": "La phrase centrale du produit. Elle dit ce qui est chiffré ET ce qui ne l'est pas ; l'abréger en « tout est chiffré » serait faux."
+  },
+  "profil": "Profil",
+  "profilEnregistre": "Profil enregistré.",
+  "nonVerifiee": "non vérifiée",
+  "changementDAdresseParLeWeb": "La changer demande une vérification, qui se fait depuis le web.",
+  "utiliserLeFuseauDeLAppareil": "Utiliser le fuseau de cet appareil",
+  "retirerLaPhoto": "Retirer la photo",
+  "photoEffaceeALEnregistrement": "Elle sera effacée à l’enregistrement.",
+  "securite": "Sécurité",
+  "clesQuittentLaMemoire": "Les clés quittent la mémoire ; la session reste ouverte.",
+  "sceauBiometrique": "Ouverture biométrique",
+  "@sceauBiometrique": {
+    "description": "Le titre de la ligne des réglages qui dit l'état du sceau. « Ouverture » et non « Activation » : on ne bascule pas un réglage, on constate ce que le trousseau garde réellement."
+  },
+  "sceauPose": "Scellée, relisible par {biometrie} seul.",
+  "@sceauPose": {
+    "placeholders": {
+      "biometrie": {
+        "type": "String"
+      }
+    }
+  },
+  "sceauAbsent": "Rien n'est scellé. La proposition revient au prochain déverrouillage.",
+  "sceauInvalide": "Le sceau n'est plus lisible : une biométrie a été ajoutée ou retirée sur cet appareil. Retapez votre phrase au prochain déverrouillage.",
+  "sceauIndetermine": "L'état du sceau n'a pas pu être lu. Ce n'est ni un oui ni un non : le magasin n'a pas répondu.",
+  "@sceauIndetermine": {
+    "description": "Le troisième état, jusque dans les réglages. Afficher « désactivé » ici serait affirmer une chose qu'on n'a pas vérifiée — c'est exactement le réglage menteur de GhostPass le 2026-09-25."
+  },
+  "sansBiometrieSurCetAppareil": "Aucune biométrie utilisable sur cet appareil.",
+  "retirerLeSceau": "Retirer le sceau",
+  "sceauRetire": "Le sceau a été retiré. La phrase sera redemandée au prochain déverrouillage.",
+  "coffreFermePourOrganisation": "{role} · coffre fermé pour cette organisation",
+  "@coffreFermePourOrganisation": {
+    "placeholders": {
+      "role": {
+        "type": "String"
+      }
+    }
+  },
+  "disponibilites": "Disponibilités",
+  "aucunHoraire": "Aucun horaire",
+  "horairesDepuisLeWeb": "Ils se définissent depuis le web.",
+  "seDeconnecter": "Se déconnecter",
+  "aucunePlage": "Aucune plage · {fuseau}",
+  "@aucunePlage": {
+    "placeholders": {
+      "fuseau": {
+        "type": "String"
+      }
+    }
+  },
+  "aVenir": "À venir",
+  "passees": "Passées",
+  "aucuneReunionAVenir": "Aucune réunion à venir.",
+  "aucuneReunionPassee": "Aucune réunion passée.",
+  "annulee": "Annulée",
+  "identiteIllisible": "Identité illisible — clé manquante",
+  "inviteInconnu": "Invité inconnu",
+  "fuseauDeLInvite": "Fuseau de l’invité : {fuseau}",
+  "@fuseauDeLInvite": {
+    "placeholders": {
+      "fuseau": {
+        "type": "String"
+      }
+    }
+  },
+  "reponses": "RÉPONSES",
+  "annulerCetteReunion": "Annuler cette réunion ?",
+  "invitePrevenuParServeur": "L’invité en sera informé par le serveur.",
+  "annulerLaReunion": "Annuler la réunion",
+  "clos": "clos",
+  "creneauxRetenus": "{nombre, plural, one{{nombre} créneau retenu} other{{nombre} créneaux retenus}}",
+  "@creneauxRetenus": {
+    "placeholders": {
+      "nombre": {
+        "type": "int"
+      }
+    }
+  },
+  "sondages": "Sondages",
+  "aucunSondage": "Aucun sondage.",
+  "creneauxEtVotes": "{creneaux} créneaux · {votes} votes",
+  "@creneauxEtVotes": {
+    "placeholders": {
+      "creneaux": {
+        "type": "int"
+      },
+      "votes": {
+        "type": "int"
+      }
+    }
+  },
+  "retenirCeCreneauQuestion": "Retenir ce créneau ?",
+  "sondageSeFermeEtEvenementCree": "Le sondage se ferme et l’événement est créé le {date}.",
+  "@sondageSeFermeEtEvenementCree": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "supprimerLeSondage": "Supprimer le sondage",
+  "creneaux": "Créneaux",
+  "nombreDeCreneaux": "{nombre, plural, one{{nombre} créneau} other{{nombre} créneaux}}",
+  "@nombreDeCreneaux": {
+    "placeholders": {
+      "nombre": {
+        "type": "int"
+      }
+    }
+  },
+  "creneauRetenu": "Créneau retenu",
+  "retenirCeCreneau": "Retenir ce créneau",
+  "supprimerCeSondage": "Supprimer ce sondage ?",
+  "votesPerdus": "Les votes déjà exprimés seront perdus.",
+  "masquerLesFaites": "Masquer les faites",
+  "nouvelleTache": "Nouvelle tâche",
+  "aucuneTache": "Aucune tâche.",
+  "rienAFaire": "Rien à faire.",
+  "supprimerCetteTache": "Supprimer cette tâche ?",
+  "sansEcheance": "Sans échéance",
+  "retirerLEcheance": "Retirer l'échéance",
+  "rendezVous": "Rendez-vous",
+  "aucunTypeDeRendezVous": "Aucun type de rendez-vous.",
+  "typesCreesDepuisLeWeb": "Ils se créent depuis le web : une quinzaine de réglages qui se règlent mal à un pouce.",
+  "ferme": "fermé",
+  "copierLeLienDeReservation": "Copier le lien de réservation",
+  "lienCopie": "Lien copié : {lien}",
+  "@lienCopie": {
+    "placeholders": {
+      "lien": {
+        "type": "String"
+      }
+    }
+  },
+  "serveurARepondu": "Le serveur a répondu {code}.",
+  "@serveurARepondu": {
+    "placeholders": {
+      "code": {
+        "type": "int"
+      }
+    }
+  },
+  "phraseNOuvrePas": "Cette phrase n'ouvre pas le coffre.",
+  "coffreFermeChiffrementImpossible": "Le coffre est fermé : impossible de chiffrer ce contenu.",
+  "adresseDeServeurInvalide": "Adresse de serveur invalide.",
+  "sessionExpiree": "La session a expiré. Reconnectez-vous.",
+  "roleProprietaire": "Propriétaire",
+  "roleAdministrateur": "Administrateur",
+  "roleMembre": "Membre",
+  "invitePromptTitre": "Ouvrir le coffre",
+  "invitePromptRefus": "Utiliser la phrase",
+  "verrouillageImmediat": "Immédiatement",
+  "verrouillage1Minute": "Après 1 minute",
+  "verrouillage5Minutes": "Après 5 minutes",
+  "verrouillage15Minutes": "Après 15 minutes",
+  "codeDeVerification": "Code de vérification",
+  "codeDeVerificationAide": "Votre compte demande un second facteur. Entrez le code affiché par votre application d'authentification.",
+  "codeDeVerificationRefuse": "Ce code n'a pas été accepté. Le suivant sera peut-être le bon : ils changent toutes les trente secondes.",
+  "codeDeVerificationBloque": "Trop d'essais. Le serveur refusera jusqu'à {heure}.",
+  "@codeDeVerificationBloque": {
+    "description": "Le 429 du serveur, qui dit jusqu'à quand. Sans cette heure, on réessaie en boucle une saisie qui ne peut pas aboutir.",
+    "placeholders": {
+      "heure": {
+        "type": "String"
+      }
+    }
+  },
+  "valider": "Valider",
+  "revenir": "Revenir"
+}

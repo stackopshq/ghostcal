@@ -163,7 +163,16 @@ class SqlCalendarRepository(CalendarRepository):
                 .values(
                     organization_id=self._org_id,
                     owner_id=owner_id,
-                    name="My calendar",
+                    # Le seul texte visible par l'utilisateur que ce serveur produise —
+                    # vérifié : `grep` sur `src/` n'en trouve aucun autre. Ce n'était donc
+                    # pas une politique de langue, c'était un oubli, et il se voyait : sur
+                    # la capture App Store de l'écran de création d'événement, le sélecteur
+                    # affichait « My calendar » au milieu d'une interface française.
+                    #
+                    # Aucune route ne renomme un calendrier ; le nom posé ici est celui que
+                    # l'utilisateur gardera. Les comptes déjà créés conservent l'ancien :
+                    # cette valeur n'est lue qu'à la création du calendrier par défaut.
+                    name="Mon agenda",
                     color="#00f0ff",
                     is_default=True,
                 )

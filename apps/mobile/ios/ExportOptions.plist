@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Options d'export de l'archive de diffusion de GhostCal.
+
+	     Ce fichier décrit le projet Flutter — `apps/mobile/ios/Runner.xcodeproj`, cible
+	     `Runner`, identifiant `ch.stackops.ghostcal`. Il ne décrit **pas**
+	     `apps/ios/Ghostcal.xcodeproj`, le projet SwiftUI que le Flutter remplace et qui
+	     n'a pas vocation à partir chez Apple. Les deux portent le même nom de produit ;
+	     seul celui-ci est livré.
+
+	     `app-store-connect` produit un .ipa destiné à l'envoi, pas à une installation
+	     directe : il est signé avec le profil de distribution, non de développement.
+
+	     `teamID` est écrit ici plutôt que découvert. Un certificat d'équipe personnelle
+	     cohabite dans le trousseau de la machine de construction ; la signature
+	     automatique peut le choisir sans rien dire. Le symptôme serait une application
+	     qui s'installe, se lance, et que l'App Store refuse à l'envoi pour une équipe
+	     qu'il ne reconnaît pas — à mille lieues de la cause. `9WHCJ5W7S6` est l'équipe
+	     payante « Clara Vanacker », la même que GhostPass. -->
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>teamID</key>
+	<string>9WHCJ5W7S6</string>
+	<key>destination</key>
+	<string>export</string>
+	<!-- Les symboles accompagnent l'envoi : sans eux, un rapport de plantage venu de
+	     l'App Store arrive en adresses brutes et ne se lit pas.
+
+	     Flutter compile le Dart en code natif : une pile de plantage venue du moteur ou
+	     du code applicatif est illisible sans ses symboles. Le cœur Rust, lui, est
+	     compilé en `release` avec ses symboles émis dans le binaire. -->
+	<key>uploadSymbols</key>
+	<true/>
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<!-- Pas d'amincissement par appareil : l'App Store s'en charge lui-même. En demander
+	     ici produirait plusieurs variantes dont aucune n'est ce qu'Apple attend. -->
+	<key>stripSwiftSymbols</key>
+	<true/>
+</dict>
+</plist>

@@ -1,0 +1,12 @@
+/* Les textes d'Info.plist que le système affiche lui-même, donc dans SA langue.
+   
+   `NSFaceIDUsageDescription` est écrit par iOS dans l'alerte d'autorisation : l'application
+   ne le compose pas et ne peut pas le traduire à l'exécution. Le seul endroit où il se
+   traduit est ici. Tant qu'il n'y vivait pas, la chaîne d'Info.plist — écrite en français
+   parce que l'équipe travaille en français — était servie à tout le monde, y compris sur un
+   iPhone réglé en anglais. C'est le piège nommé au §0 de la charte mobile : « le réflexe
+   c'est déjà dans la bonne langue ».
+   
+   La formulation dit ce que le visage **ouvre**, pas qu'on « utilise Face ID » : c'est celle
+   de GhostPass, et elle évite de laisser croire que le visage remplace la phrase. */
+"NSFaceIDUsageDescription" = "Face ID unlocks your calendar without retyping the master password.";
