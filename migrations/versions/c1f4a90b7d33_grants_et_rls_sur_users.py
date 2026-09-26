@@ -67,7 +67,10 @@ from __future__ import annotations
 from alembic import op
 
 revision = "c1f4a90b7d33"
-down_revision = "a7d3f81c60e2"
+# Rattachée à la migration du second facteur, arrivée entre-temps. Les deux
+# partaient du même parent, ce qui donnait deux têtes et un `upgrade head`
+# impossible.
+down_revision = "b8e2f47a91c3"
 branch_labels = None
 depends_on = None
 
