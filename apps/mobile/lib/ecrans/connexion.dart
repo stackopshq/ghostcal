@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/biometrie.dart';
+import '../services/auth.dart' show SecondFacteurRequis;
 import '../services/session.dart';
 import '../theme.dart';
 import '../l10n/generated/app_localisations.dart';
@@ -41,6 +42,7 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
   late final _serveur = TextEditingController(text: widget.session.serveur);
   late final _email = TextEditingController(text: widget.session.email);
   final _phrase = TextEditingController();
+  final _code = TextEditingController();
   bool _parRecuperation = false;
   bool _changerDeCompte = false;
   bool _phraseVisible = false;
@@ -256,6 +258,7 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
     _serveur.dispose();
     _email.dispose();
     _phrase.dispose();
+    _code.dispose();
     super.dispose();
   }
 
@@ -269,7 +272,13 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
     } else if (_reprise) {
       await session.reprendre(phrase: _phrase.text, parRecuperation: _parRecuperation);
     } else {
-      await session.seConnecter(motDePasse: _phrase.text);
+      await session.seConnecter(
+        motDePasse: _phrase.text,
+        // Le mot de passe reste envoyé avec le code : le serveur revérifie les
+        // deux à chaque appel, il ne garde pas la moitié de la connexion en
+        // attente. Envoyer le code seul rendrait « mot de passe invalide ».
+        codeTotp: session.secondFacteur == null ? null : _code.text,
+      );
     }
     // Seulement après coup : on ne scelle jamais une phrase qu'on n'a pas vue ouvrir le
     // coffre. La sceller avant vaudrait promesse d'un déverrouillage qui échouera.
@@ -373,7 +382,14 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
           ],
           const SizedBox(height: 18),
           BoutonPrincipal(
-            onPressed: session.occupe || _phrase.text.isEmpty ? null : _valider,
+            // Le code fait partie des conditions : sans cela le bouton restait
+            // actif sur un champ vide, et l'appel repartait sans code pour
+            // revenir avec la même demande.
+            onPressed: session.occupe ||
+                    _phrase.text.isEmpty ||
+                    (session.secondFacteur != null && _code.text.isEmpty)
+                ? null
+                : _valider,
             child: session.occupe
                 ? const SizedBox(
                     height: 18,
@@ -382,7 +398,9 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
                         strokeWidth: 2, color: Gc.surAccent))
                 : Text(_coffreFerme || _reprise
                     ? L.of(context).deverrouiller
-                    : L.of(context).seConnecter),
+                    : session.secondFacteur != null
+                        ? L.of(context).valider
+                        : L.of(context).seConnecter),
           ),
           ..._biometrique(gc),
           ..._liens(gc),
@@ -453,6 +471,11 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
   }
 
   List<Widget> _champs(Gc gc) {
+    // Le second facteur passe AVANT les autres cas : tant que le serveur le
+    // réclame, il n'y a rien d'autre à saisir, et laisser les trois champs
+    // précédents donnerait à croire que l'un d'eux était faux.
+    final exigence = session.secondFacteur;
+    if (exigence != null) return _champsDuSecondFacteur(gc, exigence);
     if (_coffreFerme) {
       return [
         // Le coffre est fermé mais la session est ouverte : le dire, plutôt que de
@@ -493,6 +516,70 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
           clavier: TextInputType.emailAddress),
       const SizedBox(height: 18),
       _champDePhrase(gc),
+    ];
+  }
+
+  List<Widget> _champsDuSecondFacteur(Gc gc, SecondFacteurRequis exigence) {
+    final heure = exigence.bloqueJusqua;
+    return [
+      _avertissement(
+        gc.estompe,
+        Icons.phonelink_lock_outlined,
+        L.of(context).codeDeVerificationAide,
+        cle: const Key('mot.second-facteur'),
+      ),
+      if (exigence.codeRefuse && !exigence.estBloque) ...[
+        const SizedBox(height: 18),
+        _avertissement(
+          gc.estompe,
+          Icons.error_outline,
+          L.of(context).codeDeVerificationRefuse,
+          cle: const Key('mot.code-refuse'),
+        ),
+      ],
+      // Le 429 dit jusqu'à quand, et on le montre : sans cette heure, on
+      // réessaie en boucle une saisie qui ne peut pas aboutir.
+      if (heure != null) ...[
+        const SizedBox(height: 18),
+        _avertissement(
+          gc.estompe,
+          Icons.timer_off_outlined,
+          L.of(context).codeDeVerificationBloque(
+              TimeOfDay.fromDateTime(heure.toLocal()).format(context)),
+          cle: const Key('mot.code-bloque'),
+        ),
+      ],
+      const SizedBox(height: 18),
+      _champ(
+        gc,
+        L.of(context).codeDeVerification,
+        enfant: TextField(
+          key: const Key('champ.code'),
+          controller: _code,
+          autofocus: true,
+          autocorrect: false,
+          enableSuggestions: false,
+          keyboardType: TextInputType.number,
+          // Le code arrive souvent par SMS ou depuis une application voisine ;
+          // sans cet indice, le remplissage automatique ne le propose pas.
+          autofillHints: const [AutofillHints.oneTimeCode],
+          onChanged: (_) => setState(() {}),
+          onSubmitted: (_) => _valider(),
+          decoration: const InputDecoration(hintText: '123456'),
+        ),
+      ),
+      const SizedBox(height: 12),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton(
+          key: const Key('bouton.revenir'),
+          onPressed: () {
+            _code.clear();
+            session.oublierLeSecondFacteur();
+          },
+          child: Text(L.of(context).revenir),
+        ),
+      ),
     ];
   }
 

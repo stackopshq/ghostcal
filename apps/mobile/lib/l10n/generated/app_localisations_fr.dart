@@ -490,4 +490,26 @@ class LFr extends L {
 
   @override
   String get verrouillage15Minutes => 'Après 15 minutes';
+
+  @override
+  String get codeDeVerification => 'Code de vérification';
+
+  @override
+  String get codeDeVerificationAide =>
+      'Votre compte demande un second facteur. Entrez le code affiché par votre application d\'authentification.';
+
+  @override
+  String get codeDeVerificationRefuse =>
+      'Ce code n\'a pas été accepté. Le suivant sera peut-être le bon : ils changent toutes les trente secondes.';
+
+  @override
+  String codeDeVerificationBloque(String heure) {
+    return 'Trop d\'essais. Le serveur refusera jusqu\'à $heure.';
+  }
+
+  @override
+  String get valider => 'Valider';
+
+  @override
+  String get revenir => 'Revenir';
 }

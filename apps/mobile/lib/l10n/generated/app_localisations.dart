@@ -936,6 +936,42 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Après 15 minutes'**
   String get verrouillage15Minutes;
+
+  /// No description provided for @codeDeVerification.
+  ///
+  /// In fr, this message translates to:
+  /// **'Code de vérification'**
+  String get codeDeVerification;
+
+  /// No description provided for @codeDeVerificationAide.
+  ///
+  /// In fr, this message translates to:
+  /// **'Votre compte demande un second facteur. Entrez le code affiché par votre application d\'authentification.'**
+  String get codeDeVerificationAide;
+
+  /// No description provided for @codeDeVerificationRefuse.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ce code n\'a pas été accepté. Le suivant sera peut-être le bon : ils changent toutes les trente secondes.'**
+  String get codeDeVerificationRefuse;
+
+  /// Le 429 du serveur, qui dit jusqu'à quand. Sans cette heure, on réessaie en boucle une saisie qui ne peut pas aboutir.
+  ///
+  /// In fr, this message translates to:
+  /// **'Trop d\'essais. Le serveur refusera jusqu\'à {heure}.'**
+  String codeDeVerificationBloque(String heure);
+
+  /// No description provided for @valider.
+  ///
+  /// In fr, this message translates to:
+  /// **'Valider'**
+  String get valider;
+
+  /// No description provided for @revenir.
+  ///
+  /// In fr, this message translates to:
+  /// **'Revenir'**
+  String get revenir;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

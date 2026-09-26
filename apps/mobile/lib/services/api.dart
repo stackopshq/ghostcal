@@ -11,10 +11,18 @@ import '../modeles/adresse.dart';
 /// afficherait « Instance of 'List' » à l'utilisateur. Le message est ce qu'il lira ; il
 /// mérite d'être extrait, pas deviné.
 class ErreurAPI implements Exception {
-  ErreurAPI(this.statut, this.message);
+  ErreurAPI(this.statut, this.message, {this.details});
 
   final int statut;
   final String message;
+
+  /// Le `detail` du serveur quand c'est un OBJET et non une phrase.
+  ///
+  /// FastAPI y met ce qu'il veut, et GhostCal s'en sert pour dire « il manque
+  /// le second facteur » sans inventer un code HTTP pour chaque cas. Sans ce
+  /// champ, l'appelant ne voyait qu'un 401 nu et ne pouvait pas distinguer un
+  /// mot de passe faux d'un code manquant.
+  final Map<String, dynamic>? details;
 
   /// La session a expiré, par opposition à un refus de droits. Les deux se corrigent
   /// autrement : l'une demande de se reconnecter, l'autre n'a pas de remède côté client.
@@ -109,7 +117,11 @@ class ClientAPI {
     }
 
     if (reponse.statusCode < 200 || reponse.statusCode >= 300) {
-      throw ErreurAPI(reponse.statusCode, _messageDErreur(reponse));
+      throw ErreurAPI(
+        reponse.statusCode,
+        _messageDErreur(reponse),
+        details: _detailsDErreur(reponse),
+      );
     }
     return reponse.body;
   }
@@ -154,6 +166,13 @@ class ClientAPI {
       if (json is Map<String, dynamic>) {
         final detail = json['detail'] ?? json['error'] ?? json['message'];
         if (detail is String) return detail;
+        // Un `detail` OBJET : le serveur y range une phrase plus des champs que
+        // le client doit lire. Sans ce cas, on tombait jusqu'au message
+        // générique « Le serveur a répondu 401 » — y compris quand le serveur
+        // disait précisément qu'il attendait un code de second facteur.
+        if (detail is Map && detail['detail'] is String) {
+          return detail['detail'] as String;
+        }
         // FastAPI rend une liste d'objets de validation. L'afficher telle quelle
         // donnerait « [{loc: [...], msg: ... }] » à l'utilisateur.
         if (detail is List && detail.isNotEmpty) {
@@ -165,6 +184,20 @@ class ClientAPI {
       // Un corps qui n'est pas du JSON : le statut reste plus utile que le contenu.
     }
     return 'Le serveur a répondu ${reponse.statusCode}.';
+  }
+
+  /// Le `detail` quand il est un objet, pour que l'appelant lise ses champs.
+  /// Nul dans tous les autres cas — y compris un corps illisible.
+  Map<String, dynamic>? _detailsDErreur(http.Response reponse) {
+    try {
+      final json = jsonDecode(reponse.body);
+      if (json is Map<String, dynamic> && json['detail'] is Map) {
+        return Map<String, dynamic>.from(json['detail'] as Map);
+      }
+    } on FormatException {
+      // Pas du JSON : rien à offrir, et ce n'est pas une panne.
+    }
+    return null;
   }
 
   T _decoder<T>(String corps) {

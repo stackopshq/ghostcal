@@ -4,6 +4,53 @@ import 'dart:typed_data';
 import '../src/rust/api/coeur.dart' as coeur;
 import 'api.dart';
 
+/// Le compte demande un second facteur, et la connexion attend un code.
+///
+/// Un type à part plutôt qu'un message : l'écran doit OUVRIR un champ, pas
+/// afficher une erreur. Confondre les deux est exactement ce qui se passait —
+/// un mot de passe bon présenté comme refusé, sans issue.
+class SecondFacteurRequis implements Exception {
+  const SecondFacteurRequis({
+    required this.genre,
+    required this.message,
+    this.codeRefuse = false,
+    this.bloqueJusqua,
+  });
+
+  /// `totp` aujourd'hui. Lu et non supposé : le jour où le serveur en propose
+  /// un second, un client qui aurait codé « c'est forcément du TOTP » afficherait
+  /// le mauvais écran sans erreur.
+  final String genre;
+
+  final String message;
+
+  /// Vrai quand un code a été présenté et refusé, faux quand il manquait. Les
+  /// deux demandent la même chose à l'utilisateur mais ne se disent pas pareil.
+  final bool codeRefuse;
+
+  /// Trop d'essais : le serveur rend 429 et dit jusqu'à quand. Sans cela, un
+  /// client réessaie en boucle sur une saisie qui ne peut pas aboutir.
+  final DateTime? bloqueJusqua;
+
+  bool get estBloque => bloqueJusqua != null;
+
+  /// Reconnaît l'exigence dans une erreur d'API, ou rend nul si ce n'en est pas une.
+  static SecondFacteurRequis? depuis(ErreurAPI e) {
+    final d = e.details;
+    if (d == null || d['mfa_required'] != true) return null;
+    final quand = d['locked_until'];
+    return SecondFacteurRequis(
+      genre: d['mfa_type'] is String ? d['mfa_type'] as String : 'totp',
+      message: e.message,
+      codeRefuse: e.statut == 401 && '${d['detail']}'.contains('invalid'),
+      bloqueJusqua: quand is String ? DateTime.tryParse(quand) : null,
+    );
+  }
+
+  @override
+  String toString() => message;
+}
+
 /// Les clés d'une organisation, une fois ouvertes.
 ///
 /// `anterieures` porte les générations retirées : elles ne servent plus à sceller, mais
@@ -89,12 +136,36 @@ class Auth {
 
   /// Authentifie, puis tente d'ouvrir le coffre. Rend la raison d'un déverrouillage manqué
   /// plutôt que de la taire ; rend nul si tout s'est bien passé.
-  Future<String?> seConnecter({required String email, required String motDePasse}) async {
-    final json = await api.envoyer<Map<String, dynamic>>(
-      'POST',
-      'v1/auth/login',
-      {'email': email, 'password': motDePasse},
-    );
+  ///
+  /// Lève [SecondFacteurRequis] quand le compte en a un et que [codeTotp] manque
+  /// ou ne convient pas. Sans ce cas, le serveur répondait 401 avec un `detail`
+  /// OBJET que le client ne savait pas lire : l'écran affichait « Le serveur a
+  /// répondu 401 » sur un mot de passe pourtant bon, et rien ne disait qu'il
+  /// fallait un code. Le serveur porte `mfa_required` depuis que le TOTP est
+  /// arrivé sur `main` ; le mobile, lui, ne le connaissait pas du tout.
+  Future<String?> seConnecter({
+    required String email,
+    required String motDePasse,
+    String? codeTotp,
+  }) async {
+    final Map<String, dynamic> json;
+    try {
+      json = await api.envoyer<Map<String, dynamic>>(
+        'POST',
+        'v1/auth/login',
+        {
+          'email': email,
+          'password': motDePasse,
+          // Absent et non vide : le serveur borne la longueur du champ, et une
+          // chaîne vide n'est pas « pas de code ».
+          if (codeTotp != null && codeTotp.isNotEmpty) 'totp_code': codeTotp,
+        },
+      );
+    } on ErreurAPI catch (e) {
+      final exigence = SecondFacteurRequis.depuis(e);
+      if (exigence != null) throw exigence;
+      rethrow;
+    }
     api.poserLesJetons(Jetons(
       acces: '${json['access_token']}',
       rafraichissement: '${json['refresh_token']}',

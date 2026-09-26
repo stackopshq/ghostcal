@@ -83,7 +83,15 @@ class Session extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> seConnecter({required String motDePasse}) async {
+  /// Le compte réclame un second facteur, et l'écran doit ouvrir un champ.
+  ///
+  /// Un état à part, pas un message d'erreur : `_pendant` transforme toute
+  /// exception en texte affiché, et ce texte-là n'aurait donné aucune issue à
+  /// quelqu'un dont le mot de passe est pourtant bon.
+  SecondFacteurRequis? _secondFacteur;
+  SecondFacteurRequis? get secondFacteur => _secondFacteur;
+
+  Future<void> seConnecter({required String motDePasse, String? codeTotp}) async {
     final base = AdresseDeServeur.normaliser(serveur);
     if (base == null) {
       _erreur = 'Adresse de serveur invalide.';
@@ -93,13 +101,32 @@ class Session extends ChangeNotifier {
     await _pendant(() async {
       final client = ClientAPI(base: base);
       final service = Auth(client);
-      final echecDuCoffre =
-          await service.seConnecter(email: email, motDePasse: motDePasse);
+      final String? echecDuCoffre;
+      try {
+        echecDuCoffre = await service.seConnecter(
+          email: email,
+          motDePasse: motDePasse,
+          codeTotp: codeTotp,
+        );
+      } on SecondFacteurRequis catch (e) {
+        // Ni une panne ni un refus : une étape de plus. On garde l'exigence et
+        // on ne touche ni à l'état ni au client — l'écran va redemander.
+        _secondFacteur = e;
+        return;
+      }
+      _secondFacteur = null;
       _adopter(client, service, base);
       _etat = echecDuCoffre == null ? Etat.ouvert : Etat.coffreFerme;
       _raisonDuCoffre = echecDuCoffre;
       await _enregistrer(client, base);
     });
+  }
+
+  /// Abandonne la demande de second facteur — le bouton « revenir » de l'écran.
+  void oublierLeSecondFacteur() {
+    if (_secondFacteur == null) return;
+    _secondFacteur = null;
+    notifyListeners();
   }
 
   /// Reprend la session enregistrée, puis ouvre le coffre avec la phrase donnée.

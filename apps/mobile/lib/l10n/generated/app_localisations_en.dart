@@ -487,4 +487,26 @@ class LEn extends L {
 
   @override
   String get verrouillage15Minutes => 'After 15 minutes';
+
+  @override
+  String get codeDeVerification => 'Verification code';
+
+  @override
+  String get codeDeVerificationAide =>
+      'Your account requires a second factor. Enter the code shown by your authenticator app.';
+
+  @override
+  String get codeDeVerificationRefuse =>
+      'That code was not accepted. The next one may work: they change every thirty seconds.';
+
+  @override
+  String codeDeVerificationBloque(String heure) {
+    return 'Too many attempts. The server will refuse until $heure.';
+  }
+
+  @override
+  String get valider => 'Confirm';
+
+  @override
+  String get revenir => 'Back';
 }
