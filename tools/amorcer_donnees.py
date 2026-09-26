@@ -29,12 +29,14 @@ def sceller(charge: dict, cle: str = publique) -> str:
     """
     return subprocess.run(
         [amorcer, "sceller", cle, json.dumps(charge, ensure_ascii=False)],
-        capture_output=True, text=True, check=True,
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout
 
 
 def quand(heures: float) -> str:
-    return (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=heures)).isoformat()
+    return (dt.datetime.now(dt.UTC) + dt.timedelta(hours=heures)).isoformat()
 
 
 def poster(chemin: str, corps: dict) -> None:
@@ -54,8 +56,10 @@ def poster(chemin: str, corps: dict) -> None:
     except urllib.error.HTTPError as erreur:
         # On dit ce que le serveur a refusé plutôt que de continuer en silence : un banc
         # qui s'amorce à moitié donne un écran à moitié vrai, ce qui est pire que rien.
-        print(f"  ✗ {chemin} → {erreur.code} {erreur.read()[:200].decode(errors='replace')}",
-              file=sys.stderr)
+        print(
+            f"  ✗ {chemin} → {erreur.code} {erreur.read()[:200].decode(errors='replace')}",
+            file=sys.stderr,
+        )
 
 
 def deja_amorce() -> bool:
@@ -81,22 +85,45 @@ if deja_amorce():
 # Une paire jetée aussitôt : personne ne pourra jamais ouvrir ce contenu-là. C'est ce qui
 # permet de **voir** à l'écran la règle « ce qui ne se déchiffre pas s'affiche quand même ».
 # Sans cette ligne, le banc ne montrerait que le cas heureux.
-autre = json.loads(subprocess.run(
-    [amorcer, "cles", "phrase d une autre personne", "recuperation d une autre personne"],
-    capture_output=True, text=True, check=True,
-).stdout)["public_key"]
+autre = json.loads(
+    subprocess.run(
+        [amorcer, "cles", "phrase d une autre personne", "recuperation d une autre personne"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+)["public_key"]
 
 for contenu, debut, fin in [
-    (sceller({"title": "Point hebdomadaire", "description": "état des chantiers",
-              "location": "Genève"}), 2, 3),
-    (sceller({"title": "Dentiste", "description": "contrôle annuel",
-              "location": "Lausanne"}), 26, 27),
+    (
+        sceller(
+            {
+                "title": "Point hebdomadaire",
+                "description": "état des chantiers",
+                "location": "Genève",
+            }
+        ),
+        2,
+        3,
+    ),
+    (
+        sceller({"title": "Dentiste", "description": "contrôle annuel", "location": "Lausanne"}),
+        26,
+        27,
+    ),
     (sceller({"title": "Scellé ailleurs", "description": "", "location": ""}, autre), 5, 6),
 ]:
-    poster("/v1/me/calendar/events", {
-        "calendar_id": calendrier, "start_at": quand(debut), "end_at": quand(fin),
-        "timezone": "Europe/Zurich", "all_day": False, "content": contenu,
-    })
+    poster(
+        "/v1/me/calendar/events",
+        {
+            "calendar_id": calendrier,
+            "start_at": quand(debut),
+            "end_at": quand(fin),
+            "timezone": "Europe/Zurich",
+            "all_day": False,
+            "content": contenu,
+        },
+    )
 
 for contenu, echeance in [
     (sceller({"title": "Relire le devis", "notes": "avant vendredi"}), 20),
@@ -108,14 +135,25 @@ for contenu, echeance in [
         corps["due_at"] = quand(echeance)
     poster("/v1/me/tasks", corps)
 
-poster("/v1/me/event-types", {
-    "title": "Entretien de 30 minutes", "slug": "entretien", "duration_min": 30,
-    "slot_interval_min": 15, "buffer_before_min": 5, "buffer_after_min": 10,
-    "min_notice_min": 120, "date_window_days": 60, "location_type": "google_meet",
-    "active": True, "kind": "solo", "capacity": 1,
-    "questions": [{"id": "sujet", "label": "Sujet", "type": "text",
-                   "required": True, "options": []}],
-})
+poster(
+    "/v1/me/event-types",
+    {
+        "title": "Entretien de 30 minutes",
+        "slug": "entretien",
+        "duration_min": 30,
+        "slot_interval_min": 15,
+        "buffer_before_min": 5,
+        "buffer_after_min": 10,
+        "min_notice_min": 120,
+        "date_window_days": 60,
+        "location_type": "google_meet",
+        "active": True,
+        "kind": "solo",
+        "capacity": 1,
+        "questions": [
+            {"id": "sujet", "label": "Sujet", "type": "text", "required": True, "options": []}
+        ],
+    },
+)
 
-print("  3 événements (dont un scellé ailleurs), 3 tâches, 1 type de rendez-vous",
-      file=sys.stderr)
+print("  3 événements (dont un scellé ailleurs), 3 tâches, 1 type de rendez-vous", file=sys.stderr)

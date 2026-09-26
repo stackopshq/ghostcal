@@ -1,6 +1,9 @@
-"""Dépose un jeu de données **de vitrine** : ce qu'on photographie, et ce que l'examinateur d'Apple ouvrira.
+"""Dépose un jeu de données **de vitrine**.
 
-    tools/amorcer_vitrine.py <api> <jeton> <organisation> <publique> <calendrier> <amorcer> <slug-org>
+Ce qu'on photographie, et ce que l'examinateur d'Apple ouvrira.
+
+    tools/amorcer_vitrine.py <api> <jeton> <organisation> <publique>
+                             <calendrier> <amorcer> <slug-org>
 
 ─── Pourquoi ce fichier existe à côté de `amorcer_donnees.py` ───
 
@@ -44,7 +47,9 @@ fautes = 0
 def sceller(charge: dict) -> str:
     return subprocess.run(
         [amorcer, "sceller", publique, json.dumps(charge, ensure_ascii=False)],
-        capture_output=True, text=True, check=True,
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout
 
 
@@ -122,7 +127,15 @@ def iso(moment: dt.datetime) -> str:
 # démonstration rempli de « Test 1 », « Test 2 » se voit immédiatement.
 EVENEMENTS = [
     (0, 9, 0, 45, "Point hebdomadaire", "Tour de table de l'équipe produit", "Genève"),
-    (0, 10, 30, 60, "Entretien · développeuse back-end", "Deuxième tour, technique", "Visioconférence"),
+    (
+        0,
+        10,
+        30,
+        60,
+        "Entretien · développeuse back-end",
+        "Deuxième tour, technique",
+        "Visioconférence",
+    ),
     (0, 12, 30, 60, "Déjeuner avec Camille", "", "Café du Marché"),
     (0, 14, 0, 90, "Revue de sprint", "Démonstration puis rétrospective", "Salle Jura"),
     (0, 16, 30, 30, "Appel client · Helvetia", "Point d'avancement mensuel", "Visioconférence"),
@@ -134,14 +147,17 @@ EVENEMENTS = [
 print("Agenda", file=sys.stderr)
 for jour, heure, minute, duree, titre, description, lieu in EVENEMENTS:
     debut = a(jour, heure, minute)
-    poster("/v1/me/calendar/events", {
-        "calendar_id": calendrier,
-        "start_at": iso(debut),
-        "end_at": iso(debut + dt.timedelta(minutes=duree)),
-        "timezone": FUSEAU,
-        "all_day": False,
-        "content": sceller({"title": titre, "description": description, "location": lieu}),
-    })
+    poster(
+        "/v1/me/calendar/events",
+        {
+            "calendar_id": calendrier,
+            "start_at": iso(debut),
+            "end_at": iso(debut + dt.timedelta(minutes=duree)),
+            "timezone": FUSEAU,
+            "all_day": False,
+            "content": sceller({"title": titre, "description": description, "location": lieu}),
+        },
+    )
 
 # ── Les tâches ────────────────────────────────────────────────────────────────
 #
@@ -169,14 +185,17 @@ for titre, notes, heures in TACHES:
 # échoue. Le banc d'épreuve n'en posait pas : c'est la raison pour laquelle l'écran
 # « Réunions » y restait vide, et pour laquelle deux captures manquaient.
 print("Disponibilités", file=sys.stderr)
-poster("/v1/me/schedules", {
-    "name": "Heures de bureau",
-    "timezone": FUSEAU,
-    # 0 = lundi, la convention du serveur. Celle de Dart est 1 = lundi et celle de Java
-    # 1 = dimanche : confondre les trois décalerait tout l'horaire d'un jour, en silence.
-    "rules": [{"weekday": j, "start": "09:00:00", "end": "17:00:00"} for j in range(5)],
-    "overrides": [],
-})
+poster(
+    "/v1/me/schedules",
+    {
+        "name": "Heures de bureau",
+        "timezone": FUSEAU,
+        # 0 = lundi, la convention du serveur. Celle de Dart est 1 = lundi et celle de Java
+        # 1 = dimanche : confondre les trois décalerait tout l'horaire d'un jour, en silence.
+        "rules": [{"weekday": j, "start": "09:00:00", "end": "17:00:00"} for j in range(5)],
+        "overrides": [],
+    },
+)
 
 # ── Les liens de réservation ──────────────────────────────────────────────────
 # `EventTypeIn` **n'a pas de champ `slug`** : le serveur le dérive du titre et y ajoute un
@@ -187,18 +206,46 @@ poster("/v1/me/schedules", {
 #
 # On relit donc le slug attribué, au lieu de le supposer.
 print("Types de rendez-vous", file=sys.stderr)
-for titre, slug, duree, actif, questions in [
-    ("Entretien de 30 minutes", "entretien", 30, True,
-     [{"id": "sujet", "label": "Sujet de l'entretien", "type": "text", "required": True, "options": []}]),
+# `_slug` et non `slug` : il est DANS le tuple pour que la table se lise, et
+# délibérément inutilisé — c'est le slug attribué par le serveur qu'on relit
+# plus bas, pas celui qu'on propose. Le souligné dit au linter que l'oubli est
+# voulu, sans retirer l'information de la table.
+for titre, _slug, duree, actif, questions in [
+    (
+        "Entretien de 30 minutes",
+        "entretien",
+        30,
+        True,
+        [
+            {
+                "id": "sujet",
+                "label": "Sujet de l'entretien",
+                "type": "text",
+                "required": True,
+                "options": [],
+            }
+        ],
+    ),
     ("Découverte de 15 minutes", "decouverte", 15, True, []),
     ("Atelier d'une demi-journée", "atelier", 240, False, []),
 ]:
-    poster("/v1/me/event-types", {
-        "title": titre, "duration_min": duree,
-        "slot_interval_min": 15, "buffer_before_min": 5, "buffer_after_min": 10,
-        "min_notice_min": 60, "date_window_days": 60, "location_type": "google_meet",
-        "active": actif, "kind": "solo", "capacity": 1, "questions": questions,
-    })
+    poster(
+        "/v1/me/event-types",
+        {
+            "title": titre,
+            "duration_min": duree,
+            "slot_interval_min": 15,
+            "buffer_before_min": 5,
+            "buffer_after_min": 10,
+            "min_notice_min": 60,
+            "date_window_days": 60,
+            "location_type": "google_meet",
+            "active": actif,
+            "kind": "solo",
+            "capacity": 1,
+            "questions": questions,
+        },
+    )
 
 # ── Une vraie réservation, prise depuis la page publique ──────────────────────
 #
@@ -214,7 +261,11 @@ demain = a(1, 14, 0)
 # position dans la liste : l'ordre n'est garanti nulle part.
 types = lire("/v1/me/event-types") or []
 slug_entretien = next(
-    (t["slug"] for t in types if isinstance(t, dict) and t.get("title", "").startswith("Entretien")),
+    (
+        t["slug"]
+        for t in types
+        if isinstance(t, dict) and t.get("title", "").startswith("Entretien")
+    ),
     None,
 )
 if slug_entretien is None:
@@ -224,11 +275,15 @@ if slug_entretien is None:
 # alias déclarés côté serveur (`Query(alias="from")`, `from` étant un mot réservé en
 # Python). Le premier jet se les était inventés et le serveur a répondu 422 en nommant les
 # champs manquants — un refus lisible, pour une fois. Et la route ne prend aucun fuseau.
-creneaux = lire(
-    f"/v1/orgs/{slug_org}/event-types/{slug_entretien}/availability"
-    f"?from={demain.date()}&to={a(4, 9).date()}",
-    authentifie=False,
-) if slug_entretien else None
+creneaux = (
+    lire(
+        f"/v1/orgs/{slug_org}/event-types/{slug_entretien}/availability"
+        f"?from={demain.date()}&to={a(4, 9).date()}",
+        authentifie=False,
+    )
+    if slug_entretien
+    else None
+)
 debut_reserve = None
 if creneaux:
     plats = creneaux.get("slots") if isinstance(creneaux, dict) else creneaux
@@ -238,8 +293,10 @@ if creneaux:
         premier = plats[0]
         debut_reserve = premier.get("start") if isinstance(premier, dict) else premier
 if debut_reserve is None:
-    print("  ✗ aucun créneau proposé : la réservation est sautée, l'écran Réunions restera vide",
-          file=sys.stderr)
+    print(
+        "  ✗ aucun créneau proposé : la réservation est sautée, l'écran Réunions restera vide",
+        file=sys.stderr,
+    )
     fautes += 1
 else:
     # **Trois** réservations, pas une. Avec une seule ligne, l'écran Réunions est vide à
@@ -250,12 +307,19 @@ else:
     # les rendez-vous tombent des jours différents — trois réunions collées dans la même
     # heure se liraient comme un jeu d'essai.
     invites = [
-        ("Camille Rossier", "camille.rossier@example.com",
-         "Reprise du projet de refonte", "Disponible aussi le lendemain matin si besoin."),
-        ("Antoine Béguin", "antoine.beguin@example.com",
-         "Migration de l'infrastructure", ""),
-        ("Salomé Vuillemin", "salome.vuillemin@example.com",
-         "Point budget du quatrième trimestre", "Merci de prévoir trente minutes de marge."),
+        (
+            "Camille Rossier",
+            "camille.rossier@example.com",
+            "Reprise du projet de refonte",
+            "Disponible aussi le lendemain matin si besoin.",
+        ),
+        ("Antoine Béguin", "antoine.beguin@example.com", "Migration de l'infrastructure", ""),
+        (
+            "Salomé Vuillemin",
+            "salome.vuillemin@example.com",
+            "Point budget du quatrième trimestre",
+            "Merci de prévoir trente minutes de marge.",
+        ),
     ]
     pas = max(1, len(plats) // (len(invites) + 1))
     for rang, (nom, adresse, sujet, notes) in enumerate(invites):
@@ -286,12 +350,15 @@ else:
 # ── Un sondage, avec des votes ────────────────────────────────────────────────
 print("Sondage", file=sys.stderr)
 sondages = 0
-sondage = poster("/v1/me/polls", {
-    "title": "Atelier charte graphique",
-    "duration_min": 90,
-    "location_type": "google_meet",
-    "option_starts": [iso(a(2, 9)), iso(a(2, 14)), iso(a(3, 10, 30))],
-})
+sondage = poster(
+    "/v1/me/polls",
+    {
+        "title": "Atelier charte graphique",
+        "duration_min": 90,
+        "location_type": "google_meet",
+        "option_starts": [iso(a(2, 9)), iso(a(2, 14)), iso(a(3, 10, 30))],
+    },
+)
 if sondage and sondage.get("options"):
     identifiants = [o["id"] for o in sondage["options"]]
     slug_sondage = sondage["slug"]
@@ -300,11 +367,15 @@ if sondage and sondage.get("options"):
         ("Antoine Béguin", "antoine.beguin@example.com", [1]),
         ("Salomé Vuillemin", "salome.vuillemin@example.com", [1, 2]),
     ]:
-        poster(f"/v1/polls/{slug_sondage}/votes", {
-            "voter_name": nom,
-            "voter_email": adresse,
-            "option_ids": [identifiants[i] for i in choisis],
-        }, authentifie=False)
+        poster(
+            f"/v1/polls/{slug_sondage}/votes",
+            {
+                "voter_name": nom,
+                "voter_email": adresse,
+                "option_ids": [identifiants[i] for i in choisis],
+            },
+            authentifie=False,
+        )
     sondages = 1
 else:
     print("  ✗ sondage non créé : l'écran Sondages restera vide", file=sys.stderr)
