@@ -17,6 +17,12 @@ dependencies = [
     "celery[redis]>=5.6.3",
     "defusedxml>=0.7.1",
     "fastapi>=0.138.1",
+    # SQLAlchemy ne le tire que sous un marqueur de plateforme qui nomme `aarch64` et pas
+    # `arm64` : sur Apple Silicon il est élagué, et les tests d'intégration passent de
+    # « sautés » à « en erreur », huit autres échouant vraiment. La ligne de base paraît
+    # franchement rouge pour une raison qui n'a aucun rapport avec ce qu'on mesure.
+    # Déclaré ici pour que le marqueur ne décide plus. Voir docs/base-de-donnees-locale.md.
+    "greenlet>=3.2.0",
     "httpx>=0.28.1",
     "icalendar>=6.0.0",
     "itsdangerous>=2.2.0",
