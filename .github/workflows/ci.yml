@@ -33,6 +33,10 @@ permissions:
 # sur la branche, à vingt minutes d'écart et sans qu'une ligne de code ait changé.
 env:
   UV_VERSION: "0.11.8"
+  # Épinglée pour la même raison qu'uv : une version flottante fait dépendre un
+  # job vert d'une publication en amont. C'est celle sur laquelle `apps/mobile`
+  # a été développé et mesuré.
+  FLUTTER_VERSION: "3.47.2"
 
 jobs:
   quality:
@@ -232,6 +236,69 @@ jobs:
           BRAND_SCAN_DIR: ${{ github.workspace }}/produits
           BRAND_SCAN_ONLY: ghostcal
         run: python3 charte/tools/forge/check_brand_drift.py
+
+  # ─── L'application mobile, que RIEN ne regardait ───
+  #
+  # `apps/mobile` portait 216 fichiers et aucun job ne les lisait : `git grep -i
+  # flutter` sur l'arbre rendait zéro occurrence hors de ce répertoire. Une
+  # demi-journée a été dépensée à chercher pourquoi un `flutter build ipa`
+  # échouait dans un pipeline — il n'y avait pas de pipeline.
+  #
+  # Sur `ubuntu-latest` et non `macos-latest`, ce qui n'est pas une économie de
+  # bout de chandelle : `analyze` et `test` n'ont besoin d'aucun outillage
+  # Apple. Le Dart engendré par flutter_rust_bridge est COMMIS
+  # (`lib/src/rust/`), et aucun test unitaire n'appelle `RustLib` — ils tournent
+  # donc sans la bibliothèque native. Seul un build iOS exigerait macOS, et il
+  # exigerait aussi la signature : il reste hors CI, comme
+  # `tools/ios/archiver-appstore.sh` l'explique déjà.
+  #
+  # Pas de filtre `paths:` : les filtres sont au niveau du flux, pas du job, et
+  # en poser un ici les imposerait à tous les autres. Ce job coûte quelques
+  # minutes de conteneur jetable, ce qui est moins cher qu'un client mobile que
+  # personne ne relit — c'est ainsi que le TOTP a pu atterrir sur `main` sans
+  # que le mobile le sache.
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+
+      # Les traductions sont ENGENDRÉES puis commises. Si les `.arb` changent
+      # sans qu'on régénère, l'arbre commis ment, et chaque contributeur
+      # travaille sur une version différente des libellés. On régénère et on
+      # exige que rien ne bouge.
+      - name: Les traductions commises sont à jour
+        run: |
+          flutter gen-l10n
+          if ! git diff --quiet -- lib/l10n/generated; then
+            echo "Les fichiers engendrés diffèrent des .arb. Lancer 'flutter gen-l10n' et commiter :"
+            git --no-pager diff --stat -- lib/l10n/generated
+            exit 1
+          fi
+          echo "à jour"
+
+      - name: Analyse
+        run: flutter analyze
+
+      - name: Tests unitaires
+        run: flutter test
+
+      # `integration_test/` demande un appareil réel — la biométrie ne peut pas
+      # être éprouvée autrement, le simulateur ne lui applique aucun contrôle
+      # d'accès. Ces témoins-là se lancent à la main ; ce job ne prétend pas
+      # les couvrir, et le dit plutôt que de laisser croire le contraire.
+      - name: Rappeler ce que ce job NE couvre pas
+        run: |
+          n=$(find integration_test -name '*_test.dart' 2>/dev/null | wc -l)
+          echo "::notice::$n témoin(s) d'intégration exigent un appareil réel et ne tournent pas ici."
 
   frontend:
     runs-on: ubuntu-latest
