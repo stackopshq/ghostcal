@@ -26,6 +26,18 @@
 // donc la lecture scellée à un **témoin négatif** écrit à côté d'elle, plutôt qu'à une
 // constante — un seuil en dur mesurerait la vitesse du téléphone.
 //
+// ─── Et pourquoi le simulateur ne remplace pas l'appareil ───
+//
+// « Features > Face ID » simule le **geste**, pas la Secure Enclave. Mesuré le 2026-09-26
+// sur le simulateur iPhone 17 Pro, avec un visage enrôlé et une correspondance envoyée :
+// l'entrée scellée s'est relue en **0 ms**, sans aucune invite. Son trousseau accepte
+// `biometryCurrentSet` à l'écriture et ne l'applique pas à la lecture.
+//
+// Le simulateur sert donc à éprouver ce que l'**écran** fait des trois états — et
+// `test/biometrie_auto_test.dart` le fait mieux, sans simulateur. Il ne sert à rien pour
+// la garantie. Ce fichier le détecte et rougit en le disant, plutôt que de rendre un vert
+// qui affirmerait la seule chose qu'il ne peut pas voir.
+//
 // ─── Ce qu'il n'atteint pas, et qu'il ne faut pas compter couvert ───
 //
 // - **le refus** : demande que quelqu'un écarte l'invite. Un test sans surveillance ne
@@ -37,6 +49,8 @@
 //   `test/biometrie_auto_test.dart`**, qui peut le feindre — et c'est précisément celui
 //   qui est passé au travers chez GhostPass le 2026-09-25. Le dire vaut mieux que de
 //   laisser croire que le matériel l'a vu.
+
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -56,6 +70,22 @@ const nu = FlutterSecureStorage(
 );
 
 void dire(String ligne) => debugPrint('TROIS-ETATS: $ligne');
+
+/// Tourne-t-on sur un simulateur ?
+///
+/// **Ce n'est pas une commodité, c'est la condition de validité du fichier.** Mesuré le
+/// 2026-09-26 sur le simulateur iPhone 17 Pro : une entrée écrite sous
+/// `passcode + biometryCurrentSet` s'y relit en **0 ms**, sans invite, exactement comme
+/// une valeur ordinaire. Le trousseau du simulateur accepte le contrôle d'accès à
+/// l'écriture et ne l'applique pas à la lecture.
+///
+/// Sur l'iPhone 17 Pro, la même lecture a coûté 45 174 ms.
+///
+/// Un témoin de garantie qui passerait au vert là-dessus serait pire qu'absent : il
+/// affirmerait la seule chose qu'il ne peut pas voir. Il rougit donc, en disant pourquoi.
+bool get surSimulateur =>
+    Platform.environment.containsKey('SIMULATOR_DEVICE_NAME') ||
+    Platform.environment.containsKey('SIMULATOR_UDID');
 
 /// Combien de temps met une lecture, en millisecondes.
 Future<(int, T)> chronometrer<T>(Future<T> Function() corps) async {
@@ -166,9 +196,16 @@ void main() {
       // doit s'être vue. Si elle n'a pas abouti, la porte s'est vue aussi : dans les deux
       // cas, ce qui serait faux est qu'elle se relise **aussi vite** que la valeur nue.
       expect(msScelle, greaterThan(msNu * 10 + 200),
-          reason: 'LA GARANTIE NE TIENT PAS : la phrase scellée se relit au même prix '
-              'qu\'une valeur ordinaire ($msScelle ms contre $msNu ms). Elle est rangée, '
-              'pas scellée.');
+          reason: surSimulateur
+              ? 'SIMULATEUR — rien n\'est éprouvé ici. Son trousseau accepte '
+                  '`biometryCurrentSet` à l\'écriture et ne l\'applique pas à la '
+                  'lecture : $msScelle ms contre $msNu ms pour une valeur nue. Ce n\'est '
+                  'pas un défaut du produit, c\'est la limite de l\'instrument. Relancez '
+                  'sur un appareil : « Features > Face ID » simule le geste, pas la '
+                  'Secure Enclave.'
+              : 'LA GARANTIE NE TIENT PAS : la phrase scellée se relit au même prix '
+                  'qu\'une valeur ordinaire ($msScelle ms contre $msNu ms). Elle est '
+                  'rangée, pas scellée.');
 
       if (lecture.issue == Issue.ouverte) {
         dire('un visage a répondu — le cas vert est éprouvé');

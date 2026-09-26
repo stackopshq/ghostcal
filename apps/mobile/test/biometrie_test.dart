@@ -73,6 +73,45 @@ void main() {
     });
   });
 
+  /// **L'interrogation de présence doit être muette, et rien d'autre ne le dit.**
+  ///
+  /// Le défaut mesuré le 2026-09-26 sur iPhone 17 Pro : `sceau()` présentait Face ID —
+  /// 29 425 ms, contre 0 ms pour la même question sur une entrée sans contrôle d'accès.
+  /// Ouvrir les réglages demandait donc un visage pour afficher une ligne d'état.
+  ///
+  /// Ce témoin ne prouve pas que l'invite a disparu : seul l'appareil peut le dire, et
+  /// `integration_test/biometrie_trois_etats_test.dart` s'en charge. Il garde la chose
+  /// qui, elle, se perd en silence — que le drapeau soit **posé sur le bon magasin** et
+  /// sur lui seul. L'oublier ne casse aucune compilation.
+  group('la question de présence ne présente rien', () {
+    test('le magasin muet porte kSecUseAuthenticationUIFail', () {
+      final muet = Biometrie.magasin(null, true).iOptions.params;
+      expect(muet['authenticationUIBehavior'], 'u_AuthUIF',
+          reason: 'la valeur littérale de la constante Security.framework, relevée le '
+              '2026-09-26 : une faute de frappe ici ramène l\'invite sans rien casser');
+    });
+
+    /// Et l'inverse : la **lecture** doit continuer à présenter l'invite. Poser le drapeau
+    /// partout ferait échouer tout déverrouillage biométrique — la fonction entière
+    /// rendrait `errSecInteractionNotAllowed`, c'est-à-dire « pas maintenant », pour
+    /// toujours.
+    test('le magasin de lecture, lui, laisse l\'invite paraître', () {
+      final lecture = Biometrie.magasin().iOptions.params;
+      expect(lecture['authenticationUIBehavior'], isNull);
+    });
+
+    /// Les deux magasins ne diffèrent que par ce drapeau : s'ils divergeaient sur le
+    /// cloisonnement ou l'accessibilité, la présence interrogerait une **autre** entrée
+    /// que celle qu'on lit, et répondrait juste sur la mauvaise.
+    test('muet ou non, c\'est la même entrée qu\'on interroge', () {
+      final muet = Map.of(Biometrie.magasin(null, true).iOptions.params)
+        ..remove('authenticationUIBehavior');
+      final lecture = Map.of(Biometrie.magasin().iOptions.params)
+        ..remove('authenticationUIBehavior');
+      expect(muet, lecture);
+    });
+  });
+
   /// L'icône suit le matériel. Une icône Face ID en dur mentirait sur un téléphone à
   /// empreinte — c'est la raison d'être de cette énumération.
   test('chaque empreinte porte son propre dessin', () {

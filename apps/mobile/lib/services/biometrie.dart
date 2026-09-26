@@ -186,7 +186,28 @@ class Biometrie {
 
   static const _cle = 'ghostcal.phrase';
 
+  /// `kSecUseAuthenticationUIFail`, par sa valeur littérale.
+  ///
+  /// Le paquet passe cette option **telle quelle** au dictionnaire de requête, sans la
+  /// traduire depuis un nom symbolique : il faut donc lui donner la chaîne que
+  /// `Security.framework` porte réellement. Relevée le 2026-09-26, pas recopiée d'une
+  /// documentation :
+  ///
+  ///     kSecUseAuthenticationUIAllow  u_AuthUIA
+  ///     kSecUseAuthenticationUIFail   u_AuthUIF
+  ///     kSecUseAuthenticationUISkip   u_AuthUIS
+  ///
+  /// Une faute de frappe ici ne casse rien à la compilation et ramène simplement l'invite.
+  /// C'est ce que mesure le témoin d'intégration.
+  static const _sansInvite = 'u_AuthUIF';
+
   FlutterSecureStorage get _stockage => _injecte ?? magasin(_invites);
+
+  /// Le même magasin, mais **interdit de présenter quoi que ce soit**.
+  ///
+  /// Sert uniquement à l'interrogation de présence. Voir [sceau] pour ce que ça change.
+  FlutterSecureStorage get _stockageMuet =>
+      _injecte ?? magasin(_invites, true);
 
   /// Le magasin scellé, séparé de celui de [Trousseau] — voir l'en-tête.
   ///
@@ -199,10 +220,17 @@ class Biometrie {
   /// français : un texte générique anglais se reconnaît comme tel, du français servi à un
   /// anglophone se lit comme un produit cassé. Le cas ne se produit qu'avant qu'un écran
   /// ait posé les siens.
-  static FlutterSecureStorage magasin([InvitesBiometriques? invites]) =>
+  /// [muet] interdit à Apple de présenter une invite : la requête échoue plutôt que de
+  /// demander un visage. C'est ce qui rend l'interrogation de présence honnête — voir
+  /// [sceau]. Sans effet sur Android, dont le KeyStore ne demande rien pour une question
+  /// de présence.
+  static FlutterSecureStorage magasin(
+    [InvitesBiometriques? invites, bool muet = false]
+  ) =>
       FlutterSecureStorage(
-    iOptions: const IOSOptions(
+    iOptions: IOSOptions(
       accountName: 'ghostcal.biometrie',
+      authenticationUIBehavior: muet ? _sansInvite : null,
       // `passcode` est `kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly` : l'entrée
       // n'existe que si un code est posé, ne quitte jamais l'appareil, et disparaît si le
       // code est retiré. Le même choix que `Keychain.swift`.
@@ -371,9 +399,16 @@ class Biometrie {
 
   /// L'état du sceau, **sans** déclencher la biométrie.
   ///
-  /// `containsKey` interroge la présence, pas la valeur — sans quoi savoir s'il faut
-  /// afficher le bouton demanderait le visage, et l'écran d'entrée ouvrirait une invite
-  /// avant qu'on ait rien demandé.
+  /// Savoir s'il faut afficher le bouton ne doit pas coûter un visage : l'écran d'entrée
+  /// et celui des réglages posent cette question à leur ouverture, avant qu'on ait rien
+  /// demandé.
+  ///
+  /// Deux précautions, et il en fallait **deux** :
+  ///
+  /// - `containsKey` interroge la présence et non la valeur ;
+  /// - et la requête part sous `kSecUseAuthenticationUIFail`, sans quoi Apple présente
+  ///   l'invite quand même. La première seule ne suffisait pas — voir plus bas, c'est
+  ///   mesuré.
   ///
   /// ─── Pourquoi ceci ne rend plus un simple `bool` ───
   ///
@@ -391,13 +426,28 @@ class Biometrie {
   /// - [Issue.echec]     — le magasin n'a pas répondu, et on ne devine pas.
   Future<Issue> sceau() async {
     try {
-      final present = await _stockage.containsKey(key: _cle);
+      final present = await _stockageMuet.containsKey(key: _cle);
       return present ? Issue.ouverte : Issue.absente;
     } on PlatformException catch (e) {
       final issue = _classer(e).issue;
-      // `pasMaintenant` n'a pas de sens ici : `containsKey` ne présente rien. Si le
-      // trousseau le dit quand même, c'est qu'on ne sait pas, et on le dira.
-      return issue == Issue.pasMaintenant ? Issue.echec : issue;
+      // ─── Le renversement, et il est mesuré ───
+      //
+      // Sous `kSecUseAuthenticationUIFail`, `errSecInteractionNotAllowed` **ne veut plus
+      // dire** « on ne peut pas demander maintenant ». Il veut dire : *l'entrée est là,
+      // elle est gardée, et on a interdit qu'on la demande*. C'est-à-dire exactement la
+      // réponse cherchée — un sceau posé et vivant — obtenue sans réveiller personne.
+      //
+      // Sans le drapeau, la même question **présente Face ID**. Mesuré le 2026-09-26 sur
+      // iPhone 17 Pro : 29 425 ms pour cette interrogation de présence, contre 0 ms pour
+      // la même sur une entrée sans contrôle d'accès. Le commentaire précédent affirmait
+      // que « `containsKey` ne présente rien » ; c'était faux, et rien ne pouvait le dire
+      // — les témoins hors matériel emploient un magasin feint, et le simulateur n'applique
+      // pas du tout le contrôle d'accès, donc y répondait en 0 ms.
+      //
+      // Conséquence du défaut, tant qu'il a duré : ouvrir les réglages demandait un visage
+      // pour afficher une ligne d'état, et l'écran d'entrée le demandait **deux fois**.
+      // Une invite qu'on n'a pas demandée est une invite qu'on apprend à écarter.
+      return issue == Issue.pasMaintenant ? Issue.ouverte : issue;
     } on Object {
       return Issue.echec;
     }
