@@ -28,7 +28,7 @@ from ghostcal.application.auth import (
     ZkKeyMaterial,
 )
 from ghostcal.infrastructure.db import models
-from ghostcal.infrastructure.db.session import bind_org, bind_user
+from ghostcal.infrastructure.db.session import bind_login_email, bind_org, bind_user
 
 # The exact texts the provisioning function RAISEs when it decides not to link an identity.
 # Anything else carrying 42501 is the database refusing *us*, not the function refusing a caller.
@@ -191,6 +191,11 @@ class SqlAuthRepository(AuthRepository):
         )
 
     async def get_by_email(self, email: str) -> AuthUserRecord | None:
+        # Le seul chemin qui lit `users` sans tenir d'identifiant : il n'a qu'une adresse tapée
+        # dans un formulaire. `users_email_lookup` ouvre la ligne qui porte l'adresse déclarée,
+        # et rien d'autre — voir `bind_login_email`, qui dit ce que cela coûte et ce que cela ne
+        # rouvre pas.
+        await bind_login_email(self._session, email)
         stmt = (
             select(
                 models.User.id,
@@ -208,6 +213,10 @@ class SqlAuthRepository(AuthRepository):
         return _to_record(row)
 
     async def get_by_id(self, user_id: uuid.UUID) -> AuthUserRecord | None:
+        # `users_select` demande qu'on dise pour qui on agit. L'appelant le sait déjà — c'est le
+        # porteur du jeton, ou l'identifiant qu'un jeton à usage unique vient de rendre. Déclarer
+        # n'accorde rien de plus : la politique n'ouvre que cette ligne-là.
+        await bind_user(self._session, user_id)
         stmt = (
             select(
                 models.User.id,
@@ -248,6 +257,16 @@ class SqlAuthRepository(AuthRepository):
         return row.user_id if row else None
 
     async def mark_email_verified(self, user_id: uuid.UUID, now: datetime) -> None:
+        # ─── L'écriture qui ne levait rien ───
+        #
+        # Sans cette déclaration, `users_update` ne désigne aucune ligne et l'`UPDATE` touche
+        # zéro ligne. Ce n'est pas une erreur pour PostgreSQL, et rien ici ne lit `rowcount` :
+        # la vérification d'adresse réussissait en apparence et ne faisait rien.
+        #
+        # Le symptôme sortait trois appels plus loin — connexion refusée pour « adresse non
+        # vérifiée », invitation refusée pour la même raison, sur un compte qui venait de
+        # cliquer le lien. Mesuré le 2026-09-26 : `rowcount = 0` sans GUC, `1` avec.
+        await bind_user(self._session, user_id)
         await self._session.execute(
             update(models.User).where(models.User.id == user_id).values(email_verified_at=now)
         )
@@ -342,6 +361,9 @@ class SqlAuthRepository(AuthRepository):
     async def update_profile(
         self, user_id: uuid.UUID, *, name: str, timezone: str, avatar_url: str | None
     ) -> None:
+        # Même silence que `mark_email_verified` sans cette ligne : le profil se disait
+        # enregistré et ne l'était pas.
+        await bind_user(self._session, user_id)
         await self._session.execute(
             update(models.User)
             .where(models.User.id == user_id)

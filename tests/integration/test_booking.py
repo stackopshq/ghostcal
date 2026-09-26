@@ -42,6 +42,22 @@ async def bookable(admin_engine: AsyncEngine) -> AsyncIterator[dict[str, uuid.UU
         host = models.User(email=f"host-{suffix}@example.test", name="Host", timezone="UTC")
         s.add_all([org, host])
         await s.flush()
+        # ─── L'hôte est membre de son organisation ───
+        #
+        # Cette ligne manquait, et la fixture décrivait donc une organisation dont le
+        # propriétaire d'un type d'événement n'en est pas membre. La production ne peut pas
+        # produire ça : `create_my_event_type` prend `member.user.id` comme propriétaire — un
+        # membre, par construction de `current_member` — et `_check_pool_hosts` refuse par
+        # 422 tout hôte de pool qui n'en serait pas un.
+        #
+        # Tant que `users` n'avait aucune politique, l'écart ne se voyait pas. Sous
+        # `users_select`, la branche d'organisation passe par `memberships` : sans adhésion,
+        # la page publique de réservation ne peut plus lire le nom de son propre hôte, et
+        # sept tests tombent sur une situation qui n'existe pas.
+        #
+        # Les cinq autres fixtures de réservation du dossier posaient déjà cette ligne ;
+        # celle-ci était la seule à l'omettre.
+        s.add(models.Membership(organization_id=org.id, user_id=host.id, role="owner"))
         schedule = models.AvailabilitySchedule(
             organization_id=org.id, owner_id=host.id, name="Default", timezone="UTC"
         )
