@@ -25,10 +25,9 @@ from datetime import UTC, datetime
 
 import pytest
 import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
-
-from httpx import ASGITransport, AsyncClient
 
 from ghostcal.application.auth import AuthenticatedUser
 from ghostcal.infrastructure.db.auth_repository import SqlAvatarRepository
@@ -50,15 +49,13 @@ async def compte(admin_engine: AsyncEngine) -> AsyncIterator[tuple[uuid.UUID, uu
         )
         user = await conn.scalar(
             text(
-                "INSERT INTO users (email, name, timezone) "
-                "VALUES (:e, 'Alice', 'UTC') RETURNING id"
+                "INSERT INTO users (email, name, timezone) VALUES (:e, 'Alice', 'UTC') RETURNING id"
             ),
             {"e": f"alice-{suffix}@example.test"},
         )
         await conn.execute(
             text(
-                "INSERT INTO memberships (organization_id, user_id, role) "
-                "VALUES (:o, :u, 'owner')"
+                "INSERT INTO memberships (organization_id, user_id, role) VALUES (:o, :u, 'owner')"
             ),
             {"o": org, "u": user},
         )
