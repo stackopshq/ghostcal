@@ -39,7 +39,10 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "d2e5b71c48a9"
-down_revision = "a7d3f81c60e2"
+# Rattachée derrière le durcissement RLS (#151), arrivé entre-temps. Les deux
+# partaient du même parent, ce qui donnait deux têtes et un `upgrade head`
+# impossible — c'est ce qui faisait rougir la CI de cette demande de fusion.
+down_revision = "d9a4c72e15b8"
 branch_labels = None
 depends_on = None
 

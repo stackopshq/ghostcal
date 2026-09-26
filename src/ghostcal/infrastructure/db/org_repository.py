@@ -226,6 +226,18 @@ class SqlInvitationGateway(InvitationGateway):
         )
 
     async def accept(self, token_hash: str, user_id: uuid.UUID) -> uuid.UUID | None:
+        # Même geste que `store_member_key` plus bas, et pour la même raison : SECURITY DEFINER
+        # change le rôle sous lequel une fonction tourne, jamais la session dans laquelle elle
+        # tourne. `accept_organization_invitation` vérifie que l'acceptant est bien le
+        # propriétaire vérifié de l'adresse invitée — un `SELECT … FROM users WHERE u.id =
+        # p_user_id` — et sous `users_select` ce contrôle ne voit rien, donc refuse.
+        #
+        # Un refus faux, et muet sur son motif : « invitation invalide ou expirée » sur une
+        # invitation parfaitement valide, adressée à la bonne personne.
+        #
+        # Déclarer l'acceptant n'ouvre rien : c'est l'appelant authentifié, et le contrôle
+        # d'adresse à l'intérieur de la fonction reste le seul portier.
+        await bind_user(self._session, user_id)
         return (  # type: ignore[no-any-return]
             await self._session.execute(
                 text("SELECT accept_organization_invitation(:h, :u) AS org"),

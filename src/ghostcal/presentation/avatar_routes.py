@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFil
 
 from ghostcal.application.avatars import OCTETS_MAX_EN_ENTREE, AvatarRefuse, preparer
 from ghostcal.infrastructure.db.auth_repository import SqlAvatarRepository
-from ghostcal.infrastructure.db.session import bind_org, db_session
+from ghostcal.infrastructure.db.session import bind_org, bind_user, db_session
 from ghostcal.presentation.dashboard_routes import Member, current_member
 
 router = APIRouter(prefix="/v1/me/profile/avatar", tags=["profile"])
@@ -41,6 +41,17 @@ async def televerser(
 
     async with db_session() as session:
         await bind_org(session, member.organization_id)
+        # `bind_user` autant que `bind_org`, et c'est ce qui manquait.
+        #
+        # L'avatar s'écrit dans `users`, que le durcissement RLS (#151) a placé sous
+        # `users_update USING (id = current_user_id)`. Sans ce contexte, l'UPDATE ne
+        # trouve **aucune ligne** — et un UPDATE qui n'en touche aucune ne lève rien :
+        # le téléversement réussirait et n'écrirait rien.
+        #
+        # C'est le mode de défaillance propre à la RLS : l'écriture ne refuse pas, elle
+        # s'applique à l'ensemble vide. Rien dans le journal, rien à l'écran, et un
+        # avatar qui ne change pas sans qu'on sache pourquoi.
+        await bind_user(session, member.user.id)
         await SqlAvatarRepository(session).enregistrer(
             member.user.id, octets=pret.octets, mime=pret.mime, quand=datetime.now(UTC)
         )
@@ -50,6 +61,9 @@ async def televerser(
 async def retirer(member: Member = Depends(current_member)) -> None:
     async with db_session() as session:
         await bind_org(session, member.organization_id)
+        # Même raison que pour l'écriture : `users_update` gouverne aussi la remise à
+        # zéro des trois colonnes, et sans contexte elle ne toucherait rien.
+        await bind_user(session, member.user.id)
         await SqlAvatarRepository(session).effacer(member.user.id)
 
 
