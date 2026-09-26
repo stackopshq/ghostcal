@@ -25,14 +25,17 @@ from ghostcal.application.subscriptions import (
     list_subscriptions,
     refresh_subscription,
 )
+from ghostcal.application.two_factor import TwoFactorService
 from ghostcal.infrastructure.calendars.ics_feed import FeedEvent
 from ghostcal.infrastructure.db.auth_repository import SqlAuthRepository
 from ghostcal.infrastructure.db.calendar_repository import SqlCalendarRepository
 from ghostcal.infrastructure.db.membership import primary_membership
 from ghostcal.infrastructure.db.session import db_session, org_session
 from ghostcal.infrastructure.db.subscriptions_repository import SqlSubscriptionRepository
+from ghostcal.infrastructure.db.two_factor_repository import SqlTwoFactorRepository
 from ghostcal.infrastructure.security.passwords import Argon2PasswordHasher
 from ghostcal.infrastructure.security.tokens import JwtAccessTokenCodec
+from ghostcal.infrastructure.security.totp import PyotpEngine
 from tests.integration.conftest import ZK_PLACEHOLDER
 
 pytestmark = pytest.mark.integration
@@ -64,7 +67,9 @@ class CapturingMailer:
 
 
 def _auth(session: object, mailer: CapturingMailer) -> AuthService:
-    return AuthService(SqlAuthRepository(session), _HASHER, _CODEC, mailer, _CLOCK, _CONFIG)  # type: ignore[arg-type]
+    return AuthService(
+        SqlAuthRepository(session), _HASHER, _CODEC, mailer, _CLOCK, _CONFIG, _two_factor(session)
+    )  # type: ignore[arg-type]
 
 
 _FEED = [
@@ -267,3 +272,12 @@ def test_busy_for_includes_only_blocking_subscriptions():
 
     avec = asyncio.run(busy_for(Repo([jour]), hid, jour.start, jour.end))
     assert avec == [jour], "un abonnement bloquant doit fermer la journée"
+
+
+def _two_factor(session: object) -> TwoFactorService:
+    """Le vrai service : ces tests doivent voir le second facteur tel qu'il tourne."""
+    return TwoFactorService(
+        SqlTwoFactorRepository(session),  # type: ignore[arg-type]
+        PyotpEngine(),
+        _CLOCK,
+    )

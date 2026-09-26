@@ -1,4 +1,20 @@
-"""SQL implementation of the analytics repository (org-scoped via RLS / org_session)."""
+"""SQL implementation of the analytics repository.
+
+Chaque requête porte son propre filtre d'organisation. Ce fichier annonçait
+« org-scoped via RLS / org_session » et s'en tenait là : aucune de ses six requêtes ne
+nommait l'organisation, alors que le dépôt en reçoit l'identifiant au constructeur.
+
+Mesuré le 2026-09-25 : la production tourne en `postgres`, superutilisateur, qui contourne
+toute politique de sécurité au niveau ligne — même sous `FORCE ROW LEVEL SECURITY`.
+`/v1/me/analytics` comptait donc les réservations de **tout le serveur**, et sa ventilation
+par type de rendez-vous rendait les **titres des types d'autres organisations** avec leurs
+volumes. C'est de la donnée métier : ce que vend le voisin, et combien.
+
+La docstring disait la vérité sur l'intention et rien sur le résultat. C'est exactement ce
+qu'une isolation déléguée à la couche du dessous produit quand la couche du dessous ne
+tient pas : le code a l'air correct, et il l'est — sous une hypothèse que personne ne
+vérifie.
+"""
 
 from __future__ import annotations
 
@@ -26,18 +42,28 @@ class SqlAnalyticsRepository(AnalyticsRepository):
 
     async def summary(self, now: datetime) -> AnalyticsSummary:
         cutoff = now - timedelta(days=30)
-        total = await self._scalar("SELECT count(*) FROM bookings WHERE status = 'confirmed'", {})
+        # Annotée : `dict` est invariant en Python, donc un `dict[str, str]` inféré ne
+        # satisfait pas la signature `dict[str, object]` de `_scalar`. mypy le refuse, et
+        # il a raison — c'est la variance, pas une pédanterie.
+        org: dict[str, object] = {"org": str(self._org_id)}
+        total = await self._scalar(
+            "SELECT count(*) FROM bookings WHERE status = 'confirmed' AND organization_id = :org",
+            org,
+        )
         upcoming = await self._scalar(
-            "SELECT count(*) FROM bookings WHERE status = 'confirmed' AND start_at > :now",
-            {"now": now},
+            "SELECT count(*) FROM bookings "
+            "WHERE status = 'confirmed' AND organization_id = :org AND start_at > :now",
+            {**org, "now": now},
         )
         last30 = await self._scalar(
-            "SELECT count(*) FROM bookings WHERE status = 'confirmed' AND created_at >= :c",
-            {"c": cutoff},
+            "SELECT count(*) FROM bookings "
+            "WHERE status = 'confirmed' AND organization_id = :org AND created_at >= :c",
+            {**org, "c": cutoff},
         )
         cancels = await self._scalar(
-            "SELECT count(*) FROM bookings WHERE status = 'cancelled' AND start_at >= :c",
-            {"c": cutoff},
+            "SELECT count(*) FROM bookings "
+            "WHERE status = 'cancelled' AND organization_id = :org AND start_at >= :c",
+            {**org, "c": cutoff},
         )
 
         by_event_rows = (
@@ -45,9 +71,10 @@ class SqlAnalyticsRepository(AnalyticsRepository):
                 text(
                     "SELECT et.title AS title, count(*) AS n "
                     "FROM bookings b JOIN event_types et ON et.id = b.event_type_id "
-                    "WHERE b.status = 'confirmed' "
+                    "WHERE b.status = 'confirmed' AND b.organization_id = :org "
                     "GROUP BY et.title ORDER BY n DESC LIMIT 8"
-                )
+                ),
+                org,
             )
         ).all()
 
@@ -55,11 +82,11 @@ class SqlAnalyticsRepository(AnalyticsRepository):
             await self._session.execute(
                 text(
                     "SELECT (start_at AT TIME ZONE 'UTC')::date AS d, count(*) AS n "
-                    "FROM bookings WHERE status = 'confirmed' "
+                    "FROM bookings WHERE status = 'confirmed' AND organization_id = :org "
                     "AND start_at >= :from_ AND start_at < :to_ "
                     "GROUP BY d ORDER BY d"
                 ),
-                {"from_": now - timedelta(days=7), "to_": now + timedelta(days=8)},
+                {**org, "from_": now - timedelta(days=7), "to_": now + timedelta(days=8)},
             )
         ).all()
 

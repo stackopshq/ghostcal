@@ -1,39 +1,19 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import Link from "next/link";
-import { useT } from "@/lib/i18n";
-
-// Minimal landing. The real booking experience lives at /{org}/{event}.
-const DEMO_PATH = process.env.NEXT_PUBLIC_DEMO_PATH;
-
+// L'accueil est l'écran de connexion, comme dans GhostPass.
+//
+// Il présentait avant une page d'accroche : le nom, une phrase, « Commencer » et
+// « Se connecter ». Elle était plus belle. Mais la personne qui tape l'adresse de
+// GhostCal au quotidien vient se connecter, et devait cliquer une fois de plus pour
+// atteindre le formulaire — chaque jour, pour lire une phrase qu'elle connaît.
+//
+// Une redirection plutôt qu'une copie du formulaire : deux pages qui rendent le même
+// écran divergent, et c'est toujours celle qu'on regarde le moins qui prend du retard.
+// `/login` reste l'adresse canonique, et les liens existants continuent de marcher.
+//
+// Le lien de démonstration vivait ici ; il a suivi dans le pied de la carte de
+// connexion, sans quoi la variable `NEXT_PUBLIC_DEMO_PATH` serait devenue muette sans
+// que personne le remarque.
 export default function Home() {
-  const t = useT();
-  return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-6 p-8 text-center">
-      <div className="flex items-center gap-3">
-        <span className="text-2xl text-accent">●</span>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">GhostCal</h1>
-      </div>
-      <p className="max-w-md text-muted">{t("landing.tagline")}</p>
-      <div className="flex flex-wrap items-center justify-center gap-3">
-        <Link
-          href="/register"
-          className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)] transition hover:brightness-110"
-        >
-          {t("landing.getStarted")}
-        </Link>
-        <Link
-          href="/login"
-          className="rounded-lg border border-border-strong px-5 py-2.5 text-sm font-medium text-foreground transition hover:border-accent hover:text-accent"
-        >
-          {t("common.signIn")}
-        </Link>
-      </div>
-      {DEMO_PATH && (
-        <Link href={DEMO_PATH} className="text-sm text-muted hover:text-accent">
-          {t("landing.tryDemo")}
-        </Link>
-      )}
-    </main>
-  );
+  redirect("/login");
 }

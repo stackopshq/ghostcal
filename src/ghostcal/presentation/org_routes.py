@@ -20,6 +20,7 @@ from ghostcal.application.organizations import (
     PendingInvitation,
 )
 from ghostcal.application.ports.clock import SystemClock
+from ghostcal.application.ports.email import EmailSender
 from ghostcal.application.retention import (
     InvalidRetentionWindow,
     RetentionService,
@@ -29,6 +30,8 @@ from ghostcal.infrastructure.db.org_repository import SqlOrgRepository
 from ghostcal.infrastructure.db.retention_repository import SqlRetentionRepository
 from ghostcal.infrastructure.db.session import org_session
 from ghostcal.infrastructure.email import build_email_sender
+from ghostcal.infrastructure.email.outbox import DeferredEmailSender
+from ghostcal.infrastructure.tasks import enqueue_email
 from ghostcal.presentation.dashboard_routes import Member, current_member
 from ghostcal.presentation.schemas import (
     InvitationOut,
@@ -55,10 +58,15 @@ def _actor(member: Member) -> OrgActor:
     )
 
 
-def _make(session: object, member: Member) -> OrganizationService:
+def _make(
+    session: object, member: Member, mailer: EmailSender | None = None
+) -> OrganizationService:
+    """Build the service for one request. `invite` is the only route here that sends, and it
+    passes an outbox so the send happens after its transaction commits; see
+    `infrastructure/email/outbox.py`."""
     return OrganizationService(
         SqlOrgRepository(session, member.organization_id),  # type: ignore[arg-type]
-        _mailer,
+        mailer or _mailer,
         _clock,
         frontend_base_url=_settings.frontend_base_url,
         invitation_ttl=_INVITATION_TTL,
@@ -134,9 +142,13 @@ async def list_invitations(member: Member = Depends(current_member)) -> list[Inv
 
 @router.post("/invitations", response_model=InvitationOut, status_code=201)
 async def invite(payload: InviteIn, member: Member = Depends(current_member)) -> InvitationOut:
+    # Same shape as `register`: the invitation row is written in the transaction, the email that
+    # carries its token goes out afterwards. Measured before the change -- a provider refusal here
+    # answered 500 *and* rolled the invitation back, so an admin's invite vanished entirely.
+    outbox = DeferredEmailSender(enqueue_email)
     async with org_session(member.organization_id) as session:
         try:
-            invitation = await _make(session, member).invite(
+            invitation = await _make(session, member, outbox).invite(
                 _actor(member),
                 email=payload.email,
                 role=payload.role,
@@ -150,6 +162,7 @@ async def invite(payload: InviteIn, member: Member = Depends(current_member)) ->
             raise HTTPException(status_code=409, detail="already a member") from exc
         except InvitationExists as exc:
             raise HTTPException(status_code=409, detail="already invited") from exc
+    outbox.hand_off()
     return _invitation_out(invitation)
 
 

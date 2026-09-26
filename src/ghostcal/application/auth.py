@@ -26,6 +26,7 @@ from ghostcal.application.ports.security import (
     BreachedPasswordChecker,
     PasswordHasher,
 )
+from ghostcal.application.two_factor import TwoFactorService
 
 
 class AuthError(Exception):
@@ -276,6 +277,7 @@ class AuthService:
         mailer: EmailSender,
         clock: Clock,
         config: AuthConfig,
+        two_factor: TwoFactorService,
         breach_checker: BreachedPasswordChecker | None = None,
     ) -> None:
         self._repo = repo
@@ -284,6 +286,11 @@ class AuthService:
         self._mailer = mailer
         self._clock = clock
         self._config = config
+        # Exigé, et non optionnel avec un défaut : un `AuthService` construit
+        # sans lui se connecterait sans second facteur, en silence et sans que
+        # rien ne l'indique. Un oubli doit faire une TypeError bruyante au
+        # montage, pas une porte ouverte en production.
+        self._two_factor = two_factor
         self._breach_checker = breach_checker or NoBreachCheck()
 
     async def register(
@@ -326,6 +333,15 @@ class AuthService:
         )
 
     async def _send_verification(self, user_id: uuid.UUID, email: str) -> None:
+        """Record the verification token and ask for the email that carries it.
+
+        The two lines do different kinds of work and only one of them belongs to the caller's
+        transaction. The insert does: a token nobody can present is worse than no token. The send
+        does not, and must not be able to undo the insert -- that is the port's business, and the
+        adapter the routes pass in buffers the message until the transaction has committed. Do not
+        "simplify" this by making the sender reach the network from here: that is precisely what
+        turned a Brevo 401 into a rolled-back sign-up on 2026-09-25.
+        """
         plain = secrets.token_urlsafe(32)
         expires_at = self._clock.now() + self._config.email_verification_ttl
         await self._repo.add_email_verification(user_id, _hash_token(plain), expires_at)
@@ -413,7 +429,20 @@ class AuthService:
             raise InvalidToken("invalid or expired verification token")
         await self._repo.mark_email_verified(user_id, now)
 
-    async def login(self, *, email: str, password: str) -> TokenPair:
+    async def login(self, *, email: str, password: str, totp_code: str | None = None) -> TokenPair:
+        """Connexion par mot de passe, second facteur compris.
+
+        L'ordre des contrôles n'est pas indifférent. Le second facteur se teste
+        **après** le mot de passe : le demander plus tôt dirait à un inconnu
+        quels comptes existent et lesquels sont protégés, ce qui est précisément
+        ce que la vérification à temps constant au-dessus cherche à taire.
+
+        Il ne se teste pas non plus sur `refresh` : le jeton de rafraîchissement
+        n'a été émis qu'après un passage réussi ici. Et la réinitialisation de
+        mot de passe ne le contourne pas — reprendre la main sur la boîte aux
+        lettres ne doit pas suffire à franchir le facteur qui existe justement
+        pour survivre à un mot de passe compromis.
+        """
         user = await self._repo.get_by_email(email.strip().lower())
         if user is None or user.password_hash is None:
             # Spend the same Argon2 time as a real verify so a missing account isn't detectable by
@@ -424,7 +453,21 @@ class AuthService:
             raise InvalidCredentials("invalid email or password")
         if not user.email_verified:
             raise EmailNotVerified("email not verified")
+        await self._two_factor.enforce_at_login(user.id, code=totp_code)
         return await self._issue_pair(user.id)
+
+    async def verify_password(self, user_id: uuid.UUID, password: str) -> bool:
+        """Le mot de passe courant est-il celui-là ?
+
+        Sert aux opérations sensibles qu'une session déjà ouverte ne doit pas
+        suffire à faire — retirer le second facteur, par exemple. Rend False
+        pour un compte sans mot de passe (SSO) plutôt que de lever : l'appelant
+        traduit ça en refus, et un compte SSO n'a rien à revérifier ici.
+        """
+        user = await self._repo.get_by_id(user_id)
+        if user is None or user.password_hash is None:
+            return False
+        return self._hasher.verify(user.password_hash, password)
 
     async def authenticate_oidc(
         self,
@@ -437,7 +480,14 @@ class AuthService:
         email_verified: bool,
     ) -> TokenPair:
         """Log a user in from a validated OIDC identity, provisioning on first login. No password
-        is involved; the zero-knowledge content is unlocked later by the encryption passphrase."""
+        is involved; the zero-knowledge content is unlocked later by the encryption passphrase.
+
+        Volontairement **sans** second facteur maison. Sur ce chemin c'est le
+        fournisseur d'identité qui authentifie, et c'est lui qui porte le second
+        facteur s'il y en a un. En redemander un ici n'ajouterait rien à la
+        sécurité — le mot de passe qu'il protégerait n'existe pas de ce
+        côté-ci — et donnerait une seconde façon de se retrouver enfermé dehors.
+        """
         email = email.strip().lower()
         user_id = await self._repo.upsert_oidc_identity(
             provider=provider,
