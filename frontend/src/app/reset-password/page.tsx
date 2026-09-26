@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import AuthCard, { inputClass, primaryButtonClass } from "@/components/AuthCard";
+import AuthCard, { Champ, inputClass, lienDePied, primaryButtonClass } from "@/components/AuthCard";
 import { useT } from "@/lib/i18n";
 import {
   outlookFor,
@@ -83,7 +83,7 @@ export default function ResetPasswordPage() {
       <AuthCard
         title={t("reset.badLinkTitle")}
         footer={
-          <Link href="/forgot-password" className="text-accent hover:underline">
+          <Link href="/forgot-password" className={lienDePied}>
             {t("reset.askAgain")}
           </Link>
         }
@@ -100,7 +100,7 @@ export default function ResetPasswordPage() {
       <AuthCard
         title={t("reset.title")}
         footer={
-          <Link href="/login" className="text-accent hover:underline">
+          <Link href="/login" className={lienDePied}>
             {t("forgot.backToLogin")}
           </Link>
         }
@@ -113,23 +113,25 @@ export default function ResetPasswordPage() {
   return (
     <AuthCard title={t("reset.title")} subtitle={t("reset.subtitle")}>
       <form className="flex flex-col gap-3" onSubmit={onSubmit}>
-        <input
-          required
-          autoComplete="off"
-          placeholder={t("reset.phrasePlaceholder")}
-          value={phrase}
-          onChange={(e) => setPhrase(e.target.value)}
-          className={inputClass}
-        />
-        <input
-          required
-          type="password"
-          autoComplete="new-password"
-          placeholder={t("reset.newPassword")}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className={inputClass}
-        />
+        <Champ label={t("reset.phrase")}>
+          <input
+            required
+            autoComplete="off"
+            value={phrase}
+            onChange={(e) => setPhrase(e.target.value)}
+            className={inputClass}
+          />
+        </Champ>
+        <Champ label={t("reset.newPassword")}>
+          <input
+            required
+            type="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={inputClass}
+          />
+        </Champ>
         {lost.length > 0 && (
           <p className="text-2xs text-muted">
             {t("reset.partialWarning").replace("{n}", String(lost.length))}

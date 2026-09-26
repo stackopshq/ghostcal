@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { inputClass, primaryButtonClass } from "@/components/AuthCard";
 import CalendarSettings from "@/components/CalendarSettings";
 import PrivacySettings from "@/components/PrivacySettings";
+import SecondFacteur from "@/components/SecondFacteur";
 import WebhookSettings from "@/components/WebhookSettings";
 import { ApiError } from "@/lib/api";
 import { isAuthenticated } from "@/lib/auth";
@@ -128,6 +129,13 @@ export default function SettingsPage() {
           )}
         </div>
       </form>
+
+      {/* Le second facteur en premier des sections : c'est la seule qui protège le compte
+          lui-même, et elle était absente de cette page alors que le serveur la sert depuis
+          des semaines. */}
+      <section className="glass rounded-lg p-6 sm:p-8">
+        <SecondFacteur />
+      </section>
 
       <section className="glass rounded-lg p-6 sm:p-8">
         <CalendarSettings />

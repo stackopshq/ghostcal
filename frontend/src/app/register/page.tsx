@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import AuthCard, { inputClass, primaryButtonClass } from "@/components/AuthCard";
+import AuthCard, { Champ, inputClass, lienDePied, primaryButtonClass } from "@/components/AuthCard";
 import { ApiError } from "@/lib/api";
 import { register } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
@@ -50,7 +50,7 @@ export default function RegisterPage() {
         title={t("register.checkInbox")}
         subtitle={t("register.checkInboxSub", { email })}
         footer={
-          <Link href="/login" className="text-accent hover:underline">
+          <Link href="/login" className={lienDePied}>
             {t("register.backToSignIn")}
           </Link>
         }
@@ -67,7 +67,7 @@ export default function RegisterPage() {
             <button
               type="button"
               onClick={() => void navigator.clipboard?.writeText(recoveryPhrase)}
-              className="mt-2 text-xs text-accent hover:underline"
+              className={`mt-2 text-xs ${lienDePied}`}
             >
               {t("register.recoveryCopy")}
             </button>
@@ -84,37 +84,50 @@ export default function RegisterPage() {
       footer={
         <>
           {t("register.haveAccount")}{" "}
-          <Link href="/login" className="text-accent hover:underline">
+          <Link href="/login" className={lienDePied}>
             {t("common.signIn")}
           </Link>
         </>
       }
     >
       <form className="flex flex-col gap-3" onSubmit={onSubmit}>
-        <input
-          required
-          placeholder={t("register.yourName")}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className={inputClass}
-        />
-        <input
-          required
-          type="email"
-          placeholder={t("common.email")}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className={inputClass}
-        />
-        <input
-          required
-          type="password"
-          minLength={MIN_PASSWORD_LENGTH}
-          placeholder={t("register.passwordPh")}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className={inputClass}
-        />
+        <Champ label={t("register.yourName")}>
+          <input
+            required
+            autoComplete="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className={inputClass}
+          />
+        </Champ>
+        <Champ label={t("common.email")}>
+          <input
+            required
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className={inputClass}
+          />
+        </Champ>
+        {/* L'exigence vient de `MIN_PASSWORD_LENGTH`, la seule source. La phrase
+            annonçait « 8 caractères min. » pendant que `minLength` en imposait 12 :
+            un mot de passe de 9 caractères satisfaisait l'étiquette et se faisait
+            refuser par le navigateur, sans que rien n'explique l'écart. */}
+        <Champ label={t("register.password")}>
+          <input
+            required
+            type="password"
+            minLength={MIN_PASSWORD_LENGTH}
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={inputClass}
+          />
+          <span className="text-xs text-muted">
+            {t("register.passwordHint", { min: MIN_PASSWORD_LENGTH })}
+          </span>
+        </Champ>
         {error && <p className="text-sm text-red-400">{error}</p>}
         <button type="submit" disabled={submitting} className={primaryButtonClass}>
           {submitting ? t("register.submitting") : t("register.submit")}
