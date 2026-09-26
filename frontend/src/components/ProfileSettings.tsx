@@ -12,6 +12,7 @@ import {
   removeAvatar,
   updateProfile,
   uploadAvatar,
+  chargerAvatar,
 } from "@/lib/profile";
 import { MIN_PASSWORD_LENGTH } from "@/lib/passwords";
 
@@ -122,11 +123,51 @@ export default function ProfileSettings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** L'adresse de l'image téléversée, empreinte de cache comprise. */
+  /** L'image téléversée, chargée AVEC le jeton, puis tenue en URL d'objet.
+   *
+   * Ce n'était qu'une adresse posée dans `src` — et un `<img>` n'envoie pas
+   * d'en-tête `Authorization`. La route en exige un ; l'image partait donc en
+   * 401, `onError` se déclenchait, et l'écran retombait sur les initiales comme
+   * si rien n'avait été téléversé. L'adresse oubliait de surcroît le préfixe de
+   * l'API et visait l'application Next, qui rend 404.
+   *
+   * Plus d'empreinte `?v=` : `avatarPose` change à chaque téléversement, donc
+   * cet effet rejoue et refait une URL d'objet neuve. Il n'y a pas de cache
+   * navigateur à déjouer, l'octet vient d'ici.
+   */
+  // L'URL d'objet est retenue AVEC la version qu'elle montre. Sans cela, retirer
+  // l'avatar puis en téléverser un autre afficherait l'ancien — déjà révoqué,
+  // donc cassé — pendant le chargement du nouveau.
+  const [blobAvatar, setBlobAvatar] = useState<{ pose: string; url: string } | null>(null);
+
+  useEffect(() => {
+    if (!avatarPose || !profilId) return;
+    let actif = true;
+    // Révoquée au démontage : une URL d'objet retient son blob en mémoire tant
+    // que personne ne la relâche, et l'écran en fabrique une à chaque changement.
+    let aRevoquer = "";
+    const pose = avatarPose;
+    chargerAvatar(profilId)
+      .then((u) => {
+        if (!actif) {
+          URL.revokeObjectURL(u);
+          return;
+        }
+        aRevoquer = u;
+        setBlobAvatar({ pose, url: u });
+        setAvatarBroken(false);
+      })
+      .catch(() => {
+        if (actif) setBlobAvatar(null);
+      });
+    return () => {
+      actif = false;
+      if (aRevoquer) URL.revokeObjectURL(aRevoquer);
+    };
+  }, [avatarPose, profilId]);
+
   const urlAvatarPose =
-    avatarPose && profilId
-      ? `/v1/me/profile/avatar/${profilId}?v=${encodeURIComponent(avatarPose)}`
-      : "";
+    blobAvatar && blobAvatar.pose === avatarPose ? blobAvatar.url : "";
 
   async function televerser(fichier: File) {
     setAvatarErreur(null);

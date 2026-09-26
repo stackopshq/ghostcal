@@ -1,6 +1,6 @@
 // User profile API client.
 
-import { authedFetch } from "@/lib/auth";
+import { authedFetch, authedRequest } from "@/lib/auth";
 
 export type Profile = {
   id: string;
@@ -56,4 +56,25 @@ export function changePassword(body: {
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+/** Charge l'avatar téléversé et rend une URL d'objet, à révoquer par l'appelant.
+ *
+ * ─── Pourquoi ce détour plutôt qu'un `<img src="…">` ───
+ *
+ * La route `GET /v1/me/profile/avatar/{id}` exige `current_member`, donc un en-tête
+ * `Authorization: Bearer`. Un `<img>` n'en envoie **jamais** : le navigateur ne pose
+ * que les cookies. L'image partait donc en 401, `onError` se déclenchait, et l'écran
+ * retombait sur les initiales — exactement comme si aucun avatar n'avait été
+ * téléversé. Le téléversement, lui, réussissait.
+ *
+ * Et l'adresse construite à la main oubliait le préfixe de l'API : elle demandait
+ * `/v1/me/profile/avatar/…` à l'application Next, qui rend 404. Deux raisons
+ * indépendantes, chacune suffisante, d'où l'absence de toute trace côté serveur.
+ *
+ * `authedRequest` apporte le jeton, le préfixe et le rafraîchissement sur 401.
+ */
+export async function chargerAvatar(userId: string): Promise<string> {
+  const res = await authedRequest(`/v1/me/profile/avatar/${userId}`);
+  return URL.createObjectURL(await res.blob());
 }
