@@ -425,11 +425,16 @@ async function tryRefresh(): Promise<boolean> {
   }
 }
 
-/** Fetch an authenticated endpoint, transparently refreshing once on a 401. */
-export async function authedFetch<T>(
+/** Exécute la requête authentifiée et rend la réponse BRUTE.
+ *
+ * Séparé de `authedFetch` parce que tout ce que sert l'API n'est pas du JSON : une image
+ * téléversée arrive en octets. Le rafraîchissement du jeton sur 401 vit ici, une seule
+ * fois, plutôt que recopié par chaque appelant qui veut autre chose que du JSON.
+ */
+export async function authedRequest(
   path: string,
   init?: RequestInit,
-): Promise<T> {
+): Promise<Response> {
   const org = getActiveOrg();
 
   // Un corps `FormData` ne doit PAS porter de `Content-Type` posé à la main.
@@ -461,6 +466,15 @@ export async function authedFetch<T>(
     const detail = await res.text().catch(() => res.statusText);
     throw new ApiError(res.status, detail || res.statusText);
   }
+  return res;
+}
+
+/** Fetch an authenticated endpoint, transparently refreshing once on a 401. */
+export async function authedFetch<T>(
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
+  const res = await authedRequest(path, init);
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
 
