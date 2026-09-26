@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { unlockZkKeys } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
+import {
+  LockIcon,
+} from "@/components/icons";
 
 /**
  * The locked banner, with the one thing it was missing: a way out.
@@ -44,15 +47,15 @@ export default function UnlockBanner() {
   }
 
   return (
-    <div className="glass rounded-xl border-l-[3px] border-l-accent p-3 text-sm text-accent/90">
+    <div className="glass rounded border-l-[3px] border-l-accent p-3 text-sm text-accent/90">
       <div className="flex flex-wrap items-center gap-2">
-        <span aria-hidden>🔒</span>
+        <LockIcon />
         <span className="min-w-0 flex-1">{t("calendar.locked")}</span>
         {!open && (
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-accent-ink transition hover:brightness-110"
+            className="shrink-0 rounded-pill bg-accent px-3 py-1.5 text-sm font-semibold text-accent-ink transition hover:brightness-110"
           >
             {t("callback.unlockSubmit")}
           </button>
@@ -68,12 +71,12 @@ export default function UnlockBanner() {
             value={passphrase}
             onChange={(e) => setPassphrase(e.target.value)}
             placeholder={t("callback.unlockTitle")}
-            className="min-w-0 flex-1 rounded-lg border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+            className="min-w-0 flex-1 rounded border border-border bg-surface-2/40 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
           />
           <button
             type="submit"
             disabled={busy || !passphrase}
-            className="shrink-0 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-40"
+            className="shrink-0 rounded-pill bg-accent px-3 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-40"
           >
             {busy ? t("common.saving") : t("callback.unlockSubmit")}
           </button>

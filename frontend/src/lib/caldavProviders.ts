@@ -1,0 +1,222 @@
+/**
+ * Where a CalDAV calendar actually lives, so nobody has to go looking for it.
+ *
+ * The form used to ask for a "CalDAV server URL" with a Fastmail address as the example. For iCloud
+ * — the case that came up — there is nothing to find: Apple publishes no personal URL, and
+ * `https://caldav.icloud.com/` is a constant, the same for every account. Asking someone to fetch a
+ * value that does not exist cannot be rescued by a better error message, because the server is
+ * never reached. The fix is to stop asking.
+ *
+ * Basic auth is the only scheme the backend speaks (`caldav.DAVClient(url, username, password)`),
+ * and that decides who can be on this list.
+ */
+
+/** What the username field means differs per provider, so the form says which. */
+export type CaldavProvider = {
+  id: string;
+  /** i18n key for the display name. */
+  nameKey: string;
+  /** Fixed for hosted providers; null when the user must supply it (self-hosted, or unknown). */
+  serverUrl: string | null;
+  /** Shown in the URL field when there is no fixed URL — a shape, not an example to copy. */
+  urlTemplateKey?: string;
+  /**
+   * False when the provider cannot be connected this way at all. Listed anyway: an absent Google
+   * reads as an oversight, and the user then types its address into "Other" and fails there
+   * instead. Saying why, once, is shorter than that.
+   */
+  supported: boolean;
+  /** i18n key for provider-specific guidance — app passwords, where to make one. */
+  helpKey: string | null;
+  /** i18n key describing what the username is for this provider. */
+  usernameKey: string;
+};
+
+export const CALDAV_PROVIDERS: CaldavProvider[] = [
+  {
+    id: "icloud",
+    nameKey: "cal.provider.icloud",
+    serverUrl: "https://caldav.icloud.com/",
+    supported: true,
+    helpKey: "cal.help.icloud",
+    usernameKey: "cal.user.icloud",
+  },
+  {
+    id: "fastmail",
+    nameKey: "cal.provider.fastmail",
+    serverUrl: "https://caldav.fastmail.com/",
+    supported: true,
+    helpKey: "cal.help.fastmail",
+    usernameKey: "cal.user.fastmail",
+  },
+  {
+    id: "infomaniak",
+    nameKey: "cal.provider.infomaniak",
+    // Measured on 2026-08-31, without an account and without guessing:
+    //   OPTIONS https://sync.infomaniak.com/   → 401, WWW-Authenticate: Basic realm="sabre/dav"
+    //   GET     /.well-known/caldav            → 302 to the same root
+    //   caldav.infomaniak.com                  → does not resolve
+    // Basic auth over SabreDAV, so the backend's `caldav.DAVClient` speaks it; and the discovery
+    // record points at the root, so the address is a constant like iCloud's and the field goes.
+    serverUrl: "https://sync.infomaniak.com/",
+    supported: true,
+    helpKey: "cal.help.infomaniak",
+    usernameKey: "cal.user.infomaniak",
+  },
+  {
+    id: "mailbox",
+    nameKey: "cal.provider.mailbox",
+    // Measured on 2026-08-31, without an account:
+    //   OPTIONS https://dav.mailbox.org/          → 401, WWW-Authenticate: Basic realm="OX WebDAV"
+    //   GET     /.well-known/caldav               → 301 to https://dav.mailbox.org/caldav/
+    //   OPTIONS https://dav.mailbox.org/caldav/   → 401, same realm
+    //   caldav.mailbox.org                        → does not resolve
+    // Basic auth over Open-Xchange, so `caldav.DAVClient` speaks it. Note the address is the
+    // /caldav/ path and not the root: unlike Infomaniak, the discovery record points somewhere
+    // else, which is exactly the kind of detail a user cannot be asked to know.
+    serverUrl: "https://dav.mailbox.org/caldav/",
+    supported: true,
+    helpKey: "cal.help.mailbox",
+    usernameKey: "cal.user.mailbox",
+  },
+  {
+    id: "nextcloud",
+    nameKey: "cal.provider.nextcloud",
+    // Per-installation by definition, so the field stays open — but with the shape shown, which is
+    // the part people actually get wrong.
+    serverUrl: null,
+    urlTemplateKey: "cal.tpl.nextcloud",
+    supported: true,
+    helpKey: "cal.help.nextcloud",
+    usernameKey: "cal.user.nextcloud",
+  },
+  {
+    id: "google",
+    nameKey: "cal.provider.google",
+    serverUrl: null,
+    // Google's CalDAV requires OAuth 2.0; there is no password-authenticated endpoint, so no URL
+    // and no app password would make this work. The form says so instead of letting it fail.
+    //
+    // **And it is closed for good, which is the part worth writing down.** The obstacle is not
+    // that OAuth is work: it is that Google accepts no wildcard in a redirect URI. A client
+    // registered by StackOps could never redirect back to a self-hoster's own domain, so the only
+    // ways through are a relay we host — which would see every self-hoster's authorization code,
+    // and take the self-hosted out of self-hosted — or asking each operator to register their own
+    // client in the Google console. The Calendar scope is "sensitive" on top of that: an
+    // unverified client is capped and shows a discouraging warning, and verification is a
+    // submission rather than a checkbox.
+    //
+    // Home Assistant and Nextcloud met the same wall and took the same road. Someone reading
+    // "Google, not connectable" without this will read it as a gap and set out to close it — and
+    // would make the whole trip before finding the wildcard.
+    supported: false,
+    helpKey: "cal.help.google",
+    usernameKey: "cal.user.other",
+  },
+  {
+    id: "microsoft",
+    nameKey: "cal.provider.microsoft",
+    serverUrl: null,
+    // **Established by measurement**, 2026-08-31: no CalDAV discovery record answers.
+    //   caldav.outlook.com, caldav.office365.com    → do not resolve
+    //   outlook.office.com/.well-known/caldav       → 404
+    //   office365.com/.well-known/caldav            → 403
+    //   caldav.live.com/.well-known/caldav          → 301 to outlook.live.com/mail/, a mailbox
+    //
+    // **Not established**: that Microsoft has no CalDAV anywhere. A probe that finds nothing
+    // measures the probe as much as the target, and the reason usually given — that Graph and
+    // OAuth replaced it — comes from documentation rather than from anything observed here. What
+    // the list says is what was measured: nothing we can point `caldav.DAVClient` at.
+    supported: false,
+    helpKey: "cal.help.microsoft",
+    usernameKey: "cal.user.other",
+  },
+  {
+    id: "proton",
+    nameKey: "cal.provider.proton",
+    serverUrl: null,
+    // Established, 2026-08-31: `dav.proton.me` and `caldav.protonmail.ch` do not resolve.
+    //
+    // Not established: the architectural reason. Proton Calendar is end-to-end encrypted and a
+    // CalDAV server would have to hand out cleartext, which is why no such host is expected to
+    // exist — but that is read, not measured, and the entry says only what a user needs.
+    supported: false,
+    helpKey: "cal.help.proton",
+    usernameKey: "cal.user.other",
+  },
+  {
+    id: "other",
+    nameKey: "cal.provider.other",
+    serverUrl: null,
+    urlTemplateKey: "cal.tpl.other",
+    supported: true,
+    helpKey: null,
+    usernameKey: "cal.user.other",
+  },
+];
+
+export function providerFor(id: string): CaldavProvider {
+  return CALDAV_PROVIDERS.find((p) => p.id === id) ?? CALDAV_PROVIDERS[0];
+}
+
+/**
+ * Whether this looks like a published calendar file rather than a CalDAV server.
+ *
+ * Two forms of the same mistake: a `webcal://` link, which is what every provider's "share" button
+ * produces, and a direct `.ics`. Both are read-only snapshots and belong in Subscriptions — where
+ * `_validate_feed_url` already rewrites `webcal://` to `https://`, which means someone hit this
+ * exact confusion and fixed it in the other field.
+ *
+ * Answering "could not reach the calendar server" here is true and worthless: the server was never
+ * the problem, the field was.
+ */
+export function looksLikePublishedFeed(url: string): boolean {
+  const value = url.trim().toLowerCase();
+  if (!value) return false;
+  if (value.startsWith("webcal://")) return true;
+  // Strip any query string before looking at the extension: `…/basic.ics?token=…` is still a file.
+  return /\.ics(\?|$)/.test(value.split("#")[0]);
+}
+
+/**
+ * Who actually receives a mirrored booking, named from the address the host connected.
+ *
+ * Returned as a provider id when the address is one we know, and `null` when it is not. A
+ * self-hosted Nextcloud or an "other" server belongs to someone we have never identified, and
+ * naming a company we have not established would be worse than naming none — the point of the
+ * sentence is to be true.
+ */
+export function providerIdForServer(serverUrl: string): string | null {
+  const value = serverUrl.trim().toLowerCase();
+  if (!value) return null;
+  const match = CALDAV_PROVIDERS.find(
+    (p) => p.serverUrl && value.startsWith(p.serverUrl.toLowerCase()),
+  );
+  return match ? match.id : null;
+}
+
+/**
+ * How to show a connection in a list: the host, then the account.
+ *
+ * Not `username@server_url`, which is what it used to be and which read
+ * `clara@example.com@https://caldav.icloud.com/` — two at-signs, one of them inside an address that
+ * already had one. The host is what tells two connections apart; the URL is plumbing.
+ */
+export function connectionLabel(
+  serverUrl: string,
+  username: string,
+): { host: string; account: string } {
+  const id = providerIdForServer(serverUrl);
+  if (id) {
+    const provider = CALDAV_PROVIDERS.find((p) => p.id === id);
+    return { host: provider ? provider.nameKey : serverUrl, account: username };
+  }
+  // Unknown provider: the hostname is the most useful true thing we have.
+  let host = serverUrl;
+  try {
+    host = new URL(serverUrl).host || serverUrl;
+  } catch {
+    // Not a parseable URL — show it as typed rather than inventing a tidier version.
+  }
+  return { host, account: username };
+}

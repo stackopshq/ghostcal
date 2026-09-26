@@ -61,7 +61,7 @@ export default function CalendarYearGrid({
   }, [locale]);
 
   return (
-    <div className="glass grid gap-6 rounded-2xl p-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="glass grid gap-6 rounded-lg p-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {monthNames.map((name, month) => {
         const first = new Date(year, month, 1);
         const offset = (first.getDay() + 6) % 7; // Monday-first
@@ -72,7 +72,7 @@ export default function CalendarYearGrid({
             <h3 className="mb-2 text-sm font-medium capitalize text-foreground">
               {name}
             </h3>
-            <div className="grid grid-cols-7 gap-y-1 text-center text-[10px] text-muted">
+            <div className="grid grid-cols-7 gap-y-1 text-center text-2xs text-muted">
               {weekdayInitials.map((d) => (
                 <span key={d.key}>{d.label}</span>
               ))}
@@ -88,7 +88,7 @@ export default function CalendarYearGrid({
                     type="button"
                     onClick={() => onPickDay(day)}
                     aria-label={`${day.toLocaleDateString(locale)}${isToday(day) ? ` (${todayLabel})` : ""}`}
-                    className={`relative mx-auto flex h-6 w-6 items-center justify-center rounded-full text-[11px] transition hover:bg-surface-2 ${
+                    className={`relative mx-auto flex h-6 w-6 items-center justify-center rounded-pill text-2xs transition hover:bg-surface-2 ${
                       isToday(day)
                         ? "bg-accent font-semibold text-black"
                         : count > 0
@@ -100,7 +100,7 @@ export default function CalendarYearGrid({
                     {count > 0 && !isToday(day) && (
                       <span
                         aria-hidden
-                        className="absolute bottom-0 h-1 w-1 rounded-full bg-accent"
+                        className="absolute bottom-0 h-1 w-1 rounded-pill bg-accent"
                         // Weight, not count: three dots in a 6px cell is noise. Opacity carries the
                         // "busy day" signal legibly, and the day view carries the detail.
                         style={{ opacity: Math.min(1, 0.35 + count * 0.2) }}

@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from ghostcal.application.audit import Action, AuditLog
 from ghostcal.application.auth import (
     AuthConfig,
     AuthenticatedUser,
@@ -23,24 +24,47 @@ from ghostcal.application.auth import (
     TokenPair,
     ZkKeyMaterial,
     ZkKeysAlreadySet,
+    ZkRewrap,
 )
 from ghostcal.application.passwords import PasswordRejected
 from ghostcal.application.ports.clock import SystemClock
+from ghostcal.application.ports.email import EmailSender
+from ghostcal.application.two_factor import (
+    TwoFactorAlreadyEnabled,
+    TwoFactorInvalid,
+    TwoFactorLocked,
+    TwoFactorNotEnrolled,
+    TwoFactorRequired,
+    TwoFactorService,
+)
 from ghostcal.config import get_settings
+from ghostcal.infrastructure.db.audit_repository import SqlAuditSink
 from ghostcal.infrastructure.db.auth_repository import SqlAuthRepository
 from ghostcal.infrastructure.db.session import db_session
+from ghostcal.infrastructure.db.two_factor_repository import SqlTwoFactorRepository
 from ghostcal.infrastructure.email import build_email_sender
+from ghostcal.infrastructure.email.outbox import DeferredEmailSender
 from ghostcal.infrastructure.ratelimit import rate_limit
 from ghostcal.infrastructure.security.hibp import HibpBreachedPasswordChecker
 from ghostcal.infrastructure.security.oidc import OIDCNotConfigured, oidc_client
 from ghostcal.infrastructure.security.passwords import Argon2PasswordHasher
 from ghostcal.infrastructure.security.tokens import JwtAccessTokenCodec
+from ghostcal.infrastructure.security.totp import PyotpEngine
+from ghostcal.infrastructure.tasks import enqueue_email
 from ghostcal.presentation.schemas import (
+    ForgotPasswordIn,
     LoginIn,
+    RecoveryCodesOut,
     RefreshIn,
     RegisteredOut,
     RegisterIn,
+    ResetPasswordIn,
     TokenOut,
+    TwoFactorCodeIn,
+    TwoFactorDisableIn,
+    TwoFactorSetupIn,
+    TwoFactorSetupOut,
+    TwoFactorStatusOut,
     UserOut,
     VerifyEmailIn,
     ZkKeyMaterialIn,
@@ -64,11 +88,13 @@ _codec = JwtAccessTokenCodec(
 )
 _mailer = build_email_sender(_settings)
 _clock = SystemClock()
+_totp_engine = PyotpEngine()
 _breach_checker = HibpBreachedPasswordChecker(enabled=_settings.password_breach_check_enabled)
 _config = AuthConfig(
     access_ttl=timedelta(seconds=_settings.access_token_ttl_seconds),
     refresh_ttl=timedelta(seconds=_settings.refresh_token_ttl_seconds),
     email_verification_ttl=timedelta(seconds=_settings.email_verification_ttl_seconds),
+    password_reset_ttl=timedelta(seconds=_settings.password_reset_ttl_seconds),
     frontend_base_url=_settings.frontend_base_url,
 )
 
@@ -82,15 +108,38 @@ def _token_out(tokens: TokenPair) -> TokenOut:
     )
 
 
-def _service(session: object) -> AuthService:
+def _service(session: object, mailer: EmailSender | None = None) -> AuthService:
+    """Build the service for one request.
+
+    `mailer` defaults to the direct sender because most routes here send nothing at all. A route
+    that *does* send passes a `DeferredEmailSender` and drains it after its transaction commits --
+    which is the whole of the fix for the 500s of 2026-09-25. The default is the old synchronous
+    sender rather than a second outbox on purpose: if a future route sends and forgets to drain,
+    it sends the slow way, which is visible. An undrained outbox would drop the mail in silence.
+    """
     return AuthService(
         SqlAuthRepository(session),  # type: ignore[arg-type]
         _hasher,
         _codec,
-        _mailer,
+        mailer or _mailer,
         _clock,
         _config,
+        _two_factor(session),
         _breach_checker,
+    )
+
+
+def _audit(session: object) -> AuditLog:
+    """Le journal de compte : `organization_id` reste nul, le second facteur n'appartient
+    à aucune organisation."""
+    return AuditLog(SqlAuditSink(session))  # type: ignore[arg-type]
+
+
+def _two_factor(session: object) -> TwoFactorService:
+    return TwoFactorService(
+        SqlTwoFactorRepository(session),  # type: ignore[arg-type]
+        _totp_engine,
+        _clock,
     )
 
 
@@ -126,6 +175,7 @@ async def auth_config() -> dict[str, bool | str | None]:
     return {
         "oidc_enabled": _settings.oidc_enabled,
         "ghostmail_url": _settings.ghostmail_url,
+        "privacy_url": _settings.privacy_url,
     }
 
 
@@ -138,9 +188,13 @@ async def register(payload: RegisterIn) -> RegisteredOut:
         recovery_wrapped_private_key=payload.zk_keys.recovery_wrapped_private_key,
         recovery_salt=payload.zk_keys.recovery_salt,
     )
+    # The verification token is written inside the transaction below; the email that carries it
+    # leaves this process afterwards, through the worker. Buffering it here is what keeps the two
+    # apart -- see infrastructure/email/outbox.py for the 500s that taught us the difference.
+    outbox = DeferredEmailSender(enqueue_email)
     async with db_session() as session:
         try:
-            user_id = await _service(session).register(
+            user_id = await _service(session, outbox).register(
                 email=payload.email,
                 name=payload.name,
                 password=payload.password,
@@ -152,6 +206,10 @@ async def register(payload: RegisterIn) -> RegisteredOut:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except EmailAlreadyRegistered as exc:
             raise HTTPException(status_code=409, detail="email already registered") from exc
+    # Committed: the account and its verification row exist. Only now may a worker be told, and
+    # only now can it read what it will be asked to mail about. `hand_off` never raises, so an
+    # unreachable Redis costs this user an email and not an account.
+    outbox.hand_off()
     return RegisteredOut(user_id=user_id)
 
 
@@ -195,6 +253,77 @@ async def setup_zk_keys(payload: ZkKeyMaterialIn, user: CurrentUser) -> None:
             await _service(session).setup_zk_keys(user.id, material)
         except ZkKeysAlreadySet as exc:
             raise HTTPException(status_code=409, detail="keys already set") from exc
+
+
+@router.post("/forgot-password", status_code=202, dependencies=_AUTH_RL)
+async def forgot_password(payload: ForgotPasswordIn) -> None:
+    """Start a password reset. Always 202, whether or not the address is known.
+
+    Answering differently for a known and an unknown address would turn this into an
+    account-enumeration oracle, and the caller is unauthenticated.
+    """
+    outbox = DeferredEmailSender(enqueue_email)
+    async with db_session() as session:
+        await _service(session, outbox).request_password_reset(email=payload.email)
+    # Same two-step as `register`, and here it is what makes the docstring above true. Sending
+    # inside the transaction meant a provider refusal answered 500 for an address that exists and
+    # is verified, and 202 for one that does not -- an enumeration oracle built out of an outage.
+    outbox.hand_off()
+
+
+@router.get(
+    "/reset-password/{token}/zk-keys", response_model=list[ZkKeysOut], dependencies=_AUTH_RL
+)
+async def reset_password_zk_keys(token: str) -> list[ZkKeysOut]:
+    """The key envelopes for a live reset token, so the browser can open them with the phrase.
+
+    Unauthenticated by necessity: the whole point is that the caller cannot log in. Safe because
+    every envelope returned is sealed under the recovery phrase — 24 random bytes, 192 bits, behind
+    Argon2id — so the link alone yields ciphertext.
+
+    A read, not a spend: a wrong recovery phrase must not burn the link.
+    """
+    async with db_session() as session:
+        try:
+            bundles = await _service(session).zk_keys_for_reset(token=token)
+        except InvalidToken as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return [
+        ZkKeysOut(
+            organization_id=b.organization_id,
+            public_key=b.public_key,
+            generation=b.generation,
+            sealed_org_key=b.sealed_org_key,
+            wrapped_private_key=b.wrapped_private_key,
+            wrap_salt=b.wrap_salt,
+            recovery_wrapped_private_key=b.recovery_wrapped_private_key,
+            recovery_salt=b.recovery_salt,
+        )
+        for b in bundles
+    ]
+
+
+@router.post("/reset-password", status_code=204, dependencies=_AUTH_RL)
+async def reset_password(payload: ResetPasswordIn) -> None:
+    """Finish a reset: the new password and the re-wrapped envelopes, together."""
+    async with db_session() as session:
+        try:
+            await _service(session).reset_password(
+                token=payload.token,
+                new_password=payload.new_password,
+                envelopes=[
+                    ZkRewrap(
+                        organization_id=e.organization_id,
+                        wrapped_private_key=e.wrapped_private_key,
+                        wrap_salt=e.wrap_salt,
+                    )
+                    for e in payload.envelopes
+                ],
+            )
+        except PasswordRejected as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except InvalidToken as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/zk-rewrap", status_code=204, dependencies=_AUTH_RL)
@@ -316,13 +445,55 @@ async def verify_email(payload: VerifyEmailIn) -> None:
 
 @router.post("/login", response_model=TokenOut, dependencies=_AUTH_RL)
 async def login(payload: LoginIn) -> TokenOut:
+    """Connexion. Si le compte a un second facteur, un premier appel sans code le réclame.
+
+    Le corps de la réponse 401 reprend la forme de GhostPass — `mfa_required`,
+    `mfa_type` — pour qu'un client de la suite reconnaisse la demande au même
+    endroit, sous le même nom, dans les deux applications.
+    """
     async with db_session() as session:
         try:
-            tokens = await _service(session).login(email=payload.email, password=payload.password)
+            tokens = await _service(session).login(
+                email=payload.email, password=payload.password, totp_code=payload.totp_code
+            )
         except InvalidCredentials as exc:
             raise HTTPException(status_code=401, detail="invalid email or password") from exc
         except EmailNotVerified as exc:
             raise HTTPException(status_code=403, detail="email not verified") from exc
+        except TwoFactorLocked as exc:
+            # 429 et non 401 : ce n'est pas « mauvais code », c'est « trop
+            # d'essais ». Les confondre ferait tourner un client légitime en
+            # boucle sur une saisie qui ne peut pas aboutir avant l'échéance.
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "detail": "too many two-factor attempts",
+                    "mfa_required": True,
+                    "mfa_type": "totp",
+                    "locked_until": exc.until.isoformat(),
+                },
+            ) from exc
+        except TwoFactorRequired as exc:
+            raise HTTPException(
+                status_code=401,
+                detail={
+                    "detail": "two-factor code required",
+                    "mfa_required": True,
+                    "mfa_type": "totp",
+                },
+            ) from exc
+        except TwoFactorInvalid as exc:
+            # Même message pour un code faux et pour un code rejoué : distinguer
+            # les deux dirait à qui vient de capter un code qu'il a bien capté
+            # un code.
+            raise HTTPException(
+                status_code=401,
+                detail={
+                    "detail": "invalid two-factor code",
+                    "mfa_required": True,
+                    "mfa_type": "totp",
+                },
+            ) from exc
     return _token_out(tokens)
 
 
@@ -358,3 +529,127 @@ async def me(user: CurrentUser) -> UserOut:
         email_verified=record.email_verified,
         has_password=record.password_hash is not None,
     )
+
+
+# ---------------------------------------------------------------------------
+# Second facteur (TOTP)
+#
+# Le chemin et le vocabulaire reprennent ceux de GhostPass (`/api/mfa`,
+# `setup` / `activate` / `disable`) : la même suite, le même utilisateur, et
+# rien à réapprendre en passant d'une application à l'autre. Ce qui s'y ajoute
+# — les codes de récupération — est ce qui manque à GhostPass, pas une
+# divergence de plus.
+# ---------------------------------------------------------------------------
+
+
+def _mfa_invalid() -> HTTPException:
+    return HTTPException(status_code=401, detail="invalid two-factor code")
+
+
+def _mfa_locked(exc: TwoFactorLocked) -> HTTPException:
+    return HTTPException(
+        status_code=429,
+        detail={"detail": "too many two-factor attempts", "locked_until": exc.until.isoformat()},
+    )
+
+
+@router.get("/mfa", response_model=TwoFactorStatusOut)
+async def mfa_status(user: CurrentUser) -> TwoFactorStatusOut:
+    """L'état du second facteur.
+
+    Sans cette question, un client ne peut pas distinguer « activer » de
+    « désactiver », et proposer « activer » à quelqu'un qui l'a déjà remettrait
+    son secret à zéro sans prévenir. `recovery_codes_remaining` est là pour que
+    l'interface puisse alerter avant que la réserve soit vide — le moment où
+    l'utilisateur se croit protégé et n'a plus de porte de sortie.
+    """
+    async with db_session() as session:
+        status = await _two_factor(session).status(user.id)
+    return TwoFactorStatusOut(
+        enabled=status.enabled,
+        pending=status.pending,
+        recovery_codes_remaining=status.recovery_codes_remaining,
+    )
+
+
+@router.post("/mfa/setup", response_model=TwoFactorSetupOut, dependencies=_AUTH_RL)
+async def mfa_setup(payload: TwoFactorSetupIn, user: CurrentUser) -> TwoFactorSetupOut:
+    """Démarre l'enrôlement : rend le secret et l'URI du QR code.
+
+    Le mot de passe est redemandé alors que la session est déjà ouverte, parce
+    que l'opération remet le secret à zéro : une session laissée ouverte sur un
+    poste partagé ne doit pas suffire à déplacer le second facteur d'un compte
+    vers un autre téléphone.
+
+    Rien n'est protégé à ce stade — la ligne écrite ici ne garde aucune porte
+    tant que `/mfa/activate` n'a pas reçu un premier code juste.
+    """
+    async with db_session() as session:
+        if not await _service(session).verify_password(user.id, payload.password):
+            raise HTTPException(status_code=401, detail="invalid password")
+        try:
+            enrolment = await _two_factor(session).begin_enrolment(user.id, account=user.email)
+        except TwoFactorAlreadyEnabled as exc:
+            raise HTTPException(status_code=409, detail="two-factor is already enabled") from exc
+    return TwoFactorSetupOut(secret=enrolment.secret, otpauth_uri=enrolment.otpauth_uri)
+
+
+@router.post("/mfa/activate", response_model=RecoveryCodesOut, dependencies=_AUTH_RL)
+async def mfa_activate(payload: TwoFactorCodeIn, user: CurrentUser) -> RecoveryCodesOut:
+    """Active le second facteur contre un premier code, et rend les codes de récupération.
+
+    C'est le seul moment où ils sont lisibles : seules leurs empreintes sont
+    gardées, donc ni le support ni nous ne pourrons les réafficher.
+    """
+    async with db_session() as session:
+        try:
+            codes = await _two_factor(session).activate(user.id, code=payload.code)
+        except TwoFactorNotEnrolled as exc:
+            raise HTTPException(status_code=409, detail="no two-factor setup in progress") from exc
+        except TwoFactorAlreadyEnabled as exc:
+            raise HTTPException(status_code=409, detail="two-factor is already enabled") from exc
+        except TwoFactorInvalid as exc:
+            raise _mfa_invalid() from exc
+        await _audit(session).record(Action.MFA_ENABLED, actor_user_id=user.id, target=str(user.id))
+    return RecoveryCodesOut(recovery_codes=codes)
+
+
+@router.post("/mfa/disable", status_code=204, dependencies=_AUTH_RL)
+async def mfa_disable(payload: TwoFactorDisableIn, user: CurrentUser) -> None:
+    """Retire le second facteur. Exige le mot de passe ET un code encore valide."""
+    async with db_session() as session:
+        if not await _service(session).verify_password(user.id, payload.password):
+            raise HTTPException(status_code=401, detail="invalid password")
+        try:
+            await _two_factor(session).disable(user.id, code=payload.code)
+        except TwoFactorNotEnrolled as exc:
+            raise HTTPException(status_code=409, detail="two-factor is not enabled") from exc
+        except TwoFactorLocked as exc:
+            raise _mfa_locked(exc) from exc
+        except TwoFactorInvalid as exc:
+            raise _mfa_invalid() from exc
+        await _audit(session).record(
+            Action.MFA_DISABLED, actor_user_id=user.id, target=str(user.id)
+        )
+
+
+@router.post("/mfa/recovery-codes", response_model=RecoveryCodesOut, dependencies=_AUTH_RL)
+async def mfa_regenerate_recovery_codes(
+    payload: TwoFactorDisableIn, user: CurrentUser
+) -> RecoveryCodesOut:
+    """Refait la réserve de codes de récupération. Les anciens cessent de valoir aussitôt."""
+    async with db_session() as session:
+        if not await _service(session).verify_password(user.id, payload.password):
+            raise HTTPException(status_code=401, detail="invalid password")
+        try:
+            codes = await _two_factor(session).regenerate_recovery_codes(user.id, code=payload.code)
+        except TwoFactorNotEnrolled as exc:
+            raise HTTPException(status_code=409, detail="two-factor is not enabled") from exc
+        except TwoFactorLocked as exc:
+            raise _mfa_locked(exc) from exc
+        except TwoFactorInvalid as exc:
+            raise _mfa_invalid() from exc
+        await _audit(session).record(
+            Action.MFA_RECOVERY_CODES_REGENERATED, actor_user_id=user.id, target=str(user.id)
+        )
+    return RecoveryCodesOut(recovery_codes=codes)

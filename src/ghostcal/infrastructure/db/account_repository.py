@@ -21,7 +21,7 @@ from ghostcal.application.account import (
 )
 from ghostcal.infrastructure.db import models
 from ghostcal.infrastructure.db.membership import user_organizations
-from ghostcal.infrastructure.db.session import bind_org
+from ghostcal.infrastructure.db.session import bind_org, bind_user
 
 
 class SqlAccountRepository(AccountRepository):
@@ -138,7 +138,12 @@ class SqlAccountRepository(AccountRepository):
         return cancelled
 
     async def delete_user(self, user_id: uuid.UUID) -> None:
-        # ``users`` is not RLS-scoped. Everything strictly personal (credentials, identities,
+        # ``users`` **is** RLS-scoped since ``c1f4a90b7d33``, and `users_delete` names the caller
+        # alone. Sans déclaration, le `DELETE` n'emporte aucune ligne et n'en dit rien : le compte
+        # se croit effacé et ne l'est pas. C'est le mode de défaillance le moins acceptable de
+        # tous ceux que cette table porte — un effacement qui ment.
+        await bind_user(self._session, user_id)
+        # Everything strictly personal (credentials, identities,
         # tokens, memberships, wrapped org keys, calendars and their events, tasks, schedules,
         # CalDAV connections, subscriptions, polls) cascades from this row.
         await self._session.execute(delete(models.User).where(models.User.id == user_id))

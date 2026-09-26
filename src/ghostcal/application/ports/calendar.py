@@ -46,9 +46,22 @@ class CalendarClient(Protocol):
         ...
 
     async def fetch_busy(
-        self, creds: CalendarCredentials, calendar_url: str, start: datetime, end: datetime
+        self,
+        creds: CalendarCredentials,
+        calendar_url: str,
+        start: datetime,
+        end: datetime,
+        *,
+        default_timezone: str = "UTC",
     ) -> list[BusyEvent]:
-        """Busy events (UTC, with summaries) overlapping [start, end)."""
+        """Busy events (UTC, with summaries) overlapping [start, end).
+
+        ``default_timezone`` ancre ce que le calendrier ne date pas lui-même :
+        une journée entière porte une date nue, sans fuseau, et minuit n'est
+        pas minuit UTC. L'adaptateur préfère ce que dit le calendrier (TZID,
+        X-WR-TIMEZONE) et ne retombe là-dessus qu'à défaut — mais une réponse
+        CalDAV ne dit souvent rien, donc c'est le cas courant.
+        """
         ...
 
     async def create_event(

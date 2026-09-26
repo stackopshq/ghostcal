@@ -56,6 +56,9 @@ class SubscriptionRepository:
     ) -> bool:
         raise NotImplementedError
 
+    async def set_color(self, subscription_id: uuid.UUID, owner_id: uuid.UUID, color: str) -> bool:
+        raise NotImplementedError
+
     async def get_url(self, subscription_id: uuid.UUID) -> str | None:
         raise NotImplementedError
 
@@ -127,4 +130,17 @@ async def set_subscription_blocking(
     leur couleur, leur place, et leur cache.
     """
     if not await repo.set_blocking(subscription_id, owner_id, blocking):
+        raise SubscriptionNotFound(str(subscription_id))
+
+
+async def set_subscription_color(
+    repo: SubscriptionRepository, subscription_id: uuid.UUID, owner_id: uuid.UUID, color: str
+) -> None:
+    """Recolour a subscribed calendar after the fact.
+
+    The docstring on `set_subscription_blocking` already named the cost of not having this: deleting
+    and recreating a subscription to change one setting means "perdre leur couleur, leur place, et
+    leur cache". The colour itself was the one setting still stuck at creation time.
+    """
+    if not await repo.set_color(subscription_id, owner_id, color):
         raise SubscriptionNotFound(str(subscription_id))

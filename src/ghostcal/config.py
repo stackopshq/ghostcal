@@ -10,6 +10,7 @@ from __future__ import annotations
 import ipaddress
 from functools import lru_cache
 from typing import Literal
+from urllib.parse import urlparse
 
 from pydantic import Field, PostgresDsn, RedisDsn, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -43,6 +44,9 @@ class Settings(BaseSettings):
     access_token_ttl_seconds: int = 900  # 15 min
     refresh_token_ttl_seconds: int = 60 * 60 * 24 * 30  # 30 days
     email_verification_ttl_seconds: int = 60 * 60 * 24  # 24 h
+    # Shorter than the verification link on purpose: this one starts a password reset, so the
+    # window in which a stolen mailbox is worth something should be the smaller of the two.
+    password_reset_ttl_seconds: int = 60 * 60  # 1 h
     invitation_ttl_seconds: int = 60 * 60 * 24 * 7  # 7 days
 
     # Encryption key for calendar tokens at rest (envelope key, base64)
@@ -63,6 +67,19 @@ class Settings(BaseSettings):
     # than offering a link that goes nowhere. Absent is a real answer for a
     # self-hosted product: most deployments run one app, not the suite.
     ghostmail_url: str | None = None
+
+    # Where "Privacy policy" points on the entry screens.
+    #
+    # The default serves this deployment's own suite page, which is right when
+    # StackOps hosts it. It is wrong for a self-hosted instance: there the data
+    # controller is whoever runs it, and pointing at our page would make them
+    # publish commitments they never made -- our contact, our processors, our
+    # retention windows. A regulatory statement about the wrong company.
+    #
+    # Same reason as ghostmail_url for living here and not in NEXT_PUBLIC_*: it
+    # is a per-deployment fact, and Next writes those into the bundle at build
+    # time. One published image, many deployments.
+    privacy_url: str = "https://ghostsuite.cloud/confidentialite/"
 
     # SSO / OIDC (single operator-configured provider). Off by default: when disabled, the OIDC
     # routes 404 and the frontend hides the SSO button. Authentication only — the zero-knowledge
@@ -219,6 +236,33 @@ class Settings(BaseSettings):
                 raise ValueError(
                     f"{name} is still a placeholder — set a real secret outside development"
                 )
+        return self
+
+    @model_validator(mode="after")
+    def _reject_development_frontend_url(self) -> Settings:
+        # Fail fast, pour la même raison que le CIDR ci-dessous : un déploiement qui garde
+        # l'URL de développement **fonctionne**. L'inscription réussit, le courriel part, et
+        # il porte un lien vers `localhost:3001` — que seul le destinataire voit échouer, sur
+        # sa machine, sans que rien ne remonte côté serveur. La panne est totale et muette.
+        #
+        # Constaté en production sur cal.ghostsuite.cloud le 25 septembre 2026 : le courriel
+        # de vérification menait à `localhost:3001/verify-email?token=…`. Aucun compte ne
+        # pouvait être validé, et rien dans les journaux ne le disait.
+        #
+        # Trois liens sortants sont construits depuis ce réglage, pas un seul — la
+        # vérification d'adresse (`application/auth.py`), les invitations d'organisation
+        # (`application/organizations.py`) et la gestion des tâches
+        # (`infrastructure/tasks.py`). Les trois cassent ensemble.
+        if self.environment == "development":
+            return self
+        hote = urlparse(self.frontend_base_url).hostname or ""
+        if hote in {"localhost", "127.0.0.1", "::1", "0.0.0.0"}:
+            raise ValueError(
+                "frontend_base_url pointe encore sur "
+                f"{self.frontend_base_url!r} — hors développement, GHOSTCAL_FRONTEND_BASE_URL "
+                "doit porter l'adresse publique du client, sans quoi tout lien envoyé par "
+                "courriel mène chez le destinataire et non chez vous"
+            )
         return self
 
     @model_validator(mode="after")

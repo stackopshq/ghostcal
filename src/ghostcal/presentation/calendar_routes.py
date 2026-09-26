@@ -26,6 +26,7 @@ from ghostcal.application.calendar import (
     get_event,
     list_calendars,
     list_shares,
+    set_calendar_color,
     share_calendar,
     unshare_calendar,
     update_event,
@@ -39,6 +40,7 @@ from ghostcal.application.subscriptions import (
     list_subscriptions,
     refresh_subscription,
     set_subscription_blocking,
+    set_subscription_color,
 )
 from ghostcal.config import get_settings
 from ghostcal.infrastructure.db.attendees_repository import SqlAttendeeRepository
@@ -54,6 +56,7 @@ from ghostcal.presentation.schemas import (
     AttendeeOut,
     CalendarIn,
     CalendarOut,
+    CalendarPatchIn,
     CreatedOut,
     EventIn,
     EventOut,
@@ -158,6 +161,30 @@ async def create_my_calendar(
             member.user.id, name=payload.name, color=payload.color
         )
     return CalendarOut(id=c.id, name=c.name, color=c.color, is_default=c.is_default)
+
+
+@router.patch("/calendars/{calendar_id}", status_code=204)
+async def recolor_my_calendar(
+    calendar_id: uuid.UUID,
+    payload: CalendarPatchIn,
+    member: Member = Depends(current_member),
+) -> None:
+    """Change a calendar's colour once it exists.
+
+    PATCH rather than PUT: the body carries the one field that changes, so a client that has not
+    read the calendar cannot blank the rest of it by omission. GhostCal has already paid for that
+    distinction once, on event types, where a PUT missing a field reset it silently.
+    """
+    async with org_session(member.organization_id) as session:
+        try:
+            await set_calendar_color(
+                _repo(session, member.organization_id),
+                member.user.id,
+                calendar_id,
+                payload.color,
+            )
+        except CalendarNotFound as exc:
+            raise HTTPException(status_code=404, detail="calendar not found") from exc
 
 
 _MAX_AGENDA_WINDOW = timedelta(days=366)
@@ -372,19 +399,27 @@ async def set_my_subscription_blocking(
     payload: SubscriptionPatchIn,
     member: Member = Depends(current_member),
 ) -> None:
-    """Ce calendrier rend-il les créneaux non réservables ?
+    """Les réglages d'un abonnement modifiables après coup.
 
     En PATCH et pas seulement à la création : sans ça, un utilisateur qui a
-    déjà ses abonnements devrait les supprimer et les recréer.
+    déjà ses abonnements devrait les supprimer et les recréer. La couleur a
+    rejoint `blocks_availability` le 2026-08-30 — c'était le dernier réglage
+    figé à la création, et le seul moyen de la changer était précisément la
+    suppression que cette route existait pour éviter.
+
+    Les deux champs sont facultatifs, un au moins est exigé par le schéma :
+    recolorer un flux ne doit pas obliger à réaffirmer un booléen qu'on n'a
+    pas lu.
     """
     async with org_session(member.organization_id) as session:
+        repo = SqlSubscriptionRepository(session, member.organization_id)
         try:
-            await set_subscription_blocking(
-                SqlSubscriptionRepository(session, member.organization_id),
-                subscription_id,
-                member.user.id,
-                payload.blocks_availability,
-            )
+            if payload.blocks_availability is not None:
+                await set_subscription_blocking(
+                    repo, subscription_id, member.user.id, payload.blocks_availability
+                )
+            if payload.color is not None:
+                await set_subscription_color(repo, subscription_id, member.user.id, payload.color)
         except SubscriptionNotFound as exc:
             raise HTTPException(status_code=404, detail="subscription not found") from exc
 

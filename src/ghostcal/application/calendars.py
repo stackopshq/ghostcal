@@ -33,6 +33,15 @@ class NotConnected(Exception):
     """No such connection for this user."""
 
 
+class UnknownHostTimezone(Exception):
+    """Le fuseau du membre est introuvable, donc les journées entières ne sont pas datables.
+
+    Échouer ici plutôt que de retomber sur UTC : le repli rendrait un agenda
+    d'apparence normale, décalé de quelques heures, que personne ne remarquerait
+    avant qu'un rendez-vous tombe sur un jour bloqué.
+    """
+
+
 class TooManyConnections(Exception):
     """A cap on connected calendars — each one is a credential we hold and a URL we poll."""
 
@@ -56,6 +65,8 @@ class ConnectionRecord:
     calendar_name: str | None
     color: str
     mirror_bookings: bool
+    """What a mirrored booking discloses: 'busy' or 'detailed'."""
+    mirror_detail: str
     status: str
     last_synced_at: datetime | None
 
@@ -100,9 +111,29 @@ class CaldavConnectionRepository:
         """Make this the calendar bookings mirror onto, clearing whichever one was."""
         raise NotImplementedError
 
+    async def set_color(self, connection_id: uuid.UUID, user_id: uuid.UUID, color: str) -> bool:
+        """Recolour a connected calendar. False if it is not this user's."""
+        raise NotImplementedError
+
+    async def set_mirror_detail(
+        self, connection_id: uuid.UUID, user_id: uuid.UUID, detail: str
+    ) -> bool:
+        """Set what a mirrored booking discloses. False if the connection is not this user's."""
+        raise NotImplementedError
+
     async def replace_busy(
         self, connection_id: uuid.UUID, host_id: uuid.UUID, busy: list[BusyEvent]
     ) -> None:
+        raise NotImplementedError
+
+    async def host_timezone(self, user_id: uuid.UUID) -> str | None:
+        """Le fuseau déclaré par le membre, ou None s'il n'a pas pu être lu.
+
+        Il sert à dater les journées entières venues de l'extérieur : une date
+        nue n'a pas de fuseau, et l'ancrer sur UTC fait déborder l'événement sur
+        le jour voisin. None n'est pas « UTC » — c'est « je n'ai pas pu
+        regarder », et la synchronisation refuse alors d'inventer une réponse.
+        """
         raise NotImplementedError
 
     async def mark_synced(self, connection_id: uuid.UUID, when: datetime, status: str) -> None:
@@ -156,6 +187,37 @@ async def connect_calendar(
     )
 
 
+MIRROR_DETAILS = ("busy", "detailed")
+
+
+async def set_mirror_detail(
+    repo: CaldavConnectionRepository, connection_id: uuid.UUID, user_id: uuid.UUID, detail: str
+) -> None:
+    """Choose what a mirrored booking says on the host's external calendar.
+
+    Validated here rather than trusted from the wire: the values are a contract with
+    `mirror._disclosed`, and an unrecognised one there falls back to the quiet form. Refusing it at
+    the door means the database never holds a setting nothing can honour.
+    """
+    if detail not in MIRROR_DETAILS:
+        raise ValueError(f"mirror detail must be one of {MIRROR_DETAILS}")
+    if not await repo.set_mirror_detail(connection_id, user_id, detail):
+        raise NotConnected()
+
+
+async def set_connection_color(
+    repo: CaldavConnectionRepository, connection_id: uuid.UUID, user_id: uuid.UUID, color: str
+) -> None:
+    """Recolour a connected calendar.
+
+    The colour a connection gets is `PALETTE[len(existing) % len(PALETTE)]` — cycled so two accounts
+    do not land on the same overlay, which is a good default and nothing more. It was also final:
+    the only way to change it was to disconnect and reconnect, re-entering the server password.
+    """
+    if not await repo.set_color(connection_id, user_id, color):
+        raise NotConnected()
+
+
 async def disconnect_calendar(
     repo: CaldavConnectionRepository, connection_id: uuid.UUID, user_id: uuid.UUID
 ) -> None:
@@ -190,10 +252,20 @@ async def sync_connection(
         username=record.username,
         password=cipher.decrypt(record.password_encrypted),
     )
+    # Le fuseau du membre ancre les journées entières du calendrier distant.
+    # Sans lui, une date nue serait lue à minuit UTC et mordrait sur la veille.
+    host_tz = await repo.host_timezone(record.user_id)
+    if host_tz is None:
+        raise UnknownHostTimezone(f"no timezone on record for user {record.user_id}")
+
     now = clock.now()
     try:
         busy = await client.fetch_busy(
-            creds, record.calendar_url, now, now + timedelta(days=window_days)
+            creds,
+            record.calendar_url,
+            now,
+            now + timedelta(days=window_days),
+            default_timezone=host_tz,
         )
     except CalendarAuthError:
         await repo.mark_synced(record.id, now, status="needs_reauth")

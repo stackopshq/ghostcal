@@ -11,6 +11,9 @@ import {
 import { getMe } from "@/lib/auth";
 import { ghostMailUrl, openInGhostMail } from "@/lib/ghostmail";
 import { useT } from "@/lib/i18n";
+import {
+  MailIcon,
+} from "@/components/icons";
 
 const STATUS_KEY: Record<string, string> = {
   needs_action: "att.pending",
@@ -112,7 +115,7 @@ export default function EventAttendees({
             }}
             className="flex items-center gap-1 text-xs text-accent hover:underline"
           >
-            <span aria-hidden>✉️</span> {t("att.emailGuests")}
+            <MailIcon /> {t("att.emailGuests")}
           </button>
         )}
       </div>
@@ -148,18 +151,18 @@ export default function EventAttendees({
           placeholder={t("att.addPlaceholder")}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="flex-1 rounded-lg border border-border-strong bg-surface-2 px-3 py-1.5 text-sm text-foreground outline-none focus:border-accent"
+          className="flex-1 rounded border border-border-strong bg-surface-2 px-3 py-1.5 text-sm text-foreground outline-none focus:border-accent"
         />
         <button
           type="submit"
           disabled={busy || !email.trim()}
-          className="rounded-lg border border-border-strong px-3 py-1.5 text-sm text-foreground hover:bg-surface disabled:opacity-50"
+          className="rounded-pill border border-border-strong px-3 py-1.5 text-sm text-foreground hover:bg-surface disabled:opacity-50"
         >
           {busy ? t("att.inviting") : t("att.invite")}
         </button>
       </form>
       {note && <p className="text-xs text-accent">{note}</p>}
-      <p className="text-[11px] text-muted">{t("att.zkNote")}</p>
+      <p className="text-2xs text-muted">{t("att.zkNote")}</p>
     </div>
   );
 }

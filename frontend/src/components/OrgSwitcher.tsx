@@ -28,7 +28,7 @@ export default function OrgSwitcher() {
 
   return (
     <label className="mb-4 flex flex-col gap-1 px-1">
-      <span className="text-[10px] uppercase tracking-wide text-muted/70">
+      <span className="text-2xs uppercase tracking-wide text-muted/70">
         {t("dash.organization")}
       </span>
       <select
@@ -37,7 +37,7 @@ export default function OrgSwitcher() {
           setActiveOrg(e.target.value);
           window.location.reload();
         }}
-        className="rounded-lg border border-border-strong bg-surface px-2 py-1.5 text-sm text-foreground outline-none focus:border-accent"
+        className="rounded border border-border-strong bg-surface px-2 py-1.5 text-sm text-foreground outline-none focus:border-accent"
       >
         {orgs.map((o) => (
           <option key={o.id} value={o.id}>

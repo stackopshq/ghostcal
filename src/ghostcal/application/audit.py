@@ -33,6 +33,16 @@ class Action:
     LOGIN_FAILED = "auth.login.failed"
     PASSWORD_CHANGED = "auth.password.changed"
     SESSIONS_REVOKED = "auth.sessions.revoked"
+    # Second facteur. Le nom reprend celui de GhostPass (« mfa ») dans la forme
+    # d'ici (`domaine.objet.action_au_passé`) : les mêmes évènements portent le
+    # même nom dans les deux journaux de la suite, ce qui est la seule façon
+    # d'écrire une alerte qui vaille pour les deux.
+    #
+    # Qu'on retire un second facteur est au moins aussi intéressant à retracer
+    # qu'on l'ajoute : c'est le geste qu'un attaquant installé fait en premier.
+    MFA_ENABLED = "auth.mfa.enabled"
+    MFA_DISABLED = "auth.mfa.disabled"
+    MFA_RECOVERY_CODES_REGENERATED = "auth.mfa.recovery_codes_regenerated"
 
     MEMBER_INVITED = "org.member.invited"
     MEMBER_ROLE_CHANGED = "org.member.role_changed"

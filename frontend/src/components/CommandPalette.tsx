@@ -97,7 +97,7 @@ export default function CommandPalette() {
       onClick={() => setOpen(false)}
     >
       <div
-        className="glass w-full max-w-lg overflow-hidden rounded-2xl border border-border shadow-2xl"
+        className="glass glass-opaque w-full max-w-lg overflow-hidden rounded-lg border border-border shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <input
@@ -142,7 +142,7 @@ export default function CommandPalette() {
             </li>
           ))}
         </ul>
-        <div className="flex items-center gap-3 border-t border-border px-4 py-2 text-[11px] text-muted">
+        <div className="flex items-center gap-3 border-t border-border px-4 py-2 text-2xs text-muted">
           <span>↑↓ {t("cmd.navigate")}</span>
           <span>↵ {t("cmd.select")}</span>
           <span>esc {t("cmd.close")}</span>

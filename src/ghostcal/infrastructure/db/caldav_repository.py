@@ -24,6 +24,7 @@ def _record(row: models.CaldavConnection) -> ConnectionRecord:
         calendar_name=row.calendar_name,
         color=row.color,
         mirror_bookings=row.mirror_bookings,
+        mirror_detail=row.mirror_detail,
         status=row.status,
         last_synced_at=row.last_synced_at,
     )
@@ -151,6 +152,36 @@ class SqlCaldavConnectionRepository(CaldavConnectionRepository):
         )
         return result.scalar_one_or_none() is not None
 
+    async def set_mirror_detail(
+        self, connection_id: uuid.UUID, user_id: uuid.UUID, detail: str
+    ) -> bool:
+        # `user_id` in the WHERE clause, like the neighbours: what a booking discloses to a third
+        # party is not something one member may change on another's connection.
+        result = await self._session.execute(
+            update(models.CaldavConnection)
+            .where(
+                models.CaldavConnection.id == connection_id,
+                models.CaldavConnection.user_id == user_id,
+            )
+            .values(mirror_detail=detail)
+            .returning(models.CaldavConnection.id)
+        )
+        return result.scalar_one_or_none() is not None
+
+    async def set_color(self, connection_id: uuid.UUID, user_id: uuid.UUID, color: str) -> bool:
+        # `user_id` in the WHERE clause, like `set_mirror_target` above: ownership is enforced by
+        # the statement itself rather than by a read that another request could race.
+        result = await self._session.execute(
+            update(models.CaldavConnection)
+            .where(
+                models.CaldavConnection.id == connection_id,
+                models.CaldavConnection.user_id == user_id,
+            )
+            .values(color=color)
+            .returning(models.CaldavConnection.id)
+        )
+        return result.scalar_one_or_none() is not None
+
     async def replace_busy(
         self, connection_id: uuid.UUID, host_id: uuid.UUID, busy: list[BusyEvent]
     ) -> None:
@@ -172,6 +203,13 @@ class SqlCaldavConnectionRepository(CaldavConnectionRepository):
                     for e in busy
                 ],
             )
+
+    async def host_timezone(self, user_id: uuid.UUID) -> str | None:
+        return (
+            await self._session.execute(
+                select(models.User.timezone).where(models.User.id == user_id)
+            )
+        ).scalar_one_or_none()
 
     async def mark_synced(self, connection_id: uuid.UUID, when: datetime, status: str) -> None:
         await self._session.execute(

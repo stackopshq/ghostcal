@@ -11,7 +11,7 @@ export default function ProfilePage() {
         <h1 className="text-2xl font-semibold text-foreground">{t("profile.pageTitle")}</h1>
         <p className="mt-1 text-sm text-muted">{t("profile.pageSub")}</p>
       </div>
-      <section className="glass rounded-2xl p-6 sm:p-8">
+      <section className="glass rounded-lg p-6 sm:p-8">
         <ProfileSettings />
       </section>
     </main>

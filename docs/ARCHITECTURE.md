@@ -249,6 +249,5 @@ errors).
    organization-scoped. A solo user is a one-member organization.
 5. **Tenant isolation via Postgres RLS from the start**, backed by repository-layer scoping as
    defence in depth (see §4). The app role is non-`BYPASSRLS`.
-6. **License: Elastic License 2.0** — source available. Self-hosting and modification are
-   permitted; providing GhostCal to third parties as a hosted service is not. Superseded
-   AGPL-3.0-or-later on 2026-09-25 (ADR-0013).
+6. **License: Elastic License 2.0**: source stays public and auditable; hosted resale to third
+   parties is reserved (ADR-0013, which supersedes the AGPL choice in ADR-0001).

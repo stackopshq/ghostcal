@@ -123,15 +123,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <button
           type="button"
           onClick={() => window.dispatchEvent(new Event("gc:cmdk"))}
-          className="mb-3 flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm text-muted transition hover:text-accent"
+          className="mb-3 flex items-center justify-between rounded-pill border border-border px-3 py-2 text-sm text-muted transition hover:text-accent"
         >
           <span>{t("cmd.open")}</span>
-          <kbd className="rounded border border-border-strong px-1.5 py-0.5 text-[10px]">⌘K</kbd>
+          <kbd className="rounded border border-border-strong px-1.5 py-0.5 text-2xs">⌘K</kbd>
         </button>
 
         <Link
           href="/dashboard/event-types"
-          className="mb-6 flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.35)] transition hover:brightness-110"
+          className="mb-6 flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_35%,transparent)] transition hover:brightness-110"
         >
           <Glyph d={ICONS.plus} /> {t("dash.create")}
         </Link>
@@ -158,7 +158,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <div className="mt-auto border-t border-border pt-4">
           <div className="flex items-center gap-3 px-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-accent/30 to-accent/5 text-xs font-semibold text-accent ring-1 ring-border-strong">
+            <div className="flex h-9 w-9 items-center justify-center rounded-pill bg-gradient-to-br from-accent/30 to-accent/5 text-xs font-semibold text-accent ring-1 ring-border-strong">
               {initials}
             </div>
             <div className="min-w-0 flex-1">
@@ -169,7 +169,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <button
             type="button"
             onClick={onLogout}
-            className="mt-3 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted transition hover:bg-surface hover:text-foreground"
+            className="mt-3 flex w-full items-center gap-3 rounded-pill px-3 py-2 text-sm font-medium text-muted transition hover:bg-surface hover:text-foreground"
           >
             <Glyph d={ICONS.logout} /> {t("dash.signOut")}
           </button>
@@ -198,7 +198,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           aria-label="Menu"
           aria-expanded={navOpen}
           onClick={() => setNavOpen((v) => !v)}
-          className="rounded-lg border border-border p-2 text-muted transition hover:text-accent"
+          className="rounded-pill border border-border p-2 text-muted transition hover:text-accent"
         >
           <Glyph d={navOpen ? "M6 6l12 12M18 6L6 18" : "M4 7h16M4 12h16M4 17h16"} className="h-5 w-5" />
         </button>
@@ -213,7 +213,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             onClick={() => setNavOpen(false)}
           />
           <aside
-            className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col overflow-y-auto border-r border-border bg-surface-2 p-4"
+            // `glass-opaque` et non `bg-surface-2` : ce tiroir se pose SUR le
+            // contenu, et `--color-surface-2` est translucide par conception
+            // (blanc à 5 %). Les rendez-vous se lisaient donc à travers le menu
+            // en thème sombre — vu en capture, pas déduit du CSS.
+            className="glass-opaque absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col overflow-y-auto border-r border-border p-4"
             onClick={(e) => {
               if ((e.target as HTMLElement).closest("a")) setNavOpen(false);
             }}

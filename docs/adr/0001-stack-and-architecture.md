@@ -1,6 +1,9 @@
 # ADR-0001: Stack and architecture
 
-- Status: Proposed
+- Status: Proposed. **The licence clause is superseded by ADR-0013 (2026-08-31),
+  which moves GhostCal from AGPL-3.0-or-later to the Elastic License 2.0.** The
+  original wording below is kept as written; a decision register that gets
+  rewritten stops being a register. Everything else in this ADR still stands.
 - Date: 2026-06-26
 
 ## Context
@@ -29,12 +32,10 @@ public booking pages fast (<200 ms) and integrate with Google / Microsoft calend
   `organization_id`. A solo user is a one-member organization. Tenant isolation enforced by
   **Postgres RLS from the start** (per-request `SET LOCAL app.current_org_id`; app role is
   non-`BYPASSRLS`), with repository-layer scoping as defence in depth.
-- ~~**License: GNU AGPL-3.0-or-later.** Network use counts as distribution, so SaaS modifications
-  must offer their source — matching the open-alternative positioning (as Cal.com does).~~
-  **Superseded on 2026-09-25 by [ADR-0013](0013-elastic-license-v2.md): Elastic License 2.0.**
-  The AGPL was chosen for an open-alternative positioning the suite no longer holds; it
-  compels a competing operator to publish their changes, which is a disclosure duty and not
-  a limit on resale.
+- **License: GNU AGPL-3.0-or-later.** Network use counts as distribution, so SaaS modifications
+  must offer their source — matching the open-alternative positioning (as Cal.com does).
+  *Superseded by ADR-0013 (2026-08-31): AGPL obliges a competing operator to disclose their
+  changes, which is not the same as reserving resale. Elastic License 2.0 reserves it.*
 - **Auth owned in-house, four methods at launch:** email/password (Argon2), Google, Microsoft,
   generic OIDC SSO — all converging on one `users` row via an `identities` table. Login identity
   is kept separate from calendar OAuth grants.
@@ -51,8 +52,8 @@ public booking pages fast (<200 ms) and integrate with Google / Microsoft calend
   `organization_id` filter degrades to a wrong-result bug, not a cross-tenant data leak.
 - Every request and background task must bind `app.current_org_id` before touching the DB;
   schema migrations and the session/transaction layer own this from Phase 1.
-- ~~AGPL obliges us (and any operator of a modified GhostCal) to offer source on network use~~
-  (superseded, ADR-0013); third-party dependencies must stay license-compatible. Note that the
-  constraint **loosened** rather than tightened: the Elastic License 2.0 imposes no
-  source-disclosure duty on dependants, so no dependency chosen under the AGPL becomes
-  incompatible by this change.
+- AGPL obliges us (and any operator of a modified GhostCal) to offer source on network use;
+  third-party dependencies must stay license-compatible (no proprietary/Apache-incompatible-only).
+  *Superseded by ADR-0013 (2026-08-31). Under the Elastic License 2.0 there is no source-disclosure
+  trigger; the dependency-compatibility discipline stays, and gets stricter, since a copyleft
+  dependency can no longer be absorbed by our own copyleft.*

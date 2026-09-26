@@ -6,7 +6,12 @@ import { I18nProvider } from "@/lib/i18n";
 import "./globals.css";
 
 // Set the theme before first paint to avoid a flash. Defaults to dark (the brand is dark-native).
-const NO_FLASH_THEME = `(function(){try{var t=localStorage.getItem('gc_theme');document.documentElement.dataset.theme=(t==='light')?'light':'dark';}catch(e){document.documentElement.dataset.theme='dark';}})();`;
+// Le thème **et la langue** sont posés avant le premier tracé.
+//
+// Pour le thème, c'est le clignotement qu'on évite. Pour la langue, c'est un court
+// moment où `<html lang>` décrit le mauvais contenu : `I18nProvider` démarre en anglais
+// et corrige après le montage, comme l'hydratation l'exige.
+const NO_FLASH_THEME = `(function(){var d=document.documentElement;try{var t=localStorage.getItem('gc_theme');d.dataset.theme=t==='light'?'light':'dark';}catch(e){d.dataset.theme='dark';}try{var l=localStorage.getItem('gc_locale');if(!l){l=(navigator.language||'en').slice(0,2);}d.lang=l==='fr'?'fr':'en';}catch(e){d.lang='en';}})();`;
 
 // Typography lives in `globals.css`, which imports the suite's `fonts.css`: Hanken
 // Grotesk for the UI, JetBrains Mono for code, both self-hosted from `public/fonts/`.
@@ -43,7 +48,11 @@ async function siteOrigin(): Promise<string> {
   return `${proto}://${host}`;
 }
 
-const TITLE = "GhostCal · fast, correct scheduling";
+// L'onglet ne porte que le nom. Une barre d'onglets est étroite : la baseline y est
+// tronquée avant d'être lue, et ce qui reste visible — « GhostCal · fast, co… » — est
+// moins reconnaissable que le nom seul. Les aperçus de partage gardent la leur, par
+// `SHARE_TITLE` : c'est là qu'une accroche a de la place et un lecteur.
+const TITLE = "GhostCal";
 const DESCRIPTION =
   "Pick a time in seconds. GhostCal is a fast, dark-mode-native scheduling tool.";
 
@@ -95,6 +104,9 @@ export default async function RootLayout({
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html
+      // La valeur de départ, celle que React rend réellement — `I18nProvider` démarre en
+      // anglais. Le script du <head> la corrige avant le tracé, et l'effet sur `locale`
+      // la maintient ensuite. Elle n'est donc plus une affirmation figée.
       lang="en"
       data-theme="dark"
       suppressHydrationWarning
@@ -106,7 +118,7 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col">
         <I18nProvider>
           {children}
-          <div className="fixed bottom-3 right-4 z-50 flex items-center gap-2 rounded-full border border-border bg-surface/80 px-3 py-1 backdrop-blur">
+          <div className="glass-opaque fixed bottom-3 right-4 z-50 flex items-center gap-2 rounded-pill border border-border px-3 py-1 backdrop-blur">
             <ThemeToggle />
             <span className="text-border-strong">·</span>
             <LanguageSwitcher />

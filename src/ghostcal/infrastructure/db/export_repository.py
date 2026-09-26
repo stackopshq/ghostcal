@@ -33,7 +33,7 @@ from ghostcal.application.export import (
 )
 from ghostcal.infrastructure.db import models
 from ghostcal.infrastructure.db.membership import user_organizations
-from ghostcal.infrastructure.db.session import bind_org
+from ghostcal.infrastructure.db.session import bind_org, bind_user
 
 
 class SqlExportRepository(ExportRepository):
@@ -41,6 +41,10 @@ class SqlExportRepository(ExportRepository):
         self._session = session
 
     async def profile(self, user_id: uuid.UUID) -> ProfileExport | None:
+        # Sans cette déclaration, `users_select` masque la ligne et l'export lève « utilisateur
+        # inconnu » sur le compte qui l'a demandé. Le droit à l'export est celui de son propre
+        # dossier : déclarer le demandeur est exactement la portée voulue.
+        await bind_user(self._session, user_id)
         row = (
             await self._session.execute(
                 select(

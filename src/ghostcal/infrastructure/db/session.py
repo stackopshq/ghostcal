@@ -111,6 +111,24 @@ async def bind_org(session: AsyncSession, organization_id: uuid.UUID) -> None:
     )
 
 
+async def bind_retention_scan(session: AsyncSession) -> None:
+    """Declare that this transaction is the retention scan.
+
+    The `organizations_retention_scan` policy reads this GUC, and it is the only thing that lets a
+    background job see which organizations have asked for a window — it declares no tenant and no
+    user, because it is about to iterate every tenant in turn.
+
+    The policy is narrow on purpose and this helper is the whole of its trigger: only organizations
+    that actually have a window match, only SELECT is permitted, and the enumeration function still
+    returns two columns. Set nowhere else: a scan declared outside the purge would widen what the
+    policy sees without widening what anyone reviewed.
+
+    Transaction-local, like `bind_org` and `bind_user`, so it cannot outlive the scan on a pooled
+    connection.
+    """
+    await session.execute(text("SELECT set_config('app.retention_scan', 'on', true)"))
+
+
 async def bind_user(session: AsyncSession, user_id: uuid.UUID) -> None:
     """Declare which authenticated user this transaction acts for.
 
@@ -128,4 +146,31 @@ async def bind_user(session: AsyncSession, user_id: uuid.UUID) -> None:
     await session.execute(
         text("SELECT set_config('app.current_user_id', :uid, true)"),
         {"uid": str(user_id)},
+    )
+
+
+async def bind_login_email(session: AsyncSession, email: str) -> None:
+    """Declare the address a pre-authentication lookup is about to name.
+
+    The connexion path is the one place that must read `users` with no user to declare: it holds
+    an address typed into a form and nothing else. `users_select` cannot help it, and neither can
+    a SECURITY DEFINER function — under FORCE ROW LEVEL SECURITY a definer function inherits no
+    sight of its own, which is the lesson `_bind_user_and_org` and `store_member_key` already
+    wrote down.
+
+    So the address itself is declared, and `users_email_lookup` opens exactly the row that carries
+    it. The shape is the one `organizations_slug_lookup`, `invitations_token_read` and
+    `public_calendar_by_token` already use: name a value, see the row that holds it.
+
+    What this does **not** reopen is the failure this whole chantier exists for. A query that
+    forgets its `WHERE` still returns nothing, because nothing was declared — the policy widens on
+    an explicit declaration, never by default. The most it ever yields is one row, to a caller who
+    already knew the address to ask for. That is the same question the login form answers.
+
+    Transaction-local, like every other binding here, so it cannot outlive the lookup on a pooled
+    connection.
+    """
+    await session.execute(
+        text("SELECT set_config('app.login_email', :email, true)"),
+        {"email": email.strip().lower()},
     )

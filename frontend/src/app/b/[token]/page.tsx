@@ -48,7 +48,7 @@ export default function PublicBusyPage({
   if (state === "gone" || !busy) {
     return (
       <main className="flex min-h-screen items-center justify-center p-8">
-        <div className="glass max-w-md rounded-2xl p-8 text-center">
+        <div className="glass max-w-md rounded-lg p-8 text-center">
           <h1 className="text-lg font-semibold text-foreground">
             This availability is no longer shared
           </h1>
@@ -84,13 +84,13 @@ export default function PublicBusyPage({
       </header>
 
       {days.length === 0 ? (
-        <p className="glass rounded-2xl p-8 text-center text-sm text-muted">
+        <p className="glass rounded-lg p-8 text-center text-sm text-muted">
           Nothing at all. {busy.owner_name} is free for the next two weeks.
         </p>
       ) : (
         <ol className="flex flex-col gap-4">
           {days.map(({ day, blocks }) => (
-            <li key={day.toISOString()} className="glass rounded-2xl p-5">
+            <li key={day.toISOString()} className="glass rounded-lg p-5">
               <h2 className="text-sm font-semibold text-foreground">
                 {day.toLocaleDateString(undefined, {
                   weekday: "long",

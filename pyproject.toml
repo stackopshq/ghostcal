@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "GhostCal — fast, correct scheduling. Calendly/Cal.com alternative."
 readme = "README.md"
 license = "Elastic-2.0"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "NOTICE"]
 authors = [
     { name = "Kevin Allioli", email = "kevin@stackops.ch" }
 ]
@@ -14,15 +14,34 @@ dependencies = [
     "argon2-cffi>=25.1.0",
     "asyncpg>=0.31.0",
     "authlib>=1.7.2",
-    "caldav>=3.2.1",
     "celery[redis]>=5.6.3",
+    "defusedxml>=0.7.1",
     "fastapi>=0.138.1",
+    # Déclaré explicitement alors que SQLAlchemy le tire déjà. Son marqueur de
+    # plateforme nomme `aarch64` mais **pas `arm64`**, que déclare macOS Apple
+    # Silicon : chaque `uv sync` l'y élaguait donc, et les tests d'intégration
+    # passaient de « sautés » à « en erreur ».
+    #
+    # C'est le filet à trois états qui se casse en silence. « Vert », « rouge »
+    # et « je n'ai pas pu regarder » sont trois réponses distinctes ; une erreur
+    # d'import les réduit à du bruit, et deux personnes y ont perdu du temps en
+    # croyant à une ligne de base rouge.
+    #
+    # Sans effet sur Linux, où le marqueur amont l'installait déjà.
+    "greenlet>=3.0.0",
     "httpx>=0.28.1",
+    "icalendar>=6.0.0",
     "itsdangerous>=2.2.0",
+    "pillow>=12.0.0",
     "prometheus-client>=0.25.0",
+    "python-multipart>=0.0.20",
     "pydantic-settings>=2.14.2",
     "pydantic[email]>=2.13.4",
     "pyjwt>=2.13.0",
+    # TOTP (RFC 6238). Bibliothèque éprouvée plutôt qu'une troncature
+    # dynamique et un base32 écrits ici : c'est court, et c'est précisément le
+    # genre de code court qu'on relit sans voir l'erreur.
+    "pyotp>=2.9.0",
     "python-dateutil>=2.9.0",
     "redis>=6.4.0",
     "sqlalchemy>=2.0.51",

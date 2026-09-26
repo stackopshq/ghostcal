@@ -67,21 +67,21 @@ export default function PollsPage() {
         <p className="mt-1 text-sm text-muted">{t("pollsh.sub")}</p>
       </div>
 
-      <form onSubmit={submit} className="glass flex flex-col gap-4 rounded-2xl p-6">
+      <form onSubmit={submit} className="glass flex flex-col gap-4 rounded-lg p-6">
         <h2 className="text-sm font-medium text-foreground">{t("pollsh.new")}</h2>
         <input
           required
           placeholder={t("pollsh.titlePh")}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="rounded-lg border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
+          className="rounded border border-border-strong bg-surface-2 px-4 py-2.5 text-sm text-foreground outline-none focus:border-accent"
         />
         <label className="flex items-center gap-3 text-sm text-muted">
           {t("pollsh.duration")}
           <select
             value={duration}
             onChange={(e) => setDuration(Number(e.target.value))}
-            className="rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+            className="rounded border border-border-strong bg-surface-2 px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
           >
             {[15, 30, 45, 60].map((d) => (
               <option key={d} value={d}>
@@ -99,13 +99,13 @@ export default function PollsPage() {
                 type="datetime-local"
                 value={value}
                 onChange={(e) => setOption(i, e.target.value)}
-                className="flex-1 rounded-lg border border-border-strong bg-surface-2 px-4 py-2 text-sm text-foreground outline-none focus:border-accent"
+                className="flex-1 rounded border border-border-strong bg-surface-2 px-4 py-2 text-sm text-foreground outline-none focus:border-accent"
               />
               {options.length > 2 && (
                 <button
                   type="button"
                   onClick={() => setOptions((prev) => prev.filter((_, idx) => idx !== i))}
-                  className="rounded-lg border border-border-strong px-3 text-sm text-muted hover:text-red-400"
+                  className="rounded-pill border border-border-strong px-3 text-sm text-muted hover:text-red-400"
                 >
                   ✕
                 </button>
@@ -125,7 +125,7 @@ export default function PollsPage() {
         <button
           type="submit"
           disabled={creating}
-          className="self-start rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_rgba(0,240,255,0.45)] transition hover:brightness-110 disabled:opacity-60"
+          className="self-start rounded-pill bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_18px_color-mix(in_srgb,var(--color-accent)_45%,transparent)] transition hover:brightness-110 disabled:opacity-60"
         >
           {creating ? t("pollsh.creating") : t("pollsh.create")}
         </button>
@@ -139,7 +139,7 @@ export default function PollsPage() {
           <Link
             key={p.id}
             href={`/dashboard/polls/${p.id}`}
-            className="glass flex items-center justify-between rounded-xl p-4 transition hover:border-accent"
+            className="glass flex items-center justify-between rounded p-4 transition hover:border-accent"
           >
             <div>
               <p className="font-medium text-foreground">{p.title}</p>

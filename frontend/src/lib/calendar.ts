@@ -18,6 +18,8 @@ export type Connection = {
   color: string;
   /** The one calendar bookings are mirrored onto. Exactly one of the user's connections has it. */
   mirror_bookings: boolean;
+  /** What a mirrored booking discloses on the host's calendar: "busy" or "detailed". */
+  mirror_detail: string;
   status: string;
   last_synced_at: string | null;
 };
@@ -70,6 +72,22 @@ export function syncAllCalendars(): Promise<{ synced: number }> {
 export function setMirrorTarget(id: string): Promise<void> {
   return authedFetch<void>(`/v1/me/calendar/connections/${id}/mirror`, {
     method: "PUT",
+  });
+}
+
+/** Recolour a connected calendar, whose colour was picked by cycling a palette at connect time. */
+export function setConnectionColor(id: string, color: string): Promise<void> {
+  return authedFetch<void>(`/v1/me/calendar/connections/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ color }),
+  });
+}
+
+/** Choose what a mirrored booking says on the third party's calendar. */
+export function setMirrorDetail(id: string, detail: "busy" | "detailed"): Promise<void> {
+  return authedFetch<void>(`/v1/me/calendar/connections/${id}/mirror-detail`, {
+    method: "PUT",
+    body: JSON.stringify({ mirror_detail: detail }),
   });
 }
 

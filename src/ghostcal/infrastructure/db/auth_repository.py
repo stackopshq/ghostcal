@@ -28,7 +28,7 @@ from ghostcal.application.auth import (
     ZkKeyMaterial,
 )
 from ghostcal.infrastructure.db import models
-from ghostcal.infrastructure.db.session import bind_org, bind_user
+from ghostcal.infrastructure.db.session import bind_login_email, bind_org, bind_user
 
 # The exact texts the provisioning function RAISEs when it decides not to link an identity.
 # Anything else carrying 42501 is the database refusing *us*, not the function refusing a caller.
@@ -191,6 +191,11 @@ class SqlAuthRepository(AuthRepository):
         )
 
     async def get_by_email(self, email: str) -> AuthUserRecord | None:
+        # Le seul chemin qui lit `users` sans tenir d'identifiant : il n'a qu'une adresse tapée
+        # dans un formulaire. `users_email_lookup` ouvre la ligne qui porte l'adresse déclarée,
+        # et rien d'autre — voir `bind_login_email`, qui dit ce que cela coûte et ce que cela ne
+        # rouvre pas.
+        await bind_login_email(self._session, email)
         stmt = (
             select(
                 models.User.id,
@@ -198,6 +203,7 @@ class SqlAuthRepository(AuthRepository):
                 models.User.name,
                 models.User.timezone,
                 models.User.avatar_url,
+                models.User.avatar_updated_at,
                 models.User.email_verified_at,
                 models.UserCredential.password_hash,
             )
@@ -208,6 +214,10 @@ class SqlAuthRepository(AuthRepository):
         return _to_record(row)
 
     async def get_by_id(self, user_id: uuid.UUID) -> AuthUserRecord | None:
+        # `users_select` demande qu'on dise pour qui on agit. L'appelant le sait déjà — c'est le
+        # porteur du jeton, ou l'identifiant qu'un jeton à usage unique vient de rendre. Déclarer
+        # n'accorde rien de plus : la politique n'ouvre que cette ligne-là.
+        await bind_user(self._session, user_id)
         stmt = (
             select(
                 models.User.id,
@@ -215,6 +225,7 @@ class SqlAuthRepository(AuthRepository):
                 models.User.name,
                 models.User.timezone,
                 models.User.avatar_url,
+                models.User.avatar_updated_at,
                 models.User.email_verified_at,
                 models.UserCredential.password_hash,
             )
@@ -248,9 +259,59 @@ class SqlAuthRepository(AuthRepository):
         return row.user_id if row else None
 
     async def mark_email_verified(self, user_id: uuid.UUID, now: datetime) -> None:
+        # ─── L'écriture qui ne levait rien ───
+        #
+        # Sans cette déclaration, `users_update` ne désigne aucune ligne et l'`UPDATE` touche
+        # zéro ligne. Ce n'est pas une erreur pour PostgreSQL, et rien ici ne lit `rowcount` :
+        # la vérification d'adresse réussissait en apparence et ne faisait rien.
+        #
+        # Le symptôme sortait trois appels plus loin — connexion refusée pour « adresse non
+        # vérifiée », invitation refusée pour la même raison, sur un compte qui venait de
+        # cliquer le lien. Mesuré le 2026-09-26 : `rowcount = 0` sans GUC, `1` avec.
+        await bind_user(self._session, user_id)
         await self._session.execute(
             update(models.User).where(models.User.id == user_id).values(email_verified_at=now)
         )
+
+    async def add_password_reset(
+        self, user_id: uuid.UUID, token_hash: str, expires_at: datetime
+    ) -> None:
+        await self._session.execute(
+            insert(models.PasswordResetToken).values(
+                user_id=user_id, token_hash=token_hash, expires_at=expires_at
+            )
+        )
+
+    async def peek_password_reset(self, token_hash: str, now: datetime) -> uuid.UUID | None:
+        # A read, not an UPDATE: the reset page fetches the key envelopes before the user has
+        # typed their recovery phrase, and a wrong phrase must not burn the link.
+        row = (
+            await self._session.execute(
+                select(models.PasswordResetToken.user_id).where(
+                    models.PasswordResetToken.token_hash == token_hash,
+                    models.PasswordResetToken.used_at.is_(None),
+                    models.PasswordResetToken.expires_at > now,
+                )
+            )
+        ).first()
+        return row.user_id if row else None
+
+    async def consume_password_reset(self, token_hash: str, now: datetime) -> uuid.UUID | None:
+        # Single use enforced inside the UPDATE, like the verification token above: a check
+        # followed by a write is two statements a second request can slip between.
+        row = (
+            await self._session.execute(
+                update(models.PasswordResetToken)
+                .where(
+                    models.PasswordResetToken.token_hash == token_hash,
+                    models.PasswordResetToken.used_at.is_(None),
+                    models.PasswordResetToken.expires_at > now,
+                )
+                .values(used_at=now)
+                .returning(models.PasswordResetToken.user_id)
+            )
+        ).first()
+        return row.user_id if row else None
 
     async def add_refresh_token(
         self, user_id: uuid.UUID, token_hash: str, expires_at: datetime
@@ -302,6 +363,9 @@ class SqlAuthRepository(AuthRepository):
     async def update_profile(
         self, user_id: uuid.UUID, *, name: str, timezone: str, avatar_url: str | None
     ) -> None:
+        # Même silence que `mark_email_verified` sans cette ligne : le profil se disait
+        # enregistré et ne l'était pas.
+        await bind_user(self._session, user_id)
         await self._session.execute(
             update(models.User)
             .where(models.User.id == user_id)
@@ -327,4 +391,61 @@ def _to_record(row: object) -> AuthUserRecord | None:
         email_verified=row.email_verified_at is not None,  # type: ignore[attr-defined]
         password_hash=row.password_hash,  # type: ignore[attr-defined]
         avatar_url=row.avatar_url,  # type: ignore[attr-defined]
+        avatar_updated_at=row.avatar_updated_at,  # type: ignore[attr-defined]
     )
+
+
+class SqlAvatarRepository:
+    """Lit et écrit l'avatar, et **filtre lui-même** l'organisation.
+
+    Le filtre est dans la requête, pas dans la seule sécurité au niveau ligne. Trois
+    requêtes de ce dépôt s'en étaient remises à elle et fuyaient entre organisations —
+    corrigées le 2026-09-25. La production tourne en superutilisateur, où la RLS ne
+    s'applique pas du tout : une requête ne vaut que par son `WHERE`.
+    """
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def enregistrer(
+        self, user_id: uuid.UUID, *, octets: bytes, mime: str, quand: datetime
+    ) -> None:
+        await self._session.execute(
+            update(models.User)
+            .where(models.User.id == user_id)
+            .values(avatar_bytes=octets, avatar_mime=mime, avatar_updated_at=quand)
+        )
+
+    async def effacer(self, user_id: uuid.UUID) -> None:
+        await self._session.execute(
+            update(models.User)
+            .where(models.User.id == user_id)
+            .values(avatar_bytes=None, avatar_mime=None, avatar_updated_at=None)
+        )
+
+    async def lire_dans_l_organisation(
+        self, user_id: uuid.UUID, organization_id: uuid.UUID
+    ) -> tuple[bytes, str, datetime] | None:
+        """L'avatar d'un membre, vu par un membre de la même organisation.
+
+        La jointure porte son filtre d'organisation — c'est exactement la forme qui
+        manquait à `member_public_keys` et `members_without_keypair`, et qui les faisait
+        rendre les utilisateurs de tout le serveur.
+        """
+        row = (
+            await self._session.execute(
+                select(
+                    models.User.avatar_bytes,
+                    models.User.avatar_mime,
+                    models.User.avatar_updated_at,
+                )
+                .join(models.Membership, models.Membership.user_id == models.User.id)
+                .where(
+                    models.User.id == user_id,
+                    models.Membership.organization_id == organization_id,
+                )
+            )
+        ).one_or_none()
+        if row is None or row.avatar_bytes is None:
+            return None
+        return row.avatar_bytes, row.avatar_mime, row.avatar_updated_at
