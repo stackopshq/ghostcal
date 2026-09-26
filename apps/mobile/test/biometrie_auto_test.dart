@@ -54,6 +54,15 @@ class MagasinFeint extends Biometrie {
     return reponse;
   }
 
+  /// Change ce que rendra la prochaine question, sans toucher au compte.
+  ///
+  /// Sert aux témoins qui éprouvent le **chemin du bouton** après que le déclenchement
+  /// automatique a consommé la liste : sans cela, toucher l'icône rejouerait la dernière
+  /// réponse et le témoin mesurerait la fixture au lieu de l'écran.
+  void repondre(Rappel r) => _reponses
+    ..clear()
+    ..add(r);
+
   @override
   Future<void> oublier() async {
     oublis++;
@@ -192,6 +201,91 @@ void main() {
     testWidgets('un refus n\'ajoute pas de bruit', (tester) async {
       await afficher(tester, [const Rappel(Issue.refusee)]);
       expect(find.byKey(const Key('mot.biometrie')), findsNothing);
+    });
+  });
+
+  /// ─── Le troisième état, celui qu'on ne voyait pas ───
+  ///
+  /// Vert, rouge, et **« je n'ai pas pu regarder »**. Les deux premiers étaient traités ;
+  /// le troisième était reconnu par le classement, puis perdu à l'écran : le garde se
+  /// rouvrait, et rien ne paraissait. Or c'est exactement ce que voit quelqu'un dont la
+  /// biométrie a cessé de se lancer — un écran parfaitement normal.
+  ///
+  /// Ces témoins gardent les deux moitiés : que ça se **dise**, et que ça ne **boucle**
+  /// pas. Une panne bruyante n'est pas un progrès sur une panne muette.
+  group('« Je n\'ai pas pu regarder » se dit, et ne boucle pas', () {
+    testWidgets('quatre « pas maintenant » d\'affilée le disent', (tester) async {
+      await afficher(tester, [const Rappel(Issue.pasMaintenant)]);
+
+      expect(find.byKey(const Key('mot.biometrie')), findsOneWidget,
+          reason: 'la question n\'a jamais été posée, et l\'écran n\'en dit rien : '
+              'c\'est la panne muette du 2026-09-25');
+      expect(find.textContaining('n\'était pas en état de présenter'), findsOneWidget);
+    });
+
+    /// Le mot ne doit rien affirmer de cassé : le sceau est intact, et dire le contraire
+    /// enverrait retaper une phrase pour rien.
+    testWidgets('il ne parle ni d\'invalidation ni d\'effacement', (tester) async {
+      final magasin = await afficher(tester, [const Rappel(Issue.pasMaintenant)]);
+      expect(find.textContaining('ajoutée ou retirée'), findsNothing);
+      expect(magasin.oublis, 0, reason: 'un sceau intact vient d\'être effacé');
+    });
+
+    /// **La borne.** La première correction de GhostPass réessayait sans fin et faisait
+    /// clignoter le bouton. Dérouler largement la fenêtre ne doit pas relancer la question
+    /// au-delà des quatre essais prévus.
+    testWidgets('dire ne relance pas la question', (tester) async {
+      final magasin = await afficher(tester, [const Rappel(Issue.pasMaintenant)]);
+      final apresLaFenetre = magasin.questions;
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      expect(magasin.questions, apresLaFenetre,
+          reason: 'la question repart toute seule : la panne muette a été remplacée par '
+              'une panne bruyante');
+      expect(apresLaFenetre, lessThanOrEqualTo(4));
+    });
+
+    /// Le bouton est le seul chemin qui reste, et il doit rester vivant.
+    testWidgets('le bouton reste offert', (tester) async {
+      await afficher(tester, [const Rappel(Issue.pasMaintenant)]);
+      expect(find.byType(OutlinedButton), findsOneWidget,
+          reason: 'sans icône ni message, il ne reste plus aucune issue');
+    });
+
+    /// Le chemin du bouton tombe dans le même cas quand l'application n'est pas active.
+    /// Sans message, toucher l'icône ne produit **rien du tout** — le bouton mort.
+    testWidgets('toucher l\'icône sans pouvoir demander se dit aussi', (tester) async {
+      final magasin = await afficher(tester, [const Rappel(Issue.refusee)]);
+      expect(find.byKey(const Key('mot.biometrie')), findsNothing);
+
+      magasin.repondre(const Rappel(Issue.pasMaintenant));
+      await tester.tap(find.byType(OutlinedButton));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('mot.biometrie')), findsOneWidget,
+          reason: 'l\'icône a été touchée, rien ne s\'est passé, et rien ne le dit');
+    });
+
+    /// Un « je n'ai pas pu demander » qui survit à une question aboutie est un mensonge de
+    /// plus. Ce qui le remplace peut être autre chose — ici la phrase scellée est bien
+    /// relue mais n'ouvre pas le coffre de ce témoin, et l'écran le dit. Ce qui compte est
+    /// qu'il ne dise plus l'**ancienne** cause.
+    testWidgets('le mot ne survit pas à une question aboutie', (tester) async {
+      final magasin = await afficher(tester, [const Rappel(Issue.pasMaintenant)]);
+      expect(find.textContaining('n\'était pas en état de présenter'), findsOneWidget);
+
+      magasin.repondre(Rappel(Issue.ouverte, phrase: 'ouvre-toi'));
+      // Le message pousse le bouton hors du cadre du témoin ; sans ce défilement, le
+      // `tap` manque sa cible et ne produit qu'un avertissement. Le témoin « passerait »
+      // alors sans avoir rien touché, ce qui est le vert le plus dangereux.
+      await tester.ensureVisible(find.byType(OutlinedButton));
+      await tester.tap(find.byType(OutlinedButton));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('n\'était pas en état de présenter'), findsNothing,
+          reason: 'la question a fini par être posée, et l\'écran affiche encore '
+              'qu\'elle ne l\'a pas été');
     });
   });
 

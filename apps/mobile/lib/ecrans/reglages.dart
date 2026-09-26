@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/agenda.dart';
+import '../services/biometrie.dart';
 import '../services/reglages.dart' as service;
 import '../services/session.dart';
 import '../services/verrouillage.dart' as v;
@@ -19,10 +20,16 @@ class EcranDeReglages extends StatefulWidget {
     super.key,
     required this.session,
     required this.verrouillage,
+    this.biometrie,
   });
 
   final Session session;
   final v.Verrouillage verrouillage;
+
+  /// Le magasin scellé, injectable pour les témoins — même couture que
+  /// [EcranDeConnexion]. Sans elle, le retrait du sceau ne serait vérifiable que sur un
+  /// appareil, donc par personne.
+  final Biometrie? biometrie;
 
   @override
   State<EcranDeReglages> createState() => _EcranDeReglagesState();
@@ -33,10 +40,50 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
   List<service.Horaire>? _horaires;
   String? _erreur;
 
+  late final _biometrie = widget.biometrie ?? Biometrie();
+
+  /// La biométrie utilisable sur cet appareil, `null` s'il n'y en a pas.
+  Empreinte? _empreinte;
+
+  /// L'état du sceau, **tel que le magasin l'a rendu** — pas un booléen de réglage.
+  ///
+  /// C'est la leçon du 2026-09-25 appliquée aux réglages : GhostPass affichait « actif »
+  /// en lisant une préférence, alors que le trousseau, lui, n'avait plus rien. Un réglage
+  /// qui se souvient de ce qu'on lui a dit ment dès que la plateforme change d'avis
+  /// derrière lui. Celui-ci ne se souvient de rien et **redemande** à chaque affichage.
+  ///
+  /// `null` tant que la réponse n'est pas revenue : ce n'est pas « absent ».
+  Issue? _sceau;
+
+  /// Ce qu'on vient de faire au sceau, quand ça mérite d'être dit.
+  String? _motDuSceau;
+
   @override
   void initState() {
     super.initState();
     _charger();
+    _relireLeSceau();
+  }
+
+  /// Relit l'état du sceau **sans** déclencher la biométrie : `sceau()` interroge la
+  /// présence, pas la valeur. Ouvrir les réglages ne doit pas demander un visage.
+  Future<void> _relireLeSceau() async {
+    final empreinte = await _biometrie.disponible();
+    final etat = empreinte == null ? null : await _biometrie.sceau();
+    if (!mounted) return;
+    setState(() {
+      _empreinte = empreinte;
+      _sceau = etat;
+    });
+  }
+
+  Future<void> _retirerLeSceau() async {
+    await _biometrie.oublier();
+    if (!mounted) return;
+    setState(() => _motDuSceau = L.of(context).sceauRetire);
+    // On relit plutôt que de poser « absent » de confiance : `oublier` avale ses erreurs,
+    // et affirmer un retrait qu'on n'a pas vérifié serait le réglage menteur, inversé.
+    await _relireLeSceau();
   }
 
   Future<void> _charger() async {
@@ -122,6 +169,7 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
             ),
             onTap: session.verrouiller,
           ),
+          _ligneDuSceau(gc),
           _titre(gc, 'Organisation'),
           if (_organisations == null)
             const Padding(
@@ -196,6 +244,75 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
           ),
         ],
       ),
+    );
+  }
+
+  /// L'état du sceau biométrique, et de quoi le retirer.
+  ///
+  /// ─── Pourquoi ce n'est pas un interrupteur ───
+  ///
+  /// Un interrupteur a deux positions, et c'est précisément l'erreur qu'on répare. Le
+  /// trousseau rend **trois** réponses, et aucune ne se peint en « activé » ou
+  /// « désactivé » sans mentir sur l'une des autres :
+  ///
+  /// - scellé, la clé est vivante ;
+  /// - rien de scellé, ou le sceau est mort avec l'enrôlement qui l'a créé ;
+  /// - **le magasin n'a pas répondu** — ni oui ni non, et c'est celui-là qui a coûté une
+  ///   panne à GhostPass le 2026-09-25, affiché « actif » alors qu'il n'y avait plus rien.
+  ///
+  /// Poser le sceau ne se fait pas d'ici : cela demande la phrase, et la phrase n'est plus
+  /// en mémoire une fois le coffre ouvert. La proposition revient là où le secret est sous
+  /// la main, c'est-à-dire au prochain déverrouillage. **Le retrait**, lui, n'a besoin de
+  /// rien et se fait ici.
+  Widget _ligneDuSceau(Gc gc) {
+    final l = L.of(context);
+    final empreinte = _empreinte;
+
+    final (String etat, bool retirable) = switch ((empreinte, _sceau)) {
+      // Pas de matériel : le dire, plutôt qu'une ligne qui ne fera jamais rien.
+      (null, _) => (l.sansBiometrieSurCetAppareil, false),
+      // La réponse n'est pas encore revenue. Elle n'est pas « non ».
+      (_, null) => ('', false),
+      (final e?, Issue.ouverte) => (l.sceauPose(e.nom(l)), true),
+      (_, Issue.absente) => (l.sceauAbsent, false),
+      (_, Issue.invalidee) => (l.sceauInvalide, true),
+      // `pasMaintenant` et `refusee` ne peuvent pas sortir de `sceau()`, qui ne présente
+      // rien. S'ils arrivaient quand même, ils diraient la même chose : on ne sait pas.
+      // Le `switch` est exhaustif — une issue ajoutée sans être nommée ici ne compile pas.
+      (_, Issue.pasMaintenant) ||
+      (_, Issue.refusee) ||
+      (_, Issue.echec) =>
+        (l.sceauIndetermine, true),
+    };
+
+    return ListTile(
+      key: const Key('ligne.sceau'),
+      leading: Icon(empreinte?.icone ?? Icons.face_retouching_off_outlined),
+      title: Text(l.sceauBiometrique),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (etat.isNotEmpty)
+            Text(etat, style: TextStyle(color: gc.estompe, fontSize: 12)),
+          if (_motDuSceau != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                _motDuSceau!,
+                key: const Key('mot.sceau'),
+                style: TextStyle(color: gc.estompe, fontSize: 12),
+              ),
+            ),
+        ],
+      ),
+      trailing: retirable
+          ? TextButton(
+              key: const Key('bouton.retirer.sceau'),
+              onPressed: _retirerLeSceau,
+              style: TextButton.styleFrom(foregroundColor: gc.danger),
+              child: Text(l.retirerLeSceau),
+            )
+          : null,
     );
   }
 

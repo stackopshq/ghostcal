@@ -211,6 +211,12 @@ abstract class L {
   /// **'Le magasin sécurisé n\'a pas pu être lu : {raison}.'**
   String magasinIllisible(String raison);
 
+  /// Le troisième état du trousseau, celui qui n'est ni un succès ni un refus : la question n'a pas été posée. Le taire laisse une icône qui ne fait rien — la panne muette de GhostPass du 2026-09-25. La formulation dit explicitement que le sceau est intact, pour qu'on n'aille pas croire qu'il faut tout refaire.
+  ///
+  /// In fr, this message translates to:
+  /// **'{biometrie} n\'a pas pu être demandé : l\'appareil n\'était pas en état de présenter la demande. Rien n\'a changé — touchez l\'icône dans un instant, ou tapez votre phrase.'**
+  String biometriePasDemandee(String biometrie);
+
   /// No description provided for @raisonInconnue.
   ///
   /// In fr, this message translates to:
@@ -253,11 +259,23 @@ abstract class L {
   /// **'Ouvrir avec {biometrie}'**
   String ouvrirAvec(String biometrie);
 
-  /// No description provided for @phraseSceleeSurAppareil.
+  /// La seconde phrase vient de BiometricSetupView de GhostPass : sans elle, l'invalidation au prochain enrôlement ressemble à une panne. Annoncée d'avance, c'est une garantie.
   ///
   /// In fr, this message translates to:
-  /// **'La phrase est scellée sur cet appareil, relisible par {biometrie} seul.'**
+  /// **'La phrase est scellée sur cet appareil, relisible par {biometrie} seul. Ajouter ou retirer un visage ou une empreinte annule cet accès.'**
   String phraseSceleeSurAppareil(String biometrie);
+
+  /// No description provided for @afficherLaPhrase.
+  ///
+  /// In fr, this message translates to:
+  /// **'Afficher la phrase'**
+  String get afficherLaPhrase;
+
+  /// No description provided for @masquerLaPhrase.
+  ///
+  /// In fr, this message translates to:
+  /// **'Masquer la phrase'**
+  String get masquerLaPhrase;
 
   /// No description provided for @connecteMaisCoffreFerme.
   ///
@@ -516,6 +534,54 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Les clés quittent la mémoire ; la session reste ouverte.'**
   String get clesQuittentLaMemoire;
+
+  /// Le titre de la ligne des réglages qui dit l'état du sceau. « Ouverture » et non « Activation » : on ne bascule pas un réglage, on constate ce que le trousseau garde réellement.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ouverture biométrique'**
+  String get sceauBiometrique;
+
+  /// No description provided for @sceauPose.
+  ///
+  /// In fr, this message translates to:
+  /// **'Scellée, relisible par {biometrie} seul.'**
+  String sceauPose(String biometrie);
+
+  /// No description provided for @sceauAbsent.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rien n\'est scellé. La proposition revient au prochain déverrouillage.'**
+  String get sceauAbsent;
+
+  /// No description provided for @sceauInvalide.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le sceau n\'est plus lisible : une biométrie a été ajoutée ou retirée sur cet appareil. Retapez votre phrase au prochain déverrouillage.'**
+  String get sceauInvalide;
+
+  /// Le troisième état, jusque dans les réglages. Afficher « désactivé » ici serait affirmer une chose qu'on n'a pas vérifiée — c'est exactement le réglage menteur de GhostPass le 2026-09-25.
+  ///
+  /// In fr, this message translates to:
+  /// **'L\'état du sceau n\'a pas pu être lu. Ce n\'est ni un oui ni un non : le magasin n\'a pas répondu.'**
+  String get sceauIndetermine;
+
+  /// No description provided for @sansBiometrieSurCetAppareil.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucune biométrie utilisable sur cet appareil.'**
+  String get sansBiometrieSurCetAppareil;
+
+  /// No description provided for @retirerLeSceau.
+  ///
+  /// In fr, this message translates to:
+  /// **'Retirer le sceau'**
+  String get retirerLeSceau;
+
+  /// No description provided for @sceauRetire.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le sceau a été retiré. La phrase sera redemandée au prochain déverrouillage.'**
+  String get sceauRetire;
 
   /// No description provided for @coffreFermePourOrganisation.
   ///

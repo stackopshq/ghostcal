@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
 
+import '../l10n/generated/app_localisations.dart';
+
 /// Ouvrir le coffre par le visage ou l'empreinte.
 ///
 /// ─── Ce que ce fichier contredit, et pourquoi ───
@@ -42,14 +44,75 @@ import 'package:local_auth/local_auth.dart';
 /// quelqu'un contourne l'appel Dart. Une biométrie qui ne serait qu'un `local_auth` devant
 /// une valeur lisible par n'importe quoi d'autre ressemblerait à GhostPass à l'écran sans
 /// en avoir la garantie.
+///
+/// ─── Et la garantie, constatée sur matériel ───
+///
+/// Le 2026-09-26, sur un iPhone 17 Pro, dans la même exécution :
+///
+///     entrée sans contrôle d'accès      lecture en      4 ms
+///     entrée sous biometryCurrentSet    lecture en 45 174 ms, après Face ID
+///
+/// Trois ordres de grandeur. La porte existe, et le trousseau la fait franchir — ce
+/// n'était jusque-là qu'une option déclarée, et une option déclarée qu'une plateforme
+/// ignore ne produit aucune erreur. Le relevé vit dans
+/// `integration_test/biometrie_trois_etats_test.dart`, qui le refait à chaque exécution
+/// plutôt que de le croire sur parole.
 enum Empreinte {
-  visage(Icons.face, 'Face ID'),
-  doigt(Icons.fingerprint, 'Touch ID'),
-  autre(Icons.lock_outline, 'la biométrie');
+  visage(Icons.face),
+  doigt(Icons.fingerprint),
+  autre(Icons.lock_outline);
 
-  const Empreinte(this.icone, this.nom);
+  const Empreinte(this.icone);
   final IconData icone;
-  final String nom;
+
+  /// Le nom du geste, dans la langue de l'écran.
+  ///
+  /// « Face ID » et « Touch ID » sont des noms de produits d'Apple : ils ne se traduisent
+  /// pas, et sont rendus tels quels. Le repli générique, lui, **se traduit** — c'est une
+  /// erreur que GhostPass iOS a faite puis corrigée : un `nom` français en dur donnait
+  /// « Open with la biométrie » sur une interface anglaise, à l'endroit précis où le
+  /// produit demande qu'on lui fasse confiance.
+  ///
+  /// Le `switch` reste collé aux valeurs parce qu'il est **exhaustif** : ajouter une
+  /// biométrie sans lui donner de nom ne compile pas. Une table posée ailleurs laisserait
+  /// passer l'oubli, et l'écran afficherait un vide. Même motif que
+  /// `DelaiDeVerrouillage.libelle`.
+  String nom(L l) => switch (this) {
+        Empreinte.visage => 'Face ID',
+        Empreinte.doigt => 'Touch ID',
+        Empreinte.autre => l.laBiometrie,
+      };
+}
+
+/// Les trois libellés de l'invite biométrique **d'Android**.
+///
+/// iOS prend les siens ailleurs — `NSFaceIDUsageDescription`, localisé par
+/// `InfoPlist.strings` — parce que c'est le système qui compose l'alerte. Android, lui,
+/// veut les chaînes au moment de l'appel : elles doivent donc traverser depuis un écran
+/// qui a un `BuildContext`, sans quoi elles restent en dur dans la langue de celle qui a
+/// écrit le code. C'est exactement le défaut relevé le 2026-09-25 sur GhostPass Android.
+///
+/// [repli] nomme **le chemin long, pas un abandon** : « Utiliser la phrase » et non
+/// « Annuler ». Le geste refusé renvoie au clavier, et l'écrire évite de laisser croire
+/// qu'on est coincé — GhostPass y met « Mot de passe maître » pour la même raison.
+class InvitesBiometriques {
+  const InvitesBiometriques({
+    required this.titre,
+    required this.sousTitre,
+    required this.repli,
+  });
+
+  /// Les libellés tirés des traductions de l'application.
+  factory InvitesBiometriques.depuis(L l) => InvitesBiometriques(
+        titre: l.ouvrirLeCoffre,
+        // Le nom du produit, verbatim : il ne se traduit pas.
+        sousTitre: 'GhostCal',
+        repli: l.utiliserLaPhrase,
+      );
+
+  final String titre;
+  final String sousTitre;
+  final String repli;
 }
 
 /// Ce qu'a répondu le magasin scellé.
@@ -104,16 +167,41 @@ class Rappel {
 class Biometrie {
   Biometrie({LocalAuthentication? auth, FlutterSecureStorage? stockage})
       : _auth = auth ?? LocalAuthentication(),
-        _stockage = stockage ?? magasin;
+        _injecte = stockage;
 
   final LocalAuthentication _auth;
-  final FlutterSecureStorage _stockage;
+
+  /// Le magasin imposé par un témoin, quand il y en a un. Il l'emporte toujours : un test
+  /// ne doit jamais se retrouver avec un vrai trousseau sous la main.
+  final FlutterSecureStorage? _injecte;
+
+  InvitesBiometriques? _invites;
+
+  /// Les libellés de l'invite Android, posés par l'écran qui a le contexte.
+  ///
+  /// C'est un point mouvant parce que la langue l'est : l'application suit le réglage de
+  /// l'appareil, et celui-ci peut changer pendant qu'elle vit. Un magasin figé à la
+  /// construction porterait la langue du premier lancement.
+  set invites(InvitesBiometriques valeur) => _invites = valeur;
 
   static const _cle = 'ghostcal.phrase';
 
-  /// Le magasin scellé. Constant et séparé de celui de [Trousseau] — voir l'en-tête.
-  static const magasin = FlutterSecureStorage(
-    iOptions: IOSOptions(
+  FlutterSecureStorage get _stockage => _injecte ?? magasin(_invites);
+
+  /// Le magasin scellé, séparé de celui de [Trousseau] — voir l'en-tête.
+  ///
+  /// Ce n'est plus une constante, et la raison est de langue, pas de technique : les trois
+  /// libellés de l'invite Android viennent des traductions, donc d'un `BuildContext`, donc
+  /// pas d'un `const`. Les **contraintes**, elles, ne dépendent de rien et restent
+  /// identiques d'un appel à l'autre — c'est ce que garde `biometrie_test.dart`.
+  ///
+  /// [invites] nul laisse au paquet son libellé par défaut plutôt que de poser le nôtre en
+  /// français : un texte générique anglais se reconnaît comme tel, du français servi à un
+  /// anglophone se lit comme un produit cassé. Le cas ne se produit qu'avant qu'un écran
+  /// ait posé les siens.
+  static FlutterSecureStorage magasin([InvitesBiometriques? invites]) =>
+      FlutterSecureStorage(
+    iOptions: const IOSOptions(
       accountName: 'ghostcal.biometrie',
       // `passcode` est `kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly` : l'entrée
       // n'existe que si un code est posé, ne quitte jamais l'appareil, et disparaît si le
@@ -129,9 +217,9 @@ class Biometrie {
       biometricType: AndroidBiometricType.strongBiometricOnly,
       resetOnError: false,
       storageNamespace: 'ghostcal.biometrie',
-      biometricPromptTitle: 'Ouvrir le coffre',
-      biometricPromptSubtitle: 'GhostCal',
-      biometricPromptNegativeButton: 'Utiliser la phrase',
+      biometricPromptTitle: invites?.titre,
+      biometricPromptSubtitle: invites?.sousTitre,
+      biometricPromptNegativeButton: invites?.repli,
     ),
   );
 

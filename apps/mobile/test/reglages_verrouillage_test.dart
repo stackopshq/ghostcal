@@ -57,6 +57,16 @@ void main() {
   /// ce qu'il ne permet pas aujourd'hui.
   testWidgets('Sécurité passe avant le reste, et aucun titre ne se répète',
       (tester) async {
+    // Une fenêtre haute, et ce n'est pas un détail d'instrument : le relevé ci-dessous ne
+    // voit que les `Text` **construits**, et un `ListView` n'en construit que le voisinage
+    // de sa fenêtre. Dans les 600 px par défaut, ajouter une tuile à la section Sécurité
+    // suffisait à faire sortir « ORGANISATION » du relevé — `indexOf` rendait alors -1, et
+    // le témoin échouait en désignant un ordre inversé qui n'existait pas. Le message
+    // accusait l'écran d'un défaut qui était dans la mesure.
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
     await tester.pumpWidget(
         appDEpreuve(EcranDeReglages(session: Session(), verrouillage: v.Verrouillage())));
     await tester.pump();

@@ -88,6 +88,18 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
     _regarderLaBiometrie();
   }
 
+  /// Les libellés de l'invite Android suivent la langue de l'écran.
+  ///
+  /// Ici et non dans `initState` : `L.of(context)` y est inatteignable, et un magasin
+  /// construit avant que la localisation soit résolue porterait la langue du repli. Ce
+  /// crochet repasse aussi quand le réglage de langue de l'appareil change en cours de
+  /// route, ce qui est le seul moyen que l'invite suive.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _biometrie.invites = InvitesBiometriques.depuis(L.of(context));
+  }
+
   /// Deuxième chemin : le passage au premier plan.
   ///
   /// C'est celui qui rattrape le lancement. Au tout premier affichage l'application n'est
@@ -147,6 +159,30 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
     // Quatre fois « pas maintenant » : la question n'a jamais été posée. Ne pas rouvrir
     // le garde ici, c'est exactement le bouton mort qu'on cherche à éviter.
     _demandee = false;
+    // …et ne pas le **dire** en est l'autre moitié. Rouvrir le garde sans un mot laisse
+    // l'écran strictement identique à celui d'un lancement normal : la biométrie ne s'est
+    // pas lancée, le sceau est pourtant intact, et rien ne distingue les deux. C'est la
+    // panne muette du 2026-09-25 vue par l'autre bout — le réglage disait vrai, c'est
+    // l'écran qui se taisait.
+    //
+    // Le message n'annule rien et ne relance rien : il nomme le troisième état et laisse
+    // les deux issues ouvertes, l'icône et le clavier. Une boucle de plus serait une panne
+    // bruyante, ce qui n'est pas un progrès sur une panne muette.
+    _dire(_motPourPasMaintenant());
+  }
+
+  /// Ce qu'on affiche quand la question n'a pas pu être posée.
+  String _motPourPasMaintenant() =>
+      L.of(context).biometriePasDemandee(_nomDeLEmpreinte);
+
+  /// Le nom du geste, traduit — jamais la valeur d'énumération.
+  String get _nomDeLEmpreinte =>
+      _empreinte?.nom(L.of(context)) ?? L.of(context).laBiometrie;
+
+  /// Pose le mot de la biométrie, s'il a changé.
+  void _dire(String? mot) {
+    if (!mounted || _motDeLaBiometrie == mot) return;
+    setState(() => _motDeLaBiometrie = mot);
   }
 
   /// Ouvre par le visage — le chemin du bouton, qui ne passe pas par le garde : si l'on
@@ -160,6 +196,10 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
   Future<void> _traiter(Rappel rappel) async {
     switch (rappel.issue) {
       case Issue.ouverte:
+        // La question a fini par aboutir : ce qui avait été dit d'un essai précédent —
+        // « pas pu demander », typiquement — ne vaut plus, et le laisser à l'écran ferait
+        // lire un échec devant un coffre qui s'ouvre.
+        _dire(null);
         _phrase.text = rappel.phrase!;
         await _valider();
         // La phrase scellée n'ouvre plus : elle a vieilli, typiquement après un
@@ -179,8 +219,15 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
         // l'écran de saisie est déjà là.
         break;
       case Issue.pasMaintenant:
-        // Le chemin du bouton peut tomber ici si l'application n'est pas encore active.
-        break;
+        // **Le troisième état, et le seul qu'on avait laissé muet.** Le chemin du bouton
+        // tombe ici quand l'application n'est pas encore active : on touche l'icône, le
+        // trousseau ne présente rien, et sans ce mot il ne se passe strictement rien —
+        // rien ne distingue alors un bouton qui n'a pas pu poser sa question d'un bouton
+        // cassé. Ni vert ni rouge : « je n'ai pas pu regarder ».
+        //
+        // On ne réessaie pas depuis ici. Le bouton **est** le geste manuel ; le relancer
+        // tout seul ferait clignoter ce que la première correction de GhostPass faisait
+        // clignoter.
       case Issue.absente:
       case Issue.invalidee:
         // La garantie a joué : un nouveau visage, une nouvelle empreinte. C'est le cas
@@ -194,8 +241,7 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
           // Android, `flutter_secure_storage` perd le type de l'exception, et un sceau
           // mort par nouvel enrôlement se présente comme un sceau mort par changement
           // d'algorithme. La conduite à tenir est la même, et c'est elle qu'on énonce.
-          _motDeLaBiometrie = L.of(context).biometrieDesactivee(
-              _empreinte?.nom ?? L.of(context).laBiometrie);
+          _motDeLaBiometrie = L.of(context).biometrieDesactivee(_nomDeLEmpreinte);
         });
       case Issue.echec:
         setState(() => _motDeLaBiometrie = L
@@ -361,7 +407,7 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
         // c'est une **action**, et sans elle un lecteur d'écran annoncerait « bouton »
         // sans dire lequel.
         Semantics(
-          label: L.of(context).ouvrirAvec(empreinte.nom),
+          label: L.of(context).ouvrirAvec(empreinte.nom(L.of(context))),
           button: true,
           child: OutlinedButton(
             onPressed: session.occupe ? null : _ouvrirParBiometrie,
@@ -394,11 +440,11 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
           controlAffinity: ListTileControlAffinity.leading,
           dense: true,
           title: Text(
-            L.of(context).ouvrirAvec(empreinte.nom),
+            L.of(context).ouvrirAvec(empreinte.nom(L.of(context))),
             style: TextStyle(color: gc.encre, fontSize: 14),
           ),
           subtitle: Text(
-            L.of(context).phraseSceleeSurAppareil(empreinte.nom),
+            L.of(context).phraseSceleeSurAppareil(empreinte.nom(L.of(context))),
             style: TextStyle(color: gc.estompe, fontSize: 12),
           ),
         ),
@@ -574,7 +620,9 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
               icon: Icon(_phraseVisible ? Icons.visibility_off : Icons.visibility),
               // Une phrase de récupération fait douze mots : la taper à l'aveugle
               // garantit la faute de frappe, et l'erreur rendue ne dit pas où.
-              tooltip: _phraseVisible ? 'Masquer' : 'Afficher',
+              tooltip: _phraseVisible
+                  ? L.of(context).masquerLaPhrase
+                  : L.of(context).afficherLaPhrase,
               onPressed: () => setState(() => _phraseVisible = !_phraseVisible),
             ),
           ),

@@ -1,0 +1,2 @@
+/* Voir en.lproj/InfoPlist.strings pour le motif. */
+"NSFaceIDUsageDescription" = "Face ID déverrouille votre agenda sans ressaisir le mot de passe maître.";

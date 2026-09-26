@@ -72,6 +72,11 @@ class LFr extends L {
   }
 
   @override
+  String biometriePasDemandee(String biometrie) {
+    return '$biometrie n\'a pas pu être demandé : l\'appareil n\'était pas en état de présenter la demande. Rien n\'a changé — touchez l\'icône dans un instant, ou tapez votre phrase.';
+  }
+
+  @override
   String get raisonInconnue => 'raison inconnue';
 
   @override
@@ -96,8 +101,14 @@ class LFr extends L {
 
   @override
   String phraseSceleeSurAppareil(String biometrie) {
-    return 'La phrase est scellée sur cet appareil, relisible par $biometrie seul.';
+    return 'La phrase est scellée sur cet appareil, relisible par $biometrie seul. Ajouter ou retirer un visage ou une empreinte annule cet accès.';
   }
+
+  @override
+  String get afficherLaPhrase => 'Afficher la phrase';
+
+  @override
+  String get masquerLaPhrase => 'Masquer la phrase';
 
   @override
   String connecteMaisCoffreFerme(String raison) {
@@ -238,6 +249,37 @@ class LFr extends L {
   @override
   String get clesQuittentLaMemoire =>
       'Les clés quittent la mémoire ; la session reste ouverte.';
+
+  @override
+  String get sceauBiometrique => 'Ouverture biométrique';
+
+  @override
+  String sceauPose(String biometrie) {
+    return 'Scellée, relisible par $biometrie seul.';
+  }
+
+  @override
+  String get sceauAbsent =>
+      'Rien n\'est scellé. La proposition revient au prochain déverrouillage.';
+
+  @override
+  String get sceauInvalide =>
+      'Le sceau n\'est plus lisible : une biométrie a été ajoutée ou retirée sur cet appareil. Retapez votre phrase au prochain déverrouillage.';
+
+  @override
+  String get sceauIndetermine =>
+      'L\'état du sceau n\'a pas pu être lu. Ce n\'est ni un oui ni un non : le magasin n\'a pas répondu.';
+
+  @override
+  String get sansBiometrieSurCetAppareil =>
+      'Aucune biométrie utilisable sur cet appareil.';
+
+  @override
+  String get retirerLeSceau => 'Retirer le sceau';
+
+  @override
+  String get sceauRetire =>
+      'Le sceau a été retiré. La phrase sera redemandée au prochain déverrouillage.';
 
   @override
   String coffreFermePourOrganisation(String role) {

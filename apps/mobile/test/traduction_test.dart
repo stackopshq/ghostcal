@@ -40,10 +40,17 @@ void main() {
   /// Le chemin pour les supprimer : que le service rende une **valeur** — un code, une
   /// énumération — et que l'écran, qui a un contexte, la traduise. C'est ce qui a été fait
   /// pour `DelaiDeVerrouillage.libelle(L)` et `Membre.roleLisible(L)`.
+  ///
+  /// `lib/services/biometrie.dart` **en est sorti** le 2026-09-26, et c'est le chemin
+  /// décrit ci-dessus qui l'en a sorti : le fichier portait « la biométrie » et les deux
+  /// libellés de l'invite Android, tous trois dans un `static const` que le
+  /// `BiometricPrompt` affichait tels quels à un anglophone. Le service rend désormais une
+  /// **valeur** — l'énumération `Empreinte`, et `InvitesBiometriques` — que l'écran
+  /// traduit. Les deux clés de l'invite existaient déjà dans les `.arb` depuis un passage
+  /// précédent : elles avaient été traduites, puis jamais branchées, et rien ne le disait.
   const restant = <String, int>{
     'lib/services/api.dart': 1, // « Le serveur a répondu {code}. »
     'lib/services/auth.dart': 2, // phrase incorrecte, coffre fermé
-    'lib/services/biometrie.dart': 3, // « la biométrie », et les deux invites Android
     'lib/services/session.dart': 2, // adresse invalide, session expirée
   };
 

@@ -31,6 +31,11 @@
   "@magasinIllisible": {
     "placeholders": { "raison": { "type": "String" } }
   },
+  "biometriePasDemandee": "{biometrie} n'a pas pu être demandé : l'appareil n'était pas en état de présenter la demande. Rien n'a changé — touchez l'icône dans un instant, ou tapez votre phrase.",
+  "@biometriePasDemandee": {
+    "description": "Le troisième état du trousseau, celui qui n'est ni un succès ni un refus : la question n'a pas été posée. Le taire laisse une icône qui ne fait rien — la panne muette de GhostPass du 2026-09-25. La formulation dit explicitement que le sceau est intact, pour qu'on n'aille pas croire qu'il faut tout refaire.",
+    "placeholders": { "biometrie": { "type": "String" } }
+  },
   "raisonInconnue": "raison inconnue",
   "laBiometrie": "la biométrie",
   "coffreEnregistre": "Coffre enregistré sur cet appareil",
@@ -41,10 +46,13 @@
   "@ouvrirAvec": {
     "placeholders": { "biometrie": { "type": "String" } }
   },
-  "phraseSceleeSurAppareil": "La phrase est scellée sur cet appareil, relisible par {biometrie} seul.",
+  "phraseSceleeSurAppareil": "La phrase est scellée sur cet appareil, relisible par {biometrie} seul. Ajouter ou retirer un visage ou une empreinte annule cet accès.",
   "@phraseSceleeSurAppareil": {
+    "description": "La seconde phrase vient de BiometricSetupView de GhostPass : sans elle, l'invalidation au prochain enrôlement ressemble à une panne. Annoncée d'avance, c'est une garantie.",
     "placeholders": { "biometrie": { "type": "String" } }
   },
+  "afficherLaPhrase": "Afficher la phrase",
+  "masquerLaPhrase": "Masquer la phrase",
   "connecteMaisCoffreFerme": "Vous êtes connecté, mais le coffre est resté fermé : {raison}",
   "@connecteMaisCoffreFerme": {
     "placeholders": { "raison": { "type": "String" } }
@@ -98,6 +106,24 @@
 
   "securite": "Sécurité",
   "clesQuittentLaMemoire": "Les clés quittent la mémoire ; la session reste ouverte.",
+
+  "sceauBiometrique": "Ouverture biométrique",
+  "@sceauBiometrique": {
+    "description": "Le titre de la ligne des réglages qui dit l'état du sceau. « Ouverture » et non « Activation » : on ne bascule pas un réglage, on constate ce que le trousseau garde réellement."
+  },
+  "sceauPose": "Scellée, relisible par {biometrie} seul.",
+  "@sceauPose": {
+    "placeholders": { "biometrie": { "type": "String" } }
+  },
+  "sceauAbsent": "Rien n'est scellé. La proposition revient au prochain déverrouillage.",
+  "sceauInvalide": "Le sceau n'est plus lisible : une biométrie a été ajoutée ou retirée sur cet appareil. Retapez votre phrase au prochain déverrouillage.",
+  "sceauIndetermine": "L'état du sceau n'a pas pu être lu. Ce n'est ni un oui ni un non : le magasin n'a pas répondu.",
+  "@sceauIndetermine": {
+    "description": "Le troisième état, jusque dans les réglages. Afficher « désactivé » ici serait affirmer une chose qu'on n'a pas vérifiée — c'est exactement le réglage menteur de GhostPass le 2026-09-25."
+  },
+  "sansBiometrieSurCetAppareil": "Aucune biométrie utilisable sur cet appareil.",
+  "retirerLeSceau": "Retirer le sceau",
+  "sceauRetire": "Le sceau a été retiré. La phrase sera redemandée au prochain déverrouillage.",
   "coffreFermePourOrganisation": "{role} · coffre fermé pour cette organisation",
   "@coffreFermePourOrganisation": {
     "placeholders": { "role": { "type": "String" } }

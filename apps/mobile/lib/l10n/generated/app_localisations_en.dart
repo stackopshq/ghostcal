@@ -72,6 +72,11 @@ class LEn extends L {
   }
 
   @override
+  String biometriePasDemandee(String biometrie) {
+    return '$biometrie could not be asked for: the device was not ready to present the request. Nothing has changed — tap the icon in a moment, or type your passphrase.';
+  }
+
+  @override
   String get raisonInconnue => 'reason unknown';
 
   @override
@@ -96,8 +101,14 @@ class LEn extends L {
 
   @override
   String phraseSceleeSurAppareil(String biometrie) {
-    return 'The passphrase is sealed on this device, readable by $biometrie alone.';
+    return 'The passphrase is sealed on this device, readable by $biometrie alone. Adding or removing a face or fingerprint cancels this access.';
   }
+
+  @override
+  String get afficherLaPhrase => 'Show the passphrase';
+
+  @override
+  String get masquerLaPhrase => 'Hide the passphrase';
 
   @override
   String connecteMaisCoffreFerme(String raison) {
@@ -235,6 +246,37 @@ class LEn extends L {
   @override
   String get clesQuittentLaMemoire =>
       'The keys leave memory; the session stays open.';
+
+  @override
+  String get sceauBiometrique => 'Biometric unlock';
+
+  @override
+  String sceauPose(String biometrie) {
+    return 'Sealed, readable by $biometrie alone.';
+  }
+
+  @override
+  String get sceauAbsent =>
+      'Nothing is sealed. The offer returns at the next unlock.';
+
+  @override
+  String get sceauInvalide =>
+      'The seal is no longer readable: a biometric was added or removed on this device. Type your passphrase again at the next unlock.';
+
+  @override
+  String get sceauIndetermine =>
+      'The state of the seal could not be read. This is neither a yes nor a no: the store did not answer.';
+
+  @override
+  String get sansBiometrieSurCetAppareil =>
+      'No usable biometrics on this device.';
+
+  @override
+  String get retirerLeSceau => 'Remove the seal';
+
+  @override
+  String get sceauRetire =>
+      'The seal has been removed. The passphrase will be asked for again at the next unlock.';
 
   @override
   String coffreFermePourOrganisation(String role) {
