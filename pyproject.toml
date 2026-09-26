@@ -17,12 +17,18 @@ dependencies = [
     "celery[redis]>=5.6.3",
     "defusedxml>=0.7.1",
     "fastapi>=0.138.1",
-    # SQLAlchemy ne le tire que sous un marqueur de plateforme qui nomme `aarch64` et pas
-    # `arm64` : sur Apple Silicon il est élagué, et les tests d'intégration passent de
-    # « sautés » à « en erreur », huit autres échouant vraiment. La ligne de base paraît
-    # franchement rouge pour une raison qui n'a aucun rapport avec ce qu'on mesure.
-    # Déclaré ici pour que le marqueur ne décide plus. Voir docs/base-de-donnees-locale.md.
-    "greenlet>=3.2.0",
+    # Déclaré explicitement alors que SQLAlchemy le tire déjà. Son marqueur de
+    # plateforme nomme `aarch64` mais **pas `arm64`**, que déclare macOS Apple
+    # Silicon : chaque `uv sync` l'y élaguait donc, et les tests d'intégration
+    # passaient de « sautés » à « en erreur ».
+    #
+    # C'est le filet à trois états qui se casse en silence. « Vert », « rouge »
+    # et « je n'ai pas pu regarder » sont trois réponses distinctes ; une erreur
+    # d'import les réduit à du bruit, et deux personnes y ont perdu du temps en
+    # croyant à une ligne de base rouge.
+    #
+    # Sans effet sur Linux, où le marqueur amont l'installait déjà.
+    "greenlet>=3.0.0",
     "httpx>=0.28.1",
     "icalendar>=6.0.0",
     "itsdangerous>=2.2.0",

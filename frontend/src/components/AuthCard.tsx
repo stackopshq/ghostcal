@@ -80,7 +80,15 @@ export default function AuthCard({
             seul écran par lequel tout le monde entre était donc celui où le produit
             ne se présentait pas. */}
         <div className="mb-7 flex flex-col items-center gap-3">
-          <Image src="/logo.svg" alt="" width={44} height={44} className="size-11" priority />
+          {/* `ghost-mark` : la pastille sombre que la charte pose derrière la
+              marque. Le dégradé du logo de GhostCal va d'un cyan clair à un cyan
+              profond ; sur le fond clair de ce mode il mesurait 1,12:1, le
+              deuxième pire des huit. La pastille vaut le `base` du thème SOMBRE
+              dans les deux thèmes : en sombre elle se confond avec la page et ne
+              se voit pas, en clair elle apparaît et porte le logo. */}
+          <span className="ghost-mark">
+            <Image src="/logo.svg" alt="" width={44} height={44} className="size-11" priority />
+          </span>
           <Link
             href="/login"
             className="text-2xl font-semibold tracking-tight text-foreground transition hover:text-accent"

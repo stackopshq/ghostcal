@@ -519,7 +519,7 @@ requires-dist = [
     { name = "celery", extras = ["redis"], specifier = ">=5.6.3" },
     { name = "defusedxml", specifier = ">=0.7.1" },
     { name = "fastapi", specifier = ">=0.138.1" },
-    { name = "greenlet", specifier = ">=3.2.0" },
+    { name = "greenlet", specifier = ">=3.0.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "icalendar", specifier = ">=6.0.0" },
     { name = "itsdangerous", specifier = ">=2.2.0" },
