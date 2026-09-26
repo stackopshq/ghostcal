@@ -118,7 +118,7 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col">
         <I18nProvider>
           {children}
-          <div className="fixed bottom-3 right-4 z-50 flex items-center gap-2 rounded-pill border border-border bg-surface/80 px-3 py-1 backdrop-blur">
+          <div className="glass-opaque fixed bottom-3 right-4 z-50 flex items-center gap-2 rounded-pill border border-border px-3 py-1 backdrop-blur">
             <ThemeToggle />
             <span className="text-border-strong">·</span>
             <LanguageSwitcher />

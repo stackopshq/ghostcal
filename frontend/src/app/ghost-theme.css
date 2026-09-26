@@ -4,6 +4,12 @@
  * régénérer. L'échelle et les neutres sont communs aux huit produits ;
  * seul l'accent distingue celui-ci, et il vient de PRODUITS, qui le porte
  * déjà pour les logos.
+ *
+ * Deux modes : le sombre sous `:root`, le clair sous
+ * `:root[data-theme="light"]`. Le clair est DÉRIVÉ des mêmes sources —
+ * son accent est celui du produit, assombri jusqu'au seuil de contraste.
+ * Le redéclarer à la main dans le produit rouvre la dérive que ce fichier
+ * ferme.
  */
 
 :root {
@@ -14,7 +20,22 @@
   --color-accent-ink: #04122b;
   --aurora: color-mix(in srgb, #00F0FF 8%, transparent);
 
-  /* Neutres — communs à la suite. */
+  /* Neutres — communs à la suite.
+   *
+   * `--color-surface` est translucide par conception ; tout ce qui veut un
+   * fond propre se construit depuis `--color-base`. C'est le seul jeton
+   * opaque dans les deux thèmes ET dans les deux modes : adosser une
+   * matière à `--color-surface`, c'est la faire dépendre d'un jeton qui
+   * peut redevenir translucide.
+   *
+   * C'est ce qui a cassé le verre fumé de ghostcal : sa recette mélangeait
+   * `--color-surface` à 65 % avec du transparent, en supposant une surface
+   * opaque. Depuis qu'elle vient de la charte, elle est déjà à 3 % de
+   * blanc, et le mélange la diluait une seconde fois — 2 % au lieu d'un
+   * fond. Le verre fumé est une MATIÈRE construite depuis le fond, pas un
+   * modificateur d'une surface déjà translucide ; la différence est celle
+   * qui sépare une recette réemployable d'une recette qui suppose son
+   * contexte. */
   --color-base: #0b0f19;
   --color-surface: rgba(255, 255, 255, 0.03);
   --color-surface-2: rgba(255, 255, 255, 0.05);
@@ -22,6 +43,24 @@
   --color-border-strong: rgba(255, 255, 255, 0.12);
   --color-foreground: #e8ecf5;
   --color-muted: rgba(232, 236, 245, 0.62);
+
+  /* Le fond posé DERRIÈRE la marque, et le seul jeton qui ne suit pas le
+   * thème.
+   *
+   * Les logos sont des dégradés qui vont d'une teinte claire à une teinte
+   * sombre. Sur un fond clair, le haut du dégradé disparaît : mesuré le
+   * 2026-09-26, 1,06:1 pour ghostmail et 1,12:1 pour ghostcal — autant dire
+   * invisible. Le bleu et le violet s'en tirent parce que leur dégradé
+   * descend jusqu'au foncé.
+   *
+   * Plutôt que de régénérer huit identités, on adosse la marque à une
+   * pastille sombre. Elle vaut `base` du thème SOMBRE dans les deux thèmes,
+   * et c'est délibéré : sur fond sombre elle se confond avec la page et ne
+   * se voit pas, sur fond clair elle apparaît et porte le logo. Un seul
+   * balisage, deux rendus, sans condition à écrire dans les produits.
+   *
+   * La redéfinir dans le bloc clair annulerait exactement ce qu'elle fait. */
+  --color-mark-backdrop: #0b0f19;
 
   /* Échelle typographique — commune à la suite. */
   --text-2xs: 0.75rem;
@@ -37,4 +76,122 @@
   --radius: 12px;
   --radius-lg: 18px;
   --radius-pill: 999px;
+
+  /* Surface d'accent — DÉRIVÉE de sa luminance, pas fixée. */
+  --accent-surface: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  --accent-surface-ink: var(--color-accent);
+  --accent-glow: none;
+}
+
+/* Mode clair. Basculé par `data-theme` sur <html>, et l'emporte sur le
+ * `:root` ci-dessus par sa spécificité, pas par l'ordre des règles :
+ * déplacer cet import ne le casserait pas en silence.
+ *
+ * Ne sont redéclarés que les jetons qui dépendent de la lumière. L'échelle
+ * typographique et les rayons n'en dépendent pas et valent donc pour les
+ * deux modes.
+ *
+ * L'accent descend de #00F0FF à #007a82, et c'est la mesure
+ * qui l'a placé là, pas l'œil : on multiplie les trois canaux par un même
+ * facteur — ce qui préserve teinte et saturation — jusqu'au premier palier
+ * qui atteint 4.5:1 sur #eef3f9, le plus
+ * SOMBRE des fonds de ce mode, donc celui où il se lit le plus mal. La
+ * teinte de nuit est intacte ; seule sa lumière change.
+ *
+ * `--color-accent-light` et `--color-accent-deep` ne sont PAS redéclarés.
+ * En plein jour la marche « claire » devrait vraisemblablement foncer et
+ * la « profonde » s'éclaircir, ce qui n'est pas une dérivation mais une
+ * décision de direction artistique ; elle n'a pas été prise. Ils gardent
+ * donc leur valeur de nuit, et un produit qui s'en sert pour du texte en
+ * mode clair obtiendra un rendu pâle. Écrit ici pour que ce soit une
+ * limite connue et non une surprise. */
+:root[data-theme="light"] {
+  /* Accent — dérivé de l'accent sombre du produit. */
+  --color-accent: #007a82;
+  --color-accent-ink: #f4f8ff;
+  --aurora: color-mix(in srgb, #007a82 10%, transparent);
+
+  /* Neutres clairs — communs à la suite. */
+  --color-base: #f5f8fc;
+  --color-surface: #ffffff;
+  --color-surface-2: #eef3f9;
+  --color-border: rgba(15, 23, 42, 0.1);
+  --color-border-strong: rgba(15, 23, 42, 0.16);
+  --color-foreground: #0f1b2d;
+  --color-muted: #5b6b82;
+}
+
+
+/* Les formes de la suite. Une par nature d'objet, et la même chez les huit.
+ *
+ * Ces classes se posent sur le balisage existant — elles n'en imposent aucun,
+ * ce qui est ce qui leur permet de traverser Next et Jinja sans changer.
+ */
+
+.ghost-card {
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.ghost-input {
+  /* Le petit rayon, pas le moyen : décidé le 2026-08-31 en regardant les deux côte à
+     côte. C'est ce que le web de GhostPass faisait déjà ; la charte le rejoint plutôt
+     que de le corriger, parce que c'est lui qui avait raison à l'œil. Un champ moins
+     arrondi qu'un bouton creuse la hiérarchie entre ce qu'on remplit et ce sur quoi on
+     appuie. */
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-foreground);
+  padding: 0.625rem 1rem;
+  font-size: var(--text-sm);
+}
+
+.ghost-btn {
+  border-radius: var(--radius-pill);
+  padding: 0.625rem 1rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  transition: filter 120ms ease, background-color 120ms ease;
+}
+
+.ghost-btn:disabled {
+  opacity: 0.6;
+}
+
+.ghost-btn-primary {
+  background: var(--accent-surface);
+  color: var(--accent-surface-ink);
+  box-shadow: var(--accent-glow);
+}
+
+.ghost-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.ghost-btn-quiet {
+  background: transparent;
+  color: var(--color-foreground);
+  border: 1px solid var(--color-border-strong);
+}
+
+/* La marque et sa pastille.
+ *
+ * `inline-flex` et non `block` : elle se pose à côté d'un nom de produit aussi
+ * souvent qu'au-dessus, et doit s'aligner sur son milieu.
+ *
+ * Le rayon est celui des conteneurs — une pastille de marque contient le logo,
+ * elle ne s'actionne pas. La forme dit la nature, comme pour le reste.
+ *
+ * L'espacement est proportionnel à la taille du logo plutôt que fixe : la même
+ * classe sert à 44 px sur un écran d'entrée et à 28 px dans une barre latérale,
+ * et une marge fixe étoufferait l'une ou noierait l'autre. */
+.ghost-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.28em;
+  border-radius: var(--radius-lg);
+  background: var(--color-mark-backdrop);
 }
