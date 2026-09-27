@@ -287,6 +287,21 @@ export function verifyEmail(token: string): Promise<void> {
 }
 
 /**
+ * Redemande le courriel de vérification.
+ *
+ * C'est la sortie d'un cul-de-sac : sans elle, un compte dont ce courriel s'était perdu ne
+ * pouvait plus ni se connecter (403), ni se réinscrire (409), ni passer par « mot de passe
+ * oublié », qui ne s'adresse volontairement pas aux adresses non vérifiées.
+ *
+ * Le serveur répond 202 quoi qu'il arrive, y compris pour une adresse inconnue : il ne faut
+ * donc RIEN déduire du succès de cet appel, et surtout pas afficher « courriel envoyé » comme
+ * une certitude. L'écran dit « regardez votre boîte », ce qui est vrai dans tous les cas.
+ */
+export function resendVerification(email: string): Promise<void> {
+  return post("/v1/auth/resend-verification", { email });
+}
+
+/**
  * @param totpCode  le code du second facteur, ou un code de récupération.
  *
  * Il est facultatif parce que le premier appel se fait sans : c'est le serveur qui réclame,

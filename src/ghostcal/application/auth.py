@@ -362,6 +362,32 @@ class AuthService:
             ),
         )
 
+    async def resend_verification(self, *, email: str) -> None:
+        """Renvoie le courriel de vérification. Ne dit rien de l'existence de l'adresse.
+
+        POURQUOI CETTE MÉTHODE EXISTE. Sans elle, un compte dont le courriel de vérification
+        s'est perdu était **définitivement inutilisable**, et par trois portes fermées à la
+        fois :
+
+            connexion          403 « email not verified »
+            réinscription      409 « email already registered »
+            mot de passe oublié n'envoie RIEN à une adresse non vérifiée, et c'est voulu
+                               (le lien est une preuve de contrôle de la boîte)
+
+        Le courriel se perd pour des raisons ordinaires : un filtre anti-spam, un refus du
+        prestataire, un Redis indisponible au moment de la mise en file. Aucune ne justifie de
+        condamner le compte, et aucune n'était réparable sans accès à la base.
+
+        Mêmes deux règles que `request_password_reset`, pour les mêmes raisons : toujours
+        répondre comme si ça avait marché, sinon la route devient un oracle d'énumération ; et
+        ne rien faire pour une adresse DÉJÀ vérifiée, qui n'a rien à vérifier et dont on ne
+        veut pas qu'un tiers puisse encombrer la boîte.
+        """
+        user = await self._repo.get_by_email(email.strip().lower())
+        if user is None or user.email_verified:
+            return
+        await self._send_verification(user.id, user.email)
+
     async def request_password_reset(self, *, email: str) -> None:
         """Start a reset. Says nothing about whether the address is known.
 

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AuthCard, { Champ, inputClass, lienDePied, primaryButtonClass } from "@/components/AuthCard";
 import { ApiError } from "@/lib/api";
-import { beginOidcLogin, getAuthConfig, login } from "@/lib/auth";
+import { beginOidcLogin, getAuthConfig, login, resendVerification } from "@/lib/auth";
 import { lireLEchecDeConnexion } from "@/lib/deuxiemeFacteur";
 import { useI18n, useT } from "@/lib/i18n";
 
@@ -41,6 +41,11 @@ export default function LoginPage() {
   // faut dire jusqu'à quand attendre plutôt que faire retaper.
   const [codeDemande, setCodeDemande] = useState(false);
   const [code, setCode] = useState("");
+  // Vrai dès qu'un 403 est tombé : c'est la SEULE situation où proposer le renvoi a un sens.
+  // L'offrir en permanence en ferait un bouton que personne ne comprend, et un moyen commode
+  // d'arroser n'importe quelle adresse.
+  const [renvoiPossible, setRenvoiPossible] = useState(false);
+  const [renvoye, setRenvoye] = useState(false);
   const [verrouJusqua, setVerrouJusqua] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -93,6 +98,7 @@ export default function LoginPage() {
           break;
         case "email-non-verifie":
           setError(t("login.errVerify"));
+          setRenvoiPossible(true);
           break;
         case "identifiants-refuses":
           setError(t("login.errInvalid"));
@@ -101,6 +107,19 @@ export default function LoginPage() {
           setError(t("common.errGeneric"));
       }
       setSubmitting(false);
+    }
+  }
+
+  async function renvoyer() {
+    // On ne dit pas « envoyé » : le serveur répond 202 même pour une adresse inconnue, et
+    // l'affirmer serait mentir dans la moitié des cas. « Regardez votre boîte » est vrai
+    // partout, et ne renseigne personne sur l'existence du compte.
+    setRenvoye(true);
+    try {
+      await resendVerification(email);
+    } catch {
+      // Un échec réseau ne doit pas défaire le message : redemander est sans risque, et
+      // afficher une erreur ici renseignerait sur ce que le serveur a trouvé.
     }
   }
 
@@ -170,6 +189,12 @@ export default function LoginPage() {
           </Champ>
         )}
         {error && <p className="text-sm text-red-400">{error}</p>}
+        {renvoiPossible && !renvoye && (
+          <button type="button" onClick={renvoyer} className={lienDePied}>
+            {t("login.resendVerify")}
+          </button>
+        )}
+        {renvoye && <p className="text-xs text-muted">{t("login.resendSent")}</p>}
         <button type="submit" disabled={submitting} className={primaryButtonClass}>
           {submitting ? t("login.submitting") : t("login.title")}
         </button>
