@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react";
 import type { AgendaItem } from "@/lib/agenda";
+import { layoutLanes } from "@/lib/eventLayout";
 
 // Fantastical-style time grid for the week and day views: hour rows down the left, one column per
 // day, timed events positioned by start time and sized by duration; all-day items in a top strip.
@@ -10,6 +11,8 @@ export type GridItem = AgendaItem & { label: string; color?: string };
 
 const HOUR_PX = 44;
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
+// Shortest drawn duration: a 5-minute event still gets a readable box.
+const MIN_DURATION_MS = 30 * 60_000;
 
 function ymd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -62,6 +65,30 @@ export default function CalendarTimeGrid({
   function timedForDay(day: Date): GridItem[] {
     const key = ymd(day);
     return items.filter((it) => !it.all_day && ymd(new Date(it.start)) === key);
+  }
+  // Timed events with their box: overlapping events share the column width side by side.
+  // Lanes are computed on the drawn box, not the real end, so a short event whose minimum-height
+  // box covers its neighbour is split too.
+  function positionedForDay(day: Date) {
+    const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime();
+    const timed = timedForDay(day);
+    const spans = timed.map((it) => {
+      const start = new Date(it.start).getTime();
+      const end = new Date(it.end).getTime();
+      return { start, end: start + Math.max(MIN_DURATION_MS, end - start) };
+    });
+    const lanes = layoutLanes(spans);
+    return timed.map((it, i) => {
+      const { start, end } = spans[i];
+      const width = 100 / lanes[i].lanes;
+      return {
+        it,
+        top: Math.max(0, ((start - dayStart) / 3_600_000) * HOUR_PX),
+        height: ((end - start) / 3_600_000) * HOUR_PX,
+        left: `calc(${lanes[i].lane * width}% + 2px)`,
+        width: `calc(${width}% - 4px)`,
+      };
+    });
   }
   function allDayForDay(day: Date): GridItem[] {
     const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime();
@@ -181,27 +208,20 @@ export default function CalendarTimeGrid({
                   className="block w-full border-b border-border/40 transition hover:bg-surface-2/30"
                 />
               ))}
-              {timedForDay(day).map((it, i) => {
-                const start = new Date(it.start);
-                const end = new Date(it.end);
-                const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate());
-                const top = Math.max(0, ((start.getTime() - dayStart.getTime()) / 3_600_000) * HOUR_PX);
-                const durMin = Math.max(30, (end.getTime() - start.getTime()) / 60_000);
-                const height = (durMin / 60) * HOUR_PX;
-                return (
-                  <button
-                    key={i}
-                    type="button"
-                    title={it.read_only ? labels.sharedReadOnly : undefined}
-                    onClick={() => onEventClick(it)}
-                    style={{ top, height, ...eventStyle(it) }}
-                    className={`absolute inset-x-0.5 overflow-hidden rounded px-1.5 py-0.5 text-left text-2xs leading-tight ${eventClasses(it)}`}
-                  >
-                    <span className="font-medium">{it.label}</span>
-                    <span className="block text-2xs opacity-70">{hm(it.start)}</span>
-                  </button>
-                );
-              })}
+              {positionedForDay(day).map(({ it, top, height, left, width }, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  // A narrow lane truncates the label; the tooltip gives it back.
+                  title={it.read_only ? labels.sharedReadOnly : `${it.label} · ${hm(it.start)}`}
+                  onClick={() => onEventClick(it)}
+                  style={{ top, height, left, width, ...eventStyle(it) }}
+                  className={`absolute overflow-hidden rounded px-1.5 py-0.5 text-left text-2xs leading-tight ${eventClasses(it)}`}
+                >
+                  <span className="font-medium">{it.label}</span>
+                  <span className="block text-2xs opacity-70">{hm(it.start)}</span>
+                </button>
+              ))}
             </div>
           ))}
         </div>
