@@ -134,10 +134,12 @@ class DetailDeSondage {
     required this.options,
     required this.votants,
     this.optionRetenue,
+    this.slug = '',
   });
 
   factory DetailDeSondage.depuisJson(Map<String, dynamic> j) => DetailDeSondage(
         id: '${j['id']}',
+        slug: '${j['slug'] ?? ''}',
         titre: '${j['title']}',
         duree: (j['duration_min'] as num?)?.toInt() ?? 0,
         statut: '${j['status']}',
@@ -153,6 +155,9 @@ class DetailDeSondage {
       );
 
   final String id;
+
+  /// The public voting page is `/poll/<slug>` on the web app.
+  final String slug;
   final String titre;
   final int duree;
   final String statut;
@@ -271,6 +276,24 @@ class Reglages {
       DetailDeSondage.depuisJson(
         await api.envoyer('POST', 'v1/me/polls/$id/finalize', {'option_id': option}),
       );
+
+  /// Creates a date poll and returns it; voters answer on `/poll/<slug>`.
+  Future<DetailDeSondage> creerUnSondage({
+    required String titre,
+    required int duree,
+    required String lieu,
+    required List<DateTime> creneaux,
+  }) async =>
+      DetailDeSondage.depuisJson(await api.envoyer('POST', 'v1/me/polls', {
+        'title': titre,
+        'duration_min': duree,
+        'location_type': lieu,
+        'option_starts': [for (final c in creneaux) c.toUtc().toIso8601String()],
+      }));
+
+  /// The public voting link of [sondage] on [site].
+  static Uri lienDuSondage(DetailDeSondage sondage, Uri site) =>
+      site.replace(path: '/poll/${sondage.slug}');
 
   Future<void> annulerLeSondage(String id) =>
       api.envoyerSansReponse('DELETE', 'v1/me/polls/$id');

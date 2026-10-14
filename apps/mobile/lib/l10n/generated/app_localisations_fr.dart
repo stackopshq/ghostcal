@@ -808,4 +808,23 @@ class LFr extends L {
   @override
   String get disponibilitesExplication =>
       'Les jours et heures où l\'on peut réserver un rendez-vous avec vous.';
+
+  @override
+  String get nouveauSondage => 'Nouveau sondage';
+
+  @override
+  String get lienDuSondage => 'Lien du sondage';
+
+  @override
+  String get lienDuSondageExplication =>
+      'Envoyez ce lien aux participants : ils votent sans compte, et vous retenez ensuite le créneau gagnant.';
+
+  @override
+  String get creneauxProposes => 'Créneaux proposés';
+
+  @override
+  String get ajouterUnCreneau => 'Ajouter un créneau';
+
+  @override
+  String get auMoinsDeuxCreneaux => 'Proposez au moins deux créneaux.';
 }

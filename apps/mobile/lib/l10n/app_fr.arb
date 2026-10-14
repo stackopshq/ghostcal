@@ -416,5 +416,11 @@
   "indisponible": "Indisponible",
   "ajouterUnePlage": "Ajouter une plage",
   "definirMesDisponibilites": "Définir mes disponibilités",
-  "disponibilitesExplication": "Les jours et heures où l'on peut réserver un rendez-vous avec vous."
+  "disponibilitesExplication": "Les jours et heures où l'on peut réserver un rendez-vous avec vous.",
+  "nouveauSondage": "Nouveau sondage",
+  "lienDuSondage": "Lien du sondage",
+  "lienDuSondageExplication": "Envoyez ce lien aux participants : ils votent sans compte, et vous retenez ensuite le créneau gagnant.",
+  "creneauxProposes": "Créneaux proposés",
+  "ajouterUnCreneau": "Ajouter un créneau",
+  "auMoinsDeuxCreneaux": "Proposez au moins deux créneaux."
 }

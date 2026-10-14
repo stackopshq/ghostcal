@@ -1482,6 +1482,42 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Les jours et heures où l\'on peut réserver un rendez-vous avec vous.'**
   String get disponibilitesExplication;
+
+  /// No description provided for @nouveauSondage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nouveau sondage'**
+  String get nouveauSondage;
+
+  /// No description provided for @lienDuSondage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lien du sondage'**
+  String get lienDuSondage;
+
+  /// No description provided for @lienDuSondageExplication.
+  ///
+  /// In fr, this message translates to:
+  /// **'Envoyez ce lien aux participants : ils votent sans compte, et vous retenez ensuite le créneau gagnant.'**
+  String get lienDuSondageExplication;
+
+  /// No description provided for @creneauxProposes.
+  ///
+  /// In fr, this message translates to:
+  /// **'Créneaux proposés'**
+  String get creneauxProposes;
+
+  /// No description provided for @ajouterUnCreneau.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ajouter un créneau'**
+  String get ajouterUnCreneau;
+
+  /// No description provided for @auMoinsDeuxCreneaux.
+  ///
+  /// In fr, this message translates to:
+  /// **'Proposez au moins deux créneaux.'**
+  String get auMoinsDeuxCreneaux;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

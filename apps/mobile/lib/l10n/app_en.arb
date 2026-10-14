@@ -238,5 +238,11 @@
   "indisponible": "Unavailable",
   "ajouterUnePlage": "Add a range",
   "definirMesDisponibilites": "Set my availability",
-  "disponibilitesExplication": "The days and hours people can book a meeting with you."
+  "disponibilitesExplication": "The days and hours people can book a meeting with you.",
+  "nouveauSondage": "New poll",
+  "lienDuSondage": "Poll link",
+  "lienDuSondageExplication": "Send this link to the participants: they vote without an account, then you pick the winning slot.",
+  "creneauxProposes": "Proposed slots",
+  "ajouterUnCreneau": "Add a slot",
+  "auMoinsDeuxCreneaux": "Offer at least two slots."
 }

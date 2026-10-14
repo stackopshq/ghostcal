@@ -804,4 +804,23 @@ class LEn extends L {
   @override
   String get disponibilitesExplication =>
       'The days and hours people can book a meeting with you.';
+
+  @override
+  String get nouveauSondage => 'New poll';
+
+  @override
+  String get lienDuSondage => 'Poll link';
+
+  @override
+  String get lienDuSondageExplication =>
+      'Send this link to the participants: they vote without an account, then you pick the winning slot.';
+
+  @override
+  String get creneauxProposes => 'Proposed slots';
+
+  @override
+  String get ajouterUnCreneau => 'Add a slot';
+
+  @override
+  String get auMoinsDeuxCreneaux => 'Offer at least two slots.';
 }

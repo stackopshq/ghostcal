@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../modeles/adresse.dart';
+import 'nouveau_sondage.dart';
 import 'package:intl/intl.dart';
 
 import '../services/erreurs.dart';
@@ -33,6 +37,19 @@ class _EcranDeSondagesState extends State<EcranDeSondages> {
     return api == null ? null : Reglages(api: api);
   }
 
+  Future<void> _creer() async {
+    final api = widget.session.api;
+    final site = AdresseDeServeur.normaliser(widget.session.serveur);
+    if (api == null || site == null) return;
+    final cree = await Navigator.of(context).push<DetailDeSondage>(MaterialPageRoute(
+      builder: (_) => EcranDeNouveauSondage(service: Reglages(api: api)),
+    ));
+    if (cree == null || !mounted) return;
+    await _recharger();
+    if (!mounted) return;
+    await partagerLeSondage(context, Reglages.lienDuSondage(cree, site));
+  }
+
   Future<void> _recharger() async {
     final service = _service;
     if (service == null) return;
@@ -64,6 +81,12 @@ class _EcranDeSondagesState extends State<EcranDeSondages> {
     return FondGhost(
       child: Scaffold(
         appBar: AppBar(title: Text(L.of(context).sondages)),
+        floatingActionButton: FloatingActionButton(
+          heroTag: 'sondages',
+          tooltip: L.of(context).nouveauSondage,
+          onPressed: _creer,
+          child: const Icon(Icons.add),
+        ),
         body: ContenuBorne(
           child: RefreshIndicator(onRefresh: _recharger, child: _corps(gc)),
         ),
@@ -203,8 +226,19 @@ class _EcranDUnSondageState extends State<EcranDUnSondage> {
     return FondGhost(
       child: Scaffold(
         appBar: AppBar(
-          title: Text(detail?.titre ?? 'Sondage'),
+          title: Text(detail?.titre ?? L.of(context).sondages),
           actions: [
+            if (detail != null && detail.slug.isNotEmpty)
+              IconButton(
+                icon: const Icon(Icons.link),
+                tooltip: L.of(context).copierLeLien,
+                onPressed: () {
+                  final site = AdresseDeServeur.normaliser(widget.session.serveur);
+                  if (site != null) {
+                    partagerLeSondage(context, Reglages.lienDuSondage(detail, site));
+                  }
+                },
+              ),
             if (detail != null && detail.ouvert)
               IconButton(
                 icon: const Icon(Icons.delete_outline),
@@ -367,3 +401,30 @@ class _EcranDUnSondageState extends State<EcranDUnSondage> {
         ),
       );
 }
+
+/// Shows the poll's public link with a copy button: voters need no account.
+Future<void> partagerLeSondage(BuildContext context, Uri lien) => showDialog<void>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(L.of(context).lienDuSondage),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(L.of(context).lienDuSondageExplication),
+            const SizedBox(height: 12),
+            SelectableText(lien.toString(), style: const TextStyle(fontSize: 12)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: lien.toString()));
+              if (c.mounted) Navigator.pop(c);
+            },
+            child: Text(L.of(context).copierLeLien),
+          ),
+          TextButton(onPressed: () => Navigator.pop(c), child: Text(L.of(context).fermer)),
+        ],
+      ),
+    );
