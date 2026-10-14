@@ -651,4 +651,29 @@ class LEn extends L {
   @override
   String get lectureSeule =>
       'Shown here; change it where it comes from: a booking, a series or an external calendar.';
+
+  @override
+  String get modifierLaTache => 'Edit task';
+
+  @override
+  String get envoyerLeLienDeVisio => 'Send video link';
+
+  @override
+  String get modifierOuRenvoyerLeLien => 'Change or resend link';
+
+  @override
+  String get lienDeVisio => 'Video link (Zoom, Google Meet, Teams…)';
+
+  @override
+  String get envoyer => 'Send';
+
+  @override
+  String get lienEnvoye => 'Link sent to the invitee.';
+
+  @override
+  String get lienDoitCommencerParHttps => 'The link must start with https://';
+
+  @override
+  String get lienEnregistreMailEchoue =>
+      'Link saved, but the email could not be sent. Try again in a moment.';
 }

@@ -195,5 +195,13 @@
   "rienSurLaPeriode": "Nothing planned for this period.",
   "autresEvenements": "+{nombre}",
   "nouvelEvenementA": "New event at {heure}",
-  "lectureSeule": "Shown here; change it where it comes from: a booking, a series or an external calendar."
+  "lectureSeule": "Shown here; change it where it comes from: a booking, a series or an external calendar.",
+  "modifierLaTache": "Edit task",
+  "envoyerLeLienDeVisio": "Send video link",
+  "modifierOuRenvoyerLeLien": "Change or resend link",
+  "lienDeVisio": "Video link (Zoom, Google Meet, Teams…)",
+  "envoyer": "Send",
+  "lienEnvoye": "Link sent to the invitee.",
+  "lienDoitCommencerParHttps": "The link must start with https://",
+  "lienEnregistreMailEchoue": "Link saved, but the email could not be sent. Try again in a moment."
 }

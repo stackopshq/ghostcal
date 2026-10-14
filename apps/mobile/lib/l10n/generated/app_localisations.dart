@@ -1224,6 +1224,54 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Affiché ici, modifiable là d\'où il vient : réservation, série ou calendrier externe.'**
   String get lectureSeule;
+
+  /// No description provided for @modifierLaTache.
+  ///
+  /// In fr, this message translates to:
+  /// **'Modifier la tâche'**
+  String get modifierLaTache;
+
+  /// No description provided for @envoyerLeLienDeVisio.
+  ///
+  /// In fr, this message translates to:
+  /// **'Envoyer le lien de visio'**
+  String get envoyerLeLienDeVisio;
+
+  /// No description provided for @modifierOuRenvoyerLeLien.
+  ///
+  /// In fr, this message translates to:
+  /// **'Modifier ou renvoyer le lien'**
+  String get modifierOuRenvoyerLeLien;
+
+  /// No description provided for @lienDeVisio.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lien de visio (Zoom, Google Meet, Teams…)'**
+  String get lienDeVisio;
+
+  /// No description provided for @envoyer.
+  ///
+  /// In fr, this message translates to:
+  /// **'Envoyer'**
+  String get envoyer;
+
+  /// No description provided for @lienEnvoye.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lien envoyé à l\'invité.'**
+  String get lienEnvoye;
+
+  /// No description provided for @lienDoitCommencerParHttps.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le lien doit commencer par https://'**
+  String get lienDoitCommencerParHttps;
+
+  /// No description provided for @lienEnregistreMailEchoue.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lien enregistré, mais l\'e-mail n\'a pas pu partir. Réessayez dans un instant.'**
+  String get lienEnregistreMailEchoue;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

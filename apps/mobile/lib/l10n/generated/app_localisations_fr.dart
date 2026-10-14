@@ -654,4 +654,29 @@ class LFr extends L {
   @override
   String get lectureSeule =>
       'Affiché ici, modifiable là d\'où il vient : réservation, série ou calendrier externe.';
+
+  @override
+  String get modifierLaTache => 'Modifier la tâche';
+
+  @override
+  String get envoyerLeLienDeVisio => 'Envoyer le lien de visio';
+
+  @override
+  String get modifierOuRenvoyerLeLien => 'Modifier ou renvoyer le lien';
+
+  @override
+  String get lienDeVisio => 'Lien de visio (Zoom, Google Meet, Teams…)';
+
+  @override
+  String get envoyer => 'Envoyer';
+
+  @override
+  String get lienEnvoye => 'Lien envoyé à l\'invité.';
+
+  @override
+  String get lienDoitCommencerParHttps => 'Le lien doit commencer par https://';
+
+  @override
+  String get lienEnregistreMailEchoue =>
+      'Lien enregistré, mais l\'e-mail n\'a pas pu partir. Réessayez dans un instant.';
 }

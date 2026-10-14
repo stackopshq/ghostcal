@@ -352,5 +352,13 @@
       }
     }
   },
-  "lectureSeule": "Affiché ici, modifiable là d'où il vient : réservation, série ou calendrier externe."
+  "lectureSeule": "Affiché ici, modifiable là d'où il vient : réservation, série ou calendrier externe.",
+  "modifierLaTache": "Modifier la tâche",
+  "envoyerLeLienDeVisio": "Envoyer le lien de visio",
+  "modifierOuRenvoyerLeLien": "Modifier ou renvoyer le lien",
+  "lienDeVisio": "Lien de visio (Zoom, Google Meet, Teams…)",
+  "envoyer": "Envoyer",
+  "lienEnvoye": "Lien envoyé à l'invité.",
+  "lienDoitCommencerParHttps": "Le lien doit commencer par https://",
+  "lienEnregistreMailEchoue": "Lien enregistré, mais l'e-mail n'a pas pu partir. Réessayez dans un instant."
 }
