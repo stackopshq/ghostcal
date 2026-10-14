@@ -65,6 +65,14 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
     _relireLeSceau();
   }
 
+  // Removing the seal may open the sealed store on Android, hence prompt: the prompt must
+  // carry the app's strings, not the plugin's English defaults.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _biometrie.invites = InvitesBiometriques.depuis(L.of(context));
+  }
+
   /// Relit l'état du sceau **sans** déclencher la biométrie : `sceau()` interroge la
   /// présence, pas la valeur. Ouvrir les réglages ne doit pas demander un visage.
   Future<void> _relireLeSceau() async {

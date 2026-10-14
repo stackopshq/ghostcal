@@ -67,9 +67,14 @@ void main() {
     /// La 11 met `resetOnError` à **vrai** par défaut : une simple erreur de lecture
     /// efface tout le magasin. Sur celui des jetons, cela déconnecte sans un mot ; ici,
     /// cela perdrait la phrase scellée sans que rien ne le dise.
-    test('une erreur de lecture n\'efface pas le magasin', () {
-      expect(android['resetOnError'], 'false');
+    test('une erreur de lecture n\'efface pas le magasin des jetons', () {
       expect(Trousseau.magasin.aOptions.toMap()['resetOnError'], 'false');
+    });
+
+    // The sealed store is the opposite: without a reset, a key invalidated by a new
+    // enrolment makes every later write fail, and the phrase can never be sealed again.
+    test('a dead sealed store is reset so the phrase can be sealed again', () {
+      expect(android['resetOnError'], 'true');
     });
   });
 
