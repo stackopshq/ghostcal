@@ -222,7 +222,7 @@ class _EcranDeProfilState extends State<EcranDeProfil> {
                                 color: Gc.surAccent,
                               ),
                             )
-                          : const Text('Enregistrer'),
+                          : Text(L.of(context).enregistrer),
                     ),
                   ],
                 ),

@@ -554,4 +554,55 @@ class LEn extends L {
   String erreurStatut(int code) {
     return 'The server answered $code.';
   }
+
+  @override
+  String get retenir => 'Choose';
+
+  @override
+  String get retour => 'Back';
+
+  @override
+  String get notes => 'NOTES';
+
+  @override
+  String get votants => 'Voters';
+
+  @override
+  String get compte => 'Account';
+
+  @override
+  String get organisation => 'Organization';
+
+  @override
+  String get collaboration => 'Collaboration';
+
+  @override
+  String get retirer => 'Remove';
+
+  @override
+  String get apparence => 'Appearance';
+
+  @override
+  String get langue => 'Language';
+
+  @override
+  String get langueDeLAppareil => 'Device language';
+
+  @override
+  String get langueFrancais => 'Français';
+
+  @override
+  String get langueAnglais => 'English';
+
+  @override
+  String get theme => 'Theme';
+
+  @override
+  String get themeDeLAppareil => 'Same as device';
+
+  @override
+  String get themeClair => 'Light';
+
+  @override
+  String get themeSombre => 'Dark';
 }

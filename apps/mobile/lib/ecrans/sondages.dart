@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../services/erreurs.dart';
 import '../services/reglages.dart';
 import '../services/session.dart';
+import '../outils/dates.dart';
 import '../theme.dart';
 import '../l10n/generated/app_localisations.dart';
 
@@ -160,11 +161,11 @@ class _EcranDUnSondageState extends State<EcranDUnSondage> {
         title: Text(L.of(context).retenirCeCreneauQuestion),
         content: Text(
           L.of(context).sondageSeFermeEtEvenementCree(
-              DateFormat.yMMMMEEEEd('fr_FR').add_Hm().format(option.debut)),
+              DateFormat.yMMMMEEEEd(langueDesDates(context)).add_Hm().format(option.debut)),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
-          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Retenir')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(L.of(context).annuler)),
+          TextButton(onPressed: () => Navigator.pop(c, true), child: Text(L.of(context).retenir)),
         ],
       ),
     );
@@ -240,7 +241,7 @@ class _EcranDUnSondageState extends State<EcranDUnSondage> {
                     for (final option in detail.options) _creneau(gc, detail, option),
                     if (detail.votants.isNotEmpty) ...[
                       const SizedBox(height: 20),
-                      _titre(gc, 'Votants'),
+                      _titre(gc, L.of(context).votants),
                       for (final votant in detail.votants)
                         ListTile(
                           contentPadding: EdgeInsets.zero,
@@ -287,7 +288,7 @@ class _EcranDUnSondageState extends State<EcranDUnSondage> {
             children: [
               Expanded(
                 child: Text(
-                  '${DateFormat.yMMMEd('fr_FR').format(option.debut)} · '
+                  '${DateFormat.yMMMEd(langueDesDates(context)).format(option.debut)} · '
                   '${DateFormat.Hm().format(option.debut)}–${DateFormat.Hm().format(option.fin)}',
                   style: TextStyle(color: gc.encre, fontSize: 13),
                 ),
@@ -340,8 +341,8 @@ class _EcranDUnSondageState extends State<EcranDUnSondage> {
         title: Text(L.of(context).supprimerCeSondage),
         content: Text(L.of(context).votesPerdus),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
-          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Supprimer')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(L.of(context).annuler)),
+          TextButton(onPressed: () => Navigator.pop(c, true), child: Text(L.of(context).supprimer)),
         ],
       ),
     );

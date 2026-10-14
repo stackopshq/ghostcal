@@ -69,11 +69,11 @@ class _EcranDEquipeState extends State<EcranDEquipe> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(c, false),
-            child: const Text('Annuler'),
+            child: Text(L.of(context).annuler),
           ),
           TextButton(
             onPressed: () => Navigator.pop(c, true),
-            child: const Text('Retirer'),
+            child: Text(L.of(context).retirer),
           ),
         ],
       ),
@@ -147,11 +147,11 @@ class _EcranDEquipeState extends State<EcranDEquipe> {
           ? Icon(Icons.shield_outlined, size: 18, color: gc.estompe)
           : PopupMenuButton<String>(
               itemBuilder: (_) => [
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'admin',
-                  child: Text('Administrateur'),
+                  child: Text(L.of(context).roleAdministrateur),
                 ),
-                const PopupMenuItem(value: 'member', child: Text('Membre')),
+                PopupMenuItem(value: 'member', child: Text(L.of(context).roleMembre)),
                 PopupMenuItem(
                   value: '-',
                   child: Text(L.of(context).retirerDeLEquipe),

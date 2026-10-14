@@ -5,6 +5,7 @@ import '../services/agenda.dart' show ProvenanceDuTitre;
 import '../services/erreurs.dart';
 import '../services/session.dart';
 import '../services/taches.dart';
+import '../outils/dates.dart';
 import '../theme.dart';
 import '../l10n/generated/app_localisations.dart';
 
@@ -187,7 +188,7 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
           ? null
           : Text(
               [
-                if (echeance != null) DateFormat.yMMMd('fr_FR').format(echeance),
+                if (echeance != null) DateFormat.yMMMd(langueDesDates(context)).format(echeance),
                 if (tache.notes != null) tache.notes!,
               ].join(' · '),
               maxLines: 2,
@@ -213,9 +214,9 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
         title: Text(L.of(context).supprimerCetteTache),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
+              onPressed: () => Navigator.pop(c, false), child: Text(L.of(context).annuler)),
           TextButton(
-              onPressed: () => Navigator.pop(c, true), child: const Text('Supprimer')),
+              onPressed: () => Navigator.pop(c, true), child: Text(L.of(context).supprimer)),
         ],
       ),
     );
@@ -316,7 +317,7 @@ class _FeuilleDeNouvelleTacheState extends State<_FeuilleDeNouvelleTache> {
             title: Text(
               _echeance == null
                   ? L.of(context).sansEcheance
-                  : DateFormat.yMMMMd('fr_FR').format(_echeance!),
+                  : DateFormat.yMMMMd(langueDesDates(context)).format(_echeance!),
               style: TextStyle(color: gc.encre),
             ),
             trailing: _echeance == null

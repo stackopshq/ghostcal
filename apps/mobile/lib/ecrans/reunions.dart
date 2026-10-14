@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../services/erreurs.dart';
 import '../services/reunions.dart';
 import '../services/session.dart';
+import '../outils/dates.dart';
 import '../theme.dart';
 import '../l10n/generated/app_localisations.dart';
 
@@ -123,7 +124,7 @@ class _EcranDeReunionsState extends State<EcranDeReunions> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${DateFormat.yMMMEd('fr_FR').format(reunion.debut)}'
+            '${DateFormat.yMMMEd(langueDesDates(context)).format(reunion.debut)}'
             ' · ${DateFormat.Hm().format(reunion.debut)}'
             '–${DateFormat.Hm().format(reunion.fin)}',
             style: TextStyle(fontSize: 12, color: gc.estompe),
@@ -209,7 +210,7 @@ class _FeuilleDeReunion extends StatelessWidget {
                     fontSize: 18, fontWeight: FontWeight.bold, color: gc.encre)),
             const SizedBox(height: 4),
             Text(
-              '${DateFormat.yMMMMEEEEd('fr_FR').format(reunion.debut)} · '
+              '${DateFormat.yMMMMEEEEd(langueDesDates(context)).format(reunion.debut)} · '
               '${DateFormat.Hm().format(reunion.debut)}–${DateFormat.Hm().format(reunion.fin)}',
               style: TextStyle(color: gc.estompe, fontSize: 13),
             ),
@@ -250,7 +251,7 @@ class _FeuilleDeReunion extends StatelessWidget {
             ],
             if (reunion.notes != null) ...[
               const SizedBox(height: 12),
-              Text('NOTES',
+              Text(L.of(context).notes,
                   style: TextStyle(
                       color: gc.estompe,
                       fontSize: 11,
@@ -271,7 +272,7 @@ class _FeuilleDeReunion extends StatelessWidget {
                       actions: [
                         TextButton(
                             onPressed: () => Navigator.pop(c, false),
-                            child: const Text('Retour')),
+                            child: Text(L.of(context).retour)),
                         TextButton(
                             onPressed: () => Navigator.pop(c, true),
                             child: Text(L.of(context).annulerLaReunion)),

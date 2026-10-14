@@ -222,13 +222,17 @@ class Membre {
   /// « membre » : un serveur plus récent peut en introduire, et taire le rôle de quelqu'un
   /// — ou le présenter comme moins puissant qu'il n'est — serait pire que l'afficher en
   /// anglais.
-  String roleLisible(L l) => switch (role) {
-        'owner' => l.roleProprietaire,
-        'admin' => l.roleAdministrateur,
-        'member' => l.roleMembre,
-        _ => role,
-      };
+  String roleLisible(L l) => libelleDuRole(role, l);
 }
+
+/// [role] as the screen's language says it — shared by the team list and the
+/// organization picker, which used to show the raw value ("owner").
+String libelleDuRole(String role, L l) => switch (role) {
+      'owner' => l.roleProprietaire,
+      'admin' => l.roleAdministrateur,
+      'member' => l.roleMembre,
+      _ => role,
+    };
 
 /// Les écrans de réglage : disponibilités, sondages, profil, équipe.
 ///

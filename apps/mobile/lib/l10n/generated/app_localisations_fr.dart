@@ -557,4 +557,55 @@ class LFr extends L {
   String erreurStatut(int code) {
     return 'Le serveur a répondu $code.';
   }
+
+  @override
+  String get retenir => 'Retenir';
+
+  @override
+  String get retour => 'Retour';
+
+  @override
+  String get notes => 'NOTES';
+
+  @override
+  String get votants => 'Votants';
+
+  @override
+  String get compte => 'Compte';
+
+  @override
+  String get organisation => 'Organisation';
+
+  @override
+  String get collaboration => 'Collaboration';
+
+  @override
+  String get retirer => 'Retirer';
+
+  @override
+  String get apparence => 'Apparence';
+
+  @override
+  String get langue => 'Langue';
+
+  @override
+  String get langueDeLAppareil => 'Langue de l\'appareil';
+
+  @override
+  String get langueFrancais => 'Français';
+
+  @override
+  String get langueAnglais => 'English';
+
+  @override
+  String get theme => 'Thème';
+
+  @override
+  String get themeDeLAppareil => 'Comme l\'appareil';
+
+  @override
+  String get themeClair => 'Clair';
+
+  @override
+  String get themeSombre => 'Sombre';
 }

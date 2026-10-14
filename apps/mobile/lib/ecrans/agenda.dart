@@ -5,6 +5,7 @@ import '../services/erreurs.dart';
 import '../services/agenda.dart';
 import '../services/session.dart';
 import '../services/verrouillage.dart';
+import '../outils/dates.dart';
 import '../theme.dart';
 import 'nouvel_evenement.dart';
 import '../l10n/generated/app_localisations.dart';
@@ -98,7 +99,7 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
         title: FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
-          child: Text(DateFormat.yMMMMEEEEd('fr_FR').format(_jour)),
+          child: Text(DateFormat.yMMMMEEEEd(langueDesDates(context)).format(_jour)),
         ),
         actions: [
           // Un cadenas plutôt que « Verrouiller » : la barre porte déjà trois flèches et

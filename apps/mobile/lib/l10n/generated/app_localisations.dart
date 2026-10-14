@@ -1044,6 +1044,108 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Le serveur a répondu {code}.'**
   String erreurStatut(int code);
+
+  /// No description provided for @retenir.
+  ///
+  /// In fr, this message translates to:
+  /// **'Retenir'**
+  String get retenir;
+
+  /// No description provided for @retour.
+  ///
+  /// In fr, this message translates to:
+  /// **'Retour'**
+  String get retour;
+
+  /// No description provided for @notes.
+  ///
+  /// In fr, this message translates to:
+  /// **'NOTES'**
+  String get notes;
+
+  /// No description provided for @votants.
+  ///
+  /// In fr, this message translates to:
+  /// **'Votants'**
+  String get votants;
+
+  /// No description provided for @compte.
+  ///
+  /// In fr, this message translates to:
+  /// **'Compte'**
+  String get compte;
+
+  /// No description provided for @organisation.
+  ///
+  /// In fr, this message translates to:
+  /// **'Organisation'**
+  String get organisation;
+
+  /// No description provided for @collaboration.
+  ///
+  /// In fr, this message translates to:
+  /// **'Collaboration'**
+  String get collaboration;
+
+  /// No description provided for @retirer.
+  ///
+  /// In fr, this message translates to:
+  /// **'Retirer'**
+  String get retirer;
+
+  /// No description provided for @apparence.
+  ///
+  /// In fr, this message translates to:
+  /// **'Apparence'**
+  String get apparence;
+
+  /// No description provided for @langue.
+  ///
+  /// In fr, this message translates to:
+  /// **'Langue'**
+  String get langue;
+
+  /// No description provided for @langueDeLAppareil.
+  ///
+  /// In fr, this message translates to:
+  /// **'Langue de l\'appareil'**
+  String get langueDeLAppareil;
+
+  /// No description provided for @langueFrancais.
+  ///
+  /// In fr, this message translates to:
+  /// **'Français'**
+  String get langueFrancais;
+
+  /// No description provided for @langueAnglais.
+  ///
+  /// In fr, this message translates to:
+  /// **'English'**
+  String get langueAnglais;
+
+  /// No description provided for @theme.
+  ///
+  /// In fr, this message translates to:
+  /// **'Thème'**
+  String get theme;
+
+  /// No description provided for @themeDeLAppareil.
+  ///
+  /// In fr, this message translates to:
+  /// **'Comme l\'appareil'**
+  String get themeDeLAppareil;
+
+  /// No description provided for @themeClair.
+  ///
+  /// In fr, this message translates to:
+  /// **'Clair'**
+  String get themeClair;
+
+  /// No description provided for @themeSombre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Sombre'**
+  String get themeSombre;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

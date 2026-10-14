@@ -301,5 +301,22 @@
         "type": "int"
       }
     }
-  }
+  },
+  "retenir": "Retenir",
+  "retour": "Retour",
+  "notes": "NOTES",
+  "votants": "Votants",
+  "compte": "Compte",
+  "organisation": "Organisation",
+  "collaboration": "Collaboration",
+  "retirer": "Retirer",
+  "apparence": "Apparence",
+  "langue": "Langue",
+  "langueDeLAppareil": "Langue de l'appareil",
+  "langueFrancais": "Français",
+  "langueAnglais": "English",
+  "theme": "Thème",
+  "themeDeLAppareil": "Comme l'appareil",
+  "themeClair": "Clair",
+  "themeSombre": "Sombre"
 }

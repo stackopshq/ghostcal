@@ -165,5 +165,22 @@
   "erreurServeur": "The server ran into a problem. Try again later.",
   "erreurInattendue": "Something went wrong. Please try again.",
   "coffreVerrouille": "The vault is locked. Type your passphrase to open it.",
-  "erreurStatut": "The server answered {code}."
+  "erreurStatut": "The server answered {code}.",
+  "retenir": "Choose",
+  "retour": "Back",
+  "notes": "NOTES",
+  "votants": "Voters",
+  "compte": "Account",
+  "organisation": "Organization",
+  "collaboration": "Collaboration",
+  "retirer": "Remove",
+  "apparence": "Appearance",
+  "langue": "Language",
+  "langueDeLAppareil": "Device language",
+  "langueFrancais": "Français",
+  "langueAnglais": "English",
+  "theme": "Theme",
+  "themeDeLAppareil": "Same as device",
+  "themeClair": "Light",
+  "themeSombre": "Dark"
 }
