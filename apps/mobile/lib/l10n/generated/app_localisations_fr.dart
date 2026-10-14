@@ -512,4 +512,49 @@ class LFr extends L {
 
   @override
   String get revenir => 'Revenir';
+
+  @override
+  String get erreurServeurInjoignable =>
+      'Le serveur est injoignable. Vérifiez votre connexion et l\'adresse du serveur.';
+
+  @override
+  String get erreurServeurLent =>
+      'Le serveur ne répond pas. Réessayez dans un instant.';
+
+  @override
+  String get erreurCertificat =>
+      'La connexion sécurisée au serveur a échoué : son certificat n\'est pas valide.';
+
+  @override
+  String get erreurAdresseInvalide => 'Adresse de serveur invalide.';
+
+  @override
+  String get erreurSessionExpiree => 'La session a expiré. Reconnectez-vous.';
+
+  @override
+  String get erreurPhraseIncorrecte => 'Cette phrase n\'ouvre pas le coffre.';
+
+  @override
+  String get erreurIdentifiants => 'Adresse e-mail ou mot de passe incorrect.';
+
+  @override
+  String get erreurTropDEssais =>
+      'Trop d\'essais. Patientez quelques minutes avant de réessayer.';
+
+  @override
+  String get erreurServeur =>
+      'Le serveur a rencontré un problème. Réessayez plus tard.';
+
+  @override
+  String get erreurInattendue =>
+      'Une erreur inattendue est survenue. Réessayez.';
+
+  @override
+  String get coffreVerrouille =>
+      'Le coffre est verrouillé. Tapez votre phrase pour l\'ouvrir.';
+
+  @override
+  String erreurStatut(int code) {
+    return 'Le serveur a répondu $code.';
+  }
 }

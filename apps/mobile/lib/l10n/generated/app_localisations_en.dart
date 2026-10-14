@@ -509,4 +509,49 @@ class LEn extends L {
 
   @override
   String get revenir => 'Back';
+
+  @override
+  String get erreurServeurInjoignable =>
+      'Can\'t reach the server. Check your connection and the server address.';
+
+  @override
+  String get erreurServeurLent =>
+      'The server isn\'t responding. Try again in a moment.';
+
+  @override
+  String get erreurCertificat =>
+      'The secure connection to the server failed: its certificate isn\'t valid.';
+
+  @override
+  String get erreurAdresseInvalide => 'Invalid server address.';
+
+  @override
+  String get erreurSessionExpiree =>
+      'Your session has expired. Please sign in again.';
+
+  @override
+  String get erreurPhraseIncorrecte =>
+      'This passphrase doesn\'t open the vault.';
+
+  @override
+  String get erreurIdentifiants => 'Wrong email address or password.';
+
+  @override
+  String get erreurTropDEssais =>
+      'Too many attempts. Wait a few minutes before trying again.';
+
+  @override
+  String get erreurServeur => 'The server ran into a problem. Try again later.';
+
+  @override
+  String get erreurInattendue => 'Something went wrong. Please try again.';
+
+  @override
+  String get coffreVerrouille =>
+      'The vault is locked. Type your passphrase to open it.';
+
+  @override
+  String erreurStatut(int code) {
+    return 'The server answered $code.';
+  }
 }

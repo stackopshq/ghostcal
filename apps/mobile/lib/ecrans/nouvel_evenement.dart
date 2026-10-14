@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../services/erreurs.dart';
 import '../services/agenda.dart';
 import '../services/session.dart';
 import '../theme.dart';
@@ -107,7 +108,7 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
         }
       });
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     } finally {
       if (mounted) setState(() => _chargement = false);
     }
@@ -157,7 +158,7 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
       }
       if (mounted) Navigator.of(context).pop(true);
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     } finally {
       if (mounted) setState(() => _occupe = false);
     }
@@ -189,7 +190,7 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
       await agenda.supprimerUnEvenement(widget.evenement!);
       if (mounted) Navigator.of(context).pop(true);
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     } finally {
       if (mounted) setState(() => _occupe = false);
     }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/erreurs.dart';
 import '../services/reglages.dart';
 import '../services/session.dart';
 import '../theme.dart';
@@ -38,7 +39,7 @@ class _EcranDEquipeState extends State<EcranDEquipe> {
       final membres = await service.membres();
       if (mounted) setState(() => _membres = membres);
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
   }
 
@@ -51,7 +52,7 @@ class _EcranDEquipeState extends State<EcranDEquipe> {
       final membres = await service.changerLeRole(membre.id, role: role);
       if (mounted) setState(() => _membres = membres);
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
   }
 
@@ -82,7 +83,7 @@ class _EcranDEquipeState extends State<EcranDEquipe> {
       await service.retirerLeMembre(membre.id);
       await _charger();
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
   }
 

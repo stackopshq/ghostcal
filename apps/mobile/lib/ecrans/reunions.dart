@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../services/erreurs.dart';
 import '../services/reunions.dart';
 import '../services/session.dart';
 import '../theme.dart';
@@ -46,7 +47,7 @@ class _EcranDeReunionsState extends State<EcranDeReunions> {
       final reunions = await service.lister(_portee, organisation: organisation);
       if (mounted) setState(() => _reunions = reunions);
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
   }
 
@@ -182,7 +183,7 @@ class _EcranDeReunionsState extends State<EcranDeReunions> {
       await service.annuler(reunion.id);
       await _recharger();
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
   }
 }

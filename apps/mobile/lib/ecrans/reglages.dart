@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/erreurs.dart';
 import '../services/agenda.dart';
 import '../services/biometrie.dart';
 import '../services/reglages.dart' as service;
@@ -108,7 +109,7 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
         });
       }
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
   }
 

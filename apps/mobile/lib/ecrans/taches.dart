@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../services/agenda.dart' show ProvenanceDuTitre;
+import '../services/erreurs.dart';
 import '../services/session.dart';
 import '../services/taches.dart';
 import '../theme.dart';
@@ -44,7 +45,7 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
       final taches = await service.lister(organisation: organisation);
       if (mounted) setState(() => _taches = taches);
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
   }
 
@@ -74,7 +75,7 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
       await service.marquer(tache.id, faite: !tache.faite);
     } on Object catch (e) {
       // L'écran mentait : on le remet d'accord avec le serveur, et on le dit.
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
       await _recharger();
     }
   }
@@ -223,7 +224,7 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
       await service.supprimer(tache.id);
       await _recharger();
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
   }
 }
@@ -269,7 +270,7 @@ class _FeuilleDeNouvelleTacheState extends State<_FeuilleDeNouvelleTache> {
       );
       if (mounted) Navigator.of(context).pop(true);
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     } finally {
       if (mounted) setState(() => _occupe = false);
     }

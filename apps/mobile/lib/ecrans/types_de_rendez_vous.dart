@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../services/erreurs.dart';
 import '../services/session.dart';
 import '../services/types_de_rendez_vous.dart';
 import '../theme.dart';
@@ -44,7 +45,7 @@ class _EcranDeTypesDeRendezVousState extends State<EcranDeTypesDeRendezVous> {
       final types = await service.lister();
       if (mounted) setState(() => _types = types);
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
   }
 
@@ -55,7 +56,7 @@ class _EcranDeTypesDeRendezVousState extends State<EcranDeTypesDeRendezVous> {
       await service.basculer(type, actif: !type.actif);
       await _recharger();
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
   }
 

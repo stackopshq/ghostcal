@@ -972,6 +972,78 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Revenir'**
   String get revenir;
+
+  /// No description provided for @erreurServeurInjoignable.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le serveur est injoignable. Vérifiez votre connexion et l\'adresse du serveur.'**
+  String get erreurServeurInjoignable;
+
+  /// No description provided for @erreurServeurLent.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le serveur ne répond pas. Réessayez dans un instant.'**
+  String get erreurServeurLent;
+
+  /// No description provided for @erreurCertificat.
+  ///
+  /// In fr, this message translates to:
+  /// **'La connexion sécurisée au serveur a échoué : son certificat n\'est pas valide.'**
+  String get erreurCertificat;
+
+  /// No description provided for @erreurAdresseInvalide.
+  ///
+  /// In fr, this message translates to:
+  /// **'Adresse de serveur invalide.'**
+  String get erreurAdresseInvalide;
+
+  /// No description provided for @erreurSessionExpiree.
+  ///
+  /// In fr, this message translates to:
+  /// **'La session a expiré. Reconnectez-vous.'**
+  String get erreurSessionExpiree;
+
+  /// No description provided for @erreurPhraseIncorrecte.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cette phrase n\'ouvre pas le coffre.'**
+  String get erreurPhraseIncorrecte;
+
+  /// No description provided for @erreurIdentifiants.
+  ///
+  /// In fr, this message translates to:
+  /// **'Adresse e-mail ou mot de passe incorrect.'**
+  String get erreurIdentifiants;
+
+  /// No description provided for @erreurTropDEssais.
+  ///
+  /// In fr, this message translates to:
+  /// **'Trop d\'essais. Patientez quelques minutes avant de réessayer.'**
+  String get erreurTropDEssais;
+
+  /// No description provided for @erreurServeur.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le serveur a rencontré un problème. Réessayez plus tard.'**
+  String get erreurServeur;
+
+  /// No description provided for @erreurInattendue.
+  ///
+  /// In fr, this message translates to:
+  /// **'Une erreur inattendue est survenue. Réessayez.'**
+  String get erreurInattendue;
+
+  /// No description provided for @coffreVerrouille.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le coffre est verrouillé. Tapez votre phrase pour l\'ouvrir.'**
+  String get coffreVerrouille;
+
+  /// No description provided for @erreurStatut.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le serveur a répondu {code}.'**
+  String erreurStatut(int code);
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

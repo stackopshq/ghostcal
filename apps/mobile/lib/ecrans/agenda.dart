@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../services/erreurs.dart';
 import '../services/agenda.dart';
 import '../services/session.dart';
 import '../services/verrouillage.dart';
@@ -67,7 +68,7 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
       if (_calendriers.isEmpty) _calendriers = await agenda.calendriers();
       if (mounted) setState(() => _lignes = lignes);
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     } finally {
       if (mounted) setState(() => _charge = false);
     }
