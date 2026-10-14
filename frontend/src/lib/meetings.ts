@@ -27,3 +27,13 @@ export function listMeetings(scope: MeetingScope): Promise<Meeting[]> {
 export function cancelMeeting(id: string): Promise<void> {
   return authedFetch<void>(`/v1/me/meetings/${id}/cancel`, { method: "POST" });
 }
+
+/** Set (or change) the meeting's video-call link and email it to the invitee and guests.
+ *  Calling it again with the same link resends it. */
+export function shareMeetingLink(id: string, url: string): Promise<Meeting> {
+  return authedFetch<Meeting>(`/v1/me/meetings/${id}/meeting-link`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
+}

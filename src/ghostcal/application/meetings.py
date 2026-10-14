@@ -3,12 +3,21 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
+from urllib.parse import urlsplit
 
 
 class MeetingNotFound(Exception):
     pass
+
+
+class InvalidMeetingUrl(ValueError):
+    pass
+
+
+# Same bound as the column had before it was encrypted; a real meeting link is far shorter.
+MAX_MEETING_URL_LENGTH = 2048
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,6 +37,8 @@ class BookingSummary:
     external_event_uid: str | None = None
     # Sealed-box blob with the invitee's answers + notes; the dashboard decrypts it in-browser.
     invitee_private: str | None = None
+    organization_id: uuid.UUID | None = None
+    guest_emails: list[str] = field(default_factory=list)
 
 
 class MeetingsRepository:
@@ -43,6 +54,25 @@ class MeetingsRepository:
         booking, or None if not found."""
         raise NotImplementedError
 
+    async def set_meeting_url(
+        self, booking_id: uuid.UUID, host_id: uuid.UUID, meeting_url: str
+    ) -> BookingSummary | None:
+        """Store the meeting link on the host's upcoming confirmed booking (every row of a
+        collective meeting). Return the updated booking, or None if not found."""
+        raise NotImplementedError
+
+
+def validate_meeting_url(raw: str) -> str:
+    """An absolute https URL, which is what every video service hands out. Anything else
+    (javascript:, http:, a bare host) is refused: the link goes into an email to the invitee."""
+    url = raw.strip()
+    if len(url) > MAX_MEETING_URL_LENGTH or any(c.isspace() for c in url):
+        raise InvalidMeetingUrl(raw)
+    parts = urlsplit(url)
+    if parts.scheme != "https" or not parts.hostname:
+        raise InvalidMeetingUrl(raw)
+    return url
+
 
 async def list_meetings(
     repo: MeetingsRepository, host_id: uuid.UUID, *, upcoming: bool, now: datetime
@@ -57,3 +87,12 @@ async def cancel_meeting(
     if cancelled is None:
         raise MeetingNotFound(str(booking_id))
     return cancelled
+
+
+async def share_meeting_link(
+    repo: MeetingsRepository, booking_id: uuid.UUID, host_id: uuid.UUID, raw_url: str
+) -> BookingSummary:
+    updated = await repo.set_meeting_url(booking_id, host_id, validate_meeting_url(raw_url))
+    if updated is None:
+        raise MeetingNotFound(str(booking_id))
+    return updated

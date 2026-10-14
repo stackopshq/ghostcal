@@ -11,7 +11,13 @@ import pytest_asyncio
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
-from ghostcal.application.meetings import cancel_meeting, list_meetings
+from ghostcal.application.meetings import (
+    InvalidMeetingUrl,
+    MeetingNotFound,
+    cancel_meeting,
+    list_meetings,
+    share_meeting_link,
+)
 from ghostcal.infrastructure.db import models
 from ghostcal.infrastructure.db.meetings_repository import SqlMeetingsRepository
 from ghostcal.infrastructure.db.session import org_session
@@ -89,3 +95,40 @@ async def test_cancel_frees_the_meeting(org_with_bookings: dict[str, uuid.UUID])
         upcoming = await list_meetings(repo, host, upcoming=True, now=NOW)
         await cancel_meeting(repo, upcoming[0].id, host)
         assert await list_meetings(repo, host, upcoming=True, now=NOW) == []
+
+
+async def test_meeting_link_is_stored_encrypted(
+    org_with_bookings: dict[str, uuid.UUID], admin_engine: AsyncEngine
+) -> None:
+    org, host = org_with_bookings["org"], org_with_bookings["host"]
+    url = "https://meet.google.com/abc-defg-hij"
+    async with org_session(org) as session:
+        repo = SqlMeetingsRepository(session, org)
+        upcoming = await list_meetings(repo, host, upcoming=True, now=NOW)
+        shared = await share_meeting_link(repo, upcoming[0].id, host, url)
+    assert shared.meeting_url == url
+
+    async with org_session(org) as session:
+        repo = SqlMeetingsRepository(session, org)
+        assert (await list_meetings(repo, host, upcoming=True, now=NOW))[0].meeting_url == url
+
+    async with admin_engine.connect() as conn:
+        raw = (
+            await conn.execute(
+                text("SELECT meeting_url FROM bookings WHERE id = :b"), {"b": upcoming[0].id}
+            )
+        ).scalar_one()
+    assert raw and "meet.google.com" not in raw
+
+
+async def test_meeting_link_refuses_bad_url_and_other_hosts(
+    org_with_bookings: dict[str, uuid.UUID],
+) -> None:
+    org, host = org_with_bookings["org"], org_with_bookings["host"]
+    async with org_session(org) as session:
+        repo = SqlMeetingsRepository(session, org)
+        booking_id = (await list_meetings(repo, host, upcoming=True, now=NOW))[0].id
+        with pytest.raises(InvalidMeetingUrl):
+            await share_meeting_link(repo, booking_id, host, "javascript:alert(1)")
+        with pytest.raises(MeetingNotFound):
+            await share_meeting_link(repo, booking_id, uuid.uuid4(), "https://zoom.us/j/1")
