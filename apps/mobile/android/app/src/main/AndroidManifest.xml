@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Only the debug and profile manifests declared it, so a release build could not reach
+         the server at all. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="ghostcal"
+        android:label="GhostCal"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

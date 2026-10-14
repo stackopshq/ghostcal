@@ -1,0 +1,5 @@
+# Copy to key.properties (gitignored) next to the keystore. Never commit either.
+storeFile=ghostcal-release.jks
+storePassword=
+keyAlias=ghostcal
+keyPassword=
