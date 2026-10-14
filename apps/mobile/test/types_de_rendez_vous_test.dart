@@ -46,13 +46,15 @@ void main() {
   _temoinDuCorpsComplet();
 
   group("L'ordre", () {
-    test('les actifs en premier, puis par titre', () {
+    // Switching a type on or off must not move its row: a second tap at the same
+    // place would hit another type.
+    test('by title only, whatever the active state', () {
       final ordre = TypesDeRendezVous.ordonner([
         TypeDeRendezVous.depuisJson(brut(id: 'b', titre: 'Beta', actif: false)),
         TypeDeRendezVous.depuisJson(brut(id: 'z', titre: 'Zulu')),
         TypeDeRendezVous.depuisJson(brut(id: 'a', titre: 'Alpha')),
       ]).map((t) => t.id).toList();
-      expect(ordre, ['a', 'z', 'b']);
+      expect(ordre, ['a', 'b', 'z']);
     });
 
     test("le tri par titre ignore la casse", () {

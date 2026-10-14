@@ -95,7 +95,10 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
       if (!mounted) return;
       setState(() {
         _debut = detail.debut;
-        _fin = detail.fin;
+        // The form shows the last day included; the server stores an exclusive end.
+        _fin = detail.journeeEntiere
+            ? Agenda.dernierJourInclus(detail.debut, detail.fin)
+            : detail.fin;
         _journeeEntiere = detail.journeeEntiere;
         _calendrier = detail.calendrier;
         _fuseau = detail.fuseau;
