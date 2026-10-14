@@ -106,7 +106,7 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
           if (faites > 0)
             TextButton(
               onPressed: () => setState(() => _montrerLesFaites = !_montrerLesFaites),
-              child: Text(_montrerLesFaites ? L.of(context).masquerLesFaites : 'Faites ($faites)'),
+              child: Text(_montrerLesFaites ? L.of(context).masquerLesFaites : L.of(context).faites(faites)),
             ),
         ],
       ),
@@ -302,13 +302,13 @@ class _FeuilleDeNouvelleTacheState extends State<_FeuilleDeNouvelleTache> {
             // Le bouton dépend de ce champ : sans ce rappel, il resterait éteint
             // jusqu'à ce qu'autre chose provoque un rafraîchissement.
             onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(hintText: 'Titre'),
+            decoration: InputDecoration(hintText: L.of(context).titre),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _notes,
             maxLines: 3,
-            decoration: const InputDecoration(hintText: 'Notes'),
+            decoration: InputDecoration(hintText: L.of(context).notesDeTache),
           ),
           const SizedBox(height: 12),
           ListTile(

@@ -318,5 +318,15 @@
   "theme": "Thème",
   "themeDeLAppareil": "Comme l'appareil",
   "themeClair": "Clair",
-  "themeSombre": "Sombre"
+  "themeSombre": "Sombre",
+  "aujourdHui": "Aujourd'hui",
+  "faites": "Faites ({nombre})",
+  "notesDeTache": "Notes",
+  "@faites": {
+    "placeholders": {
+      "nombre": {
+        "type": "int"
+      }
+    }
+  }
 }

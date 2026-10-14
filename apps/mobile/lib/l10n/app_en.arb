@@ -182,5 +182,8 @@
   "theme": "Theme",
   "themeDeLAppareil": "Same as device",
   "themeClair": "Light",
-  "themeSombre": "Dark"
+  "themeSombre": "Dark",
+  "aujourdHui": "Today",
+  "faites": "Done ({nombre})",
+  "notesDeTache": "Notes"
 }

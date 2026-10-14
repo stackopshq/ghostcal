@@ -605,4 +605,15 @@ class LEn extends L {
 
   @override
   String get themeSombre => 'Dark';
+
+  @override
+  String get aujourdHui => 'Today';
+
+  @override
+  String faites(int nombre) {
+    return 'Done ($nombre)';
+  }
+
+  @override
+  String get notesDeTache => 'Notes';
 }

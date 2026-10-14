@@ -608,4 +608,15 @@ class LFr extends L {
 
   @override
   String get themeSombre => 'Sombre';
+
+  @override
+  String get aujourdHui => 'Aujourd\'hui';
+
+  @override
+  String faites(int nombre) {
+    return 'Faites ($nombre)';
+  }
+
+  @override
+  String get notesDeTache => 'Notes';
 }

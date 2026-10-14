@@ -131,7 +131,7 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
           ),
           IconButton(
             icon: const Icon(Icons.today),
-            tooltip: "Aujourd'hui",
+            tooltip: L.of(context).aujourdHui,
             onPressed: () {
               setState(() => _jour = DateTime.now());
               _recharger();

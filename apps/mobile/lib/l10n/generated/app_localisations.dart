@@ -1146,6 +1146,24 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Sombre'**
   String get themeSombre;
+
+  /// No description provided for @aujourdHui.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aujourd\'hui'**
+  String get aujourdHui;
+
+  /// No description provided for @faites.
+  ///
+  /// In fr, this message translates to:
+  /// **'Faites ({nombre})'**
+  String faites(int nombre);
+
+  /// No description provided for @notesDeTache.
+  ///
+  /// In fr, this message translates to:
+  /// **'Notes'**
+  String get notesDeTache;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {
