@@ -342,8 +342,12 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+      # `--no-cache` : le `apt-get upgrade` des Containerfile n'a d'effet que s'il s'exécute.
+      # Ce job tourne sur la VM elle-même, dont le cache podman persiste d'un job à l'autre :
+      # le 2026-10-14, la couche venait du cache et Trivy a trouvé pcre2 et perl périmés dans
+      # une image construite le jour même. Le cache `uv` (montage `type=cache`) reste utilisé.
       - name: Build image (Podman)
-        run: podman build -t ghostcal:ci .
+        run: podman build --no-cache -t ghostcal:ci .
 
       # The frontend is a second image because it is a second runtime. Until
       # 2026-08-12 this job built only the backend, so `npm run build` in the
@@ -351,7 +355,7 @@ jobs:
       # deploying ghostcal meant deploying an API with no interface in front of
       # it, which is exactly what was found running in production.
       - name: Build frontend image (Podman)
-        run: podman build -t ghostcal-frontend:ci -f frontend/Containerfile frontend
+        run: podman build --no-cache -t ghostcal-frontend:ci -f frontend/Containerfile frontend
 
       # osv-scanner covers uv.lock and package-lock.json — our dependencies, not the operating
       # system underneath them. Everything in the base layer (OpenSSL, zlib, the Debian userland)
