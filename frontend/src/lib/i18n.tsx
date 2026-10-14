@@ -391,6 +391,17 @@ const en: Dict = {
   "meetings.cancel": "Cancel",
   "meetings.confirmCancel":
     "Cancel this meeting? The invitee's slot will be freed.",
+  "meetings.sendLink": "Send meeting link",
+  "meetings.changeLink": "Change or resend link",
+  "meetings.linkLabel": "Video call link (Zoom, Google Meet, Teams…)",
+  "meetings.linkPlaceholder": "https://",
+  "meetings.linkSend": "Send",
+  "meetings.linkCancel": "Close",
+  "meetings.linkSent": "Link sent to the invitee.",
+  "meetings.linkInvalid": "The link must start with https://",
+  "meetings.linkMailFailed":
+    "Link saved, but the email could not be sent. Try again in a moment.",
+  "meetings.linkError": "Could not send the link.",
   // team
   "team.title": "Team",
   "team.sub": "Manage members and invitations.",
@@ -1079,6 +1090,17 @@ const fr: Dict = {
   "meetings.cancel": "Annuler",
   "meetings.confirmCancel":
     "Annuler ce rendez-vous ? Le créneau de l'invité sera libéré.",
+  "meetings.sendLink": "Envoyer le lien de visio",
+  "meetings.changeLink": "Modifier ou renvoyer le lien",
+  "meetings.linkLabel": "Lien de visio (Zoom, Google Meet, Teams…)",
+  "meetings.linkPlaceholder": "https://",
+  "meetings.linkSend": "Envoyer",
+  "meetings.linkCancel": "Fermer",
+  "meetings.linkSent": "Lien envoyé à l'invité.",
+  "meetings.linkInvalid": "Le lien doit commencer par https://",
+  "meetings.linkMailFailed":
+    "Lien enregistré, mais l'e-mail n'a pas pu partir. Réessayez dans un instant.",
+  "meetings.linkError": "Impossible d'envoyer le lien.",
   "team.title": "Équipe",
   "team.sub": "Gérez les membres et les invitations.",
   "team.errLoad": "Impossible de charger l'équipe.",

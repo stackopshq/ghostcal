@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { ApiError } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import {
   cancelMeeting,
   listMeetings,
+  shareMeetingLink,
   type Meeting,
   type MeetingScope,
 } from "@/lib/meetings";
@@ -166,6 +168,26 @@ export default function MeetingsPage() {
                   label={t("meetings.privateDetails")}
                 />
               )}
+              {m.meeting_url && (
+                <a
+                  href={m.meeting_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 block max-w-xs truncate text-sm text-accent hover:underline"
+                >
+                  {m.meeting_url}
+                </a>
+              )}
+              {scope === "upcoming" && (
+                <MeetingLinkForm
+                  meeting={m}
+                  onShared={(updated) =>
+                    setMeetings((all) =>
+                      all.map((x) => (x.id === updated.id ? { ...x, meeting_url: updated.meeting_url } : x)),
+                    )
+                  }
+                />
+              )}
             </div>
             <div className="flex items-center gap-4">
               <div className="text-sm sm:text-right">
@@ -188,6 +210,111 @@ export default function MeetingsPage() {
         ))}
       </div>
     </main>
+  );
+}
+
+function MeetingLinkForm({
+  meeting,
+  onShared,
+}: {
+  meeting: Meeting;
+  onShared: (updated: Meeting) => void;
+}) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const [url, setUrl] = useState(meeting.meeting_url ?? "");
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(
+    null,
+  );
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!url.trim().startsWith("https://")) {
+      setStatus({ ok: false, text: t("meetings.linkInvalid") });
+      return;
+    }
+    setBusy(true);
+    setStatus(null);
+    try {
+      onShared(await shareMeetingLink(meeting.id, url.trim()));
+      setStatus({ ok: true, text: t("meetings.linkSent") });
+    } catch (err) {
+      const code = err instanceof ApiError ? err.status : 0;
+      if (code === 502) onShared({ ...meeting, meeting_url: url.trim() });
+      setStatus({
+        ok: false,
+        text:
+          code === 422
+            ? t("meetings.linkInvalid")
+            : code === 502
+              ? t("meetings.linkMailFailed")
+              : t("meetings.linkError"),
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <div className="mt-2">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="rounded-pill border border-border-strong px-3 py-1.5 text-sm text-foreground transition hover:border-accent hover:text-accent"
+        >
+          {meeting.meeting_url ? t("meetings.changeLink") : t("meetings.sendLink")}
+        </button>
+        {status?.ok && <p className="mt-1 text-xs text-accent">{status.text}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={submit} className="mt-2 flex flex-col gap-2">
+      <label className="text-xs text-muted" htmlFor={`link-${meeting.id}`}>
+        {t("meetings.linkLabel")}
+      </label>
+      <div className="flex flex-wrap gap-2">
+        <input
+          id={`link-${meeting.id}`}
+          type="url"
+          inputMode="url"
+          autoFocus
+          required
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder={t("meetings.linkPlaceholder")}
+          className="min-w-0 flex-1 rounded border border-border bg-surface-2/40 px-3 py-1.5 text-sm text-foreground outline-none focus:border-accent"
+        />
+        <button
+          type="submit"
+          disabled={busy}
+          className="rounded-pill bg-accent px-3 py-1.5 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-40"
+        >
+          {t("meetings.linkSend")}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            setStatus(null);
+          }}
+          className="rounded-pill px-3 py-1.5 text-sm text-muted hover:text-foreground"
+        >
+          {t("meetings.linkCancel")}
+        </button>
+      </div>
+      {status && (
+        <p
+          role="status"
+          className={`text-xs ${status.ok ? "text-accent" : "text-red-400"}`}
+        >
+          {status.text}
+        </p>
+      )}
+    </form>
   );
 }
 
