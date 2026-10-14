@@ -8,23 +8,15 @@ on:
 permissions:
   contents: read
 
-# `ubuntu-latest` désigne ICI le runner de la forge, pas un runner hébergé par GitHub. Les
-# jobs de test et de lint y restent : ils tournent dans l'image `runner-images:ubuntu-latest`,
-# donc dans un conteneur jetable, et ils n'ont besoin d'aucun moteur de conteneurs.
+# Les jobs de test et de lint demandent `devcontainer`, l'étiquette de `core-run-02`, le seul
+# runner de la forge depuis le 2026-09-27. `ubuntu-latest` a disparu ce jour-là avec
+# `core-run-01`, et les jobs qui la demandaient restaient en file sans jamais échouer. Ils
+# tournent dans l'image `git.stackops.ch/apollo/devcontainer:ci-latest` (Rocky Linux 10,
+# donc `dnf` et non `apt`), dans un conteneur jetable.
 #
-# Le job `image` fait exception et demande `[self-hosted, linux, x64]`. Ces étiquettes
-# existent depuis le 2026-08-27 : elles désignent `core-run-01-host-1`, un second exécutant
-# enregistré au niveau de l'organisation `stackops` et déclaré SANS image. Le job s'exécute
-# donc directement sur la VM `core-run-01`, sous l'utilisateur `gitea-runner-host` (uid 985),
-# où `podman 5.8.2` est installé en rootless. Mesuré : `/run/.containerenv` absent,
-# `podman build` aboutit.
-#
-# Ne pas déplacer les autres jobs ici. Sur cet exécutant il n'y a pas de bac à sable : un job
-# écrit sur la VM elle-même, et sa capacité est de 1, donc tout ce qui y passe sérialise le
-# reste. Un test qui marche dans un conteneur jetable n'a rien à y gagner.
-#
-# `host` n'est pas un contournement : cette étiquette-là appartient à l'ANCIEN exécutant et
-# atterrit dans le conteneur du runner, pas sur la VM.
+# Le job `image` fait exception et demande `[self-hosted, linux, x64]` : exécution directe
+# sur la VM `core-run-02`, où `podman` est installé en rootless. Ne pas y déplacer les autres
+# jobs : il n'y a pas de bac à sable, un job y écrit sur la VM elle-même.
 
 # uv est épinglé, pas « latest ». `setup-uv` sans version demande à l'API GitHub
 # quelle est la dernière release, anonymement : l'exécutant de la forge n'a pas de
@@ -40,7 +32,7 @@ env:
 
 jobs:
   quality:
-    runs-on: ubuntu-latest
+    runs-on: devcontainer
 
     # Two thirds of the backend suite is integration tests, and without a database they skip —
     # which CI reports as success. RLS, invitations and key rotation are only covered here.
@@ -105,14 +97,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Le client psql n'est pas dans l'image du runner (vérifié le 2026-08-27 : ni `psql`,
-      # ni `pg_isready`). L'ancienne étape s'en passait en appelant le psql du conteneur via
-      # `podman exec` ; sans podman, il faut le client ici. Le serveur est en 16, le client
-      # d'Ubuntu 24.04 aussi.
+      # Le client psql n'est pas dans l'image du runner. Le serveur est en 16, le client de
+      # Rocky Linux 10 aussi.
       - name: Install the PostgreSQL client
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends postgresql-client
+        run: sudo dnf install -y -q --setopt=install_weak_deps=False postgresql
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -159,7 +147,7 @@ jobs:
       # avait fait perdre, et que cette étape rattrapait.
 
   security:
-    runs-on: ubuntu-latest
+    runs-on: devcontainer
     steps:
       - uses: actions/checkout@v4
 
@@ -205,7 +193,7 @@ jobs:
   # son auteur ne peut pas corriger, ce qui est la façon la plus sûre de faire désactiver un
   # contrôle. La mesure de la flotte entière reste le travail quotidien de ghostsuite.
   charte:
-    runs-on: ubuntu-latest
+    runs-on: devcontainer
     steps:
       # Dans `produits/ghostcal` et non à la racine : le contrôle lit un répertoire qui porte un
       # clone PAR PRODUIT, et il retrouve le nom du produit dans le nom du dossier.
@@ -225,9 +213,11 @@ jobs:
           fi
           # Le jeton vit dans la config git du conteneur de job, éphémère, plutôt que sur une
           # ligne de commande où `ps` le lirait.
-          git config --global \
-            url."https://${JETON}@git.stackops.ch/".insteadOf "https://git.stackops.ch/"
-          git clone --depth 1 --quiet https://git.stackops.ch/stackops/ghostsuite.git charte
+          # `-c` et non `git config --global` : dans le conteneur de job, le HOME du runner
+          # (`/srv/gitea-runner-host`) n'existe pas, et `--global` échoue sur
+          # `could not lock config file`.
+          git -c url."https://${JETON}@git.stackops.ch/".insteadOf="https://git.stackops.ch/" \
+            clone --depth 1 --quiet https://git.stackops.ch/stackops/ghostsuite.git charte
 
       # Trois issues, pas deux : 0 d'accord, 1 des écarts, 2 la mesure n'a pas pu se faire. Le
       # job échoue sur 1 comme sur 2 — une charte injoignable n'est pas une charte respectée.
@@ -244,7 +234,7 @@ jobs:
   # demi-journée a été dépensée à chercher pourquoi un `flutter build ipa`
   # échouait dans un pipeline — il n'y avait pas de pipeline.
   #
-  # Sur `ubuntu-latest` et non `macos-latest`, ce qui n'est pas une économie de
+  # Sur Linux et non `macos-latest`, ce qui n'est pas une économie de
   # bout de chandelle : `analyze` et `test` n'ont besoin d'aucun outillage
   # Apple. Le Dart engendré par flutter_rust_bridge est COMMIS
   # (`lib/src/rust/`), et aucun test unitaire n'appelle `RustLib` — ils tournent
@@ -258,7 +248,7 @@ jobs:
   # personne ne relit — c'est ainsi que le TOTP a pu atterrir sur `main` sans
   # que le mobile le sache.
   mobile:
-    runs-on: ubuntu-latest
+    runs-on: devcontainer
     defaults:
       run:
         working-directory: apps/mobile
@@ -301,7 +291,7 @@ jobs:
           echo "::notice::$n témoin(s) d'intégration exigent un appareil réel et ne tournent pas ici."
 
   frontend:
-    runs-on: ubuntu-latest
+    runs-on: devcontainer
     defaults:
       run:
         working-directory: frontend
@@ -352,8 +342,12 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+      # `--no-cache` : le `apt-get upgrade` des Containerfile n'a d'effet que s'il s'exécute.
+      # Ce job tourne sur la VM elle-même, dont le cache podman persiste d'un job à l'autre :
+      # le 2026-10-14, la couche venait du cache et Trivy a trouvé pcre2 et perl périmés dans
+      # une image construite le jour même. Le cache `uv` (montage `type=cache`) reste utilisé.
       - name: Build image (Podman)
-        run: podman build -t ghostcal:ci .
+        run: podman build --no-cache -t ghostcal:ci .
 
       # The frontend is a second image because it is a second runtime. Until
       # 2026-08-12 this job built only the backend, so `npm run build` in the
@@ -361,7 +355,7 @@ jobs:
       # deploying ghostcal meant deploying an API with no interface in front of
       # it, which is exactly what was found running in production.
       - name: Build frontend image (Podman)
-        run: podman build -t ghostcal-frontend:ci -f frontend/Containerfile frontend
+        run: podman build --no-cache -t ghostcal-frontend:ci -f frontend/Containerfile frontend
 
       # osv-scanner covers uv.lock and package-lock.json — our dependencies, not the operating
       # system underneath them. Everything in the base layer (OpenSSL, zlib, the Debian userland)
