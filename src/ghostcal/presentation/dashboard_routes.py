@@ -42,9 +42,15 @@ from ghostcal.application.event_types import (
     list_event_types,
     update_event_type,
 )
-from ghostcal.application.meetings import MeetingNotFound, cancel_meeting, list_meetings
+from ghostcal.application.meetings import (
+    InvalidMeetingUrl,
+    MeetingNotFound,
+    cancel_meeting,
+    list_meetings,
+    share_meeting_link,
+)
 from ghostcal.application.mirror import unmirror_booking
-from ghostcal.application.notifications import send_booking_cancellation
+from ghostcal.application.notifications import send_booking_cancellation, send_meeting_link
 from ghostcal.application.organization import (
     HandleTaken,
     InvalidHandle,
@@ -82,6 +88,7 @@ from ghostcal.infrastructure.db.schedules_repository import SqlSchedulesReposito
 from ghostcal.infrastructure.db.session import db_session, org_session
 from ghostcal.infrastructure.email import build_email_sender
 from ghostcal.infrastructure.security.encryption import SecretBox
+from ghostcal.infrastructure.security.tokens import BookingManagementCodec
 from ghostcal.presentation.auth_routes import current_user
 from ghostcal.presentation.schemas import (
     AnalyticsOut,
@@ -93,6 +100,7 @@ from ghostcal.presentation.schemas import (
     CreatedOut,
     EventTypeDetailOut,
     EventTypeIn,
+    MeetingLinkIn,
     MeetingOut,
     MirrorDetailIn,
     OrganizationIn,
@@ -111,6 +119,7 @@ _clock = SystemClock()
 _mailer = build_email_sender(_settings)
 _cipher = SecretBox(_settings.token_encryption_key.get_secret_value())
 _calendar_client = CaldavCalendarClient()
+_manage_codec = BookingManagementCodec(_settings.secret_key.get_secret_value())
 _logger = logging.getLogger("ghostcal.dashboard")
 
 
@@ -424,6 +433,44 @@ async def cancel_my_meeting(
             )
     except Exception:
         _logger.exception("failed to unmirror booking %s from calendar", booking_id)
+
+
+@router.post("/meetings/{booking_id}/meeting-link", response_model=MeetingOut)
+async def share_my_meeting_link(
+    booking_id: uuid.UUID, payload: MeetingLinkIn, member: Member = Depends(current_member)
+) -> MeetingOut:
+    """Set (or change) the video-call link of an upcoming booking and email it to the invitee
+    and their guests. Sending again with the same link is how the host resends it."""
+    async with org_session(member.organization_id) as session:
+        repo = SqlMeetingsRepository(session, member.organization_id)
+        try:
+            meeting = await share_meeting_link(repo, booking_id, member.user.id, payload.url)
+        except InvalidMeetingUrl as exc:
+            raise HTTPException(
+                status_code=422, detail="meeting link must be an https URL"
+            ) from exc
+        except MeetingNotFound as exc:
+            raise HTTPException(status_code=404, detail="meeting not found") from exc
+
+    # After commit: the link is saved even if the mail provider is down, and the host can resend.
+    try:
+        token = _manage_codec.encode(meeting.id, member.organization_id)
+        await send_meeting_link(
+            _mailer,
+            to=[meeting.invitee_email, *meeting.guest_emails],
+            invitee_timezone=meeting.invitee_timezone,
+            event_title=meeting.event_title,
+            host_name=member.user.name,
+            start_at=meeting.start_at,
+            meeting_url=meeting.meeting_url or payload.url,
+            manage_url=f"{_settings.frontend_base_url}/manage/{token}",
+        )
+    except Exception:
+        _logger.exception("failed to send meeting link for booking %s", booking_id)
+        raise HTTPException(
+            status_code=502, detail="link saved, but the email could not be sent"
+        ) from None
+    return MeetingOut(**asdict(meeting))
 
 
 # --- Organization profile (handle) -----------------------------------------------------------

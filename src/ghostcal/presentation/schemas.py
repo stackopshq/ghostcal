@@ -771,6 +771,11 @@ class RescheduleIn(BaseModel):
     start_at: datetime
 
 
+class MeetingLinkIn(BaseModel):
+    # Validated (https only) by the use case, which owns the rule; this bound only caps the body.
+    url: str = Field(max_length=4096)
+
+
 # --- Calendar (zero-knowledge personal calendar, ADR-0004) ----------------------------------------
 
 

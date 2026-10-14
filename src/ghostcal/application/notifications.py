@@ -1,4 +1,4 @@
-"""Booking notification emails (confirmation, cancellation) with an iCalendar attachment.
+"""Booking notification emails (confirmation, meeting link, cancellation) with an ICS attachment.
 
 Pure-ish: takes the ``EmailSender`` port and plain data, builds the content, and sends. Errors
 are the caller's concern (sends are best-effort and must not fail the booking).
@@ -7,6 +7,7 @@ are the caller's concern (sends are best-effort and must not fail the booking).
 from __future__ import annotations
 
 import html
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
@@ -90,14 +91,28 @@ def build_ics(conf: BookingConfirmation) -> str:
     return "\r\n".join(lines) + "\r\n"
 
 
+_BUTTON_STYLE = (
+    "display:inline-block;padding:10px 18px;border-radius:999px;background:#21222C;"
+    "color:#ffffff;text-decoration:none;font-weight:600"
+)
+
+
+def _button(url: str, label: str) -> str:
+    """A link styled as a button, with inline CSS since mail clients drop stylesheets."""
+    return f'<p><a href="{_h(url)}" style="{_BUTTON_STYLE}">{_h(label)}</a></p>'
+
+
+def _manage_block(manage_url: str | None) -> str:
+    """The invitee's self-service link, as a button: a plain link at the foot of the mail went
+    unnoticed by invitees who wanted to move their meeting."""
+    if not manage_url:
+        return ""
+    return f"<p>Need to change it?</p>{_button(manage_url, 'Reschedule or cancel')}"
+
+
 def _confirmation_html(
     conf: BookingConfirmation, *, when: str, counterpart: str, manage_url: str | None = None
 ) -> str:
-    manage = (
-        f'<p>Need to change it? <a href="{manage_url}">Reschedule or cancel</a>.</p>'
-        if manage_url
-        else ""
-    )
     return (
         f"<p>Your meeting is confirmed.</p>"
         f"<p><strong>{_h(conf.event_title)}</strong><br>"
@@ -105,7 +120,7 @@ def _confirmation_html(
         f"When: {when}<br>"
         f"Where: {_location_label(conf.location_type)}</p>"
         f"<p>The calendar invite is attached.</p>"
-        f"{manage}"
+        f"{_manage_block(manage_url)}"
     )
 
 
@@ -186,11 +201,6 @@ async def send_booking_reminder(
 ) -> None:
     when = _human(start_at, invitee_timezone)
     lead = _lead_label(minutes_before)
-    manage = (
-        f'<p>Need to change it? <a href="{manage_url}">Reschedule or cancel</a>.</p>'
-        if manage_url
-        else ""
-    )
     await mailer.send(
         to=invitee_email,
         subject=f"Reminder: {event_title} with {host_name} ({lead})",
@@ -200,7 +210,7 @@ async def send_booking_reminder(
             f"With: {_h(host_name)}<br>"
             f"When: {when}<br>"
             f"Where: {_location_label(location_type)}</p>"
-            f"{manage}"
+            f"{_manage_block(manage_url)}"
         ),
     )
 
@@ -367,6 +377,33 @@ async def send_poll_result(
         ),
         attachments=[invite],
     )
+
+
+async def send_meeting_link(
+    mailer: EmailSender,
+    *,
+    to: Sequence[str],
+    invitee_timezone: str,
+    event_title: str,
+    host_name: str,
+    start_at: datetime,
+    meeting_url: str,
+    manage_url: str | None = None,
+) -> None:
+    """Send the video-call link the host set on a booking to the invitee and their guests."""
+    when = _human(start_at, invitee_timezone)
+    for recipient in to:
+        await mailer.send(
+            to=recipient,
+            subject=f"Meeting link: {event_title} with {host_name}",
+            html=(
+                f"<p>{_h(host_name)} shared the link to join your meeting.</p>"
+                f"<p><strong>{_h(event_title)}</strong><br>When: {when}</p>"
+                f"{_button(meeting_url, 'Join the meeting')}"
+                f'<p style="font-size:12px;color:#666">{_h(meeting_url)}</p>'
+                f"{_manage_block(manage_url)}"
+            ),
+        )
 
 
 async def send_booking_cancellation(
