@@ -213,9 +213,11 @@ jobs:
           fi
           # Le jeton vit dans la config git du conteneur de job, éphémère, plutôt que sur une
           # ligne de commande où `ps` le lirait.
-          git config --global \
-            url."https://${JETON}@git.stackops.ch/".insteadOf "https://git.stackops.ch/"
-          git clone --depth 1 --quiet https://git.stackops.ch/stackops/ghostsuite.git charte
+          # `-c` et non `git config --global` : dans le conteneur de job, le HOME du runner
+          # (`/srv/gitea-runner-host`) n'existe pas, et `--global` échoue sur
+          # `could not lock config file`.
+          git -c url."https://${JETON}@git.stackops.ch/".insteadOf="https://git.stackops.ch/" \
+            clone --depth 1 --quiet https://git.stackops.ch/stackops/ghostsuite.git charte
 
       # Trois issues, pas deux : 0 d'accord, 1 des écarts, 2 la mesure n'a pas pu se faire. Le
       # job échoue sur 1 comme sur 2 — une charte injoignable n'est pas une charte respectée.
