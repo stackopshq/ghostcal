@@ -207,5 +207,12 @@
   "adresseEmail": "Email address",
   "nom": "Name",
   "fuseauHoraire": "Time zone",
-  "rechercherUnFuseau": "Search a city or time zone"
+  "rechercherUnFuseau": "Search a city or time zone",
+  "inviter": "Invite",
+  "inviterUnMembre": "Invite a member",
+  "invitationEnvoyee": "Invitation sent to {email}",
+  "invitationLienSecurise": "The server emailed the invitation. So that this person can read the team's encrypted data, also send them this secure link: the key it carries never goes through the server.",
+  "invitationSansCle": "The server emailed the invitation. The vault was closed, so the team key was not attached: a member will share it from the web.",
+  "copierLeLien": "Copy link",
+  "fermer": "Close"
 }

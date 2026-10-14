@@ -688,4 +688,29 @@ class LEn extends L {
 
   @override
   String get rechercherUnFuseau => 'Search a city or time zone';
+
+  @override
+  String get inviter => 'Invite';
+
+  @override
+  String get inviterUnMembre => 'Invite a member';
+
+  @override
+  String invitationEnvoyee(String email) {
+    return 'Invitation sent to $email';
+  }
+
+  @override
+  String get invitationLienSecurise =>
+      'The server emailed the invitation. So that this person can read the team\'s encrypted data, also send them this secure link: the key it carries never goes through the server.';
+
+  @override
+  String get invitationSansCle =>
+      'The server emailed the invitation. The vault was closed, so the team key was not attached: a member will share it from the web.';
+
+  @override
+  String get copierLeLien => 'Copy link';
+
+  @override
+  String get fermer => 'Close';
 }

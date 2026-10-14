@@ -1296,6 +1296,48 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Rechercher une ville ou un fuseau'**
   String get rechercherUnFuseau;
+
+  /// No description provided for @inviter.
+  ///
+  /// In fr, this message translates to:
+  /// **'Inviter'**
+  String get inviter;
+
+  /// No description provided for @inviterUnMembre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Inviter un membre'**
+  String get inviterUnMembre;
+
+  /// No description provided for @invitationEnvoyee.
+  ///
+  /// In fr, this message translates to:
+  /// **'Invitation envoyée à {email}'**
+  String invitationEnvoyee(String email);
+
+  /// No description provided for @invitationLienSecurise.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le serveur a envoyé l\'invitation par e-mail. Pour que cette personne puisse lire les données chiffrées de l\'équipe, transmettez-lui aussi ce lien sécurisé : la clé qu\'il contient ne passe jamais par le serveur.'**
+  String get invitationLienSecurise;
+
+  /// No description provided for @invitationSansCle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le serveur a envoyé l\'invitation par e-mail. Le coffre étant fermé, la clé de l\'équipe n\'a pas été jointe : un membre la partagera depuis le web.'**
+  String get invitationSansCle;
+
+  /// No description provided for @copierLeLien.
+  ///
+  /// In fr, this message translates to:
+  /// **'Copier le lien'**
+  String get copierLeLien;
+
+  /// No description provided for @fermer.
+  ///
+  /// In fr, this message translates to:
+  /// **'Fermer'**
+  String get fermer;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

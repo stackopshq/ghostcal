@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../modeles/adresse.dart';
 
 import '../services/erreurs.dart';
 import '../services/reglages.dart';
@@ -87,6 +90,59 @@ class _EcranDEquipeState extends State<EcranDEquipe> {
     }
   }
 
+  Future<void> _inviter() async {
+    final service = _service;
+    final site = AdresseDeServeur.normaliser(widget.session.serveur);
+    if (service == null || site == null) return;
+    final organisation = widget.session.organisation;
+    final invitation = await showModalBottomSheet<InvitationCreee>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _FeuilleDInvitation(
+        envoyer: (email, role) => service.inviter(
+          email: email,
+          role: role,
+          site: site,
+          clePriveeDeLOrganisation: organisation == null
+              ? null
+              : widget.session.auth?.clesDe(organisation)?.privee,
+        ),
+      ),
+    );
+    if (invitation == null || !mounted) return;
+    await _charger();
+    if (!mounted) return;
+    final lien = invitation.lien;
+    await showDialog<void>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(L.of(context).invitationEnvoyee(invitation.email)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(lien == null ? L.of(context).invitationSansCle : L.of(context).invitationLienSecurise),
+            if (lien != null) ...[
+              const SizedBox(height: 12),
+              SelectableText(lien.toString(), style: const TextStyle(fontSize: 12)),
+            ],
+          ],
+        ),
+        actions: [
+          if (lien != null)
+            TextButton(
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: lien.toString()));
+                if (c.mounted) Navigator.pop(c);
+              },
+              child: Text(L.of(context).copierLeLien),
+            ),
+          TextButton(onPressed: () => Navigator.pop(c), child: Text(L.of(context).fermer)),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final gc = Gc.of(context);
@@ -107,6 +163,12 @@ class _EcranDEquipeState extends State<EcranDEquipe> {
     return FondGhost(
       child: Scaffold(
         appBar: AppBar(title: Text(L.of(context).equipe)),
+        floatingActionButton: FloatingActionButton.extended(
+          heroTag: 'equipe',
+          icon: const Icon(Icons.person_add_alt),
+          label: Text(L.of(context).inviter),
+          onPressed: _inviter,
+        ),
         body: ContenuBorne(
           child: RefreshIndicator(
             onRefresh: _charger,
@@ -161,6 +223,99 @@ class _EcranDEquipeState extends State<EcranDEquipe> {
                   ? _retirer(membre)
                   : _changerLeRole(membre, choix),
             ),
+    );
+  }
+}
+
+class _FeuilleDInvitation extends StatefulWidget {
+  const _FeuilleDInvitation({required this.envoyer});
+
+  final Future<InvitationCreee> Function(String email, String role) envoyer;
+
+  @override
+  State<_FeuilleDInvitation> createState() => _FeuilleDInvitationState();
+}
+
+class _FeuilleDInvitationState extends State<_FeuilleDInvitation> {
+  final _email = TextEditingController();
+  String _role = 'member';
+  bool _occupe = false;
+  String? _erreur;
+
+  @override
+  void dispose() {
+    _email.dispose();
+    super.dispose();
+  }
+
+  Future<void> _envoyer() async {
+    setState(() {
+      _occupe = true;
+      _erreur = null;
+    });
+    try {
+      final invitation = await widget.envoyer(_email.text.trim(), _role);
+      if (mounted) Navigator.of(context).pop(invitation);
+    } on Object catch (e) {
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
+    } finally {
+      if (mounted) setState(() => _occupe = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final gc = Gc.of(context);
+    final l = L.of(context);
+    final valide = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(_email.text.trim());
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l.inviterUnMembre,
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: gc.encre)),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _email,
+            autofocus: true,
+            keyboardType: TextInputType.emailAddress,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(labelText: l.adresseEmail),
+          ),
+          const SizedBox(height: 12),
+          SegmentedButton<String>(
+            showSelectedIcon: false,
+            segments: [
+              ButtonSegment(value: 'member', label: Text(l.roleMembre)),
+              ButtonSegment(value: 'admin', label: Text(l.roleAdministrateur)),
+            ],
+            selected: {_role},
+            onSelectionChanged: (v) => setState(() => _role = v.first),
+          ),
+          if (_erreur != null) ...[
+            const SizedBox(height: 12),
+            Text(_erreur!, style: TextStyle(color: gc.danger, fontSize: 13)),
+          ],
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: !valide || _occupe ? null : _envoyer,
+              child: _occupe
+                  ? const SizedBox(
+                      width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : Text(l.inviter),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

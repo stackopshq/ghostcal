@@ -1,3 +1,8 @@
+import 'dart:convert';
+import 'dart:math';
+import 'dart:typed_data';
+
+import '../src/rust/api/coeur.dart' as coeur;
 import 'api.dart';
 import '../l10n/generated/app_localisations.dart';
 
@@ -306,6 +311,54 @@ class Reglages {
     return brutes.whereType<Map<String, dynamic>>().map(Membre.depuisJson).toList();
   }
 
+  /// Invites [email] into the organization, as the web team page does (ADR-0003).
+  ///
+  /// When the vault is open, the organization private key is sealed under a random
+  /// "grant" key that travels only in the link fragment (`#k=…`), which browsers never
+  /// send to the server: the invitee can then read the team's data, and the server
+  /// still cannot. That secure link is returned for the inviter to share; the email the
+  /// server sends cannot carry it.
+  Future<InvitationCreee> inviter({
+    required String email,
+    required String role,
+    required Uri site,
+    String? clePriveeDeLOrganisation,
+  }) async {
+    String? enveloppe;
+    String? cleDuLien;
+    if (clePriveeDeLOrganisation != null) {
+      final aleatoire = Random.secure();
+      final grant = Uint8List.fromList(List.generate(32, (_) => aleatoire.nextInt(256)));
+      enveloppe = await coeur.chiffrerSymetrique(
+        cle: grant,
+        clair: base64Decode(clePriveeDeLOrganisation),
+      );
+      cleDuLien = base64Url.encode(grant).replaceAll('=', '');
+    }
+    final json = await api.envoyer<Map<String, dynamic>>(
+      'POST',
+      'v1/me/organization/invitations',
+      {'email': email, 'role': role, 'wrapped_org_key': ?enveloppe},
+    );
+    final jeton = json['token'];
+    return InvitationCreee(
+      email: email,
+      lien: jeton is String && cleDuLien != null
+          ? site.replace(path: '/invitations/$jeton', fragment: 'k=$cleDuLien')
+          : null,
+    );
+  }
+
   Future<void> retirerLeMembre(String utilisateur) =>
       api.envoyerSansReponse('DELETE', 'v1/me/organization/members/$utilisateur');
+}
+
+/// An invitation just created, and the secure link to hand over when there is one.
+class InvitationCreee {
+  const InvitationCreee({required this.email, this.lien});
+
+  final String email;
+
+  /// `null` when the vault was closed: the invitee joins but must get the key later.
+  final Uri? lien;
 }

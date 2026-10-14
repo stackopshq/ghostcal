@@ -691,4 +691,29 @@ class LFr extends L {
 
   @override
   String get rechercherUnFuseau => 'Rechercher une ville ou un fuseau';
+
+  @override
+  String get inviter => 'Inviter';
+
+  @override
+  String get inviterUnMembre => 'Inviter un membre';
+
+  @override
+  String invitationEnvoyee(String email) {
+    return 'Invitation envoyée à $email';
+  }
+
+  @override
+  String get invitationLienSecurise =>
+      'Le serveur a envoyé l\'invitation par e-mail. Pour que cette personne puisse lire les données chiffrées de l\'équipe, transmettez-lui aussi ce lien sécurisé : la clé qu\'il contient ne passe jamais par le serveur.';
+
+  @override
+  String get invitationSansCle =>
+      'Le serveur a envoyé l\'invitation par e-mail. Le coffre étant fermé, la clé de l\'équipe n\'a pas été jointe : un membre la partagera depuis le web.';
+
+  @override
+  String get copierLeLien => 'Copier le lien';
+
+  @override
+  String get fermer => 'Fermer';
 }

@@ -364,5 +364,19 @@
   "adresseEmail": "Adresse e-mail",
   "nom": "Nom",
   "fuseauHoraire": "Fuseau horaire",
-  "rechercherUnFuseau": "Rechercher une ville ou un fuseau"
+  "rechercherUnFuseau": "Rechercher une ville ou un fuseau",
+  "inviter": "Inviter",
+  "inviterUnMembre": "Inviter un membre",
+  "invitationEnvoyee": "Invitation envoyée à {email}",
+  "invitationLienSecurise": "Le serveur a envoyé l'invitation par e-mail. Pour que cette personne puisse lire les données chiffrées de l'équipe, transmettez-lui aussi ce lien sécurisé : la clé qu'il contient ne passe jamais par le serveur.",
+  "invitationSansCle": "Le serveur a envoyé l'invitation par e-mail. Le coffre étant fermé, la clé de l'équipe n'a pas été jointe : un membre la partagera depuis le web.",
+  "copierLeLien": "Copier le lien",
+  "fermer": "Fermer",
+  "@invitationEnvoyee": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  }
 }
