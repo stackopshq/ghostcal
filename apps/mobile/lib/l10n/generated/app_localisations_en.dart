@@ -616,4 +616,39 @@ class LEn extends L {
 
   @override
   String get notesDeTache => 'Notes';
+
+  @override
+  String get vueJour => 'Day';
+
+  @override
+  String get vueSemaine => 'Week';
+
+  @override
+  String get vueMois => 'Month';
+
+  @override
+  String get vueListe => 'List';
+
+  @override
+  String get periodePrecedente => 'Previous';
+
+  @override
+  String get periodeSuivante => 'Next';
+
+  @override
+  String get rienSurLaPeriode => 'Nothing planned for this period.';
+
+  @override
+  String autresEvenements(int nombre) {
+    return '+$nombre';
+  }
+
+  @override
+  String nouvelEvenementA(String heure) {
+    return 'New event at $heure';
+  }
+
+  @override
+  String get lectureSeule =>
+      'Shown here; change it where it comes from: a booking, a series or an external calendar.';
 }

@@ -1164,6 +1164,66 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Notes'**
   String get notesDeTache;
+
+  /// No description provided for @vueJour.
+  ///
+  /// In fr, this message translates to:
+  /// **'Jour'**
+  String get vueJour;
+
+  /// No description provided for @vueSemaine.
+  ///
+  /// In fr, this message translates to:
+  /// **'Semaine'**
+  String get vueSemaine;
+
+  /// No description provided for @vueMois.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mois'**
+  String get vueMois;
+
+  /// No description provided for @vueListe.
+  ///
+  /// In fr, this message translates to:
+  /// **'Liste'**
+  String get vueListe;
+
+  /// No description provided for @periodePrecedente.
+  ///
+  /// In fr, this message translates to:
+  /// **'Précédent'**
+  String get periodePrecedente;
+
+  /// No description provided for @periodeSuivante.
+  ///
+  /// In fr, this message translates to:
+  /// **'Suivant'**
+  String get periodeSuivante;
+
+  /// No description provided for @rienSurLaPeriode.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rien de prévu sur cette période.'**
+  String get rienSurLaPeriode;
+
+  /// No description provided for @autresEvenements.
+  ///
+  /// In fr, this message translates to:
+  /// **'+{nombre}'**
+  String autresEvenements(int nombre);
+
+  /// No description provided for @nouvelEvenementA.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nouvel événement à {heure}'**
+  String nouvelEvenementA(String heure);
+
+  /// No description provided for @lectureSeule.
+  ///
+  /// In fr, this message translates to:
+  /// **'Affiché ici, modifiable là d\'où il vient : réservation, série ou calendrier externe.'**
+  String get lectureSeule;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

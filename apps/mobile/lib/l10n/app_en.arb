@@ -185,5 +185,15 @@
   "themeSombre": "Dark",
   "aujourdHui": "Today",
   "faites": "Done ({nombre})",
-  "notesDeTache": "Notes"
+  "notesDeTache": "Notes",
+  "vueJour": "Day",
+  "vueSemaine": "Week",
+  "vueMois": "Month",
+  "vueListe": "List",
+  "periodePrecedente": "Previous",
+  "periodeSuivante": "Next",
+  "rienSurLaPeriode": "Nothing planned for this period.",
+  "autresEvenements": "+{nombre}",
+  "nouvelEvenementA": "New event at {heure}",
+  "lectureSeule": "Shown here; change it where it comes from: a booking, a series or an external calendar."
 }

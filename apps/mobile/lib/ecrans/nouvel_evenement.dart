@@ -19,7 +19,12 @@ class EcranDeNouvelEvenement extends StatefulWidget {
     required this.calendriers,
     required this.jour,
     this.evenement,
+    this.debut,
   });
+
+  /// The start picked by tapping an empty slot in the day or week grid; 09:00 on
+  /// [jour] otherwise.
+  final DateTime? debut;
 
   final Session session;
   final List<Calendrier> calendriers;
@@ -52,7 +57,7 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
   void initState() {
     super.initState();
     final j = widget.jour;
-    _debut = DateTime(j.year, j.month, j.day, 9);
+    _debut = widget.debut ?? DateTime(j.year, j.month, j.day, 9);
     _fin = _debut.add(const Duration(hours: 1));
     _calendrier = widget.calendriers
         .where((c) => c.parDefaut)
