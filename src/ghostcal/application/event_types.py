@@ -7,9 +7,10 @@ booking layer falls back to the owner's schedule); explicit schedule selection c
 
 from __future__ import annotations
 
-import secrets
 import uuid
 from dataclasses import dataclass
+
+from ghostcal.domain.slug import slugify
 
 # Allowed meeting locations. The canonical list lives in the application layer.
 LOCATION_TYPES: tuple[str, ...] = (
@@ -149,13 +150,6 @@ class EventTypesRepository:
         raise NotImplementedError
 
 
-def _slugify(title: str) -> str:
-    base = "".join(c if c.isalnum() else "-" for c in title.lower()).strip("-")
-    base = "-".join(filter(None, base.split("-")))[:80] or "event"
-    # Random suffix guarantees uniqueness without surfacing slug conflicts to the user.
-    return f"{base}-{secrets.token_hex(3)}"
-
-
 def _validate(data: EventTypeInput) -> None:
     if not data.title.strip():
         raise InvalidEventType("title is required")
@@ -213,7 +207,7 @@ async def create_event_type(
     repo: EventTypesRepository, owner_id: uuid.UUID, data: EventTypeInput
 ) -> uuid.UUID:
     _validate(data)
-    return await repo.create(owner_id, _slugify(data.title), data)
+    return await repo.create(owner_id, slugify(data.title, max_length=80, fallback="event"), data)
 
 
 async def update_event_type(
