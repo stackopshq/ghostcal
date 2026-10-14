@@ -676,4 +676,16 @@ class LEn extends L {
   @override
   String get lienEnregistreMailEchoue =>
       'Link saved, but the email could not be sent. Try again in a moment.';
+
+  @override
+  String get adresseEmail => 'Email address';
+
+  @override
+  String get nom => 'Name';
+
+  @override
+  String get fuseauHoraire => 'Time zone';
+
+  @override
+  String get rechercherUnFuseau => 'Search a city or time zone';
 }

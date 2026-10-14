@@ -203,5 +203,9 @@
   "envoyer": "Send",
   "lienEnvoye": "Link sent to the invitee.",
   "lienDoitCommencerParHttps": "The link must start with https://",
-  "lienEnregistreMailEchoue": "Link saved, but the email could not be sent. Try again in a moment."
+  "lienEnregistreMailEchoue": "Link saved, but the email could not be sent. Try again in a moment.",
+  "adresseEmail": "Email address",
+  "nom": "Name",
+  "fuseauHoraire": "Time zone",
+  "rechercherUnFuseau": "Search a city or time zone"
 }

@@ -679,4 +679,16 @@ class LFr extends L {
   @override
   String get lienEnregistreMailEchoue =>
       'Lien enregistré, mais l\'e-mail n\'a pas pu partir. Réessayez dans un instant.';
+
+  @override
+  String get adresseEmail => 'Adresse e-mail';
+
+  @override
+  String get nom => 'Nom';
+
+  @override
+  String get fuseauHoraire => 'Fuseau horaire';
+
+  @override
+  String get rechercherUnFuseau => 'Rechercher une ville ou un fuseau';
 }

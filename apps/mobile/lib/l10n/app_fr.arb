@@ -360,5 +360,9 @@
   "envoyer": "Envoyer",
   "lienEnvoye": "Lien envoyé à l'invité.",
   "lienDoitCommencerParHttps": "Le lien doit commencer par https://",
-  "lienEnregistreMailEchoue": "Lien enregistré, mais l'e-mail n'a pas pu partir. Réessayez dans un instant."
+  "lienEnregistreMailEchoue": "Lien enregistré, mais l'e-mail n'a pas pu partir. Réessayez dans un instant.",
+  "adresseEmail": "Adresse e-mail",
+  "nom": "Nom",
+  "fuseauHoraire": "Fuseau horaire",
+  "rechercherUnFuseau": "Rechercher une ville ou un fuseau"
 }

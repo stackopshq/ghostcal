@@ -4,6 +4,7 @@ import '../services/agenda.dart' show Agenda;
 import '../services/erreurs.dart';
 import '../services/reglages.dart';
 import '../services/session.dart';
+import '../outils/fuseaux.dart';
 import '../theme.dart';
 import '../l10n/generated/app_localisations.dart';
 
@@ -95,6 +96,15 @@ class _EcranDeProfilState extends State<EcranDeProfil> {
     }
   }
 
+  Future<void> _choisirLeFuseau() async {
+    final choisi = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const _ChoixDuFuseau(),
+    );
+    if (choisi != null && mounted) setState(() => _fuseau.text = choisi);
+  }
+
   @override
   Widget build(BuildContext context) {
     final gc = Gc.of(context);
@@ -131,7 +141,7 @@ class _EcranDeProfilState extends State<EcranDeProfil> {
               : ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
-                    _libelle(gc, 'Adresse e-mail'),
+                    _libelle(gc, L.of(context).adresseEmail),
                     const SizedBox(height: 7),
                     Container(
                       width: double.infinity,
@@ -168,13 +178,21 @@ class _EcranDeProfilState extends State<EcranDeProfil> {
                       style: TextStyle(color: gc.estompe, fontSize: 12),
                     ),
                     const SizedBox(height: 18),
-                    _libelle(gc, 'Nom'),
+                    _libelle(gc, L.of(context).nom),
                     const SizedBox(height: 7),
                     TextField(controller: _nom),
                     const SizedBox(height: 18),
-                    _libelle(gc, 'Fuseau horaire'),
+                    _libelle(gc, L.of(context).fuseauHoraire),
                     const SizedBox(height: 7),
-                    TextField(controller: _fuseau),
+                    // A picker rather than free text: "Europe/Zurich" typed by hand was
+                    // one typo away from a 422.
+                    TextField(
+                      key: const Key('profil.fuseau'),
+                      controller: _fuseau,
+                      readOnly: true,
+                      decoration: const InputDecoration(suffixIcon: Icon(Icons.expand_more)),
+                      onTap: _choisirLeFuseau,
+                    ),
                     const SizedBox(height: 8),
                     TextButton(
                       onPressed: () async {
@@ -240,4 +258,61 @@ class _EcranDeProfilState extends State<EcranDeProfil> {
       letterSpacing: 1.1,
     ),
   );
+}
+
+/// Searchable list of time zones. What is typed can be used as is when it is not in
+/// the list: the server knows every IANA zone, the list only the common ones.
+class _ChoixDuFuseau extends StatefulWidget {
+  const _ChoixDuFuseau();
+
+  @override
+  State<_ChoixDuFuseau> createState() => _ChoixDuFuseauState();
+}
+
+class _ChoixDuFuseauState extends State<_ChoixDuFuseau> {
+  String _requete = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final gc = Gc.of(context);
+    final resultats = filtrerLesFuseaux(_requete);
+    final saisie = _requete.trim();
+    return SafeArea(
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.75,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: TextField(
+                autofocus: true,
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.search),
+                  hintText: L.of(context).rechercherUnFuseau,
+                ),
+                onChanged: (v) => setState(() => _requete = v),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                children: [
+                  for (final f in resultats)
+                    ListTile(
+                      title: Text(f.replaceAll('_', ' ')),
+                      onTap: () => Navigator.of(context).pop(f),
+                    ),
+                  if (saisie.contains('/') && !resultats.contains(saisie))
+                    ListTile(
+                      leading: Icon(Icons.edit_outlined, color: gc.estompe),
+                      title: Text(saisie),
+                      onTap: () => Navigator.of(context).pop(saisie),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

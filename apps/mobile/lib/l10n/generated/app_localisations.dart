@@ -1272,6 +1272,30 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Lien enregistré, mais l\'e-mail n\'a pas pu partir. Réessayez dans un instant.'**
   String get lienEnregistreMailEchoue;
+
+  /// No description provided for @adresseEmail.
+  ///
+  /// In fr, this message translates to:
+  /// **'Adresse e-mail'**
+  String get adresseEmail;
+
+  /// No description provided for @nom.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nom'**
+  String get nom;
+
+  /// No description provided for @fuseauHoraire.
+  ///
+  /// In fr, this message translates to:
+  /// **'Fuseau horaire'**
+  String get fuseauHoraire;
+
+  /// No description provided for @rechercherUnFuseau.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rechercher une ville ou un fuseau'**
+  String get rechercherUnFuseau;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {
