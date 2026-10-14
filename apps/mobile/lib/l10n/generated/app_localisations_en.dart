@@ -429,8 +429,7 @@ class LEn extends L {
   String get aucunTypeDeRendezVous => 'No booking links.';
 
   @override
-  String get typesCreesDepuisLeWeb =>
-      'They are created from the web: fifteen or so settings that do not sit well under a thumb.';
+  String get typesCreesDepuisLeWeb => 'Create one with the + button.';
 
   @override
   String get ferme => 'closed';
@@ -713,4 +712,80 @@ class LEn extends L {
 
   @override
   String get fermer => 'Close';
+
+  @override
+  String get nouveauType => 'New event type';
+
+  @override
+  String get modifierLeType => 'Edit event type';
+
+  @override
+  String get descriptionPublique => 'Description (shown on the booking page)';
+
+  @override
+  String get duree => 'Duration';
+
+  @override
+  String get preavisMinimum => 'Minimum notice';
+
+  @override
+  String get reservableSur => 'Bookable over';
+
+  @override
+  String get tamponAvant => 'Buffer before';
+
+  @override
+  String get tamponApres => 'Buffer after';
+
+  @override
+  String get ouvertALaReservation => 'Open for booking';
+
+  @override
+  String get typeDisponibilitesDepuisHoraire =>
+      'Offered slots follow your availability (Settings › Availability).';
+
+  @override
+  String get lieuTelephone => 'Phone';
+
+  @override
+  String get lieuEnPersonne => 'In person';
+
+  @override
+  String get lieuAutre => 'Other';
+
+  @override
+  String get aucun => 'None';
+
+  @override
+  String nJours(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n days',
+      one: '1 day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String nHeures(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n h',
+      one: '1 h',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get supprimerCeType => 'Delete this event type?';
+
+  @override
+  String get supprimerCeTypeExplication =>
+      'Its booking page will stop existing.';
+
+  @override
+  String get typeAvecReservations =>
+      'This type already has bookings: close it instead of deleting it.';
 }

@@ -832,7 +832,7 @@ abstract class L {
   /// No description provided for @typesCreesDepuisLeWeb.
   ///
   /// In fr, this message translates to:
-  /// **'Ils se créent depuis le web : une quinzaine de réglages qui se règlent mal à un pouce.'**
+  /// **'Créez-en un avec le bouton +.'**
   String get typesCreesDepuisLeWeb;
 
   /// No description provided for @ferme.
@@ -1338,6 +1338,120 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Fermer'**
   String get fermer;
+
+  /// No description provided for @nouveauType.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nouveau type de rendez-vous'**
+  String get nouveauType;
+
+  /// No description provided for @modifierLeType.
+  ///
+  /// In fr, this message translates to:
+  /// **'Modifier le type'**
+  String get modifierLeType;
+
+  /// No description provided for @descriptionPublique.
+  ///
+  /// In fr, this message translates to:
+  /// **'Description (visible sur la page de réservation)'**
+  String get descriptionPublique;
+
+  /// No description provided for @duree.
+  ///
+  /// In fr, this message translates to:
+  /// **'Durée'**
+  String get duree;
+
+  /// No description provided for @preavisMinimum.
+  ///
+  /// In fr, this message translates to:
+  /// **'Préavis minimum'**
+  String get preavisMinimum;
+
+  /// No description provided for @reservableSur.
+  ///
+  /// In fr, this message translates to:
+  /// **'Réservable sur'**
+  String get reservableSur;
+
+  /// No description provided for @tamponAvant.
+  ///
+  /// In fr, this message translates to:
+  /// **'Battement avant'**
+  String get tamponAvant;
+
+  /// No description provided for @tamponApres.
+  ///
+  /// In fr, this message translates to:
+  /// **'Battement après'**
+  String get tamponApres;
+
+  /// No description provided for @ouvertALaReservation.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ouvert à la réservation'**
+  String get ouvertALaReservation;
+
+  /// No description provided for @typeDisponibilitesDepuisHoraire.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les créneaux proposés suivent vos disponibilités (Réglages › Disponibilités).'**
+  String get typeDisponibilitesDepuisHoraire;
+
+  /// No description provided for @lieuTelephone.
+  ///
+  /// In fr, this message translates to:
+  /// **'Téléphone'**
+  String get lieuTelephone;
+
+  /// No description provided for @lieuEnPersonne.
+  ///
+  /// In fr, this message translates to:
+  /// **'En personne'**
+  String get lieuEnPersonne;
+
+  /// No description provided for @lieuAutre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Autre'**
+  String get lieuAutre;
+
+  /// No description provided for @aucun.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun'**
+  String get aucun;
+
+  /// No description provided for @nJours.
+  ///
+  /// In fr, this message translates to:
+  /// **'{n, plural, =1{1 jour} other{{n} jours}}'**
+  String nJours(int n);
+
+  /// No description provided for @nHeures.
+  ///
+  /// In fr, this message translates to:
+  /// **'{n, plural, =1{1 h} other{{n} h}}'**
+  String nHeures(int n);
+
+  /// No description provided for @supprimerCeType.
+  ///
+  /// In fr, this message translates to:
+  /// **'Supprimer ce type ?'**
+  String get supprimerCeType;
+
+  /// No description provided for @supprimerCeTypeExplication.
+  ///
+  /// In fr, this message translates to:
+  /// **'Sa page de réservation cessera d\'exister.'**
+  String get supprimerCeTypeExplication;
+
+  /// No description provided for @typeAvecReservations.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ce type a déjà des réservations : fermez-le plutôt que de le supprimer.'**
+  String get typeAvecReservations;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

@@ -432,8 +432,7 @@ class LFr extends L {
   String get aucunTypeDeRendezVous => 'Aucun type de rendez-vous.';
 
   @override
-  String get typesCreesDepuisLeWeb =>
-      'Ils se créent depuis le web : une quinzaine de réglages qui se règlent mal à un pouce.';
+  String get typesCreesDepuisLeWeb => 'Créez-en un avec le bouton +.';
 
   @override
   String get ferme => 'fermé';
@@ -716,4 +715,81 @@ class LFr extends L {
 
   @override
   String get fermer => 'Fermer';
+
+  @override
+  String get nouveauType => 'Nouveau type de rendez-vous';
+
+  @override
+  String get modifierLeType => 'Modifier le type';
+
+  @override
+  String get descriptionPublique =>
+      'Description (visible sur la page de réservation)';
+
+  @override
+  String get duree => 'Durée';
+
+  @override
+  String get preavisMinimum => 'Préavis minimum';
+
+  @override
+  String get reservableSur => 'Réservable sur';
+
+  @override
+  String get tamponAvant => 'Battement avant';
+
+  @override
+  String get tamponApres => 'Battement après';
+
+  @override
+  String get ouvertALaReservation => 'Ouvert à la réservation';
+
+  @override
+  String get typeDisponibilitesDepuisHoraire =>
+      'Les créneaux proposés suivent vos disponibilités (Réglages › Disponibilités).';
+
+  @override
+  String get lieuTelephone => 'Téléphone';
+
+  @override
+  String get lieuEnPersonne => 'En personne';
+
+  @override
+  String get lieuAutre => 'Autre';
+
+  @override
+  String get aucun => 'Aucun';
+
+  @override
+  String nJours(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n jours',
+      one: '1 jour',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String nHeures(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n h',
+      one: '1 h',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get supprimerCeType => 'Supprimer ce type ?';
+
+  @override
+  String get supprimerCeTypeExplication =>
+      'Sa page de réservation cessera d\'exister.';
+
+  @override
+  String get typeAvecReservations =>
+      'Ce type a déjà des réservations : fermez-le plutôt que de le supprimer.';
 }

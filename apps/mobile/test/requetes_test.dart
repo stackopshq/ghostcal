@@ -8,6 +8,7 @@ import 'package:ghostcal/services/api.dart';
 import 'package:ghostcal/services/auth.dart';
 import 'package:ghostcal/services/erreurs.dart';
 import 'package:ghostcal/services/reunions.dart';
+import 'package:ghostcal/services/types_de_rendez_vous.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
@@ -38,4 +39,51 @@ void main() {
           .having((e) => e.genre, 'genre', GenreDErreurReseau.injoignable)),
     );
   });
+
+  group('event types', () {
+    late List<http.Request> recues;
+    late TypesDeRendezVous service;
+    setUp(() {
+      recues = [];
+      service = TypesDeRendezVous(
+        api: ClientAPI(
+          base: Uri.parse('https://cal.example.com'),
+          client: MockClient((r) async {
+            recues.add(r);
+            return http.Response('{"id":"t1"}', 200);
+          }),
+        ),
+      );
+    });
+
+    test('creating sends the web defaults under the fields given', () async {
+      await service.creer({'title': 'Intro', 'duration_min': 45});
+      final corps = jsonDecode(recues.single.body) as Map<String, dynamic>;
+      expect(corps['title'], 'Intro');
+      expect(corps['duration_min'], 45);
+      expect(corps['kind'], 'solo');
+      expect(corps['date_window_days'], 60);
+    });
+
+    test('saving sends everything back except read-only fields', () async {
+      await service.enregistrer('t1', {
+        'id': 't1',
+        'organization_id': 'o',
+        'organization_slug': 'clara',
+        'slug': 'intro-1',
+        'title': 'Intro',
+        'questions': [
+          {'label': 'Topic', 'type': 'text', 'required': true, 'options': <String>[]},
+        ],
+      });
+      final r = recues.single;
+      expect(r.method, 'PUT');
+      expect(r.url.path, '/v1/me/event-types/t1');
+      final corps = jsonDecode(r.body) as Map<String, dynamic>;
+      expect(corps.keys, isNot(contains('slug')));
+      expect(corps.keys, isNot(contains('id')));
+      expect(corps['questions'], hasLength(1), reason: 'web-only settings must survive');
+    });
+  });
 }
+

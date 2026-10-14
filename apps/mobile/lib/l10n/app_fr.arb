@@ -237,7 +237,7 @@
   "retirerLEcheance": "Retirer l'échéance",
   "rendezVous": "Rendez-vous",
   "aucunTypeDeRendezVous": "Aucun type de rendez-vous.",
-  "typesCreesDepuisLeWeb": "Ils se créent depuis le web : une quinzaine de réglages qui se règlent mal à un pouce.",
+  "typesCreesDepuisLeWeb": "Créez-en un avec le bouton +.",
   "ferme": "fermé",
   "copierLeLienDeReservation": "Copier le lien de réservation",
   "lienCopie": "Lien copié : {lien}",
@@ -376,6 +376,39 @@
     "placeholders": {
       "email": {
         "type": "String"
+      }
+    }
+  },
+  "nouveauType": "Nouveau type de rendez-vous",
+  "modifierLeType": "Modifier le type",
+  "descriptionPublique": "Description (visible sur la page de réservation)",
+  "duree": "Durée",
+  "preavisMinimum": "Préavis minimum",
+  "reservableSur": "Réservable sur",
+  "tamponAvant": "Battement avant",
+  "tamponApres": "Battement après",
+  "ouvertALaReservation": "Ouvert à la réservation",
+  "typeDisponibilitesDepuisHoraire": "Les créneaux proposés suivent vos disponibilités (Réglages › Disponibilités).",
+  "lieuTelephone": "Téléphone",
+  "lieuEnPersonne": "En personne",
+  "lieuAutre": "Autre",
+  "aucun": "Aucun",
+  "nJours": "{n, plural, =1{1 jour} other{{n} jours}}",
+  "nHeures": "{n, plural, =1{1 h} other{{n} h}}",
+  "supprimerCeType": "Supprimer ce type ?",
+  "supprimerCeTypeExplication": "Sa page de réservation cessera d'exister.",
+  "typeAvecReservations": "Ce type a déjà des réservations : fermez-le plutôt que de le supprimer.",
+  "@nJours": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@nHeures": {
+    "placeholders": {
+      "n": {
+        "type": "int"
       }
     }
   }
