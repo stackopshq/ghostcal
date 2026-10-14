@@ -237,7 +237,7 @@ class Auth {
       try {
         final cle = await coeur.deriverCle(phrase: phrase, sel: sel);
         final octets = await coeur.dechiffrerSymetrique(cle: cle, blob: enveloppe);
-        privee = utf8.decode(octets);
+        privee = clePriveeDepuisEnveloppe(octets);
       } on Object {
         // Une enveloppe que cette phrase n'ouvre pas : c'est le cas courant quand on a
         // plusieurs organisations et qu'on tape la phrase de l'une d'elles.
@@ -299,3 +299,13 @@ class Auth {
     return null;
   }
 }
+
+/// The organization private key (base64 PKCS#8) from what its envelope holds.
+///
+/// Two writers disagree. The web wraps the **raw PKCS#8 bytes** (48 bytes for X25519,
+/// starting with the DER sequence tag 0x30) and base64-encodes them after unwrapping;
+/// the Rust bench tool wraps the **base64 text**. Reading only the text form refused
+/// every account created on the web with "this passphrase does not open the vault".
+String clePriveeDepuisEnveloppe(List<int> octets) =>
+    octets.length == 48 && octets.first == 0x30 ? base64Encode(octets) : utf8.decode(octets);
+
