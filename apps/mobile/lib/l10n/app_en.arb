@@ -244,5 +244,7 @@
   "lienDuSondageExplication": "Send this link to the participants: they vote without an account, then you pick the winning slot.",
   "creneauxProposes": "Proposed slots",
   "ajouterUnCreneau": "Add a slot",
-  "auMoinsDeuxCreneaux": "Offer at least two slots."
+  "auMoinsDeuxCreneaux": "Offer at least two slots.",
+  "saisieRapide": "Quick entry",
+  "saisieRapideExemple": "Lunch with Sam tomorrow 12:30pm at the Café"
 }

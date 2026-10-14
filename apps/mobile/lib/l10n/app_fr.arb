@@ -422,5 +422,7 @@
   "lienDuSondageExplication": "Envoyez ce lien aux participants : ils votent sans compte, et vous retenez ensuite le créneau gagnant.",
   "creneauxProposes": "Créneaux proposés",
   "ajouterUnCreneau": "Ajouter un créneau",
-  "auMoinsDeuxCreneaux": "Proposez au moins deux créneaux."
+  "auMoinsDeuxCreneaux": "Proposez au moins deux créneaux.",
+  "saisieRapide": "Saisie rapide",
+  "saisieRapideExemple": "Déjeuner avec Camille demain 12h30 au Café"
 }

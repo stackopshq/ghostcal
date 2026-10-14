@@ -1518,6 +1518,18 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Proposez au moins deux créneaux.'**
   String get auMoinsDeuxCreneaux;
+
+  /// No description provided for @saisieRapide.
+  ///
+  /// In fr, this message translates to:
+  /// **'Saisie rapide'**
+  String get saisieRapide;
+
+  /// No description provided for @saisieRapideExemple.
+  ///
+  /// In fr, this message translates to:
+  /// **'Déjeuner avec Camille demain 12h30 au Café'**
+  String get saisieRapideExemple;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

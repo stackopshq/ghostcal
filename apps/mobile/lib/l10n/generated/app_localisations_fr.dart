@@ -827,4 +827,11 @@ class LFr extends L {
 
   @override
   String get auMoinsDeuxCreneaux => 'Proposez au moins deux créneaux.';
+
+  @override
+  String get saisieRapide => 'Saisie rapide';
+
+  @override
+  String get saisieRapideExemple =>
+      'Déjeuner avec Camille demain 12h30 au Café';
 }

@@ -823,4 +823,11 @@ class LEn extends L {
 
   @override
   String get auMoinsDeuxCreneaux => 'Offer at least two slots.';
+
+  @override
+  String get saisieRapide => 'Quick entry';
+
+  @override
+  String get saisieRapideExemple =>
+      'Lunch with Sam tomorrow 12:30pm at the Café';
 }
