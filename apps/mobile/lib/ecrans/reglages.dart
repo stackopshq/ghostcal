@@ -7,8 +7,10 @@ import '../services/biometrie.dart';
 import '../services/reglages.dart' as service;
 import '../services/session.dart';
 import '../services/verrouillage.dart' as v;
+import '../outils/dates.dart';
 import '../theme.dart';
 import 'equipe.dart';
+import 'horaire.dart';
 import 'profil.dart';
 import 'sondages.dart';
 import '../l10n/generated/app_localisations.dart';
@@ -221,11 +223,13 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
             const Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator())
           else if (_horaires!.isEmpty)
             ListTile(
-              title: Text(L.of(context).aucunHoraire, style: TextStyle(color: gc.estompe)),
+              leading: const Icon(Icons.add),
+              title: Text(L.of(context).definirMesDisponibilites),
               subtitle: Text(
-                L.of(context).horairesDepuisLeWeb,
+                L.of(context).disponibilitesExplication,
                 style: TextStyle(color: gc.estompe, fontSize: 12),
               ),
+              onTap: () => _ouvrirLHoraire(null),
             )
           else
             for (final horaire in _horaires!)
@@ -235,6 +239,8 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
                   _resume(context, horaire),
                   style: TextStyle(color: gc.estompe, fontSize: 12),
                 ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _ouvrirLHoraire(horaire.id),
               ),
           _titre(gc, L.of(context).collaboration),
           ListTile(
@@ -332,6 +338,15 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
     );
   }
 
+  Future<void> _ouvrirLHoraire(String? id) async {
+    final api = widget.session.api;
+    if (api == null) return;
+    final modifie = await Navigator.of(context).push<bool>(MaterialPageRoute(
+      builder: (_) => EcranDHoraire(service: service.Reglages(api: api), id: id),
+    ));
+    if (modifie == true) await _charger();
+  }
+
   /// Le résumé d'un horaire : les jours qu'il couvre.
   ///
   /// Le nom du jour vient de `RegleDHoraire.jour`, qui **refuse** une valeur hors bornes
@@ -339,7 +354,8 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
   /// valeur fausse présentée avec l'assurance d'une vraie.
   String _resume(BuildContext context, service.Horaire horaire) {
     if (horaire.regles.isEmpty) return L.of(context).aucunePlage(horaire.fuseau);
-    final jours = <String>{for (final regle in horaire.regles) regle.jour};
+    final regles = [...horaire.regles]..sort((a, b) => a.jourServeur.compareTo(b.jourServeur));
+    final jours = <String>{for (final regle in regles) regle.jour(langueDesDates(context))};
     return '${jours.join(', ')} · ${horaire.fuseau}';
   }
 

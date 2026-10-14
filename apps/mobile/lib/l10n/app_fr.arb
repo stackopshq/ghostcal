@@ -411,5 +411,10 @@
         "type": "int"
       }
     }
-  }
+  },
+  "heuresDeBureau": "Heures de bureau",
+  "indisponible": "Indisponible",
+  "ajouterUnePlage": "Ajouter une plage",
+  "definirMesDisponibilites": "Définir mes disponibilités",
+  "disponibilitesExplication": "Les jours et heures où l'on peut réserver un rendez-vous avec vous."
 }

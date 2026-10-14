@@ -3,6 +3,8 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import '../src/rust/api/coeur.dart' as coeur;
+import 'package:intl/intl.dart';
+
 import 'api.dart';
 import '../l10n/generated/app_localisations.dart';
 
@@ -28,23 +30,12 @@ class RegleDHoraire {
   final String debut;
   final String fin;
 
-  static const _jours = [
-    'lundi',
-    'mardi',
-    'mercredi',
-    'jeudi',
-    'vendredi',
-    'samedi',
-    'dimanche',
-  ];
-
-  /// Le nom du jour, ou « ? ».
-  ///
-  /// La valeur est vérifiée **avant** la conversion, jamais ramenée par modulo : un
-  /// `weekday` de 42 qui s'afficherait « lundi » serait une valeur fausse présentée avec
-  /// l'assurance d'une vraie. Un point d'interrogation se remarque ; un mauvais jour, non.
-  String get jour =>
-      jourServeur >= 0 && jourServeur < _jours.length ? _jours[jourServeur] : '?';
+  /// The weekday in [langue] ("lundi", "Monday"). It used to be a French constant list,
+  /// so the English interface read "lundi, mardi". 1 January 2024 was a Monday, the
+  /// server's day 0.
+  String jour(String langue) => jourServeur >= 0 && jourServeur < 7
+      ? DateFormat.EEEE(langue).format(DateTime(2024, 1, 1 + jourServeur))
+      : '?';
 }
 
 class Horaire {
@@ -252,6 +243,19 @@ class Reglages {
   Future<List<Horaire>> horaires() async {
     final brutes = await api.obtenir<List<dynamic>>('v1/me/schedules');
     return brutes.whereType<Map<String, dynamic>>().map(Horaire.depuisJson).toList();
+  }
+
+  /// One schedule as the server stores it; edits start from it so exceptions
+  /// (overrides) set on the web are sent back intact.
+  Future<Map<String, dynamic>> horaire(String id) =>
+      api.obtenir<Map<String, dynamic>>('v1/me/schedules/$id');
+
+  Future<void> creerHoraire(Map<String, dynamic> horaire) =>
+      api.envoyerSansReponse('POST', 'v1/me/schedules', horaire);
+
+  Future<void> enregistrerHoraire(String id, Map<String, dynamic> horaire) {
+    final corps = Map<String, dynamic>.from(horaire)..remove('id');
+    return api.envoyerSansReponse('PUT', 'v1/me/schedules/$id', corps);
   }
 
   Future<List<Sondage>> sondages() async {

@@ -233,5 +233,10 @@
   "nHeures": "{n, plural, =1{1 h} other{{n} h}}",
   "supprimerCeType": "Delete this event type?",
   "supprimerCeTypeExplication": "Its booking page will stop existing.",
-  "typeAvecReservations": "This type already has bookings: close it instead of deleting it."
+  "typeAvecReservations": "This type already has bookings: close it instead of deleting it.",
+  "heuresDeBureau": "Office hours",
+  "indisponible": "Unavailable",
+  "ajouterUnePlage": "Add a range",
+  "definirMesDisponibilites": "Set my availability",
+  "disponibilitesExplication": "The days and hours people can book a meeting with you."
 }

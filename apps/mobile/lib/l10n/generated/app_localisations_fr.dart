@@ -792,4 +792,20 @@ class LFr extends L {
   @override
   String get typeAvecReservations =>
       'Ce type a déjà des réservations : fermez-le plutôt que de le supprimer.';
+
+  @override
+  String get heuresDeBureau => 'Heures de bureau';
+
+  @override
+  String get indisponible => 'Indisponible';
+
+  @override
+  String get ajouterUnePlage => 'Ajouter une plage';
+
+  @override
+  String get definirMesDisponibilites => 'Définir mes disponibilités';
+
+  @override
+  String get disponibilitesExplication =>
+      'Les jours et heures où l\'on peut réserver un rendez-vous avec vous.';
 }

@@ -788,4 +788,20 @@ class LEn extends L {
   @override
   String get typeAvecReservations =>
       'This type already has bookings: close it instead of deleting it.';
+
+  @override
+  String get heuresDeBureau => 'Office hours';
+
+  @override
+  String get indisponible => 'Unavailable';
+
+  @override
+  String get ajouterUnePlage => 'Add a range';
+
+  @override
+  String get definirMesDisponibilites => 'Set my availability';
+
+  @override
+  String get disponibilitesExplication =>
+      'The days and hours people can book a meeting with you.';
 }

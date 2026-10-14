@@ -1452,6 +1452,36 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Ce type a déjà des réservations : fermez-le plutôt que de le supprimer.'**
   String get typeAvecReservations;
+
+  /// No description provided for @heuresDeBureau.
+  ///
+  /// In fr, this message translates to:
+  /// **'Heures de bureau'**
+  String get heuresDeBureau;
+
+  /// No description provided for @indisponible.
+  ///
+  /// In fr, this message translates to:
+  /// **'Indisponible'**
+  String get indisponible;
+
+  /// No description provided for @ajouterUnePlage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ajouter une plage'**
+  String get ajouterUnePlage;
+
+  /// No description provided for @definirMesDisponibilites.
+  ///
+  /// In fr, this message translates to:
+  /// **'Définir mes disponibilités'**
+  String get definirMesDisponibilites;
+
+  /// No description provided for @disponibilitesExplication.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les jours et heures où l\'on peut réserver un rendez-vous avec vous.'**
+  String get disponibilitesExplication;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {
