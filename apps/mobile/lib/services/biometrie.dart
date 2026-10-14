@@ -351,13 +351,15 @@ class Biometrie {
       // **one** fingerprint unlock asks for **one** fingerprint.
       if (_surAndroid && _ouvertDansCeProcessus) {
         final invites = _invites;
+        // Title, then the product name as description: the reason doubles as the
+        // description on Android, and repeating the title there read "Open the vault"
+        // twice (seen on device).
         final ok = await _auth.authenticate(
-          localizedReason: invites?.titre ?? 'GhostCal',
+          localizedReason: invites?.sousTitre ?? 'GhostCal',
           biometricOnly: true,
           authMessages: [
             AndroidAuthMessages(
               signInTitle: invites?.titre,
-              signInHint: invites?.sousTitre,
               cancelButton: invites?.repli,
             ),
           ],
