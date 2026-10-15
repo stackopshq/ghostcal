@@ -899,17 +899,11 @@ checksum = "c08c74e62047bb2de4ff487b251e4a92e24f48745648451635cec7d591162d9f"
 name = "rust_lib_ghostcal"
 version = "0.1.0"
 dependencies = [
- "aes-gcm",
  "base64 0.23.1",
  "flutter_rust_bridge",
  "getrandom 0.4.3",
  "ghost-crypto",
- "hkdf",
- "rand_core",
- "serde",
  "serde_json",
- "sha2",
- "x25519-dalek",
 ]
 
 [[package]]
