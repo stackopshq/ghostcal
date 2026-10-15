@@ -404,6 +404,12 @@ const en: Dict = {
   "meetings.linkMailFailed":
     "Link saved, but the email could not be sent. Try again in a moment.",
   "meetings.linkError": "Could not send the link.",
+  "meetings.linkSource": "Video call",
+  "meetings.linkSourcePaste": "Paste a link (Zoom, Google Meet, Teams…)",
+  "meetings.linkSourceKmeet": "Create a kMeet room (Infomaniak)",
+  "meetings.kmeetHint":
+    "A private kMeet room is created for this meeting and its link is emailed to the invitee. No account needed.",
+  "meetings.kmeetResend": "The current kMeet room is resent; it stays the same.",
   // team
   "team.title": "Team",
   "team.sub": "Manage members and invitations.",
@@ -1105,6 +1111,12 @@ const fr: Dict = {
   "meetings.linkMailFailed":
     "Lien enregistré, mais l'e-mail n'a pas pu partir. Réessayez dans un instant.",
   "meetings.linkError": "Impossible d'envoyer le lien.",
+  "meetings.linkSource": "Visio",
+  "meetings.linkSourcePaste": "Coller un lien (Zoom, Google Meet, Teams…)",
+  "meetings.linkSourceKmeet": "Créer une salle kMeet (Infomaniak)",
+  "meetings.kmeetHint":
+    "Une salle kMeet privée est créée pour ce rendez-vous et son lien est envoyé à l'invité. Aucun compte nécessaire.",
+  "meetings.kmeetResend": "La salle kMeet actuelle est renvoyée ; elle ne change pas.",
   "team.title": "Équipe",
   "team.sub": "Gérez les membres et les invitations.",
   "team.errLoad": "Impossible de charger l'équipe.",
