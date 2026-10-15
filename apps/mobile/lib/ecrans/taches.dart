@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../services/agenda.dart' show ProvenanceDuTitre;
+import '../services/erreurs.dart';
 import '../services/session.dart';
 import '../services/taches.dart';
+import '../outils/dates.dart';
 import '../theme.dart';
 import '../l10n/generated/app_localisations.dart';
 
@@ -44,7 +46,7 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
       final taches = await service.lister(organisation: organisation);
       if (mounted) setState(() => _taches = taches);
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
   }
 
@@ -74,7 +76,7 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
       await service.marquer(tache.id, faite: !tache.faite);
     } on Object catch (e) {
       // L'écran mentait : on le remet d'accord avec le serveur, et on le dit.
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
       await _recharger();
     }
   }
@@ -86,6 +88,15 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
       builder: (_) => _FeuilleDeNouvelleTache(session: widget.session),
     );
     if (cree == true) await _recharger();
+  }
+
+  Future<void> _modifier(Tache tache) async {
+    final modifiee = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _FeuilleDeNouvelleTache(session: widget.session, tache: tache),
+    );
+    if (modifiee == true) await _recharger();
   }
 
   @override
@@ -104,7 +115,7 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
           if (faites > 0)
             TextButton(
               onPressed: () => setState(() => _montrerLesFaites = !_montrerLesFaites),
-              child: Text(_montrerLesFaites ? L.of(context).masquerLesFaites : 'Faites ($faites)'),
+              child: Text(_montrerLesFaites ? L.of(context).masquerLesFaites : L.of(context).faites(faites)),
             ),
         ],
       ),
@@ -186,7 +197,7 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
           ? null
           : Text(
               [
-                if (echeance != null) DateFormat.yMMMd('fr_FR').format(echeance),
+                if (echeance != null) DateFormat.yMMMd(langueDesDates(context)).format(echeance),
                 if (tache.notes != null) tache.notes!,
               ].join(' · '),
               maxLines: 2,
@@ -199,6 +210,9 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
               ),
             ),
       trailing: enRetard ? Icon(Icons.error_outline, size: 18, color: gc.danger) : null,
+      // A task that could not be decrypted is not editable: saving would overwrite a
+      // title nobody could read.
+      onTap: tache.provenance == ProvenanceDuTitre.illisible ? null : () => _modifier(tache),
       onLongPress: () => _supprimer(tache),
     );
   }
@@ -212,9 +226,9 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
         title: Text(L.of(context).supprimerCetteTache),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
+              onPressed: () => Navigator.pop(c, false), child: Text(L.of(context).annuler)),
           TextButton(
-              onPressed: () => Navigator.pop(c, true), child: const Text('Supprimer')),
+              onPressed: () => Navigator.pop(c, true), child: Text(L.of(context).supprimer)),
         ],
       ),
     );
@@ -223,15 +237,18 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
       await service.supprimer(tache.id);
       await _recharger();
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
   }
 }
 
 class _FeuilleDeNouvelleTache extends StatefulWidget {
-  const _FeuilleDeNouvelleTache({required this.session});
+  const _FeuilleDeNouvelleTache({required this.session, this.tache});
 
   final Session session;
+
+  /// The task being edited; `null` when creating one.
+  final Tache? tache;
 
   @override
   State<_FeuilleDeNouvelleTache> createState() => _FeuilleDeNouvelleTacheState();
@@ -243,6 +260,17 @@ class _FeuilleDeNouvelleTacheState extends State<_FeuilleDeNouvelleTache> {
   DateTime? _echeance;
   bool _occupe = false;
   String? _erreur;
+
+  @override
+  void initState() {
+    super.initState();
+    final tache = widget.tache;
+    if (tache != null) {
+      _titre.text = tache.titre;
+      _notes.text = tache.notes ?? '';
+      _echeance = tache.echeance;
+    }
+  }
 
   @override
   void dispose() {
@@ -261,15 +289,27 @@ class _FeuilleDeNouvelleTacheState extends State<_FeuilleDeNouvelleTache> {
       _erreur = null;
     });
     try {
-      await Taches(api: api, auth: auth).creer(
-        titre: _titre.text,
-        notes: _notes.text,
-        echeance: _echeance,
-        organisation: organisation,
-      );
+      final service = Taches(api: api, auth: auth);
+      final tache = widget.tache;
+      if (tache == null) {
+        await service.creer(
+          titre: _titre.text,
+          notes: _notes.text,
+          echeance: _echeance,
+          organisation: organisation,
+        );
+      } else {
+        await service.modifier(
+          tache,
+          titre: _titre.text,
+          notes: _notes.text,
+          echeance: _echeance,
+          organisation: organisation,
+        );
+      }
       if (mounted) Navigator.of(context).pop(true);
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     } finally {
       if (mounted) setState(() => _occupe = false);
     }
@@ -290,7 +330,7 @@ class _FeuilleDeNouvelleTacheState extends State<_FeuilleDeNouvelleTache> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(L.of(context).nouvelleTache,
+          Text(widget.tache == null ? L.of(context).nouvelleTache : L.of(context).modifierLaTache,
               style: TextStyle(
                   fontSize: 18, fontWeight: FontWeight.bold, color: gc.encre)),
           const SizedBox(height: 16),
@@ -300,13 +340,13 @@ class _FeuilleDeNouvelleTacheState extends State<_FeuilleDeNouvelleTache> {
             // Le bouton dépend de ce champ : sans ce rappel, il resterait éteint
             // jusqu'à ce qu'autre chose provoque un rafraîchissement.
             onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(hintText: 'Titre'),
+            decoration: InputDecoration(hintText: L.of(context).titre),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _notes,
             maxLines: 3,
-            decoration: const InputDecoration(hintText: 'Notes'),
+            decoration: InputDecoration(hintText: L.of(context).notesDeTache),
           ),
           const SizedBox(height: 12),
           ListTile(
@@ -315,7 +355,7 @@ class _FeuilleDeNouvelleTacheState extends State<_FeuilleDeNouvelleTache> {
             title: Text(
               _echeance == null
                   ? L.of(context).sansEcheance
-                  : DateFormat.yMMMMd('fr_FR').format(_echeance!),
+                  : DateFormat.yMMMMd(langueDesDates(context)).format(_echeance!),
               style: TextStyle(color: gc.encre),
             ),
             trailing: _echeance == null
@@ -347,7 +387,7 @@ class _FeuilleDeNouvelleTacheState extends State<_FeuilleDeNouvelleTache> {
                     height: 18,
                     width: 18,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Gc.surAccent))
-                : Text(L.of(context).creer),
+                : Text(widget.tache == null ? L.of(context).creer : L.of(context).enregistrer),
           ),
         ],
       ),

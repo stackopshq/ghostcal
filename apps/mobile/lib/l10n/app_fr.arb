@@ -237,7 +237,7 @@
   "retirerLEcheance": "Retirer l'échéance",
   "rendezVous": "Rendez-vous",
   "aucunTypeDeRendezVous": "Aucun type de rendez-vous.",
-  "typesCreesDepuisLeWeb": "Ils se créent depuis le web : une quinzaine de réglages qui se règlent mal à un pouce.",
+  "typesCreesDepuisLeWeb": "Créez-en un avec le bouton +.",
   "ferme": "fermé",
   "copierLeLienDeReservation": "Copier le lien de réservation",
   "lienCopie": "Lien copié : {lien}",
@@ -282,5 +282,147 @@
     }
   },
   "valider": "Valider",
-  "revenir": "Revenir"
+  "revenir": "Revenir",
+  "erreurServeurInjoignable": "Le serveur est injoignable. Vérifiez votre connexion et l'adresse du serveur.",
+  "erreurServeurLent": "Le serveur ne répond pas. Réessayez dans un instant.",
+  "erreurCertificat": "La connexion sécurisée au serveur a échoué : son certificat n'est pas valide.",
+  "erreurAdresseInvalide": "Adresse de serveur invalide.",
+  "erreurSessionExpiree": "La session a expiré. Reconnectez-vous.",
+  "erreurPhraseIncorrecte": "Cette phrase n'ouvre pas le coffre.",
+  "erreurIdentifiants": "Adresse e-mail ou mot de passe incorrect.",
+  "erreurTropDEssais": "Trop d'essais. Patientez quelques minutes avant de réessayer.",
+  "erreurServeur": "Le serveur a rencontré un problème. Réessayez plus tard.",
+  "erreurInattendue": "Une erreur inattendue est survenue. Réessayez.",
+  "coffreVerrouille": "Le coffre est verrouillé. Tapez votre phrase pour l'ouvrir.",
+  "erreurStatut": "Le serveur a répondu {code}.",
+  "@erreurStatut": {
+    "placeholders": {
+      "code": {
+        "type": "int"
+      }
+    }
+  },
+  "retenir": "Retenir",
+  "retour": "Retour",
+  "notes": "NOTES",
+  "votants": "Votants",
+  "compte": "Compte",
+  "organisation": "Organisation",
+  "collaboration": "Collaboration",
+  "retirer": "Retirer",
+  "apparence": "Apparence",
+  "langue": "Langue",
+  "langueDeLAppareil": "Langue de l'appareil",
+  "langueFrancais": "Français",
+  "langueAnglais": "English",
+  "theme": "Thème",
+  "themeDeLAppareil": "Comme l'appareil",
+  "themeClair": "Clair",
+  "themeSombre": "Sombre",
+  "aujourdHui": "Aujourd'hui",
+  "faites": "Faites ({nombre})",
+  "notesDeTache": "Notes",
+  "@faites": {
+    "placeholders": {
+      "nombre": {
+        "type": "int"
+      }
+    }
+  },
+  "vueJour": "Jour",
+  "vueSemaine": "Semaine",
+  "vueMois": "Mois",
+  "vueListe": "Liste",
+  "periodePrecedente": "Précédent",
+  "periodeSuivante": "Suivant",
+  "rienSurLaPeriode": "Rien de prévu sur cette période.",
+  "autresEvenements": "+{nombre}",
+  "nouvelEvenementA": "Nouvel événement à {heure}",
+  "@autresEvenements": {
+    "placeholders": {
+      "nombre": {
+        "type": "int"
+      }
+    }
+  },
+  "@nouvelEvenementA": {
+    "placeholders": {
+      "heure": {
+        "type": "String"
+      }
+    }
+  },
+  "lectureSeule": "Affiché ici, modifiable là d'où il vient : réservation, série ou calendrier externe.",
+  "modifierLaTache": "Modifier la tâche",
+  "envoyerLeLienDeVisio": "Envoyer le lien de visio",
+  "modifierOuRenvoyerLeLien": "Modifier ou renvoyer le lien",
+  "lienDeVisio": "Lien de visio (Zoom, Google Meet, Teams…)",
+  "envoyer": "Envoyer",
+  "lienEnvoye": "Lien envoyé à l'invité.",
+  "lienDoitCommencerParHttps": "Le lien doit commencer par https://",
+  "lienEnregistreMailEchoue": "Lien enregistré, mais l'e-mail n'a pas pu partir. Réessayez dans un instant.",
+  "adresseEmail": "Adresse e-mail",
+  "nom": "Nom",
+  "fuseauHoraire": "Fuseau horaire",
+  "rechercherUnFuseau": "Rechercher une ville ou un fuseau",
+  "inviter": "Inviter",
+  "inviterUnMembre": "Inviter un membre",
+  "invitationEnvoyee": "Invitation envoyée à {email}",
+  "invitationLienSecurise": "Le serveur a envoyé l'invitation par e-mail. Pour que cette personne puisse lire les données chiffrées de l'équipe, transmettez-lui aussi ce lien sécurisé : la clé qu'il contient ne passe jamais par le serveur.",
+  "invitationSansCle": "Le serveur a envoyé l'invitation par e-mail. Le coffre étant fermé, la clé de l'équipe n'a pas été jointe : un membre la partagera depuis le web.",
+  "copierLeLien": "Copier le lien",
+  "fermer": "Fermer",
+  "@invitationEnvoyee": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "nouveauType": "Nouveau type de rendez-vous",
+  "modifierLeType": "Modifier le type",
+  "descriptionPublique": "Description (visible sur la page de réservation)",
+  "duree": "Durée",
+  "preavisMinimum": "Préavis minimum",
+  "reservableSur": "Réservable sur",
+  "tamponAvant": "Battement avant",
+  "tamponApres": "Battement après",
+  "ouvertALaReservation": "Ouvert à la réservation",
+  "typeDisponibilitesDepuisHoraire": "Les créneaux proposés suivent vos disponibilités (Réglages › Disponibilités).",
+  "lieuTelephone": "Téléphone",
+  "lieuEnPersonne": "En personne",
+  "lieuAutre": "Autre",
+  "aucun": "Aucun",
+  "nJours": "{n, plural, =1{1 jour} other{{n} jours}}",
+  "nHeures": "{n, plural, =1{1 h} other{{n} h}}",
+  "supprimerCeType": "Supprimer ce type ?",
+  "supprimerCeTypeExplication": "Sa page de réservation cessera d'exister.",
+  "typeAvecReservations": "Ce type a déjà des réservations : fermez-le plutôt que de le supprimer.",
+  "@nJours": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@nHeures": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "heuresDeBureau": "Heures de bureau",
+  "indisponible": "Indisponible",
+  "ajouterUnePlage": "Ajouter une plage",
+  "definirMesDisponibilites": "Définir mes disponibilités",
+  "disponibilitesExplication": "Les jours et heures où l'on peut réserver un rendez-vous avec vous.",
+  "nouveauSondage": "Nouveau sondage",
+  "lienDuSondage": "Lien du sondage",
+  "lienDuSondageExplication": "Envoyez ce lien aux participants : ils votent sans compte, et vous retenez ensuite le créneau gagnant.",
+  "creneauxProposes": "Créneaux proposés",
+  "ajouterUnCreneau": "Ajouter un créneau",
+  "auMoinsDeuxCreneaux": "Proposez au moins deux créneaux.",
+  "saisieRapide": "Saisie rapide",
+  "saisieRapideExemple": "Déjeuner avec Camille demain 12h30 au Café"
 }

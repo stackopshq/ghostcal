@@ -67,14 +67,14 @@ class TypesDeRendezVous {
     );
   }
 
-  /// Les actifs d'abord — c'est ce qu'on vient vérifier. À l'intérieur, l'ordre
-  /// alphabétique, stable d'une lecture à l'autre.
+  /// Alphabetical only, so a row never moves when it is switched on or off.
+  ///
+  /// Active types used to come first: switching one off moved it under the finger, and a
+  /// second tap at the same place switched a *different* type (observed on a device).
+  /// The closed state is shown on the row itself.
   static List<TypeDeRendezVous> ordonner(List<TypeDeRendezVous> types) {
     final copie = [...types];
-    copie.sort((a, b) {
-      if (a.actif != b.actif) return a.actif ? -1 : 1;
-      return a.titre.toLowerCase().compareTo(b.titre.toLowerCase());
-    });
+    copie.sort((a, b) => a.titre.toLowerCase().compareTo(b.titre.toLowerCase()));
     return copie;
   }
 
@@ -92,6 +92,49 @@ class TypesDeRendezVous {
     }
     return api.envoyerSansReponse('PUT', 'v1/me/event-types/${type.id}', corps);
   }
+
+  /// The full detail of a type (questions, hosts, buffers…): edits start from it so a
+  /// PUT never resets what this client does not show.
+  Future<Map<String, dynamic>> detail(String id) =>
+      api.obtenir<Map<String, dynamic>>('v1/me/event-types/$id');
+
+  /// Creates a type from [champs] over the web's defaults.
+  Future<void> creer(Map<String, dynamic> champs) => api.envoyerSansReponse(
+        'POST',
+        'v1/me/event-types',
+        {...valeursParDefaut, ...champs},
+      );
+
+  /// Saves [detail] (from [this.detail], edited) back, minus the read-only fields.
+  Future<void> enregistrer(String id, Map<String, dynamic> detail) {
+    final corps = Map<String, dynamic>.from(detail);
+    for (final lecture in ['id', 'organization_id', 'organization_slug', 'slug']) {
+      corps.remove(lecture);
+    }
+    return api.envoyerSansReponse('PUT', 'v1/me/event-types/$id', corps);
+  }
+
+  /// The web form's defaults (frontend/src/app/dashboard/event-types/page.tsx).
+  static const valeursParDefaut = <String, dynamic>{
+    'description': null,
+    'duration_min': 30,
+    'slot_interval_min': 30,
+    'buffer_before_min': 0,
+    'buffer_after_min': 0,
+    'min_notice_min': 0,
+    'date_window_days': 60,
+    'max_per_day': null,
+    'location_type': 'google_meet',
+    'active': true,
+    'questions': <dynamic>[],
+    'kind': 'solo',
+    'host_ids': <dynamic>[],
+    'capacity': 1,
+    'redirect_url': null,
+  };
+
+  /// Where the meeting happens, as the server names it.
+  static const lieux = ['google_meet', 'zoom', 'ms_teams', 'phone', 'in_person', 'custom'];
 
   Future<void> supprimer(String id) =>
       api.envoyerSansReponse('DELETE', 'v1/me/event-types/$id');

@@ -6,6 +6,7 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'ecrans/accueil.dart';
 import 'ecrans/connexion.dart';
+import 'services/apparence.dart';
 import 'services/session.dart';
 import 'services/verrouillage.dart';
 import 'src/rust/frb_generated.dart';
@@ -16,14 +17,16 @@ Future<void> main() async {
   // Le pont vers le cœur Rust. Sans cet appel, la première dérivation de clé échoue à
   // l'exécution — pas à la compilation.
   await RustLib.init();
-  // Les noms de jours et de mois en français. Sans cette initialisation, `DateFormat`
-  // avec une locale explicite lève une exception au premier affichage de l'agenda.
-  await initializeDateFormatting('fr_FR');
+  // Day and month names for every supported language: dates follow the screen's
+  // language. Without this, `DateFormat` with an explicit locale throws on first use.
+  await initializeDateFormatting();
   final session = Session();
   await session.amorcer();
   final verrouillage = Verrouillage();
   await verrouillage.amorcer();
-  runApp(GhostcalApp(session: session, verrouillage: verrouillage));
+  final apparence = Apparence();
+  await apparence.amorcer();
+  runApp(GhostcalApp(session: session, verrouillage: verrouillage, apparence: apparence));
 }
 
 class GhostcalApp extends StatelessWidget {
@@ -33,7 +36,12 @@ class GhostcalApp extends StatelessWidget {
     required this.verrouillage,
     this.accueilDEpreuve,
     this.locale,
+    this.apparence,
   });
+
+  /// Language and theme picked in the settings. Optional so tests can build the app
+  /// without a keychain; `null` follows the device.
+  final Apparence? apparence;
 
   final Session session;
   final Verrouillage verrouillage;
@@ -59,11 +67,21 @@ class GhostcalApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final apparence = this.apparence;
+    if (apparence == null) return _application(null);
+    return ListenableBuilder(
+      listenable: apparence,
+      builder: (_, _) => _application(apparence),
+    );
+  }
+
+  Widget _application(Apparence? apparence) {
     return MaterialApp(
       title: 'GhostCal',
       debugShowCheckedModeBanner: false,
       theme: themeGhostcal(Brightness.light),
       darkTheme: themeGhostcal(Brightness.dark),
+      themeMode: apparence?.theme.mode ?? ThemeMode.system,
       // Sans ces délégués, les composants **fournis par Flutter** restent en anglais sur
       // un appareil réglé en français : le sélecteur de date affiche « Select date »,
       // « CANCEL », « OK », et les jours y sont notés S M T W T F S. On obtenait un écran
@@ -85,7 +103,7 @@ class GhostcalApp extends StatelessWidget {
       // recopiée à la main : une langue ajoutée aux traductions sans l'être ici se
       // chargerait pour rien, et rien ne le dirait.
       supportedLocales: L.supportedLocales,
-      locale: locale,
+      locale: locale ?? apparence?.langue.locale,
       // Le repli, rendu explicite.
       //
       // Sans cette fonction, Flutter retient la **première** langue de
@@ -112,7 +130,8 @@ class GhostcalApp extends StatelessWidget {
           AnimatedBuilder(
             animation: session,
             builder: (context, _) => session.etat == Etat.ouvert
-                ? EcranDAccueil(session: session, verrouillage: verrouillage)
+                ? EcranDAccueil(
+                    session: session, verrouillage: verrouillage, apparence: apparence)
                 : EcranDeConnexion(session: session),
           ),
     );

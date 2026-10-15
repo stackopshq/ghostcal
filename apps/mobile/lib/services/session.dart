@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../modeles/adresse.dart';
 import 'api.dart';
 import 'auth.dart';
+import 'erreurs.dart';
 import 'trousseau.dart';
 
 /// L'état de la session, tel que les écrans le voient.
@@ -22,8 +23,8 @@ enum Etat { dehors, coffreFerme, ouvert }
 class Session extends ChangeNotifier {
   Etat _etat = Etat.dehors;
   bool _occupe = false;
-  String? _erreur;
-  String? _raisonDuCoffre;
+  Object? _erreur;
+  ErreurDAuth? _raisonDuCoffre;
 
   /// L'adresse et l'e-mail saisis, conservés entre deux lancements : les retaper à chaque
   /// fois serait la première friction d'une application qu'on ouvre dix fois par jour.
@@ -37,8 +38,9 @@ class Session extends ChangeNotifier {
 
   Etat get etat => _etat;
   bool get occupe => _occupe;
-  String? get erreur => _erreur;
-  String? get raisonDuCoffre => _raisonDuCoffre;
+  /// The last failure, as raised: screens turn it into a sentence with `lisible`.
+  Object? get erreur => _erreur;
+  ErreurDAuth? get raisonDuCoffre => _raisonDuCoffre;
   String? get organisation => _organisation;
 
   /// Une session enregistrée attend-elle sa phrase ?
@@ -65,7 +67,7 @@ class Session extends ChangeNotifier {
   /// produit ; sans ces deux entrées, la règle « connecté mais coffre fermé » ne serait
   /// vérifiable que contre un vrai serveur, donc jamais.
   @visibleForTesting
-  void debugPoserEtat(Etat etat, {String? raison}) {
+  void debugPoserEtat(Etat etat, {ErreurDAuth? raison}) {
     _etat = etat;
     _raisonDuCoffre = raison;
     notifyListeners();
@@ -94,14 +96,14 @@ class Session extends ChangeNotifier {
   Future<void> seConnecter({required String motDePasse, String? codeTotp}) async {
     final base = AdresseDeServeur.normaliser(serveur);
     if (base == null) {
-      _erreur = 'Adresse de serveur invalide.';
+      _erreur = const AdresseInvalide();
       notifyListeners();
       return;
     }
     await _pendant(() async {
       final client = ClientAPI(base: base);
       final service = Auth(client);
-      final String? echecDuCoffre;
+      final ErreurDAuth? echecDuCoffre;
       try {
         echecDuCoffre = await service.seConnecter(
           email: email,
@@ -159,9 +161,9 @@ class Session extends ChangeNotifier {
       // quelqu'un ressaisir une phrase juste.
       if (client.jetons == null) {
         await seDeconnecter();
-        _erreur = 'La session a expiré. Reconnectez-vous.';
+        _erreur = const SessionExpiree();
       } else {
-        _erreur = '$e';
+        _erreur = e;
       }
     } finally {
       _occupe = false;
@@ -188,6 +190,7 @@ class Session extends ChangeNotifier {
   }
 
   Future<void> seDeconnecter() async {
+    await auth?.revoquer();
     auth?.verrouiller();
     api?.poserLesJetons(null);
     api = null;
@@ -223,7 +226,7 @@ class Session extends ChangeNotifier {
     try {
       await corps();
     } on Object catch (e) {
-      _erreur = '$e';
+      _erreur = e;
     } finally {
       _occupe = false;
       notifyListeners();

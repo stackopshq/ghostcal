@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../modeles/adresse.dart';
+import 'erreurs.dart';
 
 /// Ce que le serveur rend quand il refuse.
 ///
@@ -51,6 +52,11 @@ class Jetons {
 /// - **l'organisation courante voyage en en-tête** ; sans elle le serveur retient la plus
 ///   ancienne, ce qui ferait lire les données d'une équipe en en affichant une autre.
 class ClientAPI {
+  /// How long a request may take before it is reported as "server not responding".
+  /// Without it, a server that accepts the connection and never answers leaves the
+  /// spinner turning forever.
+  static const delai = Duration(seconds: 30);
+
   ClientAPI({required this.base, http.Client? client})
       : _client = client ?? http.Client();
 
@@ -106,8 +112,13 @@ class ClientAPI {
     final requeteHttp = http.Request(methode, url)..headers.addAll(entetes);
     if (corps != null) requeteHttp.body = jsonEncode(corps);
 
-    final flux = await _client.send(requeteHttp);
-    final reponse = await http.Response.fromStream(flux);
+    final http.Response reponse;
+    try {
+      final flux = await _client.send(requeteHttp).timeout(delai);
+      reponse = await http.Response.fromStream(flux).timeout(delai);
+    } on Object catch (e) {
+      throw ErreurReseau.depuis(e) ?? e;
+    }
 
     if (reponse.statusCode == 401 && !dejaRafraichi && _jetons != null) {
       if (await _rafraichir()) {
@@ -183,7 +194,9 @@ class ClientAPI {
     } on FormatException {
       // Un corps qui n'est pas du JSON : le statut reste plus utile que le contenu.
     }
-    return 'Le serveur a répondu ${reponse.statusCode}.';
+    // No sentence from the server: left empty so the screen words it in its own
+    // language with the status code (see `lisible`).
+    return '';
   }
 
   /// Le `detail` quand il est un objet, pour que l'appelant lise ses champs.
