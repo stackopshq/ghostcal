@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../services/agenda.dart' show Agenda;
 import '../services/erreurs.dart';
@@ -26,6 +29,8 @@ class _EcranDeProfilState extends State<EcranDeProfil> {
   final _nom = TextEditingController();
   final _fuseau = TextEditingController();
   Profil? _profil;
+  Uint8List? _photo;
+  bool _photoEnCours = false;
   bool _retirerLaPhoto = false;
   bool _occupe = false;
   String? _erreur;
@@ -61,9 +66,132 @@ class _EcranDeProfilState extends State<EcranDeProfil> {
         _fuseau.text = profil.fuseau;
         _retirerLaPhoto = false;
       });
+      await _chargerLaPhoto(service, profil);
     } on Object catch (e) {
       if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
+  }
+
+  Future<void> _chargerLaPhoto(Reglages service, Profil profil) async {
+    Uint8List? octets;
+    if (profil.aUnePhoto) {
+      try {
+        octets = await service.photo(profil.id);
+      } on Object {
+        octets = null; // initials stay; the photo is a nicety, not worth an error
+      }
+    }
+    if (mounted) setState(() => _photo = octets);
+  }
+
+  /// Server limit before re-encoding (see `application/avatars.py`).
+  static const _octetsMax = 2 * 1024 * 1024;
+
+  Future<void> _choisirUnePhoto() async {
+    final service = _service;
+    if (service == null) return;
+    final l = L.of(context);
+    // Downscaled on the device: a 12 MP camera shot would exceed the server's 2 MB, and it
+    // is re-encoded to 512 px there anyway.
+    final image = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 88,
+    );
+    if (image == null || !mounted) return;
+    setState(() {
+      _photoEnCours = true;
+      _erreur = null;
+      _message = null;
+    });
+    try {
+      final octets = await image.readAsBytes();
+      if (octets.length > _octetsMax) {
+        setState(() => _erreur = l.photoTropLourde);
+        return;
+      }
+      await service.televerserLaPhoto(octets, image.name);
+      final profil = await service.profil();
+      if (!mounted) return;
+      setState(() {
+        _profil = profil;
+        _photo = octets;
+        _message = l.photoEnregistree;
+      });
+    } on Object catch (e) {
+      if (mounted) setState(() => _erreur = lisible(e, l));
+    } finally {
+      if (mounted) setState(() => _photoEnCours = false);
+    }
+  }
+
+  Future<void> _retirerLaPhotoTeleversee() async {
+    final service = _service;
+    if (service == null) return;
+    final l = L.of(context);
+    setState(() {
+      _photoEnCours = true;
+      _erreur = null;
+      _message = null;
+    });
+    try {
+      await service.retirerLaPhotoTeleversee();
+      final profil = await service.profil();
+      if (!mounted) return;
+      setState(() {
+        _profil = profil;
+        _photo = null;
+        _message = l.photoRetiree;
+      });
+    } on Object catch (e) {
+      if (mounted) setState(() => _erreur = lisible(e, l));
+    } finally {
+      if (mounted) setState(() => _photoEnCours = false);
+    }
+  }
+
+  Widget _blocPhoto(Gc gc, Profil profil) {
+    final l = L.of(context);
+    final mots = profil.nom.trim().split(RegExp(r'\s+')).where((m) => m.isNotEmpty);
+    final initiales = mots.isEmpty ? '?' : mots.take(2).map((m) => m[0].toUpperCase()).join();
+    return Row(
+      children: [
+        CircleAvatar(
+          key: const Key('profil.photo'),
+          radius: 34,
+          backgroundColor: gc.surface2,
+          foregroundImage: _photo == null ? null : MemoryImage(_photo!),
+          child: Text(initiales, style: TextStyle(color: gc.estompe, fontSize: 20)),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              OutlinedButton.icon(
+                key: const Key('profil.choisirPhoto'),
+                onPressed: _photoEnCours ? null : _choisirUnePhoto,
+                icon: _photoEnCours
+                    ? const SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.photo_library_outlined),
+                label: Text(l.choisirUnePhoto),
+              ),
+              if (profil.aUnePhoto)
+                TextButton(
+                  key: const Key('profil.retirerPhoto'),
+                  onPressed: _photoEnCours ? null : _retirerLaPhotoTeleversee,
+                  child: Text(l.retirerLaPhotoTeleversee),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   Future<void> _enregistrer() async {
@@ -141,6 +269,10 @@ class _EcranDeProfilState extends State<EcranDeProfil> {
               : ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
+                    _libelle(gc, L.of(context).photoDeProfil),
+                    const SizedBox(height: 10),
+                    _blocPhoto(gc, profil),
+                    const SizedBox(height: 18),
                     _libelle(gc, L.of(context).adresseEmail),
                     const SizedBox(height: 7),
                     Container(

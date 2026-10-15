@@ -53,6 +53,8 @@ dependencies:
   local_auth: ^3.0.2
   # The Android prompt strings (`AndroidAuthMessages`) live here, not in `local_auth`.
   local_auth_android: ^2.0.10
+  # Profile photo: the system photo picker (no storage permission on Android 13+).
+  image_picker: ^1.1.2
 
 dev_dependencies:
   flutter_test:

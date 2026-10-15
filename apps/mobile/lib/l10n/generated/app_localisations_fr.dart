@@ -237,7 +237,7 @@ class LFr extends L {
       'Utiliser le fuseau de cet appareil';
 
   @override
-  String get retirerLaPhoto => 'Retirer la photo';
+  String get retirerLaPhoto => 'Retirer le lien de photo';
 
   @override
   String get photoEffaceeALEnregistrement =>
@@ -834,4 +834,63 @@ class LFr extends L {
   @override
   String get saisieRapideExemple =>
       'Déjeuner avec Camille demain 12h30 au Café';
+
+  @override
+  String get photoDeProfil => 'Photo de profil';
+
+  @override
+  String get choisirUnePhoto => 'Choisir une photo';
+
+  @override
+  String get retirerLaPhotoTeleversee => 'Retirer la photo';
+
+  @override
+  String get photoTropLourde =>
+      'Cette image dépasse 2 Mo. Choisissez-en une plus légère.';
+
+  @override
+  String get photoEnregistree => 'Photo enregistrée.';
+
+  @override
+  String get photoRetiree => 'Photo retirée.';
+
+  @override
+  String get questionsAuxInvites => 'Questions aux invités';
+
+  @override
+  String get questionsExplication =>
+      'Le nom et l’adresse e-mail sont toujours demandés. Les réponses sont chiffrées pour vous seul.';
+
+  @override
+  String get ajouterUneQuestion => 'Ajouter une question';
+
+  @override
+  String get modifierLaQuestion => 'Modifier la question';
+
+  @override
+  String get libelleDeLaQuestion => 'Question';
+
+  @override
+  String get typeDeReponse => 'Type de réponse';
+
+  @override
+  String get reponseTexte => 'Texte court';
+
+  @override
+  String get reponseLongue => 'Texte long';
+
+  @override
+  String get reponseTelephone => 'Téléphone';
+
+  @override
+  String get reponseChoix => 'Liste de choix';
+
+  @override
+  String get reponseCase => 'Case à cocher';
+
+  @override
+  String get reponseObligatoire => 'Réponse obligatoire';
+
+  @override
+  String get choixUnParLigne => 'Choix proposés, un par ligne';
 }
