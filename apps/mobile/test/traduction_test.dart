@@ -51,6 +51,9 @@ void main() {
   const restant = <String, int>{
     // Only as `toString()` fallbacks: screens translate both through `lisible`.
     'lib/services/auth.dart': 2, // phrase incorrecte, coffre fermé
+    // French words the quick-entry parser must *recognise* (months, days, "demain"…);
+    // never displayed, so there is nothing to translate.
+    'lib/outils/saisie_rapide.dart': 14,
   };
 
   /// Les fichiers qu'on n'examine pas, et pourquoi.

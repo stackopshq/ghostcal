@@ -314,7 +314,7 @@ class _GrilleHoraireState extends State<GrilleHoraire> {
       child: GestureDetector(
         onTap: () => widget.surLigne(ligne),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(5, 3, 3, 2),
+          padding: etroit ? const EdgeInsets.fromLTRB(3, 2, 1, 1) : const EdgeInsets.fromLTRB(5, 3, 3, 2),
           decoration: BoxDecoration(
             color: couleur.withValues(alpha: gc.sombre ? 0.32 : 0.18),
             borderRadius: BorderRadius.circular(6),
@@ -331,7 +331,7 @@ class _GrilleHoraireState extends State<GrilleHoraire> {
                   maxLines: ((hauteur - 4) / (etroit ? 13 : 16)).floor().clamp(1, 6),
                   overflow: TextOverflow.ellipsis,
                   style: style.copyWith(
-                      fontSize: etroit ? 10 : 12,
+                      fontSize: etroit ? 9.5 : 12,
                       height: 1.2,
                       fontWeight: FontWeight.w600),
                 ),

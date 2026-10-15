@@ -832,7 +832,7 @@ abstract class L {
   /// No description provided for @typesCreesDepuisLeWeb.
   ///
   /// In fr, this message translates to:
-  /// **'Ils se créent depuis le web : une quinzaine de réglages qui se règlent mal à un pouce.'**
+  /// **'Créez-en un avec le bouton +.'**
   String get typesCreesDepuisLeWeb;
 
   /// No description provided for @ferme.
@@ -1224,6 +1224,312 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Affiché ici, modifiable là d\'où il vient : réservation, série ou calendrier externe.'**
   String get lectureSeule;
+
+  /// No description provided for @modifierLaTache.
+  ///
+  /// In fr, this message translates to:
+  /// **'Modifier la tâche'**
+  String get modifierLaTache;
+
+  /// No description provided for @envoyerLeLienDeVisio.
+  ///
+  /// In fr, this message translates to:
+  /// **'Envoyer le lien de visio'**
+  String get envoyerLeLienDeVisio;
+
+  /// No description provided for @modifierOuRenvoyerLeLien.
+  ///
+  /// In fr, this message translates to:
+  /// **'Modifier ou renvoyer le lien'**
+  String get modifierOuRenvoyerLeLien;
+
+  /// No description provided for @lienDeVisio.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lien de visio (Zoom, Google Meet, Teams…)'**
+  String get lienDeVisio;
+
+  /// No description provided for @envoyer.
+  ///
+  /// In fr, this message translates to:
+  /// **'Envoyer'**
+  String get envoyer;
+
+  /// No description provided for @lienEnvoye.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lien envoyé à l\'invité.'**
+  String get lienEnvoye;
+
+  /// No description provided for @lienDoitCommencerParHttps.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le lien doit commencer par https://'**
+  String get lienDoitCommencerParHttps;
+
+  /// No description provided for @lienEnregistreMailEchoue.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lien enregistré, mais l\'e-mail n\'a pas pu partir. Réessayez dans un instant.'**
+  String get lienEnregistreMailEchoue;
+
+  /// No description provided for @adresseEmail.
+  ///
+  /// In fr, this message translates to:
+  /// **'Adresse e-mail'**
+  String get adresseEmail;
+
+  /// No description provided for @nom.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nom'**
+  String get nom;
+
+  /// No description provided for @fuseauHoraire.
+  ///
+  /// In fr, this message translates to:
+  /// **'Fuseau horaire'**
+  String get fuseauHoraire;
+
+  /// No description provided for @rechercherUnFuseau.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rechercher une ville ou un fuseau'**
+  String get rechercherUnFuseau;
+
+  /// No description provided for @inviter.
+  ///
+  /// In fr, this message translates to:
+  /// **'Inviter'**
+  String get inviter;
+
+  /// No description provided for @inviterUnMembre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Inviter un membre'**
+  String get inviterUnMembre;
+
+  /// No description provided for @invitationEnvoyee.
+  ///
+  /// In fr, this message translates to:
+  /// **'Invitation envoyée à {email}'**
+  String invitationEnvoyee(String email);
+
+  /// No description provided for @invitationLienSecurise.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le serveur a envoyé l\'invitation par e-mail. Pour que cette personne puisse lire les données chiffrées de l\'équipe, transmettez-lui aussi ce lien sécurisé : la clé qu\'il contient ne passe jamais par le serveur.'**
+  String get invitationLienSecurise;
+
+  /// No description provided for @invitationSansCle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le serveur a envoyé l\'invitation par e-mail. Le coffre étant fermé, la clé de l\'équipe n\'a pas été jointe : un membre la partagera depuis le web.'**
+  String get invitationSansCle;
+
+  /// No description provided for @copierLeLien.
+  ///
+  /// In fr, this message translates to:
+  /// **'Copier le lien'**
+  String get copierLeLien;
+
+  /// No description provided for @fermer.
+  ///
+  /// In fr, this message translates to:
+  /// **'Fermer'**
+  String get fermer;
+
+  /// No description provided for @nouveauType.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nouveau type de rendez-vous'**
+  String get nouveauType;
+
+  /// No description provided for @modifierLeType.
+  ///
+  /// In fr, this message translates to:
+  /// **'Modifier le type'**
+  String get modifierLeType;
+
+  /// No description provided for @descriptionPublique.
+  ///
+  /// In fr, this message translates to:
+  /// **'Description (visible sur la page de réservation)'**
+  String get descriptionPublique;
+
+  /// No description provided for @duree.
+  ///
+  /// In fr, this message translates to:
+  /// **'Durée'**
+  String get duree;
+
+  /// No description provided for @preavisMinimum.
+  ///
+  /// In fr, this message translates to:
+  /// **'Préavis minimum'**
+  String get preavisMinimum;
+
+  /// No description provided for @reservableSur.
+  ///
+  /// In fr, this message translates to:
+  /// **'Réservable sur'**
+  String get reservableSur;
+
+  /// No description provided for @tamponAvant.
+  ///
+  /// In fr, this message translates to:
+  /// **'Battement avant'**
+  String get tamponAvant;
+
+  /// No description provided for @tamponApres.
+  ///
+  /// In fr, this message translates to:
+  /// **'Battement après'**
+  String get tamponApres;
+
+  /// No description provided for @ouvertALaReservation.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ouvert à la réservation'**
+  String get ouvertALaReservation;
+
+  /// No description provided for @typeDisponibilitesDepuisHoraire.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les créneaux proposés suivent vos disponibilités (Réglages › Disponibilités).'**
+  String get typeDisponibilitesDepuisHoraire;
+
+  /// No description provided for @lieuTelephone.
+  ///
+  /// In fr, this message translates to:
+  /// **'Téléphone'**
+  String get lieuTelephone;
+
+  /// No description provided for @lieuEnPersonne.
+  ///
+  /// In fr, this message translates to:
+  /// **'En personne'**
+  String get lieuEnPersonne;
+
+  /// No description provided for @lieuAutre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Autre'**
+  String get lieuAutre;
+
+  /// No description provided for @aucun.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun'**
+  String get aucun;
+
+  /// No description provided for @nJours.
+  ///
+  /// In fr, this message translates to:
+  /// **'{n, plural, =1{1 jour} other{{n} jours}}'**
+  String nJours(int n);
+
+  /// No description provided for @nHeures.
+  ///
+  /// In fr, this message translates to:
+  /// **'{n, plural, =1{1 h} other{{n} h}}'**
+  String nHeures(int n);
+
+  /// No description provided for @supprimerCeType.
+  ///
+  /// In fr, this message translates to:
+  /// **'Supprimer ce type ?'**
+  String get supprimerCeType;
+
+  /// No description provided for @supprimerCeTypeExplication.
+  ///
+  /// In fr, this message translates to:
+  /// **'Sa page de réservation cessera d\'exister.'**
+  String get supprimerCeTypeExplication;
+
+  /// No description provided for @typeAvecReservations.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ce type a déjà des réservations : fermez-le plutôt que de le supprimer.'**
+  String get typeAvecReservations;
+
+  /// No description provided for @heuresDeBureau.
+  ///
+  /// In fr, this message translates to:
+  /// **'Heures de bureau'**
+  String get heuresDeBureau;
+
+  /// No description provided for @indisponible.
+  ///
+  /// In fr, this message translates to:
+  /// **'Indisponible'**
+  String get indisponible;
+
+  /// No description provided for @ajouterUnePlage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ajouter une plage'**
+  String get ajouterUnePlage;
+
+  /// No description provided for @definirMesDisponibilites.
+  ///
+  /// In fr, this message translates to:
+  /// **'Définir mes disponibilités'**
+  String get definirMesDisponibilites;
+
+  /// No description provided for @disponibilitesExplication.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les jours et heures où l\'on peut réserver un rendez-vous avec vous.'**
+  String get disponibilitesExplication;
+
+  /// No description provided for @nouveauSondage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nouveau sondage'**
+  String get nouveauSondage;
+
+  /// No description provided for @lienDuSondage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lien du sondage'**
+  String get lienDuSondage;
+
+  /// No description provided for @lienDuSondageExplication.
+  ///
+  /// In fr, this message translates to:
+  /// **'Envoyez ce lien aux participants : ils votent sans compte, et vous retenez ensuite le créneau gagnant.'**
+  String get lienDuSondageExplication;
+
+  /// No description provided for @creneauxProposes.
+  ///
+  /// In fr, this message translates to:
+  /// **'Créneaux proposés'**
+  String get creneauxProposes;
+
+  /// No description provided for @ajouterUnCreneau.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ajouter un créneau'**
+  String get ajouterUnCreneau;
+
+  /// No description provided for @auMoinsDeuxCreneaux.
+  ///
+  /// In fr, this message translates to:
+  /// **'Proposez au moins deux créneaux.'**
+  String get auMoinsDeuxCreneaux;
+
+  /// No description provided for @saisieRapide.
+  ///
+  /// In fr, this message translates to:
+  /// **'Saisie rapide'**
+  String get saisieRapide;
+
+  /// No description provided for @saisieRapideExemple.
+  ///
+  /// In fr, this message translates to:
+  /// **'Déjeuner avec Camille demain 12h30 au Café'**
+  String get saisieRapideExemple;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

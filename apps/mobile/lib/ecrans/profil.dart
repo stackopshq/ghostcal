@@ -5,6 +5,7 @@ import '../services/erreurs.dart';
 import '../services/reglages.dart';
 import '../services/session.dart';
 import '../theme.dart';
+import 'choix_du_fuseau.dart';
 import '../l10n/generated/app_localisations.dart';
 
 /// Le profil : le nom, le fuseau, et la photo.
@@ -95,6 +96,15 @@ class _EcranDeProfilState extends State<EcranDeProfil> {
     }
   }
 
+  Future<void> _choisirLeFuseau() async {
+    final choisi = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const ChoixDuFuseau(),
+    );
+    if (choisi != null && mounted) setState(() => _fuseau.text = choisi);
+  }
+
   @override
   Widget build(BuildContext context) {
     final gc = Gc.of(context);
@@ -131,7 +141,7 @@ class _EcranDeProfilState extends State<EcranDeProfil> {
               : ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
-                    _libelle(gc, 'Adresse e-mail'),
+                    _libelle(gc, L.of(context).adresseEmail),
                     const SizedBox(height: 7),
                     Container(
                       width: double.infinity,
@@ -168,13 +178,21 @@ class _EcranDeProfilState extends State<EcranDeProfil> {
                       style: TextStyle(color: gc.estompe, fontSize: 12),
                     ),
                     const SizedBox(height: 18),
-                    _libelle(gc, 'Nom'),
+                    _libelle(gc, L.of(context).nom),
                     const SizedBox(height: 7),
                     TextField(controller: _nom),
                     const SizedBox(height: 18),
-                    _libelle(gc, 'Fuseau horaire'),
+                    _libelle(gc, L.of(context).fuseauHoraire),
                     const SizedBox(height: 7),
-                    TextField(controller: _fuseau),
+                    // A picker rather than free text: "Europe/Zurich" typed by hand was
+                    // one typo away from a 422.
+                    TextField(
+                      key: const Key('profil.fuseau'),
+                      controller: _fuseau,
+                      readOnly: true,
+                      decoration: const InputDecoration(suffixIcon: Icon(Icons.expand_more)),
+                      onTap: _choisirLeFuseau,
+                    ),
                     const SizedBox(height: 8),
                     TextButton(
                       onPressed: () async {

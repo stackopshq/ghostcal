@@ -90,6 +90,15 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
     if (cree == true) await _recharger();
   }
 
+  Future<void> _modifier(Tache tache) async {
+    final modifiee = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _FeuilleDeNouvelleTache(session: widget.session, tache: tache),
+    );
+    if (modifiee == true) await _recharger();
+  }
+
   @override
   Widget build(BuildContext context) {
     final gc = Gc.of(context);
@@ -201,6 +210,9 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
               ),
             ),
       trailing: enRetard ? Icon(Icons.error_outline, size: 18, color: gc.danger) : null,
+      // A task that could not be decrypted is not editable: saving would overwrite a
+      // title nobody could read.
+      onTap: tache.provenance == ProvenanceDuTitre.illisible ? null : () => _modifier(tache),
       onLongPress: () => _supprimer(tache),
     );
   }
@@ -231,9 +243,12 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
 }
 
 class _FeuilleDeNouvelleTache extends StatefulWidget {
-  const _FeuilleDeNouvelleTache({required this.session});
+  const _FeuilleDeNouvelleTache({required this.session, this.tache});
 
   final Session session;
+
+  /// The task being edited; `null` when creating one.
+  final Tache? tache;
 
   @override
   State<_FeuilleDeNouvelleTache> createState() => _FeuilleDeNouvelleTacheState();
@@ -245,6 +260,17 @@ class _FeuilleDeNouvelleTacheState extends State<_FeuilleDeNouvelleTache> {
   DateTime? _echeance;
   bool _occupe = false;
   String? _erreur;
+
+  @override
+  void initState() {
+    super.initState();
+    final tache = widget.tache;
+    if (tache != null) {
+      _titre.text = tache.titre;
+      _notes.text = tache.notes ?? '';
+      _echeance = tache.echeance;
+    }
+  }
 
   @override
   void dispose() {
@@ -263,12 +289,24 @@ class _FeuilleDeNouvelleTacheState extends State<_FeuilleDeNouvelleTache> {
       _erreur = null;
     });
     try {
-      await Taches(api: api, auth: auth).creer(
-        titre: _titre.text,
-        notes: _notes.text,
-        echeance: _echeance,
-        organisation: organisation,
-      );
+      final service = Taches(api: api, auth: auth);
+      final tache = widget.tache;
+      if (tache == null) {
+        await service.creer(
+          titre: _titre.text,
+          notes: _notes.text,
+          echeance: _echeance,
+          organisation: organisation,
+        );
+      } else {
+        await service.modifier(
+          tache,
+          titre: _titre.text,
+          notes: _notes.text,
+          echeance: _echeance,
+          organisation: organisation,
+        );
+      }
       if (mounted) Navigator.of(context).pop(true);
     } on Object catch (e) {
       if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
@@ -292,7 +330,7 @@ class _FeuilleDeNouvelleTacheState extends State<_FeuilleDeNouvelleTache> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(L.of(context).nouvelleTache,
+          Text(widget.tache == null ? L.of(context).nouvelleTache : L.of(context).modifierLaTache,
               style: TextStyle(
                   fontSize: 18, fontWeight: FontWeight.bold, color: gc.encre)),
           const SizedBox(height: 16),
@@ -349,7 +387,7 @@ class _FeuilleDeNouvelleTacheState extends State<_FeuilleDeNouvelleTache> {
                     height: 18,
                     width: 18,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Gc.surAccent))
-                : Text(L.of(context).creer),
+                : Text(widget.tache == null ? L.of(context).creer : L.of(context).enregistrer),
           ),
         ],
       ),

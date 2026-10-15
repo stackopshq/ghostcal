@@ -5,6 +5,7 @@ import '../services/erreurs.dart';
 import '../services/session.dart';
 import '../services/types_de_rendez_vous.dart';
 import '../theme.dart';
+import 'type_de_rendez_vous.dart';
 import '../l10n/generated/app_localisations.dart';
 
 /// Ce qu'on propose à réserver : vérifier ce qui est ouvert, partager un lien, couper un
@@ -65,8 +66,23 @@ class _EcranDeTypesDeRendezVousState extends State<EcranDeTypesDeRendezVous> {
     final gc = Gc.of(context);
     return Scaffold(
       appBar: AppBar(title: Text(L.of(context).rendezVous)),
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'types',
+        tooltip: L.of(context).nouveauType,
+        onPressed: () => _ouvrir(null),
+        child: const Icon(Icons.add),
+      ),
       body: RefreshIndicator(onRefresh: _recharger, child: _corps(gc)),
     );
+  }
+
+  Future<void> _ouvrir(String? id) async {
+    final api = widget.session.api;
+    if (api == null) return;
+    final modifie = await Navigator.of(context).push<bool>(MaterialPageRoute(
+      builder: (_) => EcranDeTypeDeRendezVous(service: TypesDeRendezVous(api: api), id: id),
+    ));
+    if (modifie == true) await _recharger();
   }
 
   Widget _corps(Gc gc) {
@@ -104,6 +120,7 @@ class _EcranDeTypesDeRendezVousState extends State<EcranDeTypesDeRendezVous> {
     final lien =
         base == null ? null : TypesDeRendezVous.lienPublic(type, serveur: base);
     return ListTile(
+      onTap: () => _ouvrir(type.id),
       title: Text(
         type.titre,
         style: TextStyle(color: type.actif ? gc.encre : gc.estompe),

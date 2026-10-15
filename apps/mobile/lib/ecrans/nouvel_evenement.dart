@@ -5,6 +5,7 @@ import '../services/erreurs.dart';
 import '../services/agenda.dart';
 import '../services/session.dart';
 import '../outils/dates.dart';
+import '../outils/saisie_rapide.dart';
 import '../theme.dart';
 import '../l10n/generated/app_localisations.dart';
 
@@ -121,6 +122,23 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
     } finally {
       if (mounted) setState(() => _chargement = false);
     }
+  }
+
+  /// Fills the form from a quick-entry sentence. What was not recognised is left
+  /// as it was, so the sentence never erases a date the user picked by hand.
+  void _appliquerLaSaisie(String texte) {
+    final r = analyserLaSaisie(texte);
+    setState(() {
+      _titre.text = r.titre;
+      if (r.lieu.isNotEmpty) _lieu.text = r.lieu;
+      final debut = r.debut;
+      final fin = r.fin;
+      if (debut != null && fin != null) {
+        _journeeEntiere = r.journeeEntiere;
+        _debut = debut;
+        _fin = r.journeeEntiere ? debut : fin;
+      }
+    });
   }
 
   bool get _illisible =>
@@ -254,6 +272,22 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
                         style: TextStyle(color: gc.danger, fontSize: 13),
                       ),
                       const SizedBox(height: 14),
+                    ],
+                    // Fantastical-style quick entry, creation only: typing a sentence
+                    // fills the form below, which stays editable.
+                    if (!_modification) ...[
+                      TextField(
+                        key: const Key('saisie.rapide'),
+                        autofocus: true,
+                        textCapitalization: TextCapitalization.sentences,
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.auto_awesome),
+                          labelText: L.of(context).saisieRapide,
+                          hintText: L.of(context).saisieRapideExemple,
+                        ),
+                        onChanged: _appliquerLaSaisie,
+                      ),
+                      const SizedBox(height: 16),
                     ],
                     TextField(
                       controller: _titre,

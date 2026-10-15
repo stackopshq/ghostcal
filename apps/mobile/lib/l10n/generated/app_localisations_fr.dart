@@ -432,8 +432,7 @@ class LFr extends L {
   String get aucunTypeDeRendezVous => 'Aucun type de rendez-vous.';
 
   @override
-  String get typesCreesDepuisLeWeb =>
-      'Ils se créent depuis le web : une quinzaine de réglages qui se règlent mal à un pouce.';
+  String get typesCreesDepuisLeWeb => 'Créez-en un avec le bouton +.';
 
   @override
   String get ferme => 'fermé';
@@ -654,4 +653,185 @@ class LFr extends L {
   @override
   String get lectureSeule =>
       'Affiché ici, modifiable là d\'où il vient : réservation, série ou calendrier externe.';
+
+  @override
+  String get modifierLaTache => 'Modifier la tâche';
+
+  @override
+  String get envoyerLeLienDeVisio => 'Envoyer le lien de visio';
+
+  @override
+  String get modifierOuRenvoyerLeLien => 'Modifier ou renvoyer le lien';
+
+  @override
+  String get lienDeVisio => 'Lien de visio (Zoom, Google Meet, Teams…)';
+
+  @override
+  String get envoyer => 'Envoyer';
+
+  @override
+  String get lienEnvoye => 'Lien envoyé à l\'invité.';
+
+  @override
+  String get lienDoitCommencerParHttps => 'Le lien doit commencer par https://';
+
+  @override
+  String get lienEnregistreMailEchoue =>
+      'Lien enregistré, mais l\'e-mail n\'a pas pu partir. Réessayez dans un instant.';
+
+  @override
+  String get adresseEmail => 'Adresse e-mail';
+
+  @override
+  String get nom => 'Nom';
+
+  @override
+  String get fuseauHoraire => 'Fuseau horaire';
+
+  @override
+  String get rechercherUnFuseau => 'Rechercher une ville ou un fuseau';
+
+  @override
+  String get inviter => 'Inviter';
+
+  @override
+  String get inviterUnMembre => 'Inviter un membre';
+
+  @override
+  String invitationEnvoyee(String email) {
+    return 'Invitation envoyée à $email';
+  }
+
+  @override
+  String get invitationLienSecurise =>
+      'Le serveur a envoyé l\'invitation par e-mail. Pour que cette personne puisse lire les données chiffrées de l\'équipe, transmettez-lui aussi ce lien sécurisé : la clé qu\'il contient ne passe jamais par le serveur.';
+
+  @override
+  String get invitationSansCle =>
+      'Le serveur a envoyé l\'invitation par e-mail. Le coffre étant fermé, la clé de l\'équipe n\'a pas été jointe : un membre la partagera depuis le web.';
+
+  @override
+  String get copierLeLien => 'Copier le lien';
+
+  @override
+  String get fermer => 'Fermer';
+
+  @override
+  String get nouveauType => 'Nouveau type de rendez-vous';
+
+  @override
+  String get modifierLeType => 'Modifier le type';
+
+  @override
+  String get descriptionPublique =>
+      'Description (visible sur la page de réservation)';
+
+  @override
+  String get duree => 'Durée';
+
+  @override
+  String get preavisMinimum => 'Préavis minimum';
+
+  @override
+  String get reservableSur => 'Réservable sur';
+
+  @override
+  String get tamponAvant => 'Battement avant';
+
+  @override
+  String get tamponApres => 'Battement après';
+
+  @override
+  String get ouvertALaReservation => 'Ouvert à la réservation';
+
+  @override
+  String get typeDisponibilitesDepuisHoraire =>
+      'Les créneaux proposés suivent vos disponibilités (Réglages › Disponibilités).';
+
+  @override
+  String get lieuTelephone => 'Téléphone';
+
+  @override
+  String get lieuEnPersonne => 'En personne';
+
+  @override
+  String get lieuAutre => 'Autre';
+
+  @override
+  String get aucun => 'Aucun';
+
+  @override
+  String nJours(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n jours',
+      one: '1 jour',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String nHeures(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n h',
+      one: '1 h',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get supprimerCeType => 'Supprimer ce type ?';
+
+  @override
+  String get supprimerCeTypeExplication =>
+      'Sa page de réservation cessera d\'exister.';
+
+  @override
+  String get typeAvecReservations =>
+      'Ce type a déjà des réservations : fermez-le plutôt que de le supprimer.';
+
+  @override
+  String get heuresDeBureau => 'Heures de bureau';
+
+  @override
+  String get indisponible => 'Indisponible';
+
+  @override
+  String get ajouterUnePlage => 'Ajouter une plage';
+
+  @override
+  String get definirMesDisponibilites => 'Définir mes disponibilités';
+
+  @override
+  String get disponibilitesExplication =>
+      'Les jours et heures où l\'on peut réserver un rendez-vous avec vous.';
+
+  @override
+  String get nouveauSondage => 'Nouveau sondage';
+
+  @override
+  String get lienDuSondage => 'Lien du sondage';
+
+  @override
+  String get lienDuSondageExplication =>
+      'Envoyez ce lien aux participants : ils votent sans compte, et vous retenez ensuite le créneau gagnant.';
+
+  @override
+  String get creneauxProposes => 'Créneaux proposés';
+
+  @override
+  String get ajouterUnCreneau => 'Ajouter un créneau';
+
+  @override
+  String get auMoinsDeuxCreneaux => 'Proposez au moins deux créneaux.';
+
+  @override
+  String get saisieRapide => 'Saisie rapide';
+
+  @override
+  String get saisieRapideExemple =>
+      'Déjeuner avec Camille demain 12h30 au Café';
 }
