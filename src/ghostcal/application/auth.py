@@ -18,6 +18,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from ghostcal.application import bilingual as bi
 from ghostcal.application.passwords import NoBreachCheck, enforce_password_policy
 from ghostcal.application.ports.clock import Clock
 from ghostcal.application.ports.email import EmailSender
@@ -355,10 +356,12 @@ class AuthService:
         link = f"{self._config.frontend_base_url}/verify-email?token={plain}"
         await self._mailer.send(
             to=email,
-            subject="Verify your GhostCal email",
-            html=(
-                f"<p>Welcome to GhostCal. Confirm your email to activate your account:</p>"
-                f'<p><a href="{link}">Verify my email</a></p>'
+            subject=bi.subject("Confirmez votre adresse GhostCal", "Verify your GhostCal email"),
+            html=bi.body(
+                "<p>Bienvenue sur GhostCal. Confirmez votre adresse pour activer votre compte :</p>"
+                f'<p><a href="{link}">Confirmer mon adresse</a></p>',
+                "<p>Welcome to GhostCal. Confirm your email to activate your account:</p>"
+                f'<p><a href="{link}">Verify my email</a></p>',
             ),
         )
 
@@ -380,13 +383,21 @@ class AuthService:
         link = f"{self._config.frontend_base_url}/reset-password?token={plain}"
         await self._mailer.send(
             to=email,
-            subject="Reset your GhostCal password",
-            html=(
+            subject=bi.subject(
+                "Réinitialiser votre mot de passe GhostCal", "Reset your GhostCal password"
+            ),
+            html=bi.body(
+                "<p>Quelqu'un a demandé à réinitialiser le mot de passe de ce compte GhostCal. Si "
+                "ce n'est pas vous, ignorez ce message : rien ne change.</p>"
+                f'<p><a href="{link}">Réinitialiser mon mot de passe</a></p>'
+                "<p>Il vous faudra la phrase de récupération affichée à la création du compte. "
+                "Sans elle, ce lien ne peut pas ouvrir votre agenda : nous n'en gardons aucune "
+                "copie.</p>",
                 "<p>Someone asked to reset the password on this GhostCal account. If that was not "
                 "you, ignore this message and nothing changes.</p>"
                 f'<p><a href="{link}">Reset my password</a></p>'
                 "<p>You will need the recovery phrase shown when the account was created. Without "
-                "it this link cannot open your calendar — we do not hold a copy.</p>"
+                "it this link cannot open your calendar — we do not hold a copy.</p>",
             ),
         )
 
