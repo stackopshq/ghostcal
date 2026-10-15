@@ -514,7 +514,7 @@ abstract class L {
   /// No description provided for @retirerLaPhoto.
   ///
   /// In fr, this message translates to:
-  /// **'Retirer la photo'**
+  /// **'Retirer le lien de photo'**
   String get retirerLaPhoto;
 
   /// No description provided for @photoEffaceeALEnregistrement.
@@ -1530,6 +1530,120 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Déjeuner avec Camille demain 12h30 au Café'**
   String get saisieRapideExemple;
+
+  /// No description provided for @photoDeProfil.
+  ///
+  /// In fr, this message translates to:
+  /// **'Photo de profil'**
+  String get photoDeProfil;
+
+  /// No description provided for @choisirUnePhoto.
+  ///
+  /// In fr, this message translates to:
+  /// **'Choisir une photo'**
+  String get choisirUnePhoto;
+
+  /// No description provided for @retirerLaPhotoTeleversee.
+  ///
+  /// In fr, this message translates to:
+  /// **'Retirer la photo'**
+  String get retirerLaPhotoTeleversee;
+
+  /// No description provided for @photoTropLourde.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cette image dépasse 2 Mo. Choisissez-en une plus légère.'**
+  String get photoTropLourde;
+
+  /// No description provided for @photoEnregistree.
+  ///
+  /// In fr, this message translates to:
+  /// **'Photo enregistrée.'**
+  String get photoEnregistree;
+
+  /// No description provided for @photoRetiree.
+  ///
+  /// In fr, this message translates to:
+  /// **'Photo retirée.'**
+  String get photoRetiree;
+
+  /// No description provided for @questionsAuxInvites.
+  ///
+  /// In fr, this message translates to:
+  /// **'Questions aux invités'**
+  String get questionsAuxInvites;
+
+  /// No description provided for @questionsExplication.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le nom et l’adresse e-mail sont toujours demandés. Les réponses sont chiffrées pour vous seul.'**
+  String get questionsExplication;
+
+  /// No description provided for @ajouterUneQuestion.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ajouter une question'**
+  String get ajouterUneQuestion;
+
+  /// No description provided for @modifierLaQuestion.
+  ///
+  /// In fr, this message translates to:
+  /// **'Modifier la question'**
+  String get modifierLaQuestion;
+
+  /// No description provided for @libelleDeLaQuestion.
+  ///
+  /// In fr, this message translates to:
+  /// **'Question'**
+  String get libelleDeLaQuestion;
+
+  /// No description provided for @typeDeReponse.
+  ///
+  /// In fr, this message translates to:
+  /// **'Type de réponse'**
+  String get typeDeReponse;
+
+  /// No description provided for @reponseTexte.
+  ///
+  /// In fr, this message translates to:
+  /// **'Texte court'**
+  String get reponseTexte;
+
+  /// No description provided for @reponseLongue.
+  ///
+  /// In fr, this message translates to:
+  /// **'Texte long'**
+  String get reponseLongue;
+
+  /// No description provided for @reponseTelephone.
+  ///
+  /// In fr, this message translates to:
+  /// **'Téléphone'**
+  String get reponseTelephone;
+
+  /// No description provided for @reponseChoix.
+  ///
+  /// In fr, this message translates to:
+  /// **'Liste de choix'**
+  String get reponseChoix;
+
+  /// No description provided for @reponseCase.
+  ///
+  /// In fr, this message translates to:
+  /// **'Case à cocher'**
+  String get reponseCase;
+
+  /// No description provided for @reponseObligatoire.
+  ///
+  /// In fr, this message translates to:
+  /// **'Réponse obligatoire'**
+  String get reponseObligatoire;
+
+  /// No description provided for @choixUnParLigne.
+  ///
+  /// In fr, this message translates to:
+  /// **'Choix proposés, un par ligne'**
+  String get choixUnParLigne;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

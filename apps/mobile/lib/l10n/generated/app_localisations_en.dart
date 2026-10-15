@@ -235,7 +235,7 @@ class LEn extends L {
   String get utiliserLeFuseauDeLAppareil => 'Use this device\'s time zone';
 
   @override
-  String get retirerLaPhoto => 'Remove the photo';
+  String get retirerLaPhoto => 'Remove the photo link';
 
   @override
   String get photoEffaceeALEnregistrement => 'It will be erased when you save.';
@@ -830,4 +830,63 @@ class LEn extends L {
   @override
   String get saisieRapideExemple =>
       'Lunch with Sam tomorrow 12:30pm at the Café';
+
+  @override
+  String get photoDeProfil => 'Profile photo';
+
+  @override
+  String get choisirUnePhoto => 'Choose a photo';
+
+  @override
+  String get retirerLaPhotoTeleversee => 'Remove photo';
+
+  @override
+  String get photoTropLourde =>
+      'This image is over 2 MB. Choose a lighter one.';
+
+  @override
+  String get photoEnregistree => 'Photo saved.';
+
+  @override
+  String get photoRetiree => 'Photo removed.';
+
+  @override
+  String get questionsAuxInvites => 'Questions for invitees';
+
+  @override
+  String get questionsExplication =>
+      'Name and email are always asked. Answers are encrypted for you only.';
+
+  @override
+  String get ajouterUneQuestion => 'Add a question';
+
+  @override
+  String get modifierLaQuestion => 'Edit the question';
+
+  @override
+  String get libelleDeLaQuestion => 'Question';
+
+  @override
+  String get typeDeReponse => 'Answer type';
+
+  @override
+  String get reponseTexte => 'Short text';
+
+  @override
+  String get reponseLongue => 'Long text';
+
+  @override
+  String get reponseTelephone => 'Phone';
+
+  @override
+  String get reponseChoix => 'List of choices';
+
+  @override
+  String get reponseCase => 'Checkbox';
+
+  @override
+  String get reponseObligatoire => 'Answer required';
+
+  @override
+  String get choixUnParLigne => 'Choices, one per line';
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -91,11 +92,34 @@ class ClientAPI {
     await _appeler(methode, chemin, corps: corps);
   }
 
+  /// Raw bytes of a response (an image, say), with the same auth and refresh as the rest.
+  Future<Uint8List> obtenirDesOctets(String chemin) async =>
+      (await _appelerBrut('GET', chemin)).bodyBytes;
+
+  /// Sends one file as `multipart/form-data` under [champ]. For routes answering 204.
+  Future<void> televerser(
+    String chemin, {
+    required String champ,
+    required Uint8List octets,
+    required String nomDeFichier,
+  }) async {
+    await _appelerBrut('POST', chemin, fichier: (champ, octets, nomDeFichier));
+  }
+
   Future<String> _appeler(
     String methode,
     String chemin, {
     Map<String, String> requete = const {},
     Object? corps,
+  }) async =>
+      (await _appelerBrut(methode, chemin, requete: requete, corps: corps)).body;
+
+  Future<http.Response> _appelerBrut(
+    String methode,
+    String chemin, {
+    Map<String, String> requete = const {},
+    Object? corps,
+    (String, Uint8List, String)? fichier,
     bool dejaRafraichi = false,
   }) async {
     final url = base.replace(
@@ -109,8 +133,18 @@ class ClientAPI {
       'x-organization-id': ?_organisation,
     };
 
-    final requeteHttp = http.Request(methode, url)..headers.addAll(entetes);
-    if (corps != null) requeteHttp.body = jsonEncode(corps);
+    // Rebuilt on every attempt: a request, once sent, cannot be sent again after a refresh.
+    final http.BaseRequest requeteHttp;
+    if (fichier != null) {
+      final (champ, octets, nom) = fichier;
+      requeteHttp = http.MultipartRequest(methode, url)
+        ..headers.addAll(entetes)
+        ..files.add(http.MultipartFile.fromBytes(champ, octets, filename: nom));
+    } else {
+      final simple = http.Request(methode, url)..headers.addAll(entetes);
+      if (corps != null) simple.body = jsonEncode(corps);
+      requeteHttp = simple;
+    }
 
     final http.Response reponse;
     try {
@@ -122,8 +156,8 @@ class ClientAPI {
 
     if (reponse.statusCode == 401 && !dejaRafraichi && _jetons != null) {
       if (await _rafraichir()) {
-        return _appeler(methode, chemin,
-            requete: requete, corps: corps, dejaRafraichi: true);
+        return _appelerBrut(methode, chemin,
+            requete: requete, corps: corps, fichier: fichier, dejaRafraichi: true);
       }
     }
 
@@ -134,7 +168,7 @@ class ClientAPI {
         details: _detailsDErreur(reponse),
       );
     }
-    return reponse.body;
+    return reponse;
   }
 
   /// Échange le jeton de rafraîchissement contre une paire neuve.
