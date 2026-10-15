@@ -238,6 +238,25 @@ Campagne du 2026-10-15, `flutter test integration_test/macos_test.dart -d macos`
 | Le trousseau accepte une phrase sous contrainte matérielle | `retenir` rend `true` — donc le groupe d'accès est accordé —, et l'interrogation de présence répond en moins de trois secondes, donc sans invite |
 | Les écrans en clair et en sombre, en français et en anglais, en petite et en grande fenêtre | Huit captures, extraites par `tools/macos/extraire-captures.py` |
 
+La fenêtre et les menus ont été interrogés sur l'application **lancée**, par
+`System Events` — un témoin Flutter dimensionne la vue, pas la fenêtre d'AppKit, et ne
+peut donc rien dire de la taille minimale :
+
+```
+$ osascript -e '… get {name of window 1, size of window 1}'
+GhostCal, 1100, 792                    # l'ouverture par défaut : 1100 × 760 + la barre de titre
+
+$ osascript -e '… set size of window 1 to {400, 300}'
+$ osascript -e '… get size of window 1'
+720, 592                               # le plancher tient : 720 × 560 + la barre de titre
+
+$ osascript -e '… get name of menu bar items of menu bar 1'
+Apple, GhostCal, Édition, Présentation, Fenêtre, Aide
+
+$ osascript -e '… get name of menu items of menu 1 of menu bar item 2 …'
+À propos de GhostCal, …, Réglages…, …, Masquer GhostCal, …, Quitter GhostCal, …
+```
+
 Le cœur Rust compile pour les deux architectures de macOS, et le paquet livré les porte
 toutes les deux :
 
@@ -264,11 +283,6 @@ autour de l'invite, eux, sont bien dans les deux langues (capture
 **Le choix de la photo par le panneau du système.** `NSOpenPanel` n'est pas pilotable
 depuis un témoin. Ce qui est éprouvé, c'est tout ce qui suit le choix — y compris le
 ré-encodage, qui est la partie que macOS cassait.
-
-**La taille minimale de fenêtre**, posée dans `MainFlutterWindow.swift`, n'est pas
-mesurée : un témoin Flutter dimensionne la vue, pas la fenêtre d'AppKit. Les captures sont
-prises aux tailles voulues ; que macOS refuse d'aller en dessous reste à constater en
-tirant un coin.
 
 **La notarisation**, évidemment : elle demande le certificat qui manque, et elle envoie
 chez Apple.
