@@ -17,6 +17,7 @@ LOCATION_TYPES: tuple[str, ...] = (
     "google_meet",
     "ms_teams",
     "zoom",
+    "kmeet",
     "in_person",
     "phone",
     "custom",

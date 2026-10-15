@@ -17,6 +17,7 @@ const LOCATION_LABELS: Record<string, string> = {
   google_meet: "Google Meet",
   ms_teams: "Microsoft Teams",
   zoom: "Zoom",
+  kmeet: "kMeet (Infomaniak)",
   in_person: "In person",
   phone: "Phone",
   custom: "Custom",

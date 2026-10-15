@@ -40,6 +40,7 @@ _LOCATION_LABELS = {
     "google_meet": ("Google Meet", "Google Meet"),
     "ms_teams": ("Microsoft Teams", "Microsoft Teams"),
     "zoom": ("Zoom", "Zoom"),
+    "kmeet": ("kMeet (Infomaniak)", "kMeet (Infomaniak)"),
     "in_person": ("En personne", "In person"),
     "phone": ("Téléphone", "Phone"),
     "custom": ("Autre", "Custom"),
@@ -82,7 +83,10 @@ def build_ics(conf: BookingConfirmation) -> str:
         f"DTEND:{_ics_dt(conf.end_at)}",
         f"SUMMARY:{_ics(conf.event_title)} with {_ics(conf.host_name)}",
         f"DESCRIPTION:{_ics(conf.event_title)} ({_location_label(conf.location_type)})",
-        f"LOCATION:{_location_label(conf.location_type)}",
+        # A generated room is where the meeting happens: calendar apps turn LOCATION and URL into
+        # a join button.
+        f"LOCATION:{_ics(conf.meeting_url or _location_label(conf.location_type))}",
+        *((f"URL:{conf.meeting_url}",) if conf.meeting_url else ()),
         f"ORGANIZER;CN={_ics(conf.host_name)}:mailto:{conf.host_email}",
         _attendee_line(conf.invitee_name, conf.invitee_email),
         *(f"ATTENDEE:mailto:{guest}" for guest in conf.guest_emails),
@@ -135,6 +139,7 @@ def _confirmation_html(
         f"Avec : {_h(counterpart)}<br>"
         f"Quand : {bi.when_fr(conf.start_at, timezone)}<br>"
         f"Où : {_location_fr(conf.location_type)}</p>"
+        f"{_join_block(conf.meeting_url, fr=True)}"
         f"<p>L'invitation pour votre agenda est jointe.</p>"
         f"{_manage_block(manage_url, fr=True)}"
     )
@@ -144,6 +149,7 @@ def _confirmation_html(
         f"With: {_h(counterpart)}<br>"
         f"When: {bi.when_en(conf.start_at, timezone)}<br>"
         f"Where: {_location_label(conf.location_type)}</p>"
+        f"{_join_block(conf.meeting_url, fr=False)}"
         f"<p>The calendar invite is attached.</p>"
         f"{_manage_block(manage_url, fr=False)}"
     )

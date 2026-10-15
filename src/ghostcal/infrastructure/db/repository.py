@@ -393,6 +393,7 @@ class SqlSchedulingRepository:
         invitee_private: str | None = None,
         blocks_host: bool = True,
         max_at_slot: int | None = None,
+        meeting_url: str | None = None,
     ) -> uuid.UUID:
         # Serialize concurrent attempts on the same (host, slot) so the loser gets a clean
         # SlotUnavailable instead of racing on the constraint. The EXCLUDE constraint remains the
@@ -433,6 +434,7 @@ class SqlSchedulingRepository:
                     guest_emails=list(guest_emails),
                     invitee_private=invitee_private,
                     blocks_host=blocks_host,
+                    meeting_url=meeting_url,
                 )
                 .returning(models.Booking.id)
             )
@@ -452,6 +454,7 @@ class SqlSchedulingRepository:
         invitee_timezone: str,
         guest_emails: tuple[str, ...] = (),
         invitee_private: str | None = None,
+        meeting_url: str | None = None,
     ) -> uuid.UUID:
         group_id = uuid.uuid4()
         # Lock every host/slot (sorted, to avoid deadlocks between concurrent collective bookings).
@@ -479,6 +482,7 @@ class SqlSchedulingRepository:
                             guest_emails=list(guest_emails),
                             invitee_private=invitee_private,
                             collective_group_id=group_id,
+                            meeting_url=meeting_url,
                         )
                         .returning(models.Booking.id)
                     )

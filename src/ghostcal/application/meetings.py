@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from urllib.parse import urlsplit
 
+from ghostcal.application.meeting_rooms import new_room_url
+
 
 class MeetingNotFound(Exception):
     pass
@@ -96,3 +98,14 @@ async def share_meeting_link(
     if updated is None:
         raise MeetingNotFound(str(booking_id))
     return updated
+
+
+async def share_generated_room(
+    repo: MeetingsRepository, booking_id: uuid.UUID, host_id: uuid.UUID, location_type: str
+) -> BookingSummary:
+    """Create a fresh room with a provider that needs no account (kMeet) and share it like a
+    pasted link. Raise ``InvalidMeetingUrl`` for a provider GhostCal cannot generate rooms for."""
+    url = new_room_url(location_type)
+    if url is None:
+        raise InvalidMeetingUrl(location_type)
+    return await share_meeting_link(repo, booking_id, host_id, url)
