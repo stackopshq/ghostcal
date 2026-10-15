@@ -17,9 +17,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ghostcal.application.mirror import mirror_booking
-from ghostcal.application.notifications import send_booking_confirmation
+from ghostcal.application.notifications import send_already_booked, send_booking_confirmation
 from ghostcal.application.ports.clock import SystemClock
 from ghostcal.application.scheduling import (
+    AlreadyBooked,
     BookingConfirmation,
     BookingRequest,
     EventTypeNotFound,
@@ -207,6 +208,7 @@ async def create_booking_endpoint(org_id: OrgId, event_slug: str, payload: Booki
     async with org_session(org_id) as session:
         repo = _repo(session, org_id)
         event_type_id = await _event_type_id(repo, event_slug)
+        already: AlreadyBooked | None = None
         request = BookingRequest(
             event_type_id=event_type_id,
             start_at=payload.start_at,
@@ -224,6 +226,22 @@ async def create_booking_endpoint(org_id: OrgId, event_slug: str, payload: Booki
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except SlotUnavailable as exc:
             raise HTTPException(status_code=409, detail="slot is no longer available") from exc
+        except AlreadyBooked as exc:
+            already = exc
+
+    if already is not None:
+        try:
+            await send_already_booked(
+                _mailer,
+                invitee_email=payload.invitee_email,
+                invitee_timezone=payload.invitee_timezone,
+                event_title=already.event_title,
+                start_at=already.start_at,
+                manage_url=_manage_url(already.booking_id, org_id),
+            )
+        except Exception:
+            _logger.exception("failed to send the existing booking %s", already.booking_id)
+        raise HTTPException(status_code=409, detail="already_booked")
 
     # Best-effort, after commit: neither emailing nor calendar write-back may undo a booking.
     try:

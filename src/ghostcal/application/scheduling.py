@@ -39,6 +39,20 @@ class OrganizationNotFound(SchedulingError):
     pass
 
 
+class AlreadyBooked(SchedulingError):
+    """The invitee already holds an upcoming booking of this event type.
+
+    Booking the slot next to it instead of moving it turned a 30-minute meeting into an hour
+    (2026-10-15). The invitee is sent back to their existing booking to reschedule it.
+    """
+
+    def __init__(self, booking_id: uuid.UUID, start_at: datetime, event_title: str) -> None:
+        super().__init__(str(booking_id))
+        self.booking_id = booking_id
+        self.start_at = start_at
+        self.event_title = event_title
+
+
 class InvalidBookingInput(SchedulingError):
     """Required custom questions are unanswered, or guest input is invalid."""
 
@@ -171,6 +185,12 @@ class SchedulingRepository(Protocol):
 
     async def slot_booking_counts(self, event_type_id: uuid.UUID) -> dict[datetime, int]:
         """Confirmed-booking counts per start time for an event type (group capacity)."""
+        ...
+
+    async def upcoming_booking_of(
+        self, event_type_id: uuid.UUID, invitee_email: str, now: datetime
+    ) -> tuple[uuid.UUID, datetime] | None:
+        """The invitee's confirmed booking of this event type still to come, if any."""
         ...
 
     async def insert_booking(
@@ -344,6 +364,9 @@ async def create_booking(
     guests = _clean_guests(request.guest_emails)
 
     now = clock.now()
+    existing = await repo.upcoming_booking_of(request.event_type_id, request.invitee_email, now)
+    if existing is not None:
+        raise AlreadyBooked(existing[0], existing[1], context.title)
     # Re-validate against freshly computed availability: each host must still offer the slot. The
     # DB exclusion constraint is the final guard against races.
     candidates: list[HostRef] = []

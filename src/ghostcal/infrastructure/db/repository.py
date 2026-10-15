@@ -335,6 +335,28 @@ class SqlSchedulingRepository:
             loads[host_id] = count
         return loads
 
+    async def upcoming_booking_of(
+        self, event_type_id: uuid.UUID, invitee_email: str, now: datetime
+    ) -> tuple[uuid.UUID, datetime] | None:
+        # invitee_email is encrypted with a random nonce, so SQL cannot compare it: the few
+        # upcoming bookings of one event type are decrypted and compared here.
+        rows = (
+            await self._session.execute(
+                select(models.Booking.id, models.Booking.start_at, models.Booking.invitee_email)
+                .where(
+                    models.Booking.event_type_id == event_type_id,
+                    models.Booking.status == "confirmed",
+                    models.Booking.start_at > now,
+                )
+                .order_by(models.Booking.start_at)
+            )
+        ).all()
+        wanted = invitee_email.strip().lower()
+        for booking_id, start_at, email in rows:
+            if email.strip().lower() == wanted:
+                return booking_id, start_at
+        return None
+
     async def slot_booking_counts(self, event_type_id: uuid.UUID) -> dict[datetime, int]:
         rows = (
             await self._session.execute(

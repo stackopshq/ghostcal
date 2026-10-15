@@ -485,3 +485,34 @@ async def send_booking_cancellation(
             f"<p>You can book another time if you still need to meet.</p>",
         ),
     )
+
+
+async def send_already_booked(
+    mailer: EmailSender,
+    *,
+    invitee_email: str,
+    invitee_timezone: str,
+    event_title: str,
+    start_at: datetime,
+    manage_url: str,
+) -> None:
+    """Sent when someone tries to book a second slot while one is still to come: the link to
+    move the existing one goes to the mailbox, never to the page, so typing someone else's
+    address reveals no way to change their meeting."""
+    await mailer.send(
+        to=invitee_email,
+        subject=bi.subject(
+            f"Vous avez déjà un rendez-vous : {event_title}",
+            f"You already have a booking: {event_title}",
+        ),
+        html=bi.body(
+            f"<p>Vous avez déjà un rendez-vous <strong>{_h(event_title)}</strong> le "
+            f"{bi.when_fr(start_at, invitee_timezone)}.</p>"
+            f"<p>Pour changer d'horaire, déplacez-le plutôt que d'en réserver un second.</p>"
+            f"{_button(manage_url, 'Déplacer ou annuler')}",
+            f"<p>You already have a <strong>{_h(event_title)}</strong> booking on "
+            f"{bi.when_en(start_at, invitee_timezone)}.</p>"
+            f"<p>To change the time, move it instead of booking a second one.</p>"
+            f"{_button(manage_url, 'Reschedule or cancel')}",
+        ),
+    )

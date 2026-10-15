@@ -319,3 +319,36 @@ async def test_someone_elses_calendar_does_not_occupy_you(
         repo = SqlSchedulingRepository(session, org)
         slots = await get_availability(repo, CLOCK, event_type_id=event, from_date=DAY, to_date=DAY)
     assert FIRST_SLOT in {slot.start for slot in slots}
+
+
+async def test_second_upcoming_booking_by_same_invitee_is_refused(
+    bookable: dict[str, uuid.UUID],
+) -> None:
+    """Booking the slot next to one's own meeting instead of moving it is refused."""
+    from ghostcal.application.scheduling import AlreadyBooked
+
+    org, event = bookable["org"], bookable["event"]
+    second = FIRST_SLOT + timedelta(minutes=30)
+    async with org_session(org) as session:
+        first = await create_booking(
+            _repo(session, org),
+            CLOCK,
+            BookingRequest(event, second, None, "Same@Example.test", "UTC"),
+        )
+
+    with pytest.raises(AlreadyBooked) as refused:
+        async with org_session(org) as session:
+            await create_booking(
+                _repo(session, org),
+                CLOCK,
+                BookingRequest(event, FIRST_SLOT, None, "same@example.test ", "UTC"),
+            )
+    assert refused.value.booking_id == first.booking_id
+
+    # Someone else still books the free slot.
+    async with org_session(org) as session:
+        await create_booking(
+            _repo(session, org),
+            CLOCK,
+            BookingRequest(event, FIRST_SLOT, None, "other@example.test", "UTC"),
+        )
