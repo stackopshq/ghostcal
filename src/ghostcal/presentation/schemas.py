@@ -772,8 +772,17 @@ class RescheduleIn(BaseModel):
 
 
 class MeetingLinkIn(BaseModel):
+    """Either a link the host pasted, or a provider GhostCal generates the room for."""
+
     # Validated (https only) by the use case, which owns the rule; this bound only caps the body.
-    url: str = Field(max_length=4096)
+    url: str | None = Field(default=None, max_length=4096)
+    provider: Literal["kmeet"] | None = None
+
+    @model_validator(mode="after")
+    def _exactly_one(self) -> MeetingLinkIn:
+        if (self.url is None) == (self.provider is None):
+            raise ValueError("send either url or provider")
+        return self
 
 
 # --- Calendar (zero-knowledge personal calendar, ADR-0004) ----------------------------------------

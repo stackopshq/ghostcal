@@ -37,3 +37,20 @@ export function shareMeetingLink(id: string, url: string): Promise<Meeting> {
     body: JSON.stringify({ url }),
   });
 }
+
+/** Video services GhostCal can create a room with, without any account. */
+export type RoomProvider = "kmeet";
+
+export const KMEET_ROOM_PREFIX = "https://kmeet.infomaniak.com/";
+
+/** Create a fresh room with ``provider`` for the meeting and email it, like a pasted link. */
+export function generateMeetingRoom(
+  id: string,
+  provider: RoomProvider,
+): Promise<Meeting> {
+  return authedFetch<Meeting>(`/v1/me/meetings/${id}/meeting-link`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider }),
+  });
+}
