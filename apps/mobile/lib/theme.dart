@@ -121,6 +121,21 @@ class Mesures {
   /// s'arrêterait net au milieu de l'écran — et la barre d'onglets aussi, sinon la
   /// navigation rétrécirait avec lui.
   static const largeurMaximale = 560.0;
+
+  /// La même borne, pour **l'agenda**, qui est l'écran contraire de tous les autres.
+  ///
+  /// 560 existe parce qu'un champ de saisie étiré sur une dalle n'est plus un champ. Une
+  /// grille de semaine ne souffre pas de ce mal : elle souffre de l'inverse. Sept colonnes
+  /// derrière une gouttière de 52 points, c'est 72 points par jour à 560 — de quoi écrire
+  /// « Point … » et rien d'autre, ce que la vue compense aujourd'hui en descendant le
+  /// texte à 9,5 points. À 1100, chaque jour a 150 points, et le titre tient avec son
+  /// horaire en dessous.
+  ///
+  /// Ce n'est pas une valeur « de bureau » et il n'y a pas de test de plateforme : sur un
+  /// téléphone la fenêtre fait moins de 560 et aucune des deux bornes ne mord ; sur un
+  /// iPad en paysage, la semaine gagne la même lisibilité que sur un Mac, pour la même
+  /// raison. La borne suit ce que l'écran **est**, pas la machine qui l'affiche.
+  static const largeurDeLAgenda = 1100.0;
 }
 
 /// Borne la largeur du contenu et le centre, sans toucher à ce qui l'entoure.
@@ -128,14 +143,17 @@ class Mesures {
 /// À poser autour de ce qu'on lit, jamais autour du `Scaffold` : la barre d'onglets et le
 /// dégradé de `FondGhost` doivent rester plein cadre.
 class ContenuBorne extends StatelessWidget {
-  const ContenuBorne({super.key, required this.child});
+  const ContenuBorne({super.key, required this.child, this.largeur = Mesures.largeurMaximale});
 
   final Widget child;
+
+  /// La borne, quand ce n'est pas celle d'un formulaire — voir [Mesures.largeurDeLAgenda].
+  final double largeur;
 
   @override
   Widget build(BuildContext context) => Center(
     child: ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: Mesures.largeurMaximale),
+      constraints: BoxConstraints(maxWidth: largeur),
       child: child,
     ),
   );
