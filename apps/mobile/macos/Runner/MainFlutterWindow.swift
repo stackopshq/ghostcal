@@ -16,9 +16,14 @@ class MainFlutterWindow: NSWindow {
   ///   centaine de points par colonne, un titre de rendez-vous ne tient plus sur un mot.
   ///   720 laisse 95 points par jour, et la barre d'onglets ses cinq libellés entiers.
   ///
-  /// · **560 de haut** — la carte de verre de l'écran d'entrée, enseigne comprise, plus
-  ///   ses marges. C'est le seul écran dont la hauteur ne se fait pas par défilement :
-  ///   plus court, le bouton « Déverrouiller » passe sous le bord.
+  /// · **560 de haut** — l'écran d'entrée y montre son enseigne, les deux champs et le
+  ///   bouton « Déverrouiller » ; la ligne Touch ID passe sous le bord, et c'est sans
+  ///   conséquence, la carte défilant. L'agenda, lui, garde quatre heures de grille
+  ///   au-dessus de la barre d'onglets — relevé sur la capture
+  ///   `05-agenda-en-sombre-petite`, qui est prise à cette taille exacte.
+  ///
+  ///   Un minimum est un plancher, pas une taille confortable : il doit interdire
+  ///   l'illisible, pas imposer l'agréable. L'ouverture par défaut, plus bas, s'en charge.
   static let tailleMinimale = NSSize(width: 720, height: 560)
 
   /// L'ouverture par défaut. Plus grande que le minimum : une fenêtre qui s'ouvre à sa
