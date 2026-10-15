@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/session.dart';
+import '../services/apparence.dart';
 import '../services/verrouillage.dart';
 import '../theme.dart';
 import 'agenda.dart';
@@ -20,10 +21,12 @@ class EcranDAccueil extends StatefulWidget {
     super.key,
     required this.session,
     required this.verrouillage,
+    this.apparence,
   });
 
   final Session session;
   final Verrouillage verrouillage;
+  final Apparence? apparence;
 
   @override
   State<EcranDAccueil> createState() => _EcranDAccueilState();
@@ -89,6 +92,7 @@ class _EcranDAccueilState extends State<EcranDAccueil>
               EcranDeReglages(
                 session: widget.session,
                 verrouillage: widget.verrouillage,
+                apparence: widget.apparence,
               ),
             ],
           ),

@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../services/erreurs.dart';
 import '../services/agenda.dart';
+import '../services/apparence.dart';
 import '../services/biometrie.dart';
 import '../services/reglages.dart' as service;
 import '../services/session.dart';
 import '../services/verrouillage.dart' as v;
+import '../outils/dates.dart';
 import '../theme.dart';
 import 'equipe.dart';
+import 'horaire.dart';
 import 'profil.dart';
 import 'sondages.dart';
 import '../l10n/generated/app_localisations.dart';
@@ -21,10 +25,14 @@ class EcranDeReglages extends StatefulWidget {
     required this.session,
     required this.verrouillage,
     this.biometrie,
+    this.apparence,
   });
 
   final Session session;
   final v.Verrouillage verrouillage;
+
+  /// Language and theme; the section is hidden when absent (tests without a keychain).
+  final Apparence? apparence;
 
   /// Le magasin scellé, injectable pour les témoins — même couture que
   /// [EcranDeConnexion]. Sans elle, le retrait du sceau ne serait vérifiable que sur un
@@ -65,6 +73,14 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
     _relireLeSceau();
   }
 
+  // Removing the seal may open the sealed store on Android, hence prompt: the prompt must
+  // carry the app's strings, not the plugin's English defaults.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _biometrie.invites = InvitesBiometriques.depuis(L.of(context));
+  }
+
   /// Relit l'état du sceau **sans** déclencher la biométrie : `sceau()` interroge la
   /// présence, pas la valeur. Ouvrir les réglages ne doit pas demander un visage.
   Future<void> _relireLeSceau() async {
@@ -100,7 +116,7 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
         });
       }
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
   }
 
@@ -126,9 +142,9 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
               padding: const EdgeInsets.all(16),
               child: Text(_erreur!, style: TextStyle(color: gc.danger)),
             ),
-          _titre(gc, 'Compte'),
+          _titre(gc, L.of(context).compte),
           ListTile(
-            title: const Text('Profil'),
+            title: Text(L.of(context).profil),
             subtitle: Text(session.email, style: TextStyle(color: gc.estompe)),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push<void>(MaterialPageRoute(
@@ -136,9 +152,10 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
             )),
           ),
           ListTile(
-            title: const Text('Serveur'),
+            title: Text(L.of(context).serveur),
             subtitle: Text(session.serveur, style: TextStyle(color: gc.estompe)),
           ),
+          if (widget.apparence case final apparence?) ..._sectionApparence(gc, apparence),
           _titre(gc, L.of(context).securite),
           // Le délai décide aussi de l'apparition du cadenas dans la barre de l'agenda :
           // à « immédiatement », quitter l'application referme déjà, et le bouton ferait
@@ -170,7 +187,7 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
             onTap: session.verrouiller,
           ),
           _ligneDuSceau(gc),
-          _titre(gc, 'Organisation'),
+          _titre(gc, L.of(context).organisation),
           if (_organisations == null)
             const Padding(
               padding: EdgeInsets.all(16),
@@ -189,8 +206,9 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
                       title: Text(o.nom),
                       subtitle: Text(
                         ouvertes.contains(o.id)
-                            ? o.role
-                            : L.of(context).coffreFermePourOrganisation(o.role),
+                            ? service.libelleDuRole(o.role, L.of(context))
+                            : L.of(context).coffreFermePourOrganisation(
+                                service.libelleDuRole(o.role, L.of(context))),
                         style: TextStyle(
                           color: ouvertes.contains(o.id) ? gc.estompe : gc.danger,
                           fontSize: 12,
@@ -205,11 +223,13 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
             const Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator())
           else if (_horaires!.isEmpty)
             ListTile(
-              title: Text(L.of(context).aucunHoraire, style: TextStyle(color: gc.estompe)),
+              leading: const Icon(Icons.add),
+              title: Text(L.of(context).definirMesDisponibilites),
               subtitle: Text(
-                L.of(context).horairesDepuisLeWeb,
+                L.of(context).disponibilitesExplication,
                 style: TextStyle(color: gc.estompe, fontSize: 12),
               ),
+              onTap: () => _ouvrirLHoraire(null),
             )
           else
             for (final horaire in _horaires!)
@@ -219,11 +239,13 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
                   _resume(context, horaire),
                   style: TextStyle(color: gc.estompe, fontSize: 12),
                 ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _ouvrirLHoraire(horaire.id),
               ),
-          _titre(gc, 'Collaboration'),
+          _titre(gc, L.of(context).collaboration),
           ListTile(
             leading: const Icon(Icons.how_to_vote_outlined),
-            title: const Text('Sondages'),
+            title: Text(L.of(context).sondages),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push<void>(MaterialPageRoute(
               builder: (_) => EcranDeSondages(session: session),
@@ -316,6 +338,15 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
     );
   }
 
+  Future<void> _ouvrirLHoraire(String? id) async {
+    final api = widget.session.api;
+    if (api == null) return;
+    final modifie = await Navigator.of(context).push<bool>(MaterialPageRoute(
+      builder: (_) => EcranDHoraire(service: service.Reglages(api: api), id: id),
+    ));
+    if (modifie == true) await _charger();
+  }
+
   /// Le résumé d'un horaire : les jours qu'il couvre.
   ///
   /// Le nom du jour vient de `RegleDHoraire.jour`, qui **refuse** une valeur hors bornes
@@ -323,9 +354,50 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
   /// valeur fausse présentée avec l'assurance d'une vraie.
   String _resume(BuildContext context, service.Horaire horaire) {
     if (horaire.regles.isEmpty) return L.of(context).aucunePlage(horaire.fuseau);
-    final jours = <String>{for (final regle in horaire.regles) regle.jour};
+    final regles = [...horaire.regles]..sort((a, b) => a.jourServeur.compareTo(b.jourServeur));
+    final jours = <String>{for (final regle in regles) regle.jour(langueDesDates(context))};
     return '${jours.join(', ')} · ${horaire.fuseau}';
   }
+
+  List<Widget> _sectionApparence(Gc gc, Apparence apparence) => [
+        _titre(gc, L.of(context).apparence),
+        ListTile(
+          leading: const Icon(Icons.language),
+          title: Text(L.of(context).langue),
+          trailing: DropdownButton<ChoixDeLangue>(
+            key: const Key('reglage.langue'),
+            value: apparence.langue,
+            underline: const SizedBox.shrink(),
+            onChanged: (valeur) async {
+              if (valeur == null) return;
+              await apparence.choisirLaLangue(valeur);
+              if (mounted) setState(() {});
+            },
+            items: [
+              for (final choix in ChoixDeLangue.values)
+                DropdownMenuItem(value: choix, child: Text(choix.libelle(L.of(context)))),
+            ],
+          ),
+        ),
+        ListTile(
+          leading: const Icon(Icons.contrast),
+          title: Text(L.of(context).theme),
+          trailing: DropdownButton<ChoixDeTheme>(
+            key: const Key('reglage.theme'),
+            value: apparence.theme,
+            underline: const SizedBox.shrink(),
+            onChanged: (valeur) async {
+              if (valeur == null) return;
+              await apparence.choisirLeTheme(valeur);
+              if (mounted) setState(() {});
+            },
+            items: [
+              for (final choix in ChoixDeTheme.values)
+                DropdownMenuItem(value: choix, child: Text(choix.libelle(L.of(context)))),
+            ],
+          ),
+        ),
+      ];
 
   Widget _titre(Gc gc, String texte) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),

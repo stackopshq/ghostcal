@@ -143,7 +143,7 @@ class Auth {
   /// répondu 401 » sur un mot de passe pourtant bon, et rien ne disait qu'il
   /// fallait un code. Le serveur porte `mfa_required` depuis que le TOTP est
   /// arrivé sur `main` ; le mobile, lui, ne le connaissait pas du tout.
-  Future<String?> seConnecter({
+  Future<ErreurDAuth?> seConnecter({
     required String email,
     required String motDePasse,
     String? codeTotp,
@@ -176,7 +176,26 @@ class Auth {
       return null;
     } on ErreurDAuth catch (e) {
       // Connecté sans coffre ouvert : on le dit, on ne défait pas la connexion.
-      return e.message;
+      return e;
+    }
+  }
+
+  /// Revokes the refresh token on the server.
+  ///
+  /// Signing out used to forget the tokens on the device only: the refresh token stayed
+  /// valid server-side until it expired, so a copy taken from the device kept working.
+  /// Best effort: an unreachable server must not keep someone signed in on this device.
+  Future<void> revoquer() async {
+    final jetons = api.jetons;
+    if (jetons == null) return;
+    try {
+      await api.envoyerSansReponse(
+        'POST',
+        'v1/auth/logout',
+        {'refresh_token': jetons.rafraichissement},
+      );
+    } on Object {
+      // Offline or already revoked: the local sign-out below still happens.
     }
   }
 
@@ -218,7 +237,7 @@ class Auth {
       try {
         final cle = await coeur.deriverCle(phrase: phrase, sel: sel);
         final octets = await coeur.dechiffrerSymetrique(cle: cle, blob: enveloppe);
-        privee = utf8.decode(octets);
+        privee = clePriveeDepuisEnveloppe(octets);
       } on Object {
         // Une enveloppe que cette phrase n'ouvre pas : c'est le cas courant quand on a
         // plusieurs organisations et qu'on tape la phrase de l'une d'elles.
@@ -280,3 +299,13 @@ class Auth {
     return null;
   }
 }
+
+/// The organization private key (base64 PKCS#8) from what its envelope holds.
+///
+/// Two writers disagree. The web wraps the **raw PKCS#8 bytes** (48 bytes for X25519,
+/// starting with the DER sequence tag 0x30) and base64-encodes them after unwrapping;
+/// the Rust bench tool wraps the **base64 text**. Reading only the text form refused
+/// every account created on the web with "this passphrase does not open the vault".
+String clePriveeDepuisEnveloppe(List<int> octets) =>
+    octets.length == 48 && octets.first == 0x30 ? base64Encode(octets) : utf8.decode(octets);
+

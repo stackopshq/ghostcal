@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../services/erreurs.dart';
 import '../services/agenda.dart';
 import '../services/session.dart';
+import '../outils/dates.dart';
+import '../outils/saisie_rapide.dart';
 import '../theme.dart';
 import '../l10n/generated/app_localisations.dart';
 
@@ -17,7 +20,12 @@ class EcranDeNouvelEvenement extends StatefulWidget {
     required this.calendriers,
     required this.jour,
     this.evenement,
+    this.debut,
   });
+
+  /// The start picked by tapping an empty slot in the day or week grid; 09:00 on
+  /// [jour] otherwise.
+  final DateTime? debut;
 
   final Session session;
   final List<Calendrier> calendriers;
@@ -50,7 +58,7 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
   void initState() {
     super.initState();
     final j = widget.jour;
-    _debut = DateTime(j.year, j.month, j.day, 9);
+    _debut = widget.debut ?? DateTime(j.year, j.month, j.day, 9);
     _fin = _debut.add(const Duration(hours: 1));
     _calendrier = widget.calendriers
         .where((c) => c.parDefaut)
@@ -93,7 +101,10 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
       if (!mounted) return;
       setState(() {
         _debut = detail.debut;
-        _fin = detail.fin;
+        // The form shows the last day included; the server stores an exclusive end.
+        _fin = detail.journeeEntiere
+            ? Agenda.dernierJourInclus(detail.debut, detail.fin)
+            : detail.fin;
         _journeeEntiere = detail.journeeEntiere;
         _calendrier = detail.calendrier;
         _fuseau = detail.fuseau;
@@ -107,10 +118,27 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
         }
       });
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     } finally {
       if (mounted) setState(() => _chargement = false);
     }
+  }
+
+  /// Fills the form from a quick-entry sentence. What was not recognised is left
+  /// as it was, so the sentence never erases a date the user picked by hand.
+  void _appliquerLaSaisie(String texte) {
+    final r = analyserLaSaisie(texte);
+    setState(() {
+      _titre.text = r.titre;
+      if (r.lieu.isNotEmpty) _lieu.text = r.lieu;
+      final debut = r.debut;
+      final fin = r.fin;
+      if (debut != null && fin != null) {
+        _journeeEntiere = r.journeeEntiere;
+        _debut = debut;
+        _fin = r.journeeEntiere ? debut : fin;
+      }
+    });
   }
 
   bool get _illisible =>
@@ -157,7 +185,7 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
       }
       if (mounted) Navigator.of(context).pop(true);
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     } finally {
       if (mounted) setState(() => _occupe = false);
     }
@@ -189,7 +217,7 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
       await agenda.supprimerUnEvenement(widget.evenement!);
       if (mounted) Navigator.of(context).pop(true);
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     } finally {
       if (mounted) setState(() => _occupe = false);
     }
@@ -244,6 +272,22 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
                         style: TextStyle(color: gc.danger, fontSize: 13),
                       ),
                       const SizedBox(height: 14),
+                    ],
+                    // Fantastical-style quick entry, creation only: typing a sentence
+                    // fills the form below, which stays editable.
+                    if (!_modification) ...[
+                      TextField(
+                        key: const Key('saisie.rapide'),
+                        autofocus: true,
+                        textCapitalization: TextCapitalization.sentences,
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.auto_awesome),
+                          labelText: L.of(context).saisieRapide,
+                          hintText: L.of(context).saisieRapideExemple,
+                        ),
+                        onChanged: _appliquerLaSaisie,
+                      ),
+                      const SizedBox(height: 16),
                     ],
                     TextField(
                       controller: _titre,
@@ -324,8 +368,8 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
     title: Text(titre, style: TextStyle(color: gc.estompe, fontSize: 12)),
     subtitle: Text(
       _journeeEntiere
-          ? DateFormat.yMMMMd('fr_FR').format(valeur)
-          : DateFormat.yMMMMd('fr_FR').add_Hm().format(valeur),
+          ? DateFormat.yMMMMd(langueDesDates(context)).format(valeur)
+          : DateFormat.yMMMMd(langueDesDates(context)).add_Hm().format(valeur),
       style: TextStyle(color: gc.encre),
     ),
     trailing: const Icon(Icons.edit_calendar_outlined),

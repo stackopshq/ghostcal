@@ -1,3 +1,10 @@
+import 'dart:convert';
+import 'dart:math';
+import 'dart:typed_data';
+
+import '../src/rust/api/coeur.dart' as coeur;
+import 'package:intl/intl.dart';
+
 import 'api.dart';
 import '../l10n/generated/app_localisations.dart';
 
@@ -23,23 +30,12 @@ class RegleDHoraire {
   final String debut;
   final String fin;
 
-  static const _jours = [
-    'lundi',
-    'mardi',
-    'mercredi',
-    'jeudi',
-    'vendredi',
-    'samedi',
-    'dimanche',
-  ];
-
-  /// Le nom du jour, ou « ? ».
-  ///
-  /// La valeur est vérifiée **avant** la conversion, jamais ramenée par modulo : un
-  /// `weekday` de 42 qui s'afficherait « lundi » serait une valeur fausse présentée avec
-  /// l'assurance d'une vraie. Un point d'interrogation se remarque ; un mauvais jour, non.
-  String get jour =>
-      jourServeur >= 0 && jourServeur < _jours.length ? _jours[jourServeur] : '?';
+  /// The weekday in [langue] ("lundi", "Monday"). It used to be a French constant list,
+  /// so the English interface read "lundi, mardi". 1 January 2024 was a Monday, the
+  /// server's day 0.
+  String jour(String langue) => jourServeur >= 0 && jourServeur < 7
+      ? DateFormat.EEEE(langue).format(DateTime(2024, 1, 1 + jourServeur))
+      : '?';
 }
 
 class Horaire {
@@ -138,10 +134,12 @@ class DetailDeSondage {
     required this.options,
     required this.votants,
     this.optionRetenue,
+    this.slug = '',
   });
 
   factory DetailDeSondage.depuisJson(Map<String, dynamic> j) => DetailDeSondage(
         id: '${j['id']}',
+        slug: '${j['slug'] ?? ''}',
         titre: '${j['title']}',
         duree: (j['duration_min'] as num?)?.toInt() ?? 0,
         statut: '${j['status']}',
@@ -157,6 +155,9 @@ class DetailDeSondage {
       );
 
   final String id;
+
+  /// The public voting page is `/poll/<slug>` on the web app.
+  final String slug;
   final String titre;
   final int duree;
   final String statut;
@@ -222,13 +223,17 @@ class Membre {
   /// « membre » : un serveur plus récent peut en introduire, et taire le rôle de quelqu'un
   /// — ou le présenter comme moins puissant qu'il n'est — serait pire que l'afficher en
   /// anglais.
-  String roleLisible(L l) => switch (role) {
-        'owner' => l.roleProprietaire,
-        'admin' => l.roleAdministrateur,
-        'member' => l.roleMembre,
-        _ => role,
-      };
+  String roleLisible(L l) => libelleDuRole(role, l);
 }
+
+/// [role] as the screen's language says it — shared by the team list and the
+/// organization picker, which used to show the raw value ("owner").
+String libelleDuRole(String role, L l) => switch (role) {
+      'owner' => l.roleProprietaire,
+      'admin' => l.roleAdministrateur,
+      'member' => l.roleMembre,
+      _ => role,
+    };
 
 /// Les écrans de réglage : disponibilités, sondages, profil, équipe.
 ///
@@ -245,6 +250,19 @@ class Reglages {
     return brutes.whereType<Map<String, dynamic>>().map(Horaire.depuisJson).toList();
   }
 
+  /// One schedule as the server stores it; edits start from it so exceptions
+  /// (overrides) set on the web are sent back intact.
+  Future<Map<String, dynamic>> horaire(String id) =>
+      api.obtenir<Map<String, dynamic>>('v1/me/schedules/$id');
+
+  Future<void> creerHoraire(Map<String, dynamic> horaire) =>
+      api.envoyerSansReponse('POST', 'v1/me/schedules', horaire);
+
+  Future<void> enregistrerHoraire(String id, Map<String, dynamic> horaire) {
+    final corps = Map<String, dynamic>.from(horaire)..remove('id');
+    return api.envoyerSansReponse('PUT', 'v1/me/schedules/$id', corps);
+  }
+
   Future<List<Sondage>> sondages() async {
     final brutes = await api.obtenir<List<dynamic>>('v1/me/polls');
     return brutes.whereType<Map<String, dynamic>>().map(Sondage.depuisJson).toList();
@@ -258,6 +276,24 @@ class Reglages {
       DetailDeSondage.depuisJson(
         await api.envoyer('POST', 'v1/me/polls/$id/finalize', {'option_id': option}),
       );
+
+  /// Creates a date poll and returns it; voters answer on `/poll/<slug>`.
+  Future<DetailDeSondage> creerUnSondage({
+    required String titre,
+    required int duree,
+    required String lieu,
+    required List<DateTime> creneaux,
+  }) async =>
+      DetailDeSondage.depuisJson(await api.envoyer('POST', 'v1/me/polls', {
+        'title': titre,
+        'duration_min': duree,
+        'location_type': lieu,
+        'option_starts': [for (final c in creneaux) c.toUtc().toIso8601String()],
+      }));
+
+  /// The public voting link of [sondage] on [site].
+  static Uri lienDuSondage(DetailDeSondage sondage, Uri site) =>
+      site.replace(path: '/poll/${sondage.slug}');
 
   Future<void> annulerLeSondage(String id) =>
       api.envoyerSansReponse('DELETE', 'v1/me/polls/$id');
@@ -302,6 +338,54 @@ class Reglages {
     return brutes.whereType<Map<String, dynamic>>().map(Membre.depuisJson).toList();
   }
 
+  /// Invites [email] into the organization, as the web team page does (ADR-0003).
+  ///
+  /// When the vault is open, the organization private key is sealed under a random
+  /// "grant" key that travels only in the link fragment (`#k=…`), which browsers never
+  /// send to the server: the invitee can then read the team's data, and the server
+  /// still cannot. That secure link is returned for the inviter to share; the email the
+  /// server sends cannot carry it.
+  Future<InvitationCreee> inviter({
+    required String email,
+    required String role,
+    required Uri site,
+    String? clePriveeDeLOrganisation,
+  }) async {
+    String? enveloppe;
+    String? cleDuLien;
+    if (clePriveeDeLOrganisation != null) {
+      final aleatoire = Random.secure();
+      final grant = Uint8List.fromList(List.generate(32, (_) => aleatoire.nextInt(256)));
+      enveloppe = await coeur.chiffrerSymetrique(
+        cle: grant,
+        clair: base64Decode(clePriveeDeLOrganisation),
+      );
+      cleDuLien = base64Url.encode(grant).replaceAll('=', '');
+    }
+    final json = await api.envoyer<Map<String, dynamic>>(
+      'POST',
+      'v1/me/organization/invitations',
+      {'email': email, 'role': role, 'wrapped_org_key': ?enveloppe},
+    );
+    final jeton = json['token'];
+    return InvitationCreee(
+      email: email,
+      lien: jeton is String && cleDuLien != null
+          ? site.replace(path: '/invitations/$jeton', fragment: 'k=$cleDuLien')
+          : null,
+    );
+  }
+
   Future<void> retirerLeMembre(String utilisateur) =>
       api.envoyerSansReponse('DELETE', 'v1/me/organization/members/$utilisateur');
+}
+
+/// An invitation just created, and the secure link to hand over when there is one.
+class InvitationCreee {
+  const InvitationCreee({required this.email, this.lien});
+
+  final String email;
+
+  /// `null` when the vault was closed: the invitee joins but must get the key later.
+  final Uri? lien;
 }

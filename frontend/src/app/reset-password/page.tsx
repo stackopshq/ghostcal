@@ -63,7 +63,7 @@ export default function ResetPasswordPage() {
       await resetWithRecoveryPhrase(token, bundles, phrase, password);
       router.replace("/login?reason=password-reset");
     } catch {
-      // A wrong phrase fails here, on AES-GCM authentication, before anything is sent. The link is
+      // A wrong phrase fails here, on AEAD authentication, before anything is sent. The link is
       // not spent — reading the envelopes does not consume it — so this is retryable.
       setError(t("reset.wrongPhrase"));
       setSubmitting(false);

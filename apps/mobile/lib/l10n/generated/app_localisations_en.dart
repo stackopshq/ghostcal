@@ -429,8 +429,7 @@ class LEn extends L {
   String get aucunTypeDeRendezVous => 'No booking links.';
 
   @override
-  String get typesCreesDepuisLeWeb =>
-      'They are created from the web: fifteen or so settings that do not sit well under a thumb.';
+  String get typesCreesDepuisLeWeb => 'Create one with the + button.';
 
   @override
   String get ferme => 'closed';
@@ -509,4 +508,326 @@ class LEn extends L {
 
   @override
   String get revenir => 'Back';
+
+  @override
+  String get erreurServeurInjoignable =>
+      'Can\'t reach the server. Check your connection and the server address.';
+
+  @override
+  String get erreurServeurLent =>
+      'The server isn\'t responding. Try again in a moment.';
+
+  @override
+  String get erreurCertificat =>
+      'The secure connection to the server failed: its certificate isn\'t valid.';
+
+  @override
+  String get erreurAdresseInvalide => 'Invalid server address.';
+
+  @override
+  String get erreurSessionExpiree =>
+      'Your session has expired. Please sign in again.';
+
+  @override
+  String get erreurPhraseIncorrecte =>
+      'This passphrase doesn\'t open the vault.';
+
+  @override
+  String get erreurIdentifiants => 'Wrong email address or password.';
+
+  @override
+  String get erreurTropDEssais =>
+      'Too many attempts. Wait a few minutes before trying again.';
+
+  @override
+  String get erreurServeur => 'The server ran into a problem. Try again later.';
+
+  @override
+  String get erreurInattendue => 'Something went wrong. Please try again.';
+
+  @override
+  String get coffreVerrouille =>
+      'The vault is locked. Type your passphrase to open it.';
+
+  @override
+  String erreurStatut(int code) {
+    return 'The server answered $code.';
+  }
+
+  @override
+  String get retenir => 'Choose';
+
+  @override
+  String get retour => 'Back';
+
+  @override
+  String get notes => 'NOTES';
+
+  @override
+  String get votants => 'Voters';
+
+  @override
+  String get compte => 'Account';
+
+  @override
+  String get organisation => 'Organization';
+
+  @override
+  String get collaboration => 'Collaboration';
+
+  @override
+  String get retirer => 'Remove';
+
+  @override
+  String get apparence => 'Appearance';
+
+  @override
+  String get langue => 'Language';
+
+  @override
+  String get langueDeLAppareil => 'Device language';
+
+  @override
+  String get langueFrancais => 'Français';
+
+  @override
+  String get langueAnglais => 'English';
+
+  @override
+  String get theme => 'Theme';
+
+  @override
+  String get themeDeLAppareil => 'Same as device';
+
+  @override
+  String get themeClair => 'Light';
+
+  @override
+  String get themeSombre => 'Dark';
+
+  @override
+  String get aujourdHui => 'Today';
+
+  @override
+  String faites(int nombre) {
+    return 'Done ($nombre)';
+  }
+
+  @override
+  String get notesDeTache => 'Notes';
+
+  @override
+  String get vueJour => 'Day';
+
+  @override
+  String get vueSemaine => 'Week';
+
+  @override
+  String get vueMois => 'Month';
+
+  @override
+  String get vueListe => 'List';
+
+  @override
+  String get periodePrecedente => 'Previous';
+
+  @override
+  String get periodeSuivante => 'Next';
+
+  @override
+  String get rienSurLaPeriode => 'Nothing planned for this period.';
+
+  @override
+  String autresEvenements(int nombre) {
+    return '+$nombre';
+  }
+
+  @override
+  String nouvelEvenementA(String heure) {
+    return 'New event at $heure';
+  }
+
+  @override
+  String get lectureSeule =>
+      'Shown here; change it where it comes from: a booking, a series or an external calendar.';
+
+  @override
+  String get modifierLaTache => 'Edit task';
+
+  @override
+  String get envoyerLeLienDeVisio => 'Send video link';
+
+  @override
+  String get modifierOuRenvoyerLeLien => 'Change or resend link';
+
+  @override
+  String get lienDeVisio => 'Video link (Zoom, Google Meet, Teams…)';
+
+  @override
+  String get envoyer => 'Send';
+
+  @override
+  String get lienEnvoye => 'Link sent to the invitee.';
+
+  @override
+  String get lienDoitCommencerParHttps => 'The link must start with https://';
+
+  @override
+  String get lienEnregistreMailEchoue =>
+      'Link saved, but the email could not be sent. Try again in a moment.';
+
+  @override
+  String get adresseEmail => 'Email address';
+
+  @override
+  String get nom => 'Name';
+
+  @override
+  String get fuseauHoraire => 'Time zone';
+
+  @override
+  String get rechercherUnFuseau => 'Search a city or time zone';
+
+  @override
+  String get inviter => 'Invite';
+
+  @override
+  String get inviterUnMembre => 'Invite a member';
+
+  @override
+  String invitationEnvoyee(String email) {
+    return 'Invitation sent to $email';
+  }
+
+  @override
+  String get invitationLienSecurise =>
+      'The server emailed the invitation. So that this person can read the team\'s encrypted data, also send them this secure link: the key it carries never goes through the server.';
+
+  @override
+  String get invitationSansCle =>
+      'The server emailed the invitation. The vault was closed, so the team key was not attached: a member will share it from the web.';
+
+  @override
+  String get copierLeLien => 'Copy link';
+
+  @override
+  String get fermer => 'Close';
+
+  @override
+  String get nouveauType => 'New event type';
+
+  @override
+  String get modifierLeType => 'Edit event type';
+
+  @override
+  String get descriptionPublique => 'Description (shown on the booking page)';
+
+  @override
+  String get duree => 'Duration';
+
+  @override
+  String get preavisMinimum => 'Minimum notice';
+
+  @override
+  String get reservableSur => 'Bookable over';
+
+  @override
+  String get tamponAvant => 'Buffer before';
+
+  @override
+  String get tamponApres => 'Buffer after';
+
+  @override
+  String get ouvertALaReservation => 'Open for booking';
+
+  @override
+  String get typeDisponibilitesDepuisHoraire =>
+      'Offered slots follow your availability (Settings › Availability).';
+
+  @override
+  String get lieuTelephone => 'Phone';
+
+  @override
+  String get lieuEnPersonne => 'In person';
+
+  @override
+  String get lieuAutre => 'Other';
+
+  @override
+  String get aucun => 'None';
+
+  @override
+  String nJours(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n days',
+      one: '1 day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String nHeures(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n h',
+      one: '1 h',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get supprimerCeType => 'Delete this event type?';
+
+  @override
+  String get supprimerCeTypeExplication =>
+      'Its booking page will stop existing.';
+
+  @override
+  String get typeAvecReservations =>
+      'This type already has bookings: close it instead of deleting it.';
+
+  @override
+  String get heuresDeBureau => 'Office hours';
+
+  @override
+  String get indisponible => 'Unavailable';
+
+  @override
+  String get ajouterUnePlage => 'Add a range';
+
+  @override
+  String get definirMesDisponibilites => 'Set my availability';
+
+  @override
+  String get disponibilitesExplication =>
+      'The days and hours people can book a meeting with you.';
+
+  @override
+  String get nouveauSondage => 'New poll';
+
+  @override
+  String get lienDuSondage => 'Poll link';
+
+  @override
+  String get lienDuSondageExplication =>
+      'Send this link to the participants: they vote without an account, then you pick the winning slot.';
+
+  @override
+  String get creneauxProposes => 'Proposed slots';
+
+  @override
+  String get ajouterUnCreneau => 'Add a slot';
+
+  @override
+  String get auMoinsDeuxCreneaux => 'Offer at least two slots.';
+
+  @override
+  String get saisieRapide => 'Quick entry';
+
+  @override
+  String get saisieRapideExemple =>
+      'Lunch with Sam tomorrow 12:30pm at the Café';
 }

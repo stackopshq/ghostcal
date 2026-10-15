@@ -86,7 +86,7 @@ export async function zkKeysForReset(token: string): Promise<ResetBundle[]> {
  * a reset that set the password first and the envelopes second would leave, in the gap, exactly the
  * state this feature exists to undo: a working login in front of a calendar nothing opens.
  *
- * Throws if the phrase opens nothing, before any request is sent. AES-GCM authenticates, so a wrong
+ * Throws if the phrase opens nothing, before any request is sent. The AEAD authenticates, so a wrong
  * phrase fails loudly rather than yielding a key that decrypts noise.
  */
 export async function resetWithRecoveryPhrase(

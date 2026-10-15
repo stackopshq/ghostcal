@@ -19,9 +19,14 @@ class Tache {
     required this.creee,
     this.notes,
     this.echeance,
+    this.rappelMinutes,
   });
 
   final String id;
+
+  /// The reminder set on the web, sent back unchanged on edit: the mobile does not
+  /// manage reminders yet, and a PUT without it would erase it.
+  final int? rappelMinutes;
 
   /// Les mêmes distinctions que pour l'agenda : une tâche qu'on ne sait pas ouvrir n'est
   /// ni une tâche sans titre, ni une tâche absente.
@@ -82,6 +87,7 @@ class Taches {
         echeance: quand is String ? DateTime.parse(quand).toLocal() : null,
         faite: brute['completed'] == true,
         creee: DateTime.parse('${brute['created_at']}').toLocal(),
+        rappelMinutes: brute['reminder_minutes'] as int?,
       ));
     }
     return ordonner(resultat);
@@ -122,6 +128,25 @@ class Taches {
       'due_at': echeance == null ? null : Agenda.isoPourLeServeur(echeance),
     });
     return '${json['id']}';
+  }
+
+  /// Edits a task: content sealed again, due date in clear, reminder kept.
+  Future<void> modifier(
+    Tache tache, {
+    required String titre,
+    String notes = '',
+    DateTime? echeance,
+    required String organisation,
+  }) async {
+    final clair = utf8.encode(
+      jsonEncode(ContenuDeTache(title: titre, notes: notes).versJson()),
+    );
+    final scelle = await auth.sceller(clair, organisation: organisation);
+    await api.envoyerSansReponse('PUT', 'v1/me/tasks/${tache.id}', {
+      'content': scelle,
+      'due_at': echeance == null ? null : Agenda.isoPourLeServeur(echeance),
+      'reminder_minutes': echeance == null ? null : tache.rappelMinutes,
+    });
   }
 
   Future<void> marquer(String id, {required bool faite}) => api.envoyerSansReponse(

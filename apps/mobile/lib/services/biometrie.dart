@@ -1,9 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:local_auth_android/local_auth_android.dart' show AndroidAuthMessages;
 
 import '../l10n/generated/app_localisations.dart';
+import 'trousseau.dart';
 
 /// Ouvrir le coffre par le visage ou l'empreinte.
 ///
@@ -165,15 +168,54 @@ class Rappel {
 }
 
 class Biometrie {
-  Biometrie({LocalAuthentication? auth, FlutterSecureStorage? stockage})
-      : _auth = auth ?? LocalAuthentication(),
-        _injecte = stockage;
+  Biometrie({
+    LocalAuthentication? auth,
+    FlutterSecureStorage? stockage,
+    FlutterSecureStorage? marqueurs,
+  })  : _auth = auth ?? LocalAuthentication(),
+        _injecte = stockage,
+        // A test that injects only the sealed store keeps the original path: handing it
+        // the real keychain as marker store would hit a platform channel that does not
+        // exist under `flutter test`.
+        _marqueurs = marqueurs ?? (stockage == null ? Trousseau.magasin : null);
 
   final LocalAuthentication _auth;
 
   /// Le magasin imposé par un témoin, quand il y en a un. Il l'emporte toujours : un test
   /// ne doit jamais se retrouver avec un vrai trousseau sous la main.
   final FlutterSecureStorage? _injecte;
+
+  /// Where Android records that a phrase is sealed — see [_surAndroid].
+  final FlutterSecureStorage? _marqueurs;
+
+  static const _marqueur = 'ghostcal.biometrie.scellee';
+
+  /// ─── Why Android no longer opens the sealed store to ask whether it is full ───
+  ///
+  /// Measured on 2026-10-14 on a Redmi Note 9S (Android 11), `flutter_secure_storage`
+  /// 11.0.0: the plugin keeps **one instance per namespace for the whole process
+  /// lifetime** and initialises it on the first call, whatever that call is. Under
+  /// `enforceBiometrics`, that initialisation shows the prompt. Observed consequences:
+  ///
+  /// - `containsKey`, the presence check, showed the fingerprint prompt, with the
+  ///   plugin's English default strings when the screen had not set its own yet;
+  /// - dismissing it raised an exception filed as "unreadable seal", hence failure
+  ///   messages on first launch, before anything was ever sealed;
+  /// - the strings of that first initialisation stick for every later prompt.
+  ///
+  /// Presence therefore lives in the regular keychain under [_marqueur], set by
+  /// [retenir] and removed by [oublier]. The sealed store is only opened to read or
+  /// write the phrase, i.e. when the prompt is wanted. A dead seal shows up on read,
+  /// where [_classer] recognises it.
+  bool get _surAndroid =>
+      _marqueurs != null && defaultTargetPlatform == TargetPlatform.android;
+
+  /// The store was opened in this process, and the plugin will not close it again.
+  ///
+  /// The other half of the finding above: once initialised, the store returns the phrase
+  /// **without a prompt** until the process dies. Locking the vault and reopening it
+  /// "with the fingerprint" would then ask for nothing. See [rappeler].
+  static bool _ouvertDansCeProcessus = false;
 
   InvitesBiometriques? _invites;
 
@@ -243,7 +285,14 @@ class Biometrie {
     aOptions: AndroidOptions.biometric(
       enforceBiometrics: true,
       biometricType: AndroidBiometricType.strongBiometricOnly,
-      resetOnError: false,
+      // **True here, false for the tokens**, on purpose. Measured on 2026-10-14 on a
+      // Redmi Note 9S: after the enrolled fingerprints changed, the key raises
+      // `KeyPermanentlyInvalidatedException`, which the plugin mistakes for an algorithm
+      // change; the migration fails and, without a reset, **every later write fails
+      // forever**, so the phrase can never be sealed again. This store only holds a copy
+      // of the phrase, which the user types again: losing it is exactly what an
+      // invalidation should do.
+      resetOnError: true,
       storageNamespace: 'ghostcal.biometrie',
       biometricPromptTitle: invites?.titre,
       biometricPromptSubtitle: invites?.sousTitre,
@@ -280,6 +329,10 @@ class Biometrie {
   Future<bool> retenir(String phrase) async {
     try {
       await _stockage.write(key: _cle, value: phrase);
+      if (_surAndroid) {
+        _ouvertDansCeProcessus = true;
+        await _marqueurs!.write(key: _marqueur, value: '1');
+      }
       return true;
     } on Object {
       return false;
@@ -292,7 +345,29 @@ class Biometrie {
   /// théorique, il est écrit dans l'historique de GhostPass.
   Future<Rappel> rappeler() async {
     try {
+      // An already-open store would return the phrase without asking: the fingerprint is
+      // required here instead, with the app's own strings. This is not the hardware
+      // barrier (that one fired when the store was opened), but it guarantees that
+      // **one** fingerprint unlock asks for **one** fingerprint.
+      if (_surAndroid && _ouvertDansCeProcessus) {
+        final invites = _invites;
+        // Title, then the product name as description: the reason doubles as the
+        // description on Android, and repeating the title there read "Open the vault"
+        // twice (seen on device).
+        final ok = await _auth.authenticate(
+          localizedReason: invites?.sousTitre ?? 'GhostCal',
+          biometricOnly: true,
+          authMessages: [
+            AndroidAuthMessages(
+              signInTitle: invites?.titre,
+              cancelButton: invites?.repli,
+            ),
+          ],
+        );
+        if (!ok) return const Rappel(Issue.refusee);
+      }
       final phrase = await _stockage.read(key: _cle);
+      if (_surAndroid) _ouvertDansCeProcessus = true;
       return phrase == null
           ? const Rappel(Issue.absente)
           : Rappel(Issue.ouverte, phrase: phrase);
@@ -390,6 +465,18 @@ class Biometrie {
   /// le coffre, en revanche, ne l'efface pas : c'est précisément le cas où l'on veut
   /// rouvrir par le visage.
   Future<void> oublier() async {
+    if (_surAndroid) {
+      // The marker first: it is the source of truth. Deleting the entry itself would open
+      // the store, hence prompt, unless this process already did; asking for a
+      // fingerprint to **remove** the fingerprint would be absurd. The leftover entry is
+      // encrypted under a biometric-bound key, and the next [retenir] overwrites it.
+      try {
+        await _marqueurs!.delete(key: _marqueur);
+      } on Object {
+        // The token keychain not answering: nothing better to do here.
+      }
+      if (!_ouvertDansCeProcessus) return;
+    }
     try {
       await _stockage.delete(key: _cle);
     } on Object {
@@ -425,6 +512,14 @@ class Biometrie {
   /// - [Issue.invalidee] — la clé est morte avec l'enrôlement qui l'a créée ;
   /// - [Issue.echec]     — le magasin n'a pas répondu, et on ne devine pas.
   Future<Issue> sceau() async {
+    if (_surAndroid) {
+      try {
+        final present = await _marqueurs!.read(key: _marqueur);
+        return present == null ? Issue.absente : Issue.ouverte;
+      } on Object {
+        return Issue.echec;
+      }
+    }
     try {
       final present = await _stockageMuet.containsKey(key: _cle);
       return present ? Issue.ouverte : Issue.absente;

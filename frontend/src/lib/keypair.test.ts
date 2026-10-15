@@ -28,7 +28,7 @@ describe("per-user keypair", () => {
     );
     expect(priv).toBeTruthy();
 
-    // AES-GCM authenticates, so a wrong password fails loudly rather than returning garbage.
+    // The AEAD authenticates, so a wrong password fails loudly rather than returning garbage.
     await expect(
       unlockUserPrivateKey(
         "not-the-password",
