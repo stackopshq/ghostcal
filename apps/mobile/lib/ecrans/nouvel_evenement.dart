@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../services/erreurs.dart';
 import '../services/agenda.dart';
 import '../services/session.dart';
+import '../outils/dates.dart';
 import '../theme.dart';
 import '../l10n/generated/app_localisations.dart';
 
@@ -93,7 +95,10 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
       if (!mounted) return;
       setState(() {
         _debut = detail.debut;
-        _fin = detail.fin;
+        // The form shows the last day included; the server stores an exclusive end.
+        _fin = detail.journeeEntiere
+            ? Agenda.dernierJourInclus(detail.debut, detail.fin)
+            : detail.fin;
         _journeeEntiere = detail.journeeEntiere;
         _calendrier = detail.calendrier;
         _fuseau = detail.fuseau;
@@ -107,7 +112,7 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
         }
       });
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     } finally {
       if (mounted) setState(() => _chargement = false);
     }
@@ -157,7 +162,7 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
       }
       if (mounted) Navigator.of(context).pop(true);
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     } finally {
       if (mounted) setState(() => _occupe = false);
     }
@@ -189,7 +194,7 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
       await agenda.supprimerUnEvenement(widget.evenement!);
       if (mounted) Navigator.of(context).pop(true);
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     } finally {
       if (mounted) setState(() => _occupe = false);
     }
@@ -324,8 +329,8 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
     title: Text(titre, style: TextStyle(color: gc.estompe, fontSize: 12)),
     subtitle: Text(
       _journeeEntiere
-          ? DateFormat.yMMMMd('fr_FR').format(valeur)
-          : DateFormat.yMMMMd('fr_FR').add_Hm().format(valeur),
+          ? DateFormat.yMMMMd(langueDesDates(context)).format(valeur)
+          : DateFormat.yMMMMd(langueDesDates(context)).add_Hm().format(valeur),
       style: TextStyle(color: gc.encre),
     ),
     trailing: const Icon(Icons.edit_calendar_outlined),

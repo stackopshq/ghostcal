@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ghostcal/ecrans/connexion.dart';
 import 'package:ghostcal/services/agenda.dart';
+import 'package:ghostcal/services/auth.dart';
 import 'package:ghostcal/services/session.dart';
 import 'harnais.dart';
 
@@ -46,11 +47,22 @@ void main() {
       // connecté, et comprendre que c'est sa phrase qui ne va pas. Aplatir les deux états
       // le renverrait à l'écran de connexion sans explication.
       final session = Session()..serveur = 'https://ghostcal.example.com';
-      session.debugPoserEtat(Etat.coffreFerme, raison: "Cette phrase n'ouvre pas le coffre.");
+      session.debugPoserEtat(Etat.coffreFerme, raison: ErreurDAuth.phraseIncorrecte);
       await afficher(tester, session);
       expect(find.textContaining('Vous êtes connecté'), findsOneWidget);
       expect(find.textContaining("n'ouvre pas le coffre"), findsOneWidget);
       expect(find.byKey(const Key('champ.serveur')), findsNothing);
+    });
+
+    // A vault locked by the timer or the lock button is not a failed unlock: claiming
+    // the passphrase was wrong, before anything was typed, sent people hunting for a
+    // typo that did not exist.
+    testWidgets('a merely locked vault does not blame the passphrase', (tester) async {
+      final session = Session()..serveur = 'https://ghostcal.example.com';
+      session.debugPoserEtat(Etat.coffreFerme);
+      await afficher(tester, session);
+      expect(find.textContaining('Le coffre est verrouillé'), findsOneWidget);
+      expect(find.textContaining("n'ouvre pas le coffre"), findsNothing);
     });
 
     testWidgets('la récupération ne se propose pas à la connexion', (tester) async {

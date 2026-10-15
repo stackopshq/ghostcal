@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../services/agenda.dart' show ProvenanceDuTitre;
+import '../services/erreurs.dart';
 import '../services/session.dart';
 import '../services/taches.dart';
+import '../outils/dates.dart';
 import '../theme.dart';
 import '../l10n/generated/app_localisations.dart';
 
@@ -44,7 +46,7 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
       final taches = await service.lister(organisation: organisation);
       if (mounted) setState(() => _taches = taches);
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
   }
 
@@ -74,7 +76,7 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
       await service.marquer(tache.id, faite: !tache.faite);
     } on Object catch (e) {
       // L'écran mentait : on le remet d'accord avec le serveur, et on le dit.
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
       await _recharger();
     }
   }
@@ -104,7 +106,7 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
           if (faites > 0)
             TextButton(
               onPressed: () => setState(() => _montrerLesFaites = !_montrerLesFaites),
-              child: Text(_montrerLesFaites ? L.of(context).masquerLesFaites : 'Faites ($faites)'),
+              child: Text(_montrerLesFaites ? L.of(context).masquerLesFaites : L.of(context).faites(faites)),
             ),
         ],
       ),
@@ -186,7 +188,7 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
           ? null
           : Text(
               [
-                if (echeance != null) DateFormat.yMMMd('fr_FR').format(echeance),
+                if (echeance != null) DateFormat.yMMMd(langueDesDates(context)).format(echeance),
                 if (tache.notes != null) tache.notes!,
               ].join(' · '),
               maxLines: 2,
@@ -212,9 +214,9 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
         title: Text(L.of(context).supprimerCetteTache),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
+              onPressed: () => Navigator.pop(c, false), child: Text(L.of(context).annuler)),
           TextButton(
-              onPressed: () => Navigator.pop(c, true), child: const Text('Supprimer')),
+              onPressed: () => Navigator.pop(c, true), child: Text(L.of(context).supprimer)),
         ],
       ),
     );
@@ -223,7 +225,7 @@ class _EcranDeTachesState extends State<EcranDeTaches> {
       await service.supprimer(tache.id);
       await _recharger();
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
   }
 }
@@ -269,7 +271,7 @@ class _FeuilleDeNouvelleTacheState extends State<_FeuilleDeNouvelleTache> {
       );
       if (mounted) Navigator.of(context).pop(true);
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     } finally {
       if (mounted) setState(() => _occupe = false);
     }
@@ -300,13 +302,13 @@ class _FeuilleDeNouvelleTacheState extends State<_FeuilleDeNouvelleTache> {
             // Le bouton dépend de ce champ : sans ce rappel, il resterait éteint
             // jusqu'à ce qu'autre chose provoque un rafraîchissement.
             onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(hintText: 'Titre'),
+            decoration: InputDecoration(hintText: L.of(context).titre),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _notes,
             maxLines: 3,
-            decoration: const InputDecoration(hintText: 'Notes'),
+            decoration: InputDecoration(hintText: L.of(context).notesDeTache),
           ),
           const SizedBox(height: 12),
           ListTile(
@@ -315,7 +317,7 @@ class _FeuilleDeNouvelleTacheState extends State<_FeuilleDeNouvelleTache> {
             title: Text(
               _echeance == null
                   ? L.of(context).sansEcheance
-                  : DateFormat.yMMMMd('fr_FR').format(_echeance!),
+                  : DateFormat.yMMMMd(langueDesDates(context)).format(_echeance!),
               style: TextStyle(color: gc.encre),
             ),
             trailing: _echeance == null

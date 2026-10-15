@@ -51,6 +51,8 @@ dependencies:
   intl: ^0.20.3
   flutter_timezone: ^4.1.1
   local_auth: ^3.0.2
+  # The Android prompt strings (`AndroidAuthMessages`) live here, not in `local_auth`.
+  local_auth_android: ^2.0.10
 
 dev_dependencies:
   flutter_test:

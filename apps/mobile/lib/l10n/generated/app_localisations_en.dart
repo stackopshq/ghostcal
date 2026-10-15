@@ -509,4 +509,111 @@ class LEn extends L {
 
   @override
   String get revenir => 'Back';
+
+  @override
+  String get erreurServeurInjoignable =>
+      'Can\'t reach the server. Check your connection and the server address.';
+
+  @override
+  String get erreurServeurLent =>
+      'The server isn\'t responding. Try again in a moment.';
+
+  @override
+  String get erreurCertificat =>
+      'The secure connection to the server failed: its certificate isn\'t valid.';
+
+  @override
+  String get erreurAdresseInvalide => 'Invalid server address.';
+
+  @override
+  String get erreurSessionExpiree =>
+      'Your session has expired. Please sign in again.';
+
+  @override
+  String get erreurPhraseIncorrecte =>
+      'This passphrase doesn\'t open the vault.';
+
+  @override
+  String get erreurIdentifiants => 'Wrong email address or password.';
+
+  @override
+  String get erreurTropDEssais =>
+      'Too many attempts. Wait a few minutes before trying again.';
+
+  @override
+  String get erreurServeur => 'The server ran into a problem. Try again later.';
+
+  @override
+  String get erreurInattendue => 'Something went wrong. Please try again.';
+
+  @override
+  String get coffreVerrouille =>
+      'The vault is locked. Type your passphrase to open it.';
+
+  @override
+  String erreurStatut(int code) {
+    return 'The server answered $code.';
+  }
+
+  @override
+  String get retenir => 'Choose';
+
+  @override
+  String get retour => 'Back';
+
+  @override
+  String get notes => 'NOTES';
+
+  @override
+  String get votants => 'Voters';
+
+  @override
+  String get compte => 'Account';
+
+  @override
+  String get organisation => 'Organization';
+
+  @override
+  String get collaboration => 'Collaboration';
+
+  @override
+  String get retirer => 'Remove';
+
+  @override
+  String get apparence => 'Appearance';
+
+  @override
+  String get langue => 'Language';
+
+  @override
+  String get langueDeLAppareil => 'Device language';
+
+  @override
+  String get langueFrancais => 'Français';
+
+  @override
+  String get langueAnglais => 'English';
+
+  @override
+  String get theme => 'Theme';
+
+  @override
+  String get themeDeLAppareil => 'Same as device';
+
+  @override
+  String get themeClair => 'Light';
+
+  @override
+  String get themeSombre => 'Dark';
+
+  @override
+  String get aujourdHui => 'Today';
+
+  @override
+  String faites(int nombre) {
+    return 'Done ($nombre)';
+  }
+
+  @override
+  String get notesDeTache => 'Notes';
 }

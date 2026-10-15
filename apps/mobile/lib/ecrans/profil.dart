@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/agenda.dart' show Agenda;
+import '../services/erreurs.dart';
 import '../services/reglages.dart';
 import '../services/session.dart';
 import '../theme.dart';
@@ -60,7 +61,7 @@ class _EcranDeProfilState extends State<EcranDeProfil> {
         _retirerLaPhoto = false;
       });
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
   }
 
@@ -88,7 +89,7 @@ class _EcranDeProfilState extends State<EcranDeProfil> {
         _message = L.of(context).profilEnregistre;
       });
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     } finally {
       if (mounted) setState(() => _occupe = false);
     }
@@ -221,7 +222,7 @@ class _EcranDeProfilState extends State<EcranDeProfil> {
                                 color: Gc.surAccent,
                               ),
                             )
-                          : const Text('Enregistrer'),
+                          : Text(L.of(context).enregistrer),
                     ),
                   ],
                 ),

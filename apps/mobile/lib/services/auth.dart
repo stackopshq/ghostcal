@@ -143,7 +143,7 @@ class Auth {
   /// répondu 401 » sur un mot de passe pourtant bon, et rien ne disait qu'il
   /// fallait un code. Le serveur porte `mfa_required` depuis que le TOTP est
   /// arrivé sur `main` ; le mobile, lui, ne le connaissait pas du tout.
-  Future<String?> seConnecter({
+  Future<ErreurDAuth?> seConnecter({
     required String email,
     required String motDePasse,
     String? codeTotp,
@@ -176,7 +176,26 @@ class Auth {
       return null;
     } on ErreurDAuth catch (e) {
       // Connecté sans coffre ouvert : on le dit, on ne défait pas la connexion.
-      return e.message;
+      return e;
+    }
+  }
+
+  /// Revokes the refresh token on the server.
+  ///
+  /// Signing out used to forget the tokens on the device only: the refresh token stayed
+  /// valid server-side until it expired, so a copy taken from the device kept working.
+  /// Best effort: an unreachable server must not keep someone signed in on this device.
+  Future<void> revoquer() async {
+    final jetons = api.jetons;
+    if (jetons == null) return;
+    try {
+      await api.envoyerSansReponse(
+        'POST',
+        'v1/auth/logout',
+        {'refresh_token': jetons.rafraichissement},
+      );
+    } on Object {
+      // Offline or already revoked: the local sign-out below still happens.
     }
   }
 

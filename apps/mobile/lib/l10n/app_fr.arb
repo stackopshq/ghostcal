@@ -282,5 +282,51 @@
     }
   },
   "valider": "Valider",
-  "revenir": "Revenir"
+  "revenir": "Revenir",
+  "erreurServeurInjoignable": "Le serveur est injoignable. Vérifiez votre connexion et l'adresse du serveur.",
+  "erreurServeurLent": "Le serveur ne répond pas. Réessayez dans un instant.",
+  "erreurCertificat": "La connexion sécurisée au serveur a échoué : son certificat n'est pas valide.",
+  "erreurAdresseInvalide": "Adresse de serveur invalide.",
+  "erreurSessionExpiree": "La session a expiré. Reconnectez-vous.",
+  "erreurPhraseIncorrecte": "Cette phrase n'ouvre pas le coffre.",
+  "erreurIdentifiants": "Adresse e-mail ou mot de passe incorrect.",
+  "erreurTropDEssais": "Trop d'essais. Patientez quelques minutes avant de réessayer.",
+  "erreurServeur": "Le serveur a rencontré un problème. Réessayez plus tard.",
+  "erreurInattendue": "Une erreur inattendue est survenue. Réessayez.",
+  "coffreVerrouille": "Le coffre est verrouillé. Tapez votre phrase pour l'ouvrir.",
+  "erreurStatut": "Le serveur a répondu {code}.",
+  "@erreurStatut": {
+    "placeholders": {
+      "code": {
+        "type": "int"
+      }
+    }
+  },
+  "retenir": "Retenir",
+  "retour": "Retour",
+  "notes": "NOTES",
+  "votants": "Votants",
+  "compte": "Compte",
+  "organisation": "Organisation",
+  "collaboration": "Collaboration",
+  "retirer": "Retirer",
+  "apparence": "Apparence",
+  "langue": "Langue",
+  "langueDeLAppareil": "Langue de l'appareil",
+  "langueFrancais": "Français",
+  "langueAnglais": "English",
+  "theme": "Thème",
+  "themeDeLAppareil": "Comme l'appareil",
+  "themeClair": "Clair",
+  "themeSombre": "Sombre",
+  "aujourdHui": "Aujourd'hui",
+  "faites": "Faites ({nombre})",
+  "notesDeTache": "Notes",
+  "@faites": {
+    "placeholders": {
+      "nombre": {
+        "type": "int"
+      }
+    }
+  }
 }

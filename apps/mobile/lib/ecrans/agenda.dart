@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../services/erreurs.dart';
 import '../services/agenda.dart';
 import '../services/session.dart';
 import '../services/verrouillage.dart';
+import '../outils/dates.dart';
 import '../theme.dart';
 import 'nouvel_evenement.dart';
 import '../l10n/generated/app_localisations.dart';
@@ -67,7 +69,7 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
       if (_calendriers.isEmpty) _calendriers = await agenda.calendriers();
       if (mounted) setState(() => _lignes = lignes);
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     } finally {
       if (mounted) setState(() => _charge = false);
     }
@@ -97,7 +99,7 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
         title: FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
-          child: Text(DateFormat.yMMMMEEEEd('fr_FR').format(_jour)),
+          child: Text(DateFormat.yMMMMEEEEd(langueDesDates(context)).format(_jour)),
         ),
         actions: [
           // Un cadenas plutôt que « Verrouiller » : la barre porte déjà trois flèches et
@@ -129,7 +131,7 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
           ),
           IconButton(
             icon: const Icon(Icons.today),
-            tooltip: "Aujourd'hui",
+            tooltip: L.of(context).aujourdHui,
             onPressed: () {
               setState(() => _jour = DateTime.now());
               _recharger();

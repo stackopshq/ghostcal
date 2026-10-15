@@ -190,7 +190,10 @@ class Agenda {
         if (contenu == null) {
           provenance = ProvenanceDuTitre.illisible;
         } else {
-          provenance = ProvenanceDuTitre.dechiffre;
+          // An event saved with an empty title is "untitled", not a row with no label.
+          provenance = contenu.title.trim().isEmpty
+              ? ProvenanceDuTitre.sansTitre
+              : ProvenanceDuTitre.dechiffre;
           titre = contenu.title;
           lieu = contenu.location.isEmpty ? null : contenu.location;
         }
@@ -221,8 +224,37 @@ class Agenda {
         source: '${brute['source']}',
       ));
     }
-    resultat.sort((a, b) => a.debut.compareTo(b.debut));
+    resultat.sort(comparerLesLignes);
     return resultat;
+  }
+
+  /// All-day items head their day, then by start time — like every calendar app. They
+  /// used to be sorted by their stored hour, so an all-day item could sit at 15:00.
+  static int comparerLesLignes(LigneDAgenda a, LigneDAgenda b) {
+    if (a.journeeEntiere != b.journeeEntiere) return a.journeeEntiere ? -1 : 1;
+    return a.debut.compareTo(b.debut);
+  }
+
+  /// The bounds an all-day event is stored with, as the web stores them: local midnight
+  /// of the first day to local midnight after the last day (end exclusive).
+  ///
+  /// The app used to send the hours still in the form (e.g. 15:00 to 16:00) with
+  /// `all_day: true`, so the same event meant different things on web and mobile.
+  /// [fin] is the last day **included**, as the form shows it.
+  static ({DateTime debut, DateTime fin}) bornesDeJournee(DateTime debut, DateTime fin) {
+    final premier = DateTime(debut.year, debut.month, debut.day);
+    var dernier = DateTime(fin.year, fin.month, fin.day);
+    if (dernier.isBefore(premier)) dernier = premier;
+    return (debut: premier, fin: DateTime(dernier.year, dernier.month, dernier.day + 1));
+  }
+
+  /// The last day included, from a stored all-day end (exclusive midnight).
+  static DateTime dernierJourInclus(DateTime debut, DateTime fin) {
+    final veille = DateTime(fin.year, fin.month, fin.day - 1);
+    final minuit = fin.hour == 0 && fin.minute == 0 && fin.second == 0;
+    return minuit && !veille.isBefore(DateTime(debut.year, debut.month, debut.day))
+        ? veille
+        : fin;
   }
 
   /// Crée un événement. Le contenu est scellé ici ; les heures partent en clair.
@@ -241,6 +273,7 @@ class Agenda {
     required String organisation,
     String? fuseau,
   }) async {
+    if (journeeEntiere) (:debut, :fin) = bornesDeJournee(debut, fin);
     final scelle = await _sceller(titre, description, lieu, organisation);
     final json = await api.envoyer<Map<String, dynamic>>(
       'POST',
@@ -302,6 +335,7 @@ class Agenda {
     required String calendrier,
     required String organisation,
   }) async {
+    if (journeeEntiere) (:debut, :fin) = bornesDeJournee(debut, fin);
     final scelle = await _sceller(titre, description, lieu, organisation);
     await api.envoyerSansReponse('PUT', 'v1/me/calendar/events/$id', {
       'calendar_id': calendrier,
