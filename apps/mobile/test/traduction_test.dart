@@ -49,9 +49,8 @@ void main() {
   /// traduit. Les deux clés de l'invite existaient déjà dans les `.arb` depuis un passage
   /// précédent : elles avaient été traduites, puis jamais branchées, et rien ne le disait.
   const restant = <String, int>{
-    'lib/services/api.dart': 1, // « Le serveur a répondu {code}. »
+    // Only as `toString()` fallbacks: screens translate both through `lisible`.
     'lib/services/auth.dart': 2, // phrase incorrecte, coffre fermé
-    'lib/services/session.dart': 2, // adresse invalide, session expirée
   };
 
   /// Les fichiers qu'on n'examine pas, et pourquoi.

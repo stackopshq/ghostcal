@@ -67,14 +67,14 @@ class TypesDeRendezVous {
     );
   }
 
-  /// Les actifs d'abord — c'est ce qu'on vient vérifier. À l'intérieur, l'ordre
-  /// alphabétique, stable d'une lecture à l'autre.
+  /// Alphabetical only, so a row never moves when it is switched on or off.
+  ///
+  /// Active types used to come first: switching one off moved it under the finger, and a
+  /// second tap at the same place switched a *different* type (observed on a device).
+  /// The closed state is shown on the row itself.
   static List<TypeDeRendezVous> ordonner(List<TypeDeRendezVous> types) {
     final copie = [...types];
-    copie.sort((a, b) {
-      if (a.actif != b.actif) return a.actif ? -1 : 1;
-      return a.titre.toLowerCase().compareTo(b.titre.toLowerCase());
-    });
+    copie.sort((a, b) => a.titre.toLowerCase().compareTo(b.titre.toLowerCase()));
     return copie;
   }
 

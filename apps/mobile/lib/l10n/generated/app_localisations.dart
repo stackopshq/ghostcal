@@ -972,6 +972,258 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Revenir'**
   String get revenir;
+
+  /// No description provided for @erreurServeurInjoignable.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le serveur est injoignable. Vérifiez votre connexion et l\'adresse du serveur.'**
+  String get erreurServeurInjoignable;
+
+  /// No description provided for @erreurServeurLent.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le serveur ne répond pas. Réessayez dans un instant.'**
+  String get erreurServeurLent;
+
+  /// No description provided for @erreurCertificat.
+  ///
+  /// In fr, this message translates to:
+  /// **'La connexion sécurisée au serveur a échoué : son certificat n\'est pas valide.'**
+  String get erreurCertificat;
+
+  /// No description provided for @erreurAdresseInvalide.
+  ///
+  /// In fr, this message translates to:
+  /// **'Adresse de serveur invalide.'**
+  String get erreurAdresseInvalide;
+
+  /// No description provided for @erreurSessionExpiree.
+  ///
+  /// In fr, this message translates to:
+  /// **'La session a expiré. Reconnectez-vous.'**
+  String get erreurSessionExpiree;
+
+  /// No description provided for @erreurPhraseIncorrecte.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cette phrase n\'ouvre pas le coffre.'**
+  String get erreurPhraseIncorrecte;
+
+  /// No description provided for @erreurIdentifiants.
+  ///
+  /// In fr, this message translates to:
+  /// **'Adresse e-mail ou mot de passe incorrect.'**
+  String get erreurIdentifiants;
+
+  /// No description provided for @erreurTropDEssais.
+  ///
+  /// In fr, this message translates to:
+  /// **'Trop d\'essais. Patientez quelques minutes avant de réessayer.'**
+  String get erreurTropDEssais;
+
+  /// No description provided for @erreurServeur.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le serveur a rencontré un problème. Réessayez plus tard.'**
+  String get erreurServeur;
+
+  /// No description provided for @erreurInattendue.
+  ///
+  /// In fr, this message translates to:
+  /// **'Une erreur inattendue est survenue. Réessayez.'**
+  String get erreurInattendue;
+
+  /// No description provided for @coffreVerrouille.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le coffre est verrouillé. Tapez votre phrase pour l\'ouvrir.'**
+  String get coffreVerrouille;
+
+  /// No description provided for @erreurStatut.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le serveur a répondu {code}.'**
+  String erreurStatut(int code);
+
+  /// No description provided for @retenir.
+  ///
+  /// In fr, this message translates to:
+  /// **'Retenir'**
+  String get retenir;
+
+  /// No description provided for @retour.
+  ///
+  /// In fr, this message translates to:
+  /// **'Retour'**
+  String get retour;
+
+  /// No description provided for @notes.
+  ///
+  /// In fr, this message translates to:
+  /// **'NOTES'**
+  String get notes;
+
+  /// No description provided for @votants.
+  ///
+  /// In fr, this message translates to:
+  /// **'Votants'**
+  String get votants;
+
+  /// No description provided for @compte.
+  ///
+  /// In fr, this message translates to:
+  /// **'Compte'**
+  String get compte;
+
+  /// No description provided for @organisation.
+  ///
+  /// In fr, this message translates to:
+  /// **'Organisation'**
+  String get organisation;
+
+  /// No description provided for @collaboration.
+  ///
+  /// In fr, this message translates to:
+  /// **'Collaboration'**
+  String get collaboration;
+
+  /// No description provided for @retirer.
+  ///
+  /// In fr, this message translates to:
+  /// **'Retirer'**
+  String get retirer;
+
+  /// No description provided for @apparence.
+  ///
+  /// In fr, this message translates to:
+  /// **'Apparence'**
+  String get apparence;
+
+  /// No description provided for @langue.
+  ///
+  /// In fr, this message translates to:
+  /// **'Langue'**
+  String get langue;
+
+  /// No description provided for @langueDeLAppareil.
+  ///
+  /// In fr, this message translates to:
+  /// **'Langue de l\'appareil'**
+  String get langueDeLAppareil;
+
+  /// No description provided for @langueFrancais.
+  ///
+  /// In fr, this message translates to:
+  /// **'Français'**
+  String get langueFrancais;
+
+  /// No description provided for @langueAnglais.
+  ///
+  /// In fr, this message translates to:
+  /// **'English'**
+  String get langueAnglais;
+
+  /// No description provided for @theme.
+  ///
+  /// In fr, this message translates to:
+  /// **'Thème'**
+  String get theme;
+
+  /// No description provided for @themeDeLAppareil.
+  ///
+  /// In fr, this message translates to:
+  /// **'Comme l\'appareil'**
+  String get themeDeLAppareil;
+
+  /// No description provided for @themeClair.
+  ///
+  /// In fr, this message translates to:
+  /// **'Clair'**
+  String get themeClair;
+
+  /// No description provided for @themeSombre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Sombre'**
+  String get themeSombre;
+
+  /// No description provided for @aujourdHui.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aujourd\'hui'**
+  String get aujourdHui;
+
+  /// No description provided for @faites.
+  ///
+  /// In fr, this message translates to:
+  /// **'Faites ({nombre})'**
+  String faites(int nombre);
+
+  /// No description provided for @notesDeTache.
+  ///
+  /// In fr, this message translates to:
+  /// **'Notes'**
+  String get notesDeTache;
+
+  /// No description provided for @vueJour.
+  ///
+  /// In fr, this message translates to:
+  /// **'Jour'**
+  String get vueJour;
+
+  /// No description provided for @vueSemaine.
+  ///
+  /// In fr, this message translates to:
+  /// **'Semaine'**
+  String get vueSemaine;
+
+  /// No description provided for @vueMois.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mois'**
+  String get vueMois;
+
+  /// No description provided for @vueListe.
+  ///
+  /// In fr, this message translates to:
+  /// **'Liste'**
+  String get vueListe;
+
+  /// No description provided for @periodePrecedente.
+  ///
+  /// In fr, this message translates to:
+  /// **'Précédent'**
+  String get periodePrecedente;
+
+  /// No description provided for @periodeSuivante.
+  ///
+  /// In fr, this message translates to:
+  /// **'Suivant'**
+  String get periodeSuivante;
+
+  /// No description provided for @rienSurLaPeriode.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rien de prévu sur cette période.'**
+  String get rienSurLaPeriode;
+
+  /// No description provided for @autresEvenements.
+  ///
+  /// In fr, this message translates to:
+  /// **'+{nombre}'**
+  String autresEvenements(int nombre);
+
+  /// No description provided for @nouvelEvenementA.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nouvel événement à {heure}'**
+  String nouvelEvenementA(String heure);
+
+  /// No description provided for @lectureSeule.
+  ///
+  /// In fr, this message translates to:
+  /// **'Affiché ici, modifiable là d\'où il vient : réservation, série ou calendrier externe.'**
+  String get lectureSeule;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

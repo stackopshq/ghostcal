@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/erreurs.dart';
 import '../services/reglages.dart';
 import '../services/session.dart';
 import '../theme.dart';
@@ -38,7 +39,7 @@ class _EcranDEquipeState extends State<EcranDEquipe> {
       final membres = await service.membres();
       if (mounted) setState(() => _membres = membres);
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
   }
 
@@ -51,7 +52,7 @@ class _EcranDEquipeState extends State<EcranDEquipe> {
       final membres = await service.changerLeRole(membre.id, role: role);
       if (mounted) setState(() => _membres = membres);
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
   }
 
@@ -68,11 +69,11 @@ class _EcranDEquipeState extends State<EcranDEquipe> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(c, false),
-            child: const Text('Annuler'),
+            child: Text(L.of(context).annuler),
           ),
           TextButton(
             onPressed: () => Navigator.pop(c, true),
-            child: const Text('Retirer'),
+            child: Text(L.of(context).retirer),
           ),
         ],
       ),
@@ -82,7 +83,7 @@ class _EcranDEquipeState extends State<EcranDEquipe> {
       await service.retirerLeMembre(membre.id);
       await _charger();
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
   }
 
@@ -146,11 +147,11 @@ class _EcranDEquipeState extends State<EcranDEquipe> {
           ? Icon(Icons.shield_outlined, size: 18, color: gc.estompe)
           : PopupMenuButton<String>(
               itemBuilder: (_) => [
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'admin',
-                  child: Text('Administrateur'),
+                  child: Text(L.of(context).roleAdministrateur),
                 ),
-                const PopupMenuItem(value: 'member', child: Text('Membre')),
+                PopupMenuItem(value: 'member', child: Text(L.of(context).roleMembre)),
                 PopupMenuItem(
                   value: '-',
                   child: Text(L.of(context).retirerDeLEquipe),
