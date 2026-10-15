@@ -51,3 +51,14 @@ for (const nom of ["localStorage", "sessionStorage"] as const) {
     });
   }
 }
+
+// The crypto core is WebAssembly. In a browser `init()` fetches it next to the glue; under
+// Node there is no fetch for a file URL, so it is instantiated from disk once, before any test.
+// `init()` then returns the already-loaded module.
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { initSync } from "./src/vendor/ghost-crypto/ghost_crypto_wasm";
+
+initSync({
+  module: readFileSync(resolve(import.meta.dirname, "src/vendor/ghost-crypto/ghost_crypto_wasm_bg.wasm")),
+});

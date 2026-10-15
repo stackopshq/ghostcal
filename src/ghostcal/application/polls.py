@@ -6,12 +6,12 @@ finalizing notifies every voter of the chosen time). Persistence is the ``PollsR
 
 from __future__ import annotations
 
-import secrets
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 from ghostcal.application.ports.email import EmailSender
+from ghostcal.domain.slug import slugify
 
 MIN_OPTIONS = 2
 MAX_OPTIONS = 25
@@ -116,12 +116,6 @@ class PollsRepository:
         raise NotImplementedError
 
 
-def _slugify(title: str) -> str:
-    base = "".join(c if c.isalnum() else "-" for c in title.lower()).strip("-")
-    base = "-".join(filter(None, base.split("-")))[:60] or "poll"
-    return f"{base}-{secrets.token_hex(3)}"
-
-
 async def create_poll(
     repo: PollsRepository,
     owner_id: uuid.UUID,
@@ -145,7 +139,7 @@ async def create_poll(
     options = [(start, start + delta) for start in sorted(option_starts)]
     return await repo.create(
         owner_id,
-        slug=_slugify(title),
+        slug=slugify(title, max_length=60, fallback="poll"),
         title=title.strip(),
         duration_min=duration_min,
         location_type=location_type,

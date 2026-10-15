@@ -1,9 +1,9 @@
-// Zero-knowledge crypto for GhostCal, on the vendored WebCrypto core (lib/e2e).
+// Zero-knowledge crypto for GhostCal, on the suite's shared crypto core (lib/e2e).
 //
 // Each organization has an X25519 keypair. Invitees seal their private details to the org PUBLIC
-// key with an anonymous ECIES seal (X25519 ECDH → HKDF → AES-256-GCM) — they need no key of their
+// key with an anonymous ECIES seal (X25519 ECDH → HKDF → XChaCha20-Poly1305) — they need no key of their
 // own. Only the holder of the org PRIVATE key (a host, in their browser) can open them; the server
-// only ever stores ciphertext. The private key (PKCS#8) is wrapped with AES-256-GCM under a key
+// only ever stores ciphertext. The private key (PKCS#8) is wrapped (XChaCha20-Poly1305) under a key
 // derived from the host's password via Argon2id, and a second time under a one-time recovery
 // phrase. Team members receive the key through an invitation-link fragment (see ADR-0003).
 
@@ -60,7 +60,7 @@ async function unwrap(
   passphrase: string,
 ): Promise<Uint8Array> {
   const key = await deriveKey(passphrase, fromB64(saltB64));
-  return decryptSymmetric(key, wrappedBlob); // AES-GCM auth fails (throws) on a wrong passphrase
+  return decryptSymmetric(key, wrappedBlob); // AEAD authentication fails (throws) on a wrong passphrase
 }
 
 /** A high-entropy recovery phrase shown once at sign-up (24 random bytes, grouped for legibility). */
@@ -162,7 +162,7 @@ export type UnlockedKeys = {
 /**
  * Open a sealed blob with whichever generation of the org key actually sealed it.
  *
- * Tries the current key first (the common case) and falls back through the retired ones. AES-GCM
+ * Tries the current key first (the common case) and falls back through the retired ones. The AEAD
  * authenticates, so a wrong key throws rather than returning plausible garbage: the cost of guessing
  * is a failed decryption, never a wrong answer.
  */
@@ -252,7 +252,7 @@ export async function generateUserKeypair(
   };
 }
 
-/** Unwrap the user's own private key with their password. Throws on a wrong secret (AES-GCM auth). */
+/** Unwrap the user's own private key with their password. Throws on a wrong secret (AEAD authentication). */
 export async function unlockUserPrivateKey(
   secret: string,
   wrappedB64: string,

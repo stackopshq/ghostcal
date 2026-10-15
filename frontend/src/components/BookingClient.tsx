@@ -155,7 +155,11 @@ export default function BookingClient({
       setConfirmation(booking);
     } catch (e) {
       setBookingError(
-        e instanceof ApiError && e.status === 409 ? t("booking.errTaken") : t("booking.errGeneric"),
+        e instanceof ApiError && e.status === 409
+          ? e.detail === "already_booked"
+            ? t("booking.errAlreadyBooked")
+            : t("booking.errTaken")
+          : t("booking.errGeneric"),
       );
     } finally {
       setSubmitting(false);

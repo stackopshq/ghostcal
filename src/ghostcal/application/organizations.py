@@ -18,6 +18,7 @@ import uuid
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 
+from ghostcal.application import bilingual as bi
 from ghostcal.application.ports.clock import Clock
 from ghostcal.application.ports.email import EmailSender
 
@@ -227,10 +228,15 @@ class OrganizationService:
         link = f"{self._frontend_base_url}/invitations/{plain}"
         await self._mailer.send(
             to=email,
-            subject="You've been invited to a GhostCal team",
-            html=(
+            subject=bi.subject(
+                "Invitation à rejoindre une équipe GhostCal",
+                "You've been invited to a GhostCal team",
+            ),
+            html=bi.body(
+                "<p>On vous invite à rejoindre une équipe sur GhostCal.</p>"
+                f'<p><a href="{link}">Accepter l\'invitation</a></p>',
                 "<p>You've been invited to join a team on GhostCal.</p>"
-                f'<p><a href="{link}">Accept the invitation</a></p>'
+                f'<p><a href="{link}">Accept the invitation</a></p>',
             ),
         )
         return invitation

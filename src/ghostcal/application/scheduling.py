@@ -39,6 +39,21 @@ class OrganizationNotFound(SchedulingError):
     pass
 
 
+class AlreadyBooked(SchedulingError):
+    """The invitee already has a booking that day, or one the new slot would extend.
+
+    Booking the slot next to one's meeting instead of moving it turned a 30-minute meeting into
+    an hour (2026-10-15). Two bookings stay allowed, but not on the same day (in the invitee's
+    time zone) nor back to back. The invitee is sent back to the existing one to move it.
+    """
+
+    def __init__(self, booking_id: uuid.UUID, start_at: datetime, event_title: str) -> None:
+        super().__init__(str(booking_id))
+        self.booking_id = booking_id
+        self.start_at = start_at
+        self.event_title = event_title
+
+
 class InvalidBookingInput(SchedulingError):
     """Required custom questions are unanswered, or guest input is invalid."""
 
@@ -95,6 +110,14 @@ class EventContext:
     questions: tuple[BookingQuestion, ...] = ()
     capacity: int = 1
     redirect_url: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class InviteeBooking:
+    booking_id: uuid.UUID
+    start_at: datetime
+    end_at: datetime
+    event_title: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -171,6 +194,12 @@ class SchedulingRepository(Protocol):
 
     async def slot_booking_counts(self, event_type_id: uuid.UUID) -> dict[datetime, int]:
         """Confirmed-booking counts per start time for an event type (group capacity)."""
+        ...
+
+    async def bookings_of_invitee_between(
+        self, invitee_email: str, start: datetime, end: datetime
+    ) -> list[InviteeBooking]:
+        """The invitee's confirmed bookings in this organization starting in [start, end)."""
         ...
 
     async def insert_booking(
@@ -344,6 +373,10 @@ async def create_booking(
     guests = _clean_guests(request.guest_emails)
 
     now = clock.now()
+    end_at = request.start_at + context.event.duration
+    clash = await _same_day_or_adjacent(repo, request, end_at)
+    if clash is not None:
+        raise AlreadyBooked(clash.booking_id, clash.start_at, clash.event_title)
     # Re-validate against freshly computed availability: each host must still offer the slot. The
     # DB exclusion constraint is the final guard against races.
     candidates: list[HostRef] = []
@@ -352,8 +385,6 @@ async def create_booking(
         slots = await _host_day_slots(repo, host, context.event, now, day, day)
         if any(slot.start == request.start_at for slot in slots):
             candidates.append(host)
-
-    end_at = request.start_at + context.event.duration
 
     if context.kind == "collective":
         # Every host must be free; book all of them as one linked meeting.
@@ -409,6 +440,26 @@ async def create_booking(
         guest_emails=guests,
         additional_host_emails=additional,
     )
+
+
+async def _same_day_or_adjacent(
+    repo: SchedulingRepository, request: BookingRequest, end_at: datetime
+) -> InviteeBooking | None:
+    """An existing booking of the invitee on the same local day, or touching the new slot."""
+    zone = ZoneInfo(request.invitee_timezone)
+    day = request.start_at.astimezone(zone).date()
+    # A day either side covers every time zone's notion of "that day" plus a slot that touches
+    # across midnight.
+    window = timedelta(days=1)
+    nearby = await repo.bookings_of_invitee_between(
+        request.invitee_email, request.start_at - window, end_at + window
+    )
+    for booking in nearby:
+        same_day = booking.start_at.astimezone(zone).date() == day
+        touching = booking.end_at >= request.start_at and booking.start_at <= end_at
+        if same_day or touching:
+            return booking
+    return None
 
 
 def _require_private(
