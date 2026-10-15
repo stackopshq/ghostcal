@@ -50,3 +50,10 @@ for facteur in 1 2 3; do
 done
 cp "$MARQUE/logo@1x.png" "$MARQUE/logo.png"
 printf '  %-32s %s\n' "assets/marque/logo*.png" "64/128/192 px, transparent"
+
+# Android launcher icon source, framed like the iOS one and flattened on the charte
+# background. It used to be a bitmap rendered from the favicon framing, where the ghost
+# touches the top edge: 1.6 % margin above, 9.4 % below, measured 2026-10-15.
+# `flutter_launcher_icons` then derives the mipmaps (Android only; iOS comes from above).
+rsvg-convert -w 1024 -h 1024 -b "#21222C" "$CADRE" -o "$ROOT/apps/mobile/assets/icone.png"
+printf '  %-32s %s\n' "assets/icone.png" "1024 px, then: dart run flutter_launcher_icons"
