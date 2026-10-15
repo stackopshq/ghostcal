@@ -201,6 +201,7 @@ async def send_booking_reminder(
     start_at: datetime,
     minutes_before: int,
     manage_url: str | None = None,
+    meeting_url: str | None = None,
 ) -> None:
     lead_fr, lead_en = bi.lead_fr(minutes_before), bi.lead_en(minutes_before)
     fr = (
@@ -209,6 +210,7 @@ async def send_booking_reminder(
         f"Avec : {_h(host_name)}<br>"
         f"Quand : {bi.when_fr(start_at, invitee_timezone)}<br>"
         f"Où : {_location_fr(location_type)}</p>"
+        f"{_join_block(meeting_url, fr=True)}"
         f"{_manage_block(manage_url, fr=True)}"
     )
     en = (
@@ -217,6 +219,7 @@ async def send_booking_reminder(
         f"With: {_h(host_name)}<br>"
         f"When: {bi.when_en(start_at, invitee_timezone)}<br>"
         f"Where: {_location_label(location_type)}</p>"
+        f"{_join_block(meeting_url, fr=False)}"
         f"{_manage_block(manage_url, fr=False)}"
     )
     await mailer.send(

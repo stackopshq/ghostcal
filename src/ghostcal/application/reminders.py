@@ -33,6 +33,7 @@ class DueReminder:
     location_type: str
     start_at: datetime
     end_at: datetime
+    meeting_url: str | None = None
 
 
 class ReminderGateway:
@@ -73,6 +74,7 @@ async def dispatch_reminders(
                 start_at=reminder.start_at,
                 minutes_before=reminder.minutes_before,
                 manage_url=link,
+                meeting_url=reminder.meeting_url,
             )
             sent += 1
         except Exception:
