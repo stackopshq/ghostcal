@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../services/api.dart' show ErreurAPI;
+import '../services/erreurs.dart';
 import '../services/reunions.dart';
 import '../services/session.dart';
+import '../outils/dates.dart';
 import '../theme.dart';
+import 'agenda_vues.dart' show heureCourte;
 import '../l10n/generated/app_localisations.dart';
 
 /// Les réunions réservées, à venir ou passées.
@@ -46,7 +50,7 @@ class _EcranDeReunionsState extends State<EcranDeReunions> {
       final reunions = await service.lister(_portee, organisation: organisation);
       if (mounted) setState(() => _reunions = reunions);
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
   }
 
@@ -122,7 +126,7 @@ class _EcranDeReunionsState extends State<EcranDeReunions> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${DateFormat.yMMMEd('fr_FR').format(reunion.debut)}'
+            '${DateFormat.yMMMEd(langueDesDates(context)).format(reunion.debut)}'
             ' · ${DateFormat.Hm().format(reunion.debut)}'
             '–${DateFormat.Hm().format(reunion.fin)}',
             style: TextStyle(fontSize: 12, color: gc.estompe),
@@ -171,6 +175,13 @@ class _EcranDeReunionsState extends State<EcranDeReunions> {
       builder: (_) => _FeuilleDeReunion(
         reunion: reunion,
         annuler: reunion.statut == StatutDeReunion.annulee ? null : () => _annuler(reunion),
+        envoyerLeLien: reunion.statut == StatutDeReunion.annulee ||
+                reunion.debut.isBefore(DateTime.now())
+            ? null
+            : (lien) async {
+                await _service!.envoyerLeLien(reunion.id, lien);
+                await _recharger();
+              },
       ),
     );
   }
@@ -182,16 +193,81 @@ class _EcranDeReunionsState extends State<EcranDeReunions> {
       await service.annuler(reunion.id);
       await _recharger();
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
   }
 }
 
-class _FeuilleDeReunion extends StatelessWidget {
-  const _FeuilleDeReunion({required this.reunion, this.annuler});
+class _FeuilleDeReunion extends StatefulWidget {
+  const _FeuilleDeReunion({required this.reunion, this.annuler, this.envoyerLeLien});
 
   final Reunion reunion;
   final VoidCallback? annuler;
+
+  /// Sends the video link; `null` for a past or cancelled meeting.
+  final Future<void> Function(String lien)? envoyerLeLien;
+
+  @override
+  State<_FeuilleDeReunion> createState() => _FeuilleDeReunionState();
+}
+
+class _FeuilleDeReunionState extends State<_FeuilleDeReunion> {
+  late final _lien = TextEditingController(text: widget.reunion.adresse?.toString() ?? '');
+  bool _formulaire = false;
+  bool _envoi = false;
+  String? _message;
+  bool _messageOk = false;
+
+  Reunion get reunion => widget.reunion;
+  VoidCallback? get annuler => widget.annuler;
+
+  @override
+  void dispose() {
+    _lien.dispose();
+    super.dispose();
+  }
+
+  Future<void> _envoyer() async {
+    final lien = _lien.text.trim();
+    final l = L.of(context);
+    if (!lien.startsWith('https://')) {
+      setState(() {
+        _message = l.lienDoitCommencerParHttps;
+        _messageOk = false;
+      });
+      return;
+    }
+    setState(() {
+      _envoi = true;
+      _message = null;
+    });
+    try {
+      await widget.envoyerLeLien!(lien);
+      if (mounted) {
+        setState(() {
+          _message = l.lienEnvoye;
+          _messageOk = true;
+          _formulaire = false;
+        });
+      }
+    } on ErreurAPI catch (e) {
+      if (mounted) {
+        setState(() {
+          _message = switch (e.statut) {
+            422 => l.lienDoitCommencerParHttps,
+            // Saved, but the mail provider failed: the host can resend.
+            502 => l.lienEnregistreMailEchoue,
+            _ => lisible(e, l),
+          };
+          _messageOk = false;
+        });
+      }
+    } on Object catch (e) {
+      if (mounted) setState(() => _message = lisible(e, l));
+    } finally {
+      if (mounted) setState(() => _envoi = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -206,10 +282,13 @@ class _FeuilleDeReunion extends StatelessWidget {
             Text(reunion.intitule,
                 style: TextStyle(
                     fontSize: 18, fontWeight: FontWeight.bold, color: gc.encre)),
+            // Who booked: the detail used to name the meeting type only.
+            if (reunion.nom.isNotEmpty)
+              Text(reunion.nom, style: TextStyle(fontSize: 15, color: gc.encre)),
             const SizedBox(height: 4),
             Text(
-              '${DateFormat.yMMMMEEEEd('fr_FR').format(reunion.debut)} · '
-              '${DateFormat.Hm().format(reunion.debut)}–${DateFormat.Hm().format(reunion.fin)}',
+              '${DateFormat.yMMMMEEEEd(langueDesDates(context)).format(reunion.debut)} · '
+              '${heureCourte(context, reunion.debut)}–${heureCourte(context, reunion.fin)}',
               style: TextStyle(color: gc.estompe, fontSize: 13),
             ),
             // Le fuseau de l'invité, pas le nôtre : c'est dans celui-là qu'il a lu
@@ -225,6 +304,7 @@ class _FeuilleDeReunion extends StatelessWidget {
               _ligne(gc, Icons.videocam_outlined, reunion.adresse!.toString()),
             if (reunion.courriel.isNotEmpty)
               _ligne(gc, Icons.mail_outline, reunion.courriel),
+            if (widget.envoyerLeLien != null) ..._sectionDuLien(context, gc),
             if (reunion.reponses.isNotEmpty) ...[
               const SizedBox(height: 16),
               Text(L.of(context).reponses,
@@ -249,7 +329,7 @@ class _FeuilleDeReunion extends StatelessWidget {
             ],
             if (reunion.notes != null) ...[
               const SizedBox(height: 12),
-              Text('NOTES',
+              Text(L.of(context).notes,
                   style: TextStyle(
                       color: gc.estompe,
                       fontSize: 11,
@@ -270,7 +350,7 @@ class _FeuilleDeReunion extends StatelessWidget {
                       actions: [
                         TextButton(
                             onPressed: () => Navigator.pop(c, false),
-                            child: const Text('Retour')),
+                            child: Text(L.of(context).retour)),
                         TextButton(
                             onPressed: () => Navigator.pop(c, true),
                             child: Text(L.of(context).annulerLaReunion)),
@@ -289,6 +369,51 @@ class _FeuilleDeReunion extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  List<Widget> _sectionDuLien(BuildContext context, Gc gc) {
+    final l = L.of(context);
+    return [
+      const SizedBox(height: 12),
+      if (!_formulaire)
+        OutlinedButton.icon(
+          key: const Key('reunion.lien'),
+          icon: const Icon(Icons.videocam_outlined, size: 18),
+          label: Text(reunion.adresse == null ? l.envoyerLeLienDeVisio : l.modifierOuRenvoyerLeLien),
+          onPressed: () => setState(() {
+            _formulaire = true;
+            _message = null;
+          }),
+        )
+      else ...[
+        TextField(
+          controller: _lien,
+          autofocus: true,
+          keyboardType: TextInputType.url,
+          decoration: InputDecoration(labelText: l.lienDeVisio, hintText: 'https://'),
+          onSubmitted: (_) => _envoyer(),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            FilledButton(
+              onPressed: _envoi ? null : _envoyer,
+              child: _envoi
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : Text(l.envoyer),
+            ),
+            const SizedBox(width: 8),
+            TextButton(onPressed: () => setState(() => _formulaire = false), child: Text(l.annuler)),
+          ],
+        ),
+      ],
+      if (_message != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(_message!,
+              style: TextStyle(fontSize: 12, color: _messageOk ? gc.succes : gc.danger)),
+        ),
+    ];
   }
 
   Widget _ligne(Gc gc, IconData icone, String texte) => Padding(

@@ -168,4 +168,9 @@ class Reunions {
 
   Future<void> annuler(String id) =>
       api.envoyerSansReponse('POST', 'v1/me/meetings/$id/cancel');
+
+  /// Sets (or changes) the meeting's video link and emails it to the invitee and their
+  /// guests, as the web dashboard does. Sending the same link again resends it.
+  Future<void> envoyerLeLien(String id, String lien) =>
+      api.envoyerSansReponse('POST', 'v1/me/meetings/$id/meeting-link', {'url': lien});
 }

@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../modeles/adresse.dart';
+import 'nouveau_sondage.dart';
 import 'package:intl/intl.dart';
 
+import '../services/erreurs.dart';
 import '../services/reglages.dart';
 import '../services/session.dart';
+import '../outils/dates.dart';
 import '../theme.dart';
 import '../l10n/generated/app_localisations.dart';
 
@@ -31,6 +37,19 @@ class _EcranDeSondagesState extends State<EcranDeSondages> {
     return api == null ? null : Reglages(api: api);
   }
 
+  Future<void> _creer() async {
+    final api = widget.session.api;
+    final site = AdresseDeServeur.normaliser(widget.session.serveur);
+    if (api == null || site == null) return;
+    final cree = await Navigator.of(context).push<DetailDeSondage>(MaterialPageRoute(
+      builder: (_) => EcranDeNouveauSondage(service: Reglages(api: api)),
+    ));
+    if (cree == null || !mounted) return;
+    await _recharger();
+    if (!mounted) return;
+    await partagerLeSondage(context, Reglages.lienDuSondage(cree, site));
+  }
+
   Future<void> _recharger() async {
     final service = _service;
     if (service == null) return;
@@ -39,7 +58,7 @@ class _EcranDeSondagesState extends State<EcranDeSondages> {
       final sondages = await service.sondages();
       if (mounted) setState(() => _sondages = sondages);
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
   }
 
@@ -62,6 +81,12 @@ class _EcranDeSondagesState extends State<EcranDeSondages> {
     return FondGhost(
       child: Scaffold(
         appBar: AppBar(title: Text(L.of(context).sondages)),
+        floatingActionButton: FloatingActionButton(
+          heroTag: 'sondages',
+          tooltip: L.of(context).nouveauSondage,
+          onPressed: _creer,
+          child: const Icon(Icons.add),
+        ),
         body: ContenuBorne(
           child: RefreshIndicator(onRefresh: _recharger, child: _corps(gc)),
         ),
@@ -146,7 +171,7 @@ class _EcranDUnSondageState extends State<EcranDUnSondage> {
       final detail = await service.sondage(widget.identifiant);
       if (mounted) setState(() => _detail = detail);
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
   }
 
@@ -159,11 +184,11 @@ class _EcranDUnSondageState extends State<EcranDUnSondage> {
         title: Text(L.of(context).retenirCeCreneauQuestion),
         content: Text(
           L.of(context).sondageSeFermeEtEvenementCree(
-              DateFormat.yMMMMEEEEd('fr_FR').add_Hm().format(option.debut)),
+              DateFormat.yMMMMEEEEd(langueDesDates(context)).add_Hm().format(option.debut)),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
-          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Retenir')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(L.of(context).annuler)),
+          TextButton(onPressed: () => Navigator.pop(c, true), child: Text(L.of(context).retenir)),
         ],
       ),
     );
@@ -175,7 +200,7 @@ class _EcranDUnSondageState extends State<EcranDUnSondage> {
       final detail = await service.finaliser(widget.identifiant, option: option.id);
       if (mounted) setState(() => _detail = detail);
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     } finally {
       if (mounted) setState(() => _occupe = false);
     }
@@ -201,8 +226,19 @@ class _EcranDUnSondageState extends State<EcranDUnSondage> {
     return FondGhost(
       child: Scaffold(
         appBar: AppBar(
-          title: Text(detail?.titre ?? 'Sondage'),
+          title: Text(detail?.titre ?? L.of(context).sondages),
           actions: [
+            if (detail != null && detail.slug.isNotEmpty)
+              IconButton(
+                icon: const Icon(Icons.link),
+                tooltip: L.of(context).copierLeLien,
+                onPressed: () {
+                  final site = AdresseDeServeur.normaliser(widget.session.serveur);
+                  if (site != null) {
+                    partagerLeSondage(context, Reglages.lienDuSondage(detail, site));
+                  }
+                },
+              ),
             if (detail != null && detail.ouvert)
               IconButton(
                 icon: const Icon(Icons.delete_outline),
@@ -239,7 +275,7 @@ class _EcranDUnSondageState extends State<EcranDUnSondage> {
                     for (final option in detail.options) _creneau(gc, detail, option),
                     if (detail.votants.isNotEmpty) ...[
                       const SizedBox(height: 20),
-                      _titre(gc, 'Votants'),
+                      _titre(gc, L.of(context).votants),
                       for (final votant in detail.votants)
                         ListTile(
                           contentPadding: EdgeInsets.zero,
@@ -286,7 +322,7 @@ class _EcranDUnSondageState extends State<EcranDUnSondage> {
             children: [
               Expanded(
                 child: Text(
-                  '${DateFormat.yMMMEd('fr_FR').format(option.debut)} · '
+                  '${DateFormat.yMMMEd(langueDesDates(context)).format(option.debut)} · '
                   '${DateFormat.Hm().format(option.debut)}–${DateFormat.Hm().format(option.fin)}',
                   style: TextStyle(color: gc.encre, fontSize: 13),
                 ),
@@ -339,8 +375,8 @@ class _EcranDUnSondageState extends State<EcranDUnSondage> {
         title: Text(L.of(context).supprimerCeSondage),
         content: Text(L.of(context).votesPerdus),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
-          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Supprimer')),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(L.of(context).annuler)),
+          TextButton(onPressed: () => Navigator.pop(c, true), child: Text(L.of(context).supprimer)),
         ],
       ),
     );
@@ -349,7 +385,7 @@ class _EcranDUnSondageState extends State<EcranDUnSondage> {
       await service.annulerLeSondage(widget.identifiant);
       if (mounted) Navigator.of(context).pop();
     } on Object catch (e) {
-      if (mounted) setState(() => _erreur = '$e');
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     }
   }
 
@@ -365,3 +401,30 @@ class _EcranDUnSondageState extends State<EcranDUnSondage> {
         ),
       );
 }
+
+/// Shows the poll's public link with a copy button: voters need no account.
+Future<void> partagerLeSondage(BuildContext context, Uri lien) => showDialog<void>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(L.of(context).lienDuSondage),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(L.of(context).lienDuSondageExplication),
+            const SizedBox(height: 12),
+            SelectableText(lien.toString(), style: const TextStyle(fontSize: 12)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: lien.toString()));
+              if (c.mounted) Navigator.pop(c);
+            },
+            child: Text(L.of(context).copierLeLien),
+          ),
+          TextButton(onPressed: () => Navigator.pop(c), child: Text(L.of(context).fermer)),
+        ],
+      ),
+    );

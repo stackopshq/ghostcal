@@ -373,7 +373,7 @@ packages:
     source: hosted
     version: "3.0.2"
   local_auth_android:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: local_auth_android
       sha256: "2de619ed7196c136ec4579539c0446668e794afeec1e1815786a3158a478d04b"

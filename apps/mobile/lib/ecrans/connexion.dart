@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/biometrie.dart';
+import '../services/erreurs.dart';
 import '../services/auth.dart' show SecondFacteurRequis;
 import '../services/session.dart';
 import '../theme.dart';
@@ -378,7 +379,8 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
           ],
           if (session.erreur != null) ...[
             const SizedBox(height: 18),
-            _avertissement(gc.danger, Icons.warning_amber_rounded, session.erreur!),
+            _avertissement(gc.danger, Icons.warning_amber_rounded,
+                lisible(session.erreur!, L.of(context), connexion: !_coffreFerme && !_reprise)),
           ],
           const SizedBox(height: 18),
           BoutonPrincipal(
@@ -483,8 +485,11 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
         _avertissement(
           gc.estompe,
           Icons.lock_outline,
-          L.of(context).connecteMaisCoffreFerme(
-              session.raisonDuCoffre ?? L.of(context).phraseNOuvrePasLeCoffre),
+          switch (session.raisonDuCoffre) {
+            // Locked by the timer or the lock button: nothing failed, so nothing is blamed.
+            null => L.of(context).coffreVerrouille,
+            final raison => L.of(context).connecteMaisCoffreFerme(lisible(raison, L.of(context))),
+          },
         ),
         const SizedBox(height: 18),
         _champDePhrase(gc),
@@ -492,7 +497,7 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
     }
     if (_reprise) {
       return [
-        _champ(gc, 'Compte', enfant: _valeurFigee(gc, session.email)),
+        _champ(gc, L.of(context).compte, enfant: _valeurFigee(gc, session.email)),
         const SizedBox(height: 18),
         _champDePhrase(gc),
       ];
