@@ -10,3 +10,5 @@
    La formulation dit ce que le visage **ouvre**, pas qu'on « utilise Face ID » : c'est celle
    de GhostPass, et elle évite de laisser croire que le visage remplace la phrase. */
 "NSFaceIDUsageDescription" = "Face ID unlocks your calendar without retyping the master password.";
+"NSPhotoLibraryUsageDescription" = "Choose a profile photo shown on your booking page.";
+"NSCameraUsageDescription" = "Take a profile photo shown on your booking page.";

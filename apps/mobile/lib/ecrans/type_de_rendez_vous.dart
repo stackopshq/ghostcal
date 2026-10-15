@@ -5,11 +5,12 @@ import '../services/api.dart' show ErreurAPI;
 import '../services/erreurs.dart';
 import '../services/types_de_rendez_vous.dart';
 import '../theme.dart';
+import 'questions_du_type.dart';
 
 /// Create or edit a bookable event type — the Calendly side of the app.
 ///
 /// The form edits the full detail fetched from the server, so settings made on the web
-/// that this screen does not show (questions, hosts, team kinds) are sent back intact.
+/// that this screen does not show (hosts, team kinds) are sent back intact.
 class EcranDeTypeDeRendezVous extends StatefulWidget {
   const EcranDeTypeDeRendezVous({super.key, required this.service, this.id});
 
@@ -238,6 +239,13 @@ class _EcranDeTypeDeRendezVousState extends State<EcranDeTypeDeRendezVous> {
                     ),
                     Text(l.typeDisponibilitesDepuisHoraire,
                         style: TextStyle(fontSize: 12, color: gc.estompe)),
+                    QuestionsDuType(
+                      questions: [
+                        for (final q in (_detail['questions'] as List? ?? const []))
+                          if (q is Map) Map<String, dynamic>.from(q),
+                      ],
+                      changer: (liste) => _poser('questions', liste),
+                    ),
                   ],
                 ),
               ),

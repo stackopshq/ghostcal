@@ -178,6 +178,7 @@ class Profil {
     required this.fuseau,
     required this.courrielVerifie,
     this.avatar,
+    this.photoMiseAJour,
   });
 
   factory Profil.depuisJson(Map<String, dynamic> j) => Profil(
@@ -187,6 +188,7 @@ class Profil {
         fuseau: '${j['timezone']}',
         courrielVerifie: j['email_verified'] == true,
         avatar: j['avatar_url'] as String?,
+        photoMiseAJour: j['avatar_updated_at'] as String?,
       );
 
   final String id;
@@ -195,6 +197,10 @@ class Profil {
   final String fuseau;
   final bool courrielVerifie;
   final String? avatar;
+
+  /// When the uploaded photo last changed; null when none was uploaded.
+  final String? photoMiseAJour;
+  bool get aUnePhoto => photoMiseAJour != null;
 }
 
 class Membre {
@@ -319,6 +325,21 @@ class Reglages {
         'timezone': fuseau,
         'avatar_url': avatar,
       }));
+
+  /// Uploads a profile photo. The server re-encodes it (WebP, 512 px at most) and answers
+  /// 422 with a readable reason for an empty or unrecognised file.
+  Future<void> televerserLaPhoto(Uint8List octets, String nomDeFichier) => api.televerser(
+        'v1/me/profile/avatar',
+        champ: 'fichier',
+        octets: octets,
+        nomDeFichier: nomDeFichier,
+      );
+
+  Future<void> retirerLaPhotoTeleversee() =>
+      api.envoyerSansReponse('DELETE', 'v1/me/profile/avatar');
+
+  Future<Uint8List> photo(String idUtilisateur) =>
+      api.obtenirDesOctets('v1/me/profile/avatar/$idUtilisateur');
 
   Future<List<Membre>> membres() async {
     final brutes = await api.obtenir<List<dynamic>>('v1/me/organization/members');

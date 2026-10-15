@@ -38,8 +38,7 @@ pub fn sceller_vers(
     clair: Vec<u8>,
     domaine: String,
 ) -> Result<String, ErreurDuCoeur> {
-    // Web format, so the GhostCal web client can open it (see compat_web).
-    Ok(crate::compat_web::sceller_vers(&publique, &clair, &domaine)?)
+    Ok(zk::sceller_vers(&publique, &clair, &domaine)?)
 }
 
 /// Ouvre un contenu scellé. Échoue si le domaine ne correspond pas — c'est cette
@@ -49,19 +48,19 @@ pub fn ouvrir_sceau(
     blob: String,
     domaine: String,
 ) -> Result<Vec<u8>, ErreurDuCoeur> {
-    // Reads both the web format and the shared core's.
-    Ok(crate::compat_web::ouvrir_sceau(&privee, &blob, &domaine)?)
+    // The core also opens the legacy version-less envelopes the web wrote before ADR-0001.
+    Ok(zk::ouvrir_sceau(&privee, &blob, &domaine)?)
 }
 
 /// Déballe un contenu chiffré symétriquement — l'enveloppe d'une clé privée
 /// d'organisation, scellée sous la clé dérivée de la phrase.
 pub fn dechiffrer_symetrique(cle: Vec<u8>, blob: String) -> Result<Vec<u8>, ErreurDuCoeur> {
-    Ok(crate::compat_web::dechiffrer_symetrique(&cle, &blob)?)
+    Ok(zk::dechiffrer_symetrique(&cle, &blob)?)
 }
 
 /// L'opération inverse, pour réenvelopper une clé lors d'un changement de phrase.
 pub fn chiffrer_symetrique(cle: Vec<u8>, clair: Vec<u8>) -> Result<String, ErreurDuCoeur> {
-    Ok(crate::compat_web::chiffrer_symetrique(&cle, &clair)?)
+    Ok(zk::chiffrer_symetrique(&cle, &clair)?)
 }
 
 /// Une paire de clés X25519, en base64.

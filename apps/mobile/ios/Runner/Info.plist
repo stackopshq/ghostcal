@@ -76,6 +76,14 @@
 	     `en.lproj/` et `fr.lproj/`, et celle-ci est le repli anglais. -->
 	<key>NSFaceIDUsageDescription</key>
 	<string>Face ID unlocks your calendar without retyping the master password.</string>
+	<!-- Profile photo (`image_picker`). The app only reads the photo library, through the
+	     system picker, which needs no permission on iOS 14+. The keys are still required:
+	     App Store Connect rejects a binary that links the camera and photo APIs without
+	     their purpose strings (ITMS-90683). English fallback; translations in *.lproj. -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose a profile photo shown on your booking page.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Take a profile photo shown on your booking page.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

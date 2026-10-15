@@ -7,7 +7,7 @@
   ─── Portée ───
 
   Ce manifeste couvre **le binaire de l'application**, pas ses greffons. Chaque greffon
-  Flutter embarque le sien (`flutter_secure_storage`, `local_auth`, `flutter_timezone`,
+  Flutter embarque le sien (`flutter_secure_storage`, `local_auth`, `flutter_timezone`, `image_picker`,
   `Flutter.framework`) ; Apple les agrège au moment de l'envoi. Recopier ici ce qu'ils
   déclarent ne rendrait pas le relevé plus complet, seulement plus faux le jour où l'un
   d'eux change.
