@@ -16,6 +16,7 @@ from ghostcal.application.meetings import (
     MeetingNotFound,
     cancel_meeting,
     list_meetings,
+    share_generated_room,
     share_meeting_link,
 )
 from ghostcal.infrastructure.db import models
@@ -132,3 +133,33 @@ async def test_meeting_link_refuses_bad_url_and_other_hosts(
             await share_meeting_link(repo, booking_id, host, "javascript:alert(1)")
         with pytest.raises(MeetingNotFound):
             await share_meeting_link(repo, booking_id, uuid.uuid4(), "https://zoom.us/j/1")
+
+
+async def test_host_can_generate_a_kmeet_room_for_an_existing_meeting(
+    org_with_bookings: dict[str, uuid.UUID],
+) -> None:
+    org, host = org_with_bookings["org"], org_with_bookings["host"]
+    async with org_session(org) as session:
+        repo = SqlMeetingsRepository(session, org)
+        booking_id = (await list_meetings(repo, host, upcoming=True, now=NOW))[0].id
+        shared = await share_generated_room(repo, booking_id, host, "kmeet")
+    assert shared.meeting_url is not None
+    assert shared.meeting_url.startswith("https://kmeet.infomaniak.com/")
+
+    async with org_session(org) as session:
+        repo = SqlMeetingsRepository(session, org)
+        stored = (await list_meetings(repo, host, upcoming=True, now=NOW))[0].meeting_url
+    assert stored == shared.meeting_url
+
+
+async def test_generating_a_room_needs_a_supported_provider_and_the_host(
+    org_with_bookings: dict[str, uuid.UUID],
+) -> None:
+    org, host = org_with_bookings["org"], org_with_bookings["host"]
+    async with org_session(org) as session:
+        repo = SqlMeetingsRepository(session, org)
+        booking_id = (await list_meetings(repo, host, upcoming=True, now=NOW))[0].id
+        with pytest.raises(InvalidMeetingUrl):
+            await share_generated_room(repo, booking_id, host, "zoom")
+        with pytest.raises(MeetingNotFound):
+            await share_generated_room(repo, booking_id, uuid.uuid4(), "kmeet")
