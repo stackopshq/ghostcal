@@ -345,3 +345,43 @@ async def test_same_day_or_back_to_back_booking_is_refused(
 
     await book(FIRST_SLOT + timedelta(days=7), "same@example.test")  # another day
     await book(FIRST_SLOT, "other@example.test")  # someone else, same slot as refused
+
+
+async def test_kmeet_booking_gets_its_own_room(
+    bookable: dict[str, uuid.UUID], admin_engine: AsyncEngine
+) -> None:
+    org, event = bookable["org"], bookable["event"]
+    maker = async_sessionmaker(admin_engine, expire_on_commit=False)
+    async with maker() as s:
+        row = await s.get(models.EventType, event)
+        assert row is not None
+        row.location_type = "kmeet"
+        await s.commit()
+
+    async with org_session(org) as session:
+        confirmation = await create_booking(
+            _repo(session, org),
+            CLOCK,
+            BookingRequest(event, FIRST_SLOT, "Invitee", "inv@example.test", "UTC"),
+        )
+    assert confirmation.meeting_url is not None
+    assert confirmation.meeting_url.startswith("https://kmeet.infomaniak.com/")
+
+    # Stored on the booking, so reminders and the meetings list carry the same link.
+    async with maker() as s:
+        booking = await s.get(models.Booking, confirmation.booking_id)
+        assert booking is not None
+        assert booking.meeting_url == confirmation.meeting_url
+
+
+async def test_booking_without_generated_room_has_no_link(
+    bookable: dict[str, uuid.UUID],
+) -> None:
+    org, event = bookable["org"], bookable["event"]
+    async with org_session(org) as session:
+        confirmation = await create_booking(
+            _repo(session, org),
+            CLOCK,
+            BookingRequest(event, FIRST_SLOT, "Invitee", "inv@example.test", "UTC"),
+        )
+    assert confirmation.meeting_url is None
