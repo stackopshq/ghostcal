@@ -5,7 +5,8 @@ import { decryptSymmetric, encryptSymmetric, fromB64, generateKeypair, openSeale
 // Envelopes this client wrote with WebCrypto before moving to the shared core (AES-256-GCM,
 // 12-byte nonce, no `v`). Production accounts hold them: they must keep opening.
 const PLAINTEXT = "Déjeuner avec Camille — 12:30";
-const SYM_KEY = "5E3SquTSlTahdmhKCCLIW1cyIr5Lzi0Ob8LTn17twk8=";
+// Test-only key for the vectors below, like PRIVATE_PKCS8; it protects nothing.
+const SYM_KEY = "5E3SquTSlTahdmhKCCLIW1cyIr5Lzi0Ob8LTn17twk8="; // gitleaks:allow
 const SYM_BLOB =
   '{"nonce":"bL8neOr/ZsrCOUgY","encrypted_target":"t/S8oeLyaj0u1S4yRLY3gYz2vbH8O71vj7wCHHU0jVDtbNIFkSt5P7yVdgCsTzcp"}';
 // Throwaway key generated for these vectors only; it protects nothing.
