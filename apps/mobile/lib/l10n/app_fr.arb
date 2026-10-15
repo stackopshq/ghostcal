@@ -80,6 +80,8 @@
   },
   "phraseNOuvrePasLeCoffre": "cette phrase n'ouvre pas le coffre",
   "serveur": "Serveur",
+  "changerDeServeur": "Changer de serveur",
+  "changerDeServeurDeconnecte": "Vous serez déconnecté, et votre phrase secrète vous sera redemandée. L’adresse actuelle vous sera proposée à la correction.",
   "adresseElectronique": "Adresse e-mail",
   "exempleAdresse": "vous@exemple.ch",
   "retenirCetAppareil": "Retenir cet appareil",

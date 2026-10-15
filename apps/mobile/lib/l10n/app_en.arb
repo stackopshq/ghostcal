@@ -33,6 +33,8 @@
   "connecteMaisCoffreFerme": "You are signed in, but the vault stayed closed: {raison}",
   "phraseNOuvrePasLeCoffre": "this passphrase does not open the vault",
   "serveur": "Server",
+  "changerDeServeur": "Change server",
+  "changerDeServeurDeconnecte": "You will be signed out, and asked for your passphrase again. The current address will be offered for you to correct.",
   "adresseElectronique": "Email address",
   "exempleAdresse": "you@example.com",
   "retenirCetAppareil": "Remember this device",

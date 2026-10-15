@@ -152,8 +152,11 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
             )),
           ),
           ListTile(
+            key: const Key('reglages.serveur'),
             title: Text(L.of(context).serveur),
             subtitle: Text(session.serveur, style: TextStyle(color: gc.estompe)),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _changerDeServeur,
           ),
           if (widget.apparence case final apparence?) ..._sectionApparence(gc, apparence),
           _titre(gc, L.of(context).securite),
@@ -398,6 +401,39 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
           ),
         ),
       ];
+
+  /// Changer de serveur, depuis l'endroit qui en affiche un.
+  ///
+  /// Cette ligne montrait l'adresse sans se toucher. Le chemin existait pourtant — se
+  /// déconnecter, puis « Utiliser un autre compte » sur l'écran de connexion, qui rouvre
+  /// le champ — mais rien ne le désignait : aucun des deux libellés ne parle de serveur.
+  /// Relevé sur un vrai cas, l'API ayant déménagé sous `/api` : il a fallu lire le code
+  /// pour trouver la sortie.
+  ///
+  /// On demande avant d'agir parce que le prix est réel : changer de serveur déconnecte,
+  /// et la phrase sera redemandée. L'écran de connexion repart ensuite avec l'adresse
+  /// courante déjà inscrite — `EcranDeConnexion` amorce son champ sur `session.serveur`,
+  /// que la déconnexion conserve — donc on la corrige au lieu de la retaper.
+  Future<void> _changerDeServeur() async {
+    final l = L.of(context);
+    final confirme = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(l.changerDeServeur),
+        content: Text(l.changerDeServeurDeconnecte),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(l.annuler)),
+          TextButton(
+            key: const Key('reglages.serveur.confirmer'),
+            onPressed: () => Navigator.pop(c, true),
+            child: Text(l.seDeconnecter),
+          ),
+        ],
+      ),
+    );
+    if (confirme != true) return;
+    await widget.session.seDeconnecter();
+  }
 
   Widget _titre(Gc gc, String texte) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),

@@ -295,6 +295,18 @@ abstract class L {
   /// **'Serveur'**
   String get serveur;
 
+  /// No description provided for @changerDeServeur.
+  ///
+  /// In fr, this message translates to:
+  /// **'Changer de serveur'**
+  String get changerDeServeur;
+
+  /// No description provided for @changerDeServeurDeconnecte.
+  ///
+  /// In fr, this message translates to:
+  /// **'Vous serez déconnecté, et votre phrase secrète vous sera redemandée. L’adresse actuelle vous sera proposée à la correction.'**
+  String get changerDeServeurDeconnecte;
+
   /// No description provided for @adresseElectronique.
   ///
   /// In fr, this message translates to:
