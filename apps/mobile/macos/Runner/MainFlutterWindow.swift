@@ -47,6 +47,10 @@ class MainFlutterWindow: NSWindow {
     self.setFrameAutosaveName("GhostCal.fenetre")
 
     RegisterGeneratedPlugins(registry: flutterViewController)
+    // Hors du registre engendré, qui est réécrit à chaque `flutter pub get` : ce qu'on y
+    // ajouterait serait effacé sans message, et la photo de profil cesserait de partir
+    // pour une raison introuvable dans l'historique.
+    Vignette.enregistrer(flutterViewController.registrar(forPlugin: "Vignette"))
 
     super.awakeFromNib()
   }
