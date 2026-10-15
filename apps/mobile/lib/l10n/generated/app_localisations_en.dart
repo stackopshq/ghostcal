@@ -123,6 +123,13 @@ class LEn extends L {
   String get serveur => 'Server';
 
   @override
+  String get changerDeServeur => 'Change server';
+
+  @override
+  String get changerDeServeurDeconnecte =>
+      'You will be signed out, and asked for your passphrase again. The current address will be offered for you to correct.';
+
+  @override
   String get adresseElectronique => 'Email address';
 
   @override

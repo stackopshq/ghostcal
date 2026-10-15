@@ -122,6 +122,13 @@ class LFr extends L {
   String get serveur => 'Serveur';
 
   @override
+  String get changerDeServeur => 'Changer de serveur';
+
+  @override
+  String get changerDeServeurDeconnecte =>
+      'Vous serez déconnecté, et votre phrase secrète vous sera redemandée. L’adresse actuelle vous sera proposée à la correction.';
+
+  @override
   String get adresseElectronique => 'Adresse e-mail';
 
   @override
