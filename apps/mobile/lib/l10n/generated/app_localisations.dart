@@ -997,6 +997,12 @@ abstract class L {
   /// **'Adresse de serveur invalide.'**
   String get erreurAdresseInvalide;
 
+  /// No description provided for @erreurAdresseSansApi.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cette adresse authentifie, mais ne sert pas le reste de l’API de GhostCal. L’API vit peut-être sous un chemin : essayez d’ajouter « /api » à la fin.'**
+  String get erreurAdresseSansApi;
+
   /// No description provided for @erreurSessionExpiree.
   ///
   /// In fr, this message translates to:

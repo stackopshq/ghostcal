@@ -525,6 +525,10 @@ class LEn extends L {
   String get erreurAdresseInvalide => 'Invalid server address.';
 
   @override
+  String get erreurAdresseSansApi =>
+      'This address can sign you in, but does not serve the rest of the GhostCal API. The API may live under a path: try adding “/api” to the end.';
+
+  @override
   String get erreurSessionExpiree =>
       'Your session has expired. Please sign in again.';
 

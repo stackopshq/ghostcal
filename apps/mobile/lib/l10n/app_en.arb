@@ -158,6 +158,7 @@
   "erreurServeurLent": "The server isn't responding. Try again in a moment.",
   "erreurCertificat": "The secure connection to the server failed: its certificate isn't valid.",
   "erreurAdresseInvalide": "Invalid server address.",
+  "erreurAdresseSansApi": "This address can sign you in, but does not serve the rest of the GhostCal API. The API may live under a path: try adding “/api” to the end.",
   "erreurSessionExpiree": "Your session has expired. Please sign in again.",
   "erreurPhraseIncorrecte": "This passphrase doesn't open the vault.",
   "erreurIdentifiants": "Wrong email address or password.",

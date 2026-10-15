@@ -287,6 +287,7 @@
   "erreurServeurLent": "Le serveur ne répond pas. Réessayez dans un instant.",
   "erreurCertificat": "La connexion sécurisée au serveur a échoué : son certificat n'est pas valide.",
   "erreurAdresseInvalide": "Adresse de serveur invalide.",
+  "erreurAdresseSansApi": "Cette adresse authentifie, mais ne sert pas le reste de l’API de GhostCal. L’API vit peut-être sous un chemin : essayez d’ajouter « /api » à la fin.",
   "erreurSessionExpiree": "La session a expiré. Reconnectez-vous.",
   "erreurPhraseIncorrecte": "Cette phrase n'ouvre pas le coffre.",
   "erreurIdentifiants": "Adresse e-mail ou mot de passe incorrect.",

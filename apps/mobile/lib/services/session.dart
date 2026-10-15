@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 
 import '../modeles/adresse.dart';
 import 'api.dart';
@@ -21,6 +22,15 @@ import 'trousseau.dart';
 enum Etat { dehors, coffreFerme, ouvert }
 
 class Session extends ChangeNotifier {
+  /// Le transport, pour les témoins.
+  ///
+  /// Même couture que `ClientAPI`, et pour la même raison : sans elle, tout ce que cette
+  /// classe fait du réseau — dont la sonde qui juge l'adresse — ne s'éprouve qu'avec un
+  /// vrai serveur en face.
+  Session({http.Client? client}) : _transport = client;
+
+  final http.Client? _transport;
+
   Etat _etat = Etat.dehors;
   bool _occupe = false;
   Object? _erreur;
@@ -101,7 +111,7 @@ class Session extends ChangeNotifier {
       return;
     }
     await _pendant(() async {
-      final client = ClientAPI(base: base);
+      final client = ClientAPI(base: base, client: _transport);
       final service = Auth(client);
       final ErreurDAuth? echecDuCoffre;
       try {
@@ -117,6 +127,30 @@ class Session extends ChangeNotifier {
         return;
       }
       _secondFacteur = null;
+
+      // L'adresse authentifie — elle ne sert pas forcément le reste.
+      //
+      // Relevé sur `cal.ghostsuite.cloud` : l'API y vit sous `/api`, et le proxy laisse
+      // passer `/v1/auth/*` sans préfixe. La connexion réussissait, le coffre s'ouvrait,
+      // puis **tous** les écrans répondaient 404 — « Le serveur a répondu 404 » sur
+      // l'agenda, ce qui est exact et ne désigne rien.
+      //
+      // La base n'était donc éprouvée que par les deux routes qui, précisément, ne
+      // suffisent pas à la juger. Une requête de plus, sur un chemin `v1/me/*`, tranche
+      // à la porte : un 404 ici ne peut pas être une ressource absente, puisque tout
+      // compte authentifié a au moins une organisation.
+      //
+      // Posée ici et non dans `reprendre` : c'est à la saisie que l'erreur se commet, et
+      // une base refusée ici n'est jamais enregistrée. L'ajouter au retour de session
+      // coûterait un aller-retour à chaque ouverture, pour rattraper une faute qui ne
+      // peut plus se produire.
+      try {
+        await client.obtenir<List<dynamic>>('v1/me/organizations');
+      } on ErreurAPI catch (e) {
+        if (e.statut == 404) throw const AdresseSansApi();
+        rethrow;
+      }
+
       _adopter(client, service, base);
       _etat = echecDuCoffre == null ? Etat.ouvert : Etat.coffreFerme;
       _raisonDuCoffre = echecDuCoffre;
@@ -145,7 +179,7 @@ class Session extends ChangeNotifier {
     _occupe = true;
     _erreur = null;
     notifyListeners();
-    final client = ClientAPI(base: base)
+    final client = ClientAPI(base: base, client: _transport)
       ..poserLesJetons(Jetons(acces: acces, rafraichissement: rafraichissement));
     final service = Auth(client);
     try {

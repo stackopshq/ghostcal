@@ -528,6 +528,10 @@ class LFr extends L {
   String get erreurAdresseInvalide => 'Adresse de serveur invalide.';
 
   @override
+  String get erreurAdresseSansApi =>
+      'Cette adresse authentifie, mais ne sert pas le reste de l’API de GhostCal. L’API vit peut-être sous un chemin : essayez d’ajouter « /api » à la fin.';
+
+  @override
   String get erreurSessionExpiree => 'La session a expiré. Reconnectez-vous.';
 
   @override
