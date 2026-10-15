@@ -328,5 +328,29 @@
         "type": "int"
       }
     }
-  }
+  },
+  "vueJour": "Jour",
+  "vueSemaine": "Semaine",
+  "vueMois": "Mois",
+  "vueListe": "Liste",
+  "periodePrecedente": "Précédent",
+  "periodeSuivante": "Suivant",
+  "rienSurLaPeriode": "Rien de prévu sur cette période.",
+  "autresEvenements": "+{nombre}",
+  "nouvelEvenementA": "Nouvel événement à {heure}",
+  "@autresEvenements": {
+    "placeholders": {
+      "nombre": {
+        "type": "int"
+      }
+    }
+  },
+  "@nouvelEvenementA": {
+    "placeholders": {
+      "heure": {
+        "type": "String"
+      }
+    }
+  },
+  "lectureSeule": "Affiché ici, modifiable là d'où il vient : réservation, série ou calendrier externe."
 }

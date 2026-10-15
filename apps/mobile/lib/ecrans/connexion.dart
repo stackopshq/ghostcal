@@ -497,7 +497,7 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
     }
     if (_reprise) {
       return [
-        _champ(gc, 'Compte', enfant: _valeurFigee(gc, session.email)),
+        _champ(gc, L.of(context).compte, enfant: _valeurFigee(gc, session.email)),
         const SizedBox(height: 18),
         _champDePhrase(gc),
       ];

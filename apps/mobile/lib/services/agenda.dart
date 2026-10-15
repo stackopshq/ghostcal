@@ -101,9 +101,14 @@ class LigneDAgenda {
     required this.titre,
     required this.source,
     this.lieu,
+    this.calendrier,
   });
 
   final String id;
+
+  /// The calendar the item belongs to, for its colour; `null` for bookings and
+  /// external busy slots, which have none.
+  final String? calendrier;
 
   /// L'identifiant de l'événement, quand la ligne en est un.
   ///
@@ -222,6 +227,7 @@ class Agenda {
         titre: titre,
         lieu: lieu,
         source: '${brute['source']}',
+        calendrier: brute['calendar_id'] as String?,
       ));
     }
     resultat.sort(comparerLesLignes);

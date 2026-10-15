@@ -619,4 +619,39 @@ class LFr extends L {
 
   @override
   String get notesDeTache => 'Notes';
+
+  @override
+  String get vueJour => 'Jour';
+
+  @override
+  String get vueSemaine => 'Semaine';
+
+  @override
+  String get vueMois => 'Mois';
+
+  @override
+  String get vueListe => 'Liste';
+
+  @override
+  String get periodePrecedente => 'Précédent';
+
+  @override
+  String get periodeSuivante => 'Suivant';
+
+  @override
+  String get rienSurLaPeriode => 'Rien de prévu sur cette période.';
+
+  @override
+  String autresEvenements(int nombre) {
+    return '+$nombre';
+  }
+
+  @override
+  String nouvelEvenementA(String heure) {
+    return 'Nouvel événement à $heure';
+  }
+
+  @override
+  String get lectureSeule =>
+      'Affiché ici, modifiable là d\'où il vient : réservation, série ou calendrier externe.';
 }
