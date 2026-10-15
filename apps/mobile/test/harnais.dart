@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_test/flutter_test.dart' show Fake;
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'package:ghostcal/l10n/generated/app_localisations.dart';
@@ -29,3 +31,70 @@ Widget appDEpreuve(Widget ecran, {Locale locale = const Locale('fr')}) => Materi
       supportedLocales: L.supportedLocales,
       home: ecran,
     );
+
+/// An in-memory store that counts every call, so a test can prove it was never touched.
+class MagasinCompte extends Fake implements FlutterSecureStorage {
+  final Map<String, String> valeurs = {};
+  int appels = 0;
+
+  @override
+  Future<bool> containsKey({
+    required String key,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    appels++;
+    return valeurs.containsKey(key);
+  }
+
+  @override
+  Future<String?> read({
+    required String key,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    appels++;
+    return valeurs[key];
+  }
+
+  @override
+  Future<void> write({
+    required String key,
+    required String? value,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    appels++;
+    if (value == null) {
+      valeurs.remove(key);
+    } else {
+      valeurs[key] = value;
+    }
+  }
+
+  @override
+  Future<void> delete({
+    required String key,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    appels++;
+    valeurs.remove(key);
+  }
+}
