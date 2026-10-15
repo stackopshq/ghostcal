@@ -134,7 +134,7 @@ class TypesDeRendezVous {
   };
 
   /// Where the meeting happens, as the server names it.
-  static const lieux = ['google_meet', 'zoom', 'ms_teams', 'phone', 'in_person', 'custom'];
+  static const lieux = ['google_meet', 'zoom', 'kmeet', 'ms_teams', 'phone', 'in_person', 'custom'];
 
   Future<void> supprimer(String id) =>
       api.envoyerSansReponse('DELETE', 'v1/me/event-types/$id');

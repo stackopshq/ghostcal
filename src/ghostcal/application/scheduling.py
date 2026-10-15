@@ -15,6 +15,7 @@ from typing import Protocol
 from zoneinfo import ZoneInfo
 
 from ghostcal.application.event_types import BookingQuestion
+from ghostcal.application.meeting_rooms import new_room_url
 from ghostcal.application.ports.clock import Clock
 from ghostcal.domain.availability import EventType, Schedule, compute_slots
 from ghostcal.domain.calendar import RecurringEvent, expand
@@ -152,6 +153,8 @@ class BookingConfirmation:
     guest_emails: tuple[str, ...] = ()
     # Other required hosts on a collective booking (each also gets the host notification).
     additional_host_emails: tuple[str, ...] = ()
+    # Join link created with the booking (kMeet); None when the host shares one later.
+    meeting_url: str | None = None
 
 
 class SchedulingRepository(Protocol):
@@ -216,6 +219,7 @@ class SchedulingRepository(Protocol):
         invitee_private: str | None = None,
         blocks_host: bool = True,
         max_at_slot: int | None = None,
+        meeting_url: str | None = None,
     ) -> uuid.UUID:
         """Insert a confirmed booking. Raise ``SlotUnavailable`` on overlap (race), or when
         ``max_at_slot`` is set and the slot already holds that many bookings (group capacity)."""
@@ -233,6 +237,7 @@ class SchedulingRepository(Protocol):
         invitee_timezone: str,
         guest_emails: tuple[str, ...] = (),
         invitee_private: str | None = None,
+        meeting_url: str | None = None,
     ) -> uuid.UUID:
         """Insert one confirmed booking per required host, linked by a collective group id.
 
@@ -386,6 +391,9 @@ async def create_booking(
         if any(slot.start == request.start_at for slot in slots):
             candidates.append(host)
 
+    # Generated before the insert so every row of a collective meeting shares one room.
+    meeting_url = new_room_url(context.location_type)
+
     if context.kind == "collective":
         # Every host must be free; book all of them as one linked meeting.
         if len(candidates) != len(context.hosts):
@@ -401,6 +409,7 @@ async def create_booking(
             invitee_timezone=request.invitee_timezone,
             guest_emails=guests,
             invitee_private=invitee_private,
+            meeting_url=meeting_url,
         )
         primary = hosts[0]
         additional = tuple(h.email for h in hosts[1:])
@@ -421,6 +430,7 @@ async def create_booking(
             invitee_private=invitee_private,
             blocks_host=not is_group,
             max_at_slot=context.capacity if is_group else None,
+            meeting_url=meeting_url,
         )
         additional = ()
 
@@ -439,6 +449,7 @@ async def create_booking(
         end_at=end_at,
         guest_emails=guests,
         additional_host_emails=additional,
+        meeting_url=meeting_url,
     )
 
 
