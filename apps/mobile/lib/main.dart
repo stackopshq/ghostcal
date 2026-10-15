@@ -3,10 +3,12 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'l10n/generated/app_localisations.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:workmanager/workmanager.dart';
 
 import 'ecrans/accueil.dart';
 import 'ecrans/connexion.dart';
 import 'services/apparence.dart';
+import 'services/rappels.dart';
 import 'services/session.dart';
 import 'services/verrouillage.dart';
 import 'src/rust/frb_generated.dart';
@@ -26,7 +28,19 @@ Future<void> main() async {
   await verrouillage.amorcer();
   final apparence = Apparence();
   await apparence.amorcer();
-  runApp(GhostcalApp(session: session, verrouillage: verrouillage, apparence: apparence));
+  Rappels? rappels;
+  if (Rappels.disponible) {
+    await Workmanager().initialize(tacheDeFond);
+    rappels = Rappels();
+    await rappels.amorcer();
+    session.avantDeSortir = rappels.arreter;
+  }
+  runApp(GhostcalApp(
+    session: session,
+    verrouillage: verrouillage,
+    apparence: apparence,
+    rappels: rappels,
+  ));
 }
 
 class GhostcalApp extends StatelessWidget {
@@ -37,7 +51,11 @@ class GhostcalApp extends StatelessWidget {
     this.accueilDEpreuve,
     this.locale,
     this.apparence,
+    this.rappels,
   });
+
+  /// Booking reminders; `null` where they are not offered (iOS for now, tests).
+  final Rappels? rappels;
 
   /// Language and theme picked in the settings. Optional so tests can build the app
   /// without a keychain; `null` follows the device.
@@ -131,7 +149,11 @@ class GhostcalApp extends StatelessWidget {
             animation: session,
             builder: (context, _) => session.etat == Etat.ouvert
                 ? EcranDAccueil(
-                    session: session, verrouillage: verrouillage, apparence: apparence)
+                    session: session,
+                    verrouillage: verrouillage,
+                    apparence: apparence,
+                    rappels: rappels,
+                  )
                 : EcranDeConnexion(session: session),
           ),
     );

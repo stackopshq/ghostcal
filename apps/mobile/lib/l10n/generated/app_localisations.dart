@@ -1650,6 +1650,60 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Choix proposés, un par ligne'**
   String get choixUnParLigne;
+
+  /// No description provided for @rappels.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rappels'**
+  String get rappels;
+
+  /// No description provided for @rappelsDeRendezVous.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rappeler mes rendez-vous'**
+  String get rappelsDeRendezVous;
+
+  /// No description provided for @rappelsExplication.
+  ///
+  /// In fr, this message translates to:
+  /// **'Une notification avant chaque rendez-vous réservé, sans le nom de l\'invité ni aucun détail. Calculée sur ce téléphone, sans service de notification tiers.'**
+  String get rappelsExplication;
+
+  /// No description provided for @rappelsAvance.
+  ///
+  /// In fr, this message translates to:
+  /// **'{minutes} min avant'**
+  String rappelsAvance(int minutes);
+
+  /// No description provided for @rappelsRefuses.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les notifications sont refusées pour GhostCal. Autorisez-les dans les réglages du téléphone.'**
+  String get rappelsRefuses;
+
+  /// No description provided for @rappelsCanal.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rappels de rendez-vous'**
+  String get rappelsCanal;
+
+  /// No description provided for @rappelsCanalDescription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Une notification neutre avant chaque rendez-vous réservé.'**
+  String get rappelsCanalDescription;
+
+  /// No description provided for @rappelTitre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rendez-vous'**
+  String get rappelTitre;
+
+  /// No description provided for @rappelCorps.
+  ///
+  /// In fr, this message translates to:
+  /// **'Votre rendez-vous commence dans {minutes} min.'**
+  String rappelCorps(int minutes);
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

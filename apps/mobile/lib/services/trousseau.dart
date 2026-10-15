@@ -1,5 +1,7 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import 'api.dart';
+
 /// Ce qui survit à la fermeture de l'application.
 ///
 /// **La phrase n'y figure pas, et n'y figurera pas.** Elle dérive la clé qui déballe la
@@ -43,4 +45,17 @@ class Trousseau {
   static Future<void> poser(String valeur, String cle) =>
       magasin.write(key: cle, value: valeur);
   static Future<void> retirer(String cle) => magasin.delete(key: cle);
+
+  /// The session tokens as last saved, or null when signed out.
+  static Future<Jetons?> jetons() async {
+    final acces = await lire(jetonDAcces);
+    final rafraichissement = await lire(jetonDeRafraichissement);
+    if (acces == null || rafraichissement == null) return null;
+    return Jetons(acces: acces, rafraichissement: rafraichissement);
+  }
+
+  static Future<void> poserLesJetons(Jetons valeur) async {
+    await poser(valeur.acces, jetonDAcces);
+    await poser(valeur.rafraichissement, jetonDeRafraichissement);
+  }
 }

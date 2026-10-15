@@ -893,4 +893,38 @@ class LEn extends L {
 
   @override
   String get choixUnParLigne => 'Choices, one per line';
+
+  @override
+  String get rappels => 'Reminders';
+
+  @override
+  String get rappelsDeRendezVous => 'Remind me of my appointments';
+
+  @override
+  String get rappelsExplication =>
+      'A notification before each booked appointment, without the invitee\'s name or any detail. Computed on this phone, with no third-party notification service.';
+
+  @override
+  String rappelsAvance(int minutes) {
+    return '$minutes min before';
+  }
+
+  @override
+  String get rappelsRefuses =>
+      'Notifications are turned off for GhostCal. Allow them in the phone\'s settings.';
+
+  @override
+  String get rappelsCanal => 'Appointment reminders';
+
+  @override
+  String get rappelsCanalDescription =>
+      'A neutral notification before each booked appointment.';
+
+  @override
+  String get rappelTitre => 'Appointment';
+
+  @override
+  String rappelCorps(int minutes) {
+    return 'Your appointment starts in $minutes min.';
+  }
 }
