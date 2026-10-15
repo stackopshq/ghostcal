@@ -287,6 +287,7 @@
   "erreurServeurLent": "Le serveur ne répond pas. Réessayez dans un instant.",
   "erreurCertificat": "La connexion sécurisée au serveur a échoué : son certificat n'est pas valide.",
   "erreurAdresseInvalide": "Adresse de serveur invalide.",
+  "erreurAdresseSansApi": "Cette adresse authentifie, mais ne sert pas le reste de l’API de GhostCal. L’API vit peut-être sous un chemin : essayez d’ajouter « /api » à la fin.",
   "erreurSessionExpiree": "La session a expiré. Reconnectez-vous.",
   "erreurPhraseIncorrecte": "Cette phrase n'ouvre pas le coffre.",
   "erreurIdentifiants": "Adresse e-mail ou mot de passe incorrect.",
@@ -443,5 +444,28 @@
   "reponseChoix": "Liste de choix",
   "reponseCase": "Case à cocher",
   "reponseObligatoire": "Réponse obligatoire",
-  "choixUnParLigne": "Choix proposés, un par ligne"
+  "choixUnParLigne": "Choix proposés, un par ligne",
+  "rappels": "Rappels",
+  "rappelsDeRendezVous": "Rappeler mes rendez-vous",
+  "rappelsExplication": "Une notification avant chaque rendez-vous réservé, sans le nom de l'invité ni aucun détail. Calculée sur ce téléphone, sans service de notification tiers.",
+  "rappelsAvance": "{minutes} min avant",
+  "@rappelsAvance": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "rappelsRefuses": "Les notifications sont refusées pour GhostCal. Autorisez-les dans les réglages du téléphone.",
+  "rappelsCanal": "Rappels de rendez-vous",
+  "rappelsCanalDescription": "Une notification neutre avant chaque rendez-vous réservé.",
+  "rappelTitre": "Rendez-vous",
+  "rappelCorps": "Votre rendez-vous commence dans {minutes} min.",
+  "@rappelCorps": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  }
 }

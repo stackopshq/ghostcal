@@ -71,6 +71,33 @@ if ! psql -h 127.0.0.1 -p $PGPORT -U ghostcal -d postgres -tAc "select 1" >/dev/
   psql -h 127.0.0.1 -p $PGPORT -U ghostcal -d postgres -c "create database ghostcal;" >/dev/null
 fi
 
+# Le rôle applicatif, auquel les migrations accordent des droits.
+#
+# Dans la grappe Docker, c'est `scripts/init/01-app-role.sh` qui le crée, une fois, à la
+# naissance de la base. Le banc monte sa propre grappe par `initdb` et ne passait donc
+# jamais par là : `alembic upgrade head` échouait sur le premier
+# `GRANT … TO ghostcal_app`, avec un message qui nomme le rôle et pas le banc.
+#
+# Hors du garde-fou `if` ci-dessus, et idempotent : une grappe laissée par une exécution
+# précédente existe déjà, et la création serait sautée alors que le rôle manque toujours.
+#
+# Sans mot de passe — la grappe du banc est en `trust` et n'écoute que la boucle locale.
+# C'est aussi pourquoi le banc continue de se connecter en `ghostcal` : il éprouve les
+# écrans, pas la séparation des privilèges, que seule la composition Docker reproduit.
+psql -h 127.0.0.1 -p $PGPORT -U ghostcal -d ghostcal -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+do $$
+begin
+  if not exists (select 1 from pg_roles where rolname = 'ghostcal_app') then
+    create role ghostcal_app login nosuperuser nobypassrls nocreatedb nocreaterole;
+  end if;
+end
+$$;
+grant usage on schema public to ghostcal_app;
+grant select, insert, update, delete on all tables in schema public to ghostcal_app;
+alter default privileges in schema public
+    grant select, insert, update, delete on tables to ghostcal_app;
+SQL
+
 dire "Migrations"
 export GHOSTCAL_ENVIRONMENT=development
 export GHOSTCAL_DATABASE_URL="postgresql+asyncpg://ghostcal@127.0.0.1:$PGPORT/ghostcal"

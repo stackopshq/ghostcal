@@ -42,7 +42,8 @@ enum ChoixDeTheme {
 
 /// Language and theme, kept between launches. Same shape as `Verrouillage`.
 class Apparence extends ChangeNotifier {
-  static const _cleLangue = 'ghostcal.apparence.langue';
+  /// Public for the reminders, which word their notifications without a widget tree.
+  static const cleLangue = 'ghostcal.apparence.langue';
   static const _cleTheme = 'ghostcal.apparence.theme';
 
   ChoixDeLangue _langue = ChoixDeLangue.appareil;
@@ -52,7 +53,7 @@ class Apparence extends ChangeNotifier {
   ChoixDeTheme get theme => _theme;
 
   Future<void> amorcer() async {
-    final langue = await Trousseau.lire(_cleLangue);
+    final langue = await Trousseau.lire(cleLangue);
     final theme = await Trousseau.lire(_cleTheme);
     // An unknown value (written by a newer version) falls back to the device's choice.
     _langue = ChoixDeLangue.values.firstWhere((v) => v.name == langue,
@@ -65,7 +66,7 @@ class Apparence extends ChangeNotifier {
   Future<void> choisirLaLangue(ChoixDeLangue valeur) async {
     _langue = valeur;
     notifyListeners();
-    await Trousseau.poser(valeur.name, _cleLangue);
+    await Trousseau.poser(valeur.name, cleLangue);
   }
 
   Future<void> choisirLeTheme(ChoixDeTheme valeur) async {

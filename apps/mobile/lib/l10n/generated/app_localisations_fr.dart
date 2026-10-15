@@ -528,6 +528,10 @@ class LFr extends L {
   String get erreurAdresseInvalide => 'Adresse de serveur invalide.';
 
   @override
+  String get erreurAdresseSansApi =>
+      'Cette adresse authentifie, mais ne sert pas le reste de l’API de GhostCal. L’API vit peut-être sous un chemin : essayez d’ajouter « /api » à la fin.';
+
+  @override
   String get erreurSessionExpiree => 'La session a expiré. Reconnectez-vous.';
 
   @override
@@ -893,4 +897,38 @@ class LFr extends L {
 
   @override
   String get choixUnParLigne => 'Choix proposés, un par ligne';
+
+  @override
+  String get rappels => 'Rappels';
+
+  @override
+  String get rappelsDeRendezVous => 'Rappeler mes rendez-vous';
+
+  @override
+  String get rappelsExplication =>
+      'Une notification avant chaque rendez-vous réservé, sans le nom de l\'invité ni aucun détail. Calculée sur ce téléphone, sans service de notification tiers.';
+
+  @override
+  String rappelsAvance(int minutes) {
+    return '$minutes min avant';
+  }
+
+  @override
+  String get rappelsRefuses =>
+      'Les notifications sont refusées pour GhostCal. Autorisez-les dans les réglages du téléphone.';
+
+  @override
+  String get rappelsCanal => 'Rappels de rendez-vous';
+
+  @override
+  String get rappelsCanalDescription =>
+      'Une notification neutre avant chaque rendez-vous réservé.';
+
+  @override
+  String get rappelTitre => 'Rendez-vous';
+
+  @override
+  String rappelCorps(int minutes) {
+    return 'Votre rendez-vous commence dans $minutes min.';
+  }
 }

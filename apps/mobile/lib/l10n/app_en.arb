@@ -158,6 +158,7 @@
   "erreurServeurLent": "The server isn't responding. Try again in a moment.",
   "erreurCertificat": "The secure connection to the server failed: its certificate isn't valid.",
   "erreurAdresseInvalide": "Invalid server address.",
+  "erreurAdresseSansApi": "This address can sign you in, but does not serve the rest of the GhostCal API. The API may live under a path: try adding “/api” to the end.",
   "erreurSessionExpiree": "Your session has expired. Please sign in again.",
   "erreurPhraseIncorrecte": "This passphrase doesn't open the vault.",
   "erreurIdentifiants": "Wrong email address or password.",
@@ -265,5 +266,28 @@
   "reponseChoix": "List of choices",
   "reponseCase": "Checkbox",
   "reponseObligatoire": "Answer required",
-  "choixUnParLigne": "Choices, one per line"
+  "choixUnParLigne": "Choices, one per line",
+  "rappels": "Reminders",
+  "rappelsDeRendezVous": "Remind me of my appointments",
+  "rappelsExplication": "A notification before each booked appointment, without the invitee's name or any detail. Computed on this phone, with no third-party notification service.",
+  "rappelsAvance": "{minutes} min before",
+  "@rappelsAvance": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "rappelsRefuses": "Notifications are turned off for GhostCal. Allow them in the phone's settings.",
+  "rappelsCanal": "Appointment reminders",
+  "rappelsCanalDescription": "A neutral notification before each booked appointment.",
+  "rappelTitre": "Appointment",
+  "rappelCorps": "Your appointment starts in {minutes} min.",
+  "@rappelCorps": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  }
 }

@@ -45,6 +45,18 @@ class SessionExpiree implements Exception {
   const SessionExpiree();
 }
 
+/// Signing in worked, but the address does not serve the rest of the API.
+///
+/// Measured on `cal.ghostsuite.cloud`, where the API lives under `/api`: the reverse
+/// proxy forwards `/v1/auth/*` unprefixed and nothing else. Signing in succeeded, the
+/// vault opened — both are `auth` routes — and every screen afterwards answered 404.
+///
+/// The address was therefore accepted by the only test that was ever run on it, which
+/// is why this exists: a server is not "the right one" because it can authenticate.
+class AdresseSansApi implements Exception {
+  const AdresseSansApi();
+}
+
 /// The sentence a user reads for [e], in the screen's language.
 ///
 /// Every screen used to show `'$e'`, which put Dart and Java class names on screen.
@@ -55,6 +67,7 @@ String lisible(Object e, L l, {bool connexion = false}) => switch (e) {
       ErreurReseau(genre: GenreDErreurReseau.delai) => l.erreurServeurLent,
       ErreurReseau(genre: GenreDErreurReseau.certificat) => l.erreurCertificat,
       AdresseInvalide() => l.erreurAdresseInvalide,
+      AdresseSansApi() => l.erreurAdresseSansApi,
       SessionExpiree() => l.erreurSessionExpiree,
       ErreurDAuth() when identical(e, ErreurDAuth.phraseIncorrecte) =>
         l.erreurPhraseIncorrecte,
