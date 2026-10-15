@@ -17,6 +17,7 @@ from ghostcal.application.event_types import questions_from_json as _to_question
 from ghostcal.application.scheduling import (
     EventContext,
     HostRef,
+    InviteeBooking,
     PublicEventType,
     SlotUnavailable,
 )
@@ -335,27 +336,35 @@ class SqlSchedulingRepository:
             loads[host_id] = count
         return loads
 
-    async def upcoming_booking_of(
-        self, event_type_id: uuid.UUID, invitee_email: str, now: datetime
-    ) -> tuple[uuid.UUID, datetime] | None:
-        # invitee_email is encrypted with a random nonce, so SQL cannot compare it: the few
-        # upcoming bookings of one event type are decrypted and compared here.
+    async def bookings_of_invitee_between(
+        self, invitee_email: str, start: datetime, end: datetime
+    ) -> list[InviteeBooking]:
+        # invitee_email is encrypted with a random nonce, so SQL cannot compare it: the
+        # organization's bookings in a window of a few days are decrypted and compared here.
         rows = (
             await self._session.execute(
-                select(models.Booking.id, models.Booking.start_at, models.Booking.invitee_email)
+                select(
+                    models.Booking.id,
+                    models.Booking.start_at,
+                    models.Booking.end_at,
+                    models.Booking.invitee_email,
+                    models.EventType.title,
+                )
+                .join(models.EventType, models.EventType.id == models.Booking.event_type_id)
                 .where(
-                    models.Booking.event_type_id == event_type_id,
                     models.Booking.status == "confirmed",
-                    models.Booking.start_at > now,
+                    models.Booking.start_at >= start,
+                    models.Booking.start_at < end,
                 )
                 .order_by(models.Booking.start_at)
             )
         ).all()
         wanted = invitee_email.strip().lower()
-        for booking_id, start_at, email in rows:
-            if email.strip().lower() == wanted:
-                return booking_id, start_at
-        return None
+        return [
+            InviteeBooking(booking_id, start_at, end_at, title)
+            for booking_id, start_at, end_at, email, title in rows
+            if email.strip().lower() == wanted
+        ]
 
     async def slot_booking_counts(self, event_type_id: uuid.UUID) -> dict[datetime, int]:
         rows = (

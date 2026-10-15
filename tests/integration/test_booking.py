@@ -321,34 +321,27 @@ async def test_someone_elses_calendar_does_not_occupy_you(
     assert FIRST_SLOT in {slot.start for slot in slots}
 
 
-async def test_second_upcoming_booking_by_same_invitee_is_refused(
+async def test_same_day_or_back_to_back_booking_is_refused(
     bookable: dict[str, uuid.UUID],
 ) -> None:
-    """Booking the slot next to one's own meeting instead of moving it is refused."""
+    """Two bookings are fine, but not the same day nor one right after the other."""
     from ghostcal.application.scheduling import AlreadyBooked
 
     org, event = bookable["org"], bookable["event"]
-    second = FIRST_SLOT + timedelta(minutes=30)
-    async with org_session(org) as session:
-        first = await create_booking(
-            _repo(session, org),
-            CLOCK,
-            BookingRequest(event, second, None, "Same@Example.test", "UTC"),
-        )
 
-    with pytest.raises(AlreadyBooked) as refused:
+    async def book(start: datetime, email: str) -> uuid.UUID:
         async with org_session(org) as session:
-            await create_booking(
-                _repo(session, org),
-                CLOCK,
-                BookingRequest(event, FIRST_SLOT, None, "same@example.test ", "UTC"),
+            done = await create_booking(
+                _repo(session, org), CLOCK, BookingRequest(event, start, None, email, "UTC")
             )
-    assert refused.value.booking_id == first.booking_id
+        return done.booking_id
 
-    # Someone else still books the free slot.
-    async with org_session(org) as session:
-        await create_booking(
-            _repo(session, org),
-            CLOCK,
-            BookingRequest(event, FIRST_SLOT, None, "other@example.test", "UTC"),
-        )
+    first = await book(FIRST_SLOT + timedelta(minutes=30), "Same@Example.test")
+
+    for clash in (FIRST_SLOT, FIRST_SLOT + timedelta(hours=6)):  # back to back, same day
+        with pytest.raises(AlreadyBooked) as refused:
+            await book(clash, "same@example.test ")
+        assert refused.value.booking_id == first
+
+    await book(FIRST_SLOT + timedelta(days=7), "same@example.test")  # another day
+    await book(FIRST_SLOT, "other@example.test")  # someone else, same slot as refused

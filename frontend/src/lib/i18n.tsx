@@ -127,7 +127,7 @@ const en: Dict = {
   "booking.confirming": "Confirming…",
   "booking.errTaken": "That slot was just taken. Pick another time.",
   "booking.errAlreadyBooked":
-    "You already have an upcoming booking of this kind. We've emailed you the link to move it: reschedule it there instead of booking a second one.",
+    "You already have a booking that day or right next to this slot. We've emailed you the link to move it: reschedule it there instead of booking a second one.",
   "booking.errGeneric": "Could not confirm the booking. Please try again.",
   "booking.booked": "You're booked",
   "booking.with": "with {host}",
@@ -828,7 +828,7 @@ const fr: Dict = {
   "booking.confirming": "Confirmation…",
   "booking.errTaken": "Ce créneau vient d'être pris. Choisissez-en un autre.",
   "booking.errAlreadyBooked":
-    "Vous avez déjà un rendez-vous de ce type à venir. Nous venons de vous envoyer par e-mail le lien pour le déplacer : changez l'horaire depuis ce lien plutôt que d'en réserver un second.",
+    "Vous avez déjà un rendez-vous ce jour-là ou juste à côté de ce créneau. Nous venons de vous envoyer par e-mail le lien pour le déplacer : changez l'horaire depuis ce lien plutôt que d'en réserver un second.",
   "booking.errGeneric": "Impossible de confirmer la réservation. Réessayez.",
   "booking.booked": "C'est réservé",
   "booking.with": "avec {host}",

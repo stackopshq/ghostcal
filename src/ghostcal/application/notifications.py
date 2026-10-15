@@ -496,7 +496,7 @@ async def send_already_booked(
     start_at: datetime,
     manage_url: str,
 ) -> None:
-    """Sent when someone tries to book a second slot while one is still to come: the link to
+    """Sent when someone books the same day as, or right next to, their booking: the link to
     move the existing one goes to the mailbox, never to the page, so typing someone else's
     address reveals no way to change their meeting."""
     await mailer.send(
@@ -508,11 +508,13 @@ async def send_already_booked(
         html=bi.body(
             f"<p>Vous avez déjà un rendez-vous <strong>{_h(event_title)}</strong> le "
             f"{bi.when_fr(start_at, invitee_timezone)}.</p>"
-            f"<p>Pour changer d'horaire, déplacez-le plutôt que d'en réserver un second.</p>"
+            f"<p>Un seul rendez-vous par jour, et jamais deux à la suite : pour changer "
+            f"d'horaire, déplacez celui-ci plutôt que d'en réserver un second.</p>"
             f"{_button(manage_url, 'Déplacer ou annuler')}",
             f"<p>You already have a <strong>{_h(event_title)}</strong> booking on "
             f"{bi.when_en(start_at, invitee_timezone)}.</p>"
-            f"<p>To change the time, move it instead of booking a second one.</p>"
+            f"<p>One booking per day, never two in a row: to change the time, move this one "
+            f"instead of booking a second.</p>"
             f"{_button(manage_url, 'Reschedule or cancel')}",
         ),
     )
