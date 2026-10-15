@@ -58,7 +58,10 @@ async def test_meeting_link_goes_to_every_recipient_escaped() -> None:
     assert "<script>" not in html and "<b>" not in html
     assert 'href="https://zoom.us/j/1?pwd=a&amp;x=&quot;&gt;&lt;script&gt;"' in html
     assert "https://cal.example.com/manage/tok" in html
-    assert mailer.sent[0].subject == "Meeting link: Intro <b>call</b> with Kevin"
+    assert mailer.sent[0].subject == (
+        "Lien de la réunion : Intro <b>call</b> avec Kevin"
+        " / Meeting link: Intro <b>call</b> with Kevin"
+    )
 
 
 async def test_confirmation_offers_reschedule_to_the_invitee_only() -> None:

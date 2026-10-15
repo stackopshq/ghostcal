@@ -12,14 +12,14 @@ from ghostcal.application.reminders import DueReminder, ReminderGateway
 from ghostcal.config import get_settings
 from ghostcal.infrastructure.security.encryption import SecretBox
 
-# invitee_email is encrypted at rest; this raw-SQL path (a SECURITY DEFINER function) bypasses the
-# ORM TypeDecorator, so we decrypt it here with the application key to actually send the reminder.
+# invitee_email and meeting_url are encrypted at rest; this raw-SQL path (a SECURITY DEFINER
+# function) bypasses the ORM TypeDecorator, so we decrypt them here with the application key.
 _cipher = SecretBox(get_settings().token_encryption_key.get_secret_value())
 
 _DUE = text(
     "SELECT booking_id, organization_id, minutes_before, invitee_email, "
     "invitee_timezone, event_title, host_name, host_email, host_timezone, location_type, "
-    "start_at, end_at FROM due_booking_reminders(:offsets)"
+    "start_at, end_at, meeting_url FROM due_booking_reminders(:offsets)"
 ).bindparams(bindparam("offsets", type_=ARRAY(Integer)))
 
 
@@ -43,6 +43,7 @@ class SqlReminderGateway(ReminderGateway):
                 location_type=r.location_type,
                 start_at=r.start_at,
                 end_at=r.end_at,
+                meeting_url=_cipher.decrypt(r.meeting_url) if r.meeting_url else None,
             )
             for r in rows
         ]
