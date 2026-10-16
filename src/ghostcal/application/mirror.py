@@ -36,8 +36,10 @@ def mirror_uid(booking_id: uuid.UUID) -> str:
 
 
 # What a 'busy' mirror says. Deliberately not the event title: a title like "Job interview" on a
-# shared work calendar discloses as much as a name would.
-BUSY_SUMMARY = "Busy"
+# shared work calendar discloses as much as a name would. French, like the busy feed
+# (`busy_ics.BUSY_SUMMARY`): the hosts are French-speaking and GhostCal stores no per-user
+# language. Until 2026-10-16 it said "Busy", in English, in a French calendar.
+BUSY_SUMMARY = "Occupé"
 
 
 def _disclosed(
