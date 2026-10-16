@@ -99,8 +99,13 @@ jobs:
 
       # Le client psql n'est pas dans l'image du runner. Le serveur est en 16, le client de
       # Rocky Linux 10 aussi.
+      #
+      # `--refresh` : l'image porte les métadonnées dnf de sa construction. Le 2026-10-16, elles
+      # désignaient un `primary.xml.gz` du dépôt `crb` que Rocky avait remplacé depuis, et le job
+      # échouait sur `Failed to download metadata for repo 'crb'` — trois fois de suite, même
+      # fichier, alors que le dépôt répondait. Relire les métadonnées coûte quelques secondes.
       - name: Install the PostgreSQL client
-        run: sudo dnf install -y -q --setopt=install_weak_deps=False postgresql
+        run: sudo dnf install -y -q --refresh --setopt=install_weak_deps=False postgresql
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
