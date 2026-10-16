@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -30,7 +31,12 @@ Future<void> main() async {
   await apparence.amorcer();
   Rappels? rappels;
   if (Rappels.disponible) {
-    await Workmanager().initialize(tacheDeFond);
+    // Seulement là où une tâche périodique existe : `Workmanager` sur iOS s'appuie sur
+    // `BGTaskScheduler`, qui exige des identifiants déclarés dans l'Info.plist et ne
+    // promet aucun intervalle. Les rappels iOS n'en dépendent pas — voir `Rappels`.
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      await Workmanager().initialize(tacheDeFond);
+    }
     rappels = Rappels();
     await rappels.amorcer();
     session.avantDeSortir = rappels.arreter;

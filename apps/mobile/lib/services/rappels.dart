@@ -74,7 +74,18 @@ List<RappelPrevu> rappelsAPrevoir(
 ///   does not need to be open — a background refresh can run with the screen off.
 /// - **Opt-in.** Off by default; the permission is asked when the user turns it on.
 ///
-/// Android only for now: iOS background refresh needs its own setup.
+/// ─── Android and iOS, by two different routes ───
+///
+/// Android keeps a WorkManager task that re-reads the week every fifteen minutes, its
+/// floor. iOS has no equivalent worth relying on: `BGAppRefreshTask` is opportunistic —
+/// the system decides, the interval is not a promise, and a phone left alone can skip it
+/// for hours. A reminder that depends on it would simply not ring.
+///
+/// So iOS does not refresh in the background at all. It schedules the **whole** window up
+/// front — the system then holds the notifications, through a reboot, with the app never
+/// running — and rebuilds that set whenever the app comes to the front, which
+/// `EcranDAccueil` already does on `resumed`. The price is bounded and known: a booking
+/// taken while the app is closed waits for the next opening to get its reminder.
 class Rappels extends ChangeNotifier {
   Rappels({FlutterLocalNotificationsPlugin? plugin, this._taches})
     : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
@@ -91,6 +102,11 @@ class Rappels extends ChangeNotifier {
 
   /// How far ahead reminders are scheduled, and how many at most: Android caps the
   /// alarms one app may hold, and a refresh comes long before a week runs out.
+  ///
+  /// Fifty also clears iOS's own ceiling, which is harder: iOS keeps **64** pending
+  /// local notifications per app and silently drops the rest. Since iOS schedules the
+  /// entire window at once instead of refreshing, that ceiling is the real bound, and
+  /// fifty leaves room under it rather than discovering it on a busy week.
   static const horizon = Duration(days: 7);
   static const maximum = 50;
 
@@ -98,6 +114,12 @@ class Rappels extends ChangeNotifier {
   static const frequence = Duration(minutes: 15);
 
   static bool get disponible =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
+
+  /// Android holds the periodic refresh and the exact-alarm permission; iOS has neither.
+  static bool get _surAndroid =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
   bool _actif = false;
@@ -122,23 +144,46 @@ class Rappels extends ChangeNotifier {
   /// stays off rather than claiming reminders that will never show.
   Future<bool> activer() async {
     await _preparer();
-    final android = _plugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
-    final accorde = await android?.requestNotificationsPermission() ?? false;
-    if (!accorde) return false;
+    if (!await _demanderLAutorisation()) return false;
     _actif = true;
     notifyListeners();
     await Trousseau.poser('true', _cleActif);
-    await _gestionnaire.registerPeriodicTask(
-      _tache,
-      _tache,
-      frequency: frequence,
-      constraints: Constraints(networkType: NetworkType.connected),
-      existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
-    );
+    // Rien de périodique sur iOS : voir l'en-tête de la classe. La fenêtre entière est
+    // planifiée par `replanifier`, que l'écran d'accueil appelle à chaque retour.
+    if (_surAndroid) {
+      await _gestionnaire.registerPeriodicTask(
+        _tache,
+        _tache,
+        frequency: frequence,
+        constraints: Constraints(networkType: NetworkType.connected),
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
+      );
+    }
     return true;
+  }
+
+  /// Demande le droit de notifier, et rend ce que l'utilisateur a répondu.
+  ///
+  /// Les deux systèmes le demandent à cet instant précis et pas à l'amorçage : une
+  /// application qui réclame une autorisation au premier lancement, pour une fonction
+  /// que personne n'a allumée, se fait refuser — et le refus, sur iOS, ne se redemande
+  /// pas. C'est pourquoi `DarwinInitializationSettings` ne demande rien.
+  Future<bool> _demanderLAutorisation() async {
+    if (_surAndroid) {
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      return await android?.requestNotificationsPermission() ?? false;
+    }
+    final ios = _plugin
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >();
+    // Pas de pastille : le compteur sur l'icône survivrait au rendez-vous et dirait
+    // qu'il reste quelque chose à faire. Le son et la bannière suffisent à un rappel.
+    return await ios?.requestPermissions(alert: true, badge: false, sound: true) ??
+        false;
   }
 
   Future<void> desactiver() async {
@@ -151,7 +196,7 @@ class Rappels extends ChangeNotifier {
   /// Stops the refresh and drops what is scheduled, keeping the user's choice: used at
   /// sign-out, so reminders resume with the next session.
   Future<void> arreter() async {
-    await _gestionnaire.cancelByUniqueName(_tache);
+    if (_surAndroid) await _gestionnaire.cancelByUniqueName(_tache);
     await _preparer();
     await _plugin.cancelAllPendingNotifications();
   }
@@ -216,6 +261,16 @@ class Rappels extends ChangeNotifier {
         >();
     final exact = await android?.canScheduleExactNotifications() ?? false;
     final details = NotificationDetails(
+      // Rien à régler sur iOS pour masquer le texte à l'écran verrouillé : c'est un
+      // réglage de l'utilisateur (« Afficher les aperçus »), qu'aucune application ne
+      // commande. La neutralité du texte est donc la seule garantie qui tienne des deux
+      // côtés — et c'est celle que `rappels_test.dart` mesure.
+      iOS: const DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: false,
+        presentSound: true,
+        interruptionLevel: InterruptionLevel.timeSensitive,
+      ),
       android: AndroidNotificationDetails(
         _canal,
         l.rappelsCanal,
@@ -246,6 +301,13 @@ class Rappels extends ChangeNotifier {
     await _plugin.initialize(
       settings: const InitializationSettings(
         android: AndroidInitializationSettings('ic_notification'),
+        // Aucune demande ici : `activer()` s'en charge, au moment où l'utilisateur
+        // allume la fonction. iOS n'a pas d'icône à nommer, il prend celle de l'app.
+        iOS: DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
+        ),
       ),
     );
     _pret = true;

@@ -25,6 +25,7 @@ import 'package:integration_test/integration_test.dart';
 
 import 'package:ghostcal/main.dart';
 import 'package:ghostcal/services/apparence.dart';
+import 'package:ghostcal/services/rappels.dart';
 import 'package:ghostcal/services/session.dart';
 import 'package:ghostcal/services/verrouillage.dart';
 import 'package:ghostcal/src/rust/frb_generated.dart';
@@ -77,11 +78,17 @@ void main() {
     await verrouillage.amorcer();
     final apparence = Apparence();
     await apparence.amorcer();
+    // Les rappels sont passés comme `main()` les passe sur iOS depuis la parité : sans
+    // eux, la section « Rappels » n'existe pas dans l'arbre et les captures ne diraient
+    // rien de ses libellés, qui sont neufs dans les deux langues.
+    final rappels = Rappels();
+    await rappels.amorcer();
 
     await tester.pumpWidget(GhostcalApp(
       session: session,
       verrouillage: verrouillage,
       apparence: apparence,
+      rappels: rappels,
     ));
     await tester.pumpAndSettle();
 
@@ -145,6 +152,36 @@ void main() {
           await tester.tap(find.text(onglet).first);
           await tester.pumpAndSettle();
         }
+
+        // La section neuve, dans la langue courante : un libellé resté en dur se verrait
+        // ici avant de se voir en production.
+        //
+        // Il faut y descendre : un `ListView` ne construit pas ses enfants hors écran,
+        // et chercher le libellé sans défiler ne rend rien — ce qui ressemblerait trait
+        // pour trait à une section absente. On tire depuis la ligne « Serveur », dont on
+        // sait qu'elle est à l'écran.
+        await tester.dragUntilVisible(
+          find.byKey(const Key('reglage.rappels')),
+          find.byKey(const Key('reglages.serveur')),
+          const Offset(0, -200),
+        );
+        await tester.pumpAndSettle();
+        // Le libellé de l'interrupteur, pas l'en-tête de section : `_titre` passe le
+        // sien en majuscules, et assertir dessus mesurerait cette transformation autant
+        // que la traduction.
+        expect(
+          find.text(langue == ChoixDeLangue.francais
+              ? 'Rappeler mes rendez-vous'
+              : 'Remind me of my appointments'),
+          findsOneWidget,
+          reason: 'La section Rappels doit exister sur iOS, et être traduite.',
+        );
+        // Éteints par défaut : c'est la promesse, et elle se vérifie à l'œil sur la
+        // capture autant qu'ici.
+        expect(
+          tester.widget<SwitchListTile>(find.byKey(const Key('reglage.rappels'))).value,
+          isFalse,
+        );
 
         await photographier(tester, '${langue.name}-${theme.name}');
       }
