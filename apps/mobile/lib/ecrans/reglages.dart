@@ -380,6 +380,31 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
         value: rappels.actif,
         onChanged: (valeur) => _basculerLesRappels(rappels, valeur),
       ),
+      // macOS seulement : sur Android, WorkManager réveille l'application fermée et il
+      // n'y a rien à inscrire. `aLOuvertureDeSession` y vaut donc toujours faux — mais on
+      // n'affiche pas l'interrupteur sur ce seul critère, qui serait aussi celui d'un Mac
+      // où le réglage est simplement éteint.
+      if (rappels.actif && Rappels.surMacos)
+        SwitchListTile(
+          key: const Key('reglage.rappels.session'),
+          secondary: const Icon(Icons.restart_alt),
+          title: Text(l.rappelsAuDemarrage),
+          subtitle: Text(l.rappelsAuDemarrageExplication,
+              style: TextStyle(color: gc.estompe, fontSize: 12)),
+          value: rappels.aLOuvertureDeSession,
+          onChanged: (valeur) async {
+            // L'état vient du système, pas du geste : `register()` peut échouer, et un
+            // interrupteur qui retombe sans un mot ressemble à un défaut de
+            // l'application.
+            final pose = await rappels.lancerALOuvertureDeSession(valeur);
+            if (!mounted) return;
+            setState(() {});
+            if (valeur && !pose) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(L.of(context).rappelsAuDemarrageRefuse)));
+            }
+          },
+        ),
       if (rappels.actif)
         RadioGroup<AvanceDuRappel>(
           groupValue: rappels.avance,

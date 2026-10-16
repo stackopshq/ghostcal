@@ -237,6 +237,7 @@ Campagne du 2026-10-15, `flutter test integration_test/macos_test.dart -d macos`
 | Une photo HEIC devient un JPEG d'au plus 1024 points | Passée par le canal natif, décodée pour en mesurer les côtés, téléversée, relue depuis le serveur, retirée |
 | Le trousseau accepte une phrase sous contrainte matérielle | `retenir` rend `true` — donc le groupe d'accès est accordé —, et l'interrogation de présence répond en moins de trois secondes, donc sans invite |
 | Les écrans en clair et en sombre, en français et en anglais, en petite et en grande fenêtre | Huit captures, extraites par `tools/macos/extraire-captures.py` |
+| L'inscription aux ouvertures de session | Posée, relue **auprès du système**, puis remise comme elle était — un témoin n'a pas à laisser une entrée dans les Réglages Système de qui l'exécute |
 
 La fenêtre et les menus ont été interrogés sur l'application **lancée**, par
 `System Events` — un témoin Flutter dimensionne la vue, pas la fenêtre d'AppKit, et ne
@@ -284,5 +285,46 @@ autour de l'invite, eux, sont bien dans les deux langues (capture
 depuis un témoin. Ce qui est éprouvé, c'est tout ce qui suit le choix — y compris le
 ré-encodage, qui est la partie que macOS cassait.
 
+**L'alerte d'autorisation des notifications, et la bannière de rappel.** La première
+attend un clic, la seconde attend son heure ; et accorder à GhostCal un droit de notifier
+durable sur la machine de quelqu'un n'est pas une décision d'un témoin. Reste donc à faire
+une fois à la main : allumer « Rappeler mes rendez-vous », accepter l'alerte, réserver un
+créneau à vingt minutes depuis la page publique, et attendre. L'inscription aux ouvertures
+de session, elle, est éprouvée.
+
 **La notarisation**, évidemment : elle demande le certificat qui manque, et elle envoie
 chez Apple.
+
+## Les rappels, et ce que macOS ne permet pas
+
+Les rappels de rendez-vous sont **ceux d'Android**, `lib/services/rappels.dart`, arrivés
+avec la 1.3.0. Ce portage ne les réécrit pas : il les étend. Les bannières passent des deux
+côtés par `flutter_local_notifications`, et le texte — la seule partie de cette fonction
+qui puisse fuir une donnée — reste là où un témoin le relit.
+
+Ce qui diffère tient en une phrase, et elle vient de la documentation de `workmanager` :
+sur macOS, les tâches de fond passent par `NSBackgroundActivityScheduler` et « run while
+the app is running/backgrounded; **not after quit** ». Android réveille un téléphone
+fermé ; macOS ne réveille rien.
+
+D'où un réglage de plus, macOS seulement et éteint par défaut : **« Lancer GhostCal à
+l'ouverture de session »**. L'application démarre alors **sans ouvrir de fenêtre** — le
+temps de replanifier, et rien de plus. Une application de rappels qui pose un coffre
+verrouillé en plein écran chaque matin se fait retirer des éléments d'ouverture avant la
+fin de la semaine, en emportant les rappels avec elle.
+
+Le coffre n'a pas à être ouvert pour cela : seules les heures de réservation sont lues, et
+le serveur les détient en clair — il le doit, sans quoi il ne saurait pas refuser deux
+réservations qui se chevauchent.
+
+Sans ce réglage, les rappels ne sont replanifiés qu'à l'ouverture de l'application : une
+réservation prise pendant que le Mac dort n'aura pas de bannière avant qu'on la rouvre.
+C'est écrit dans le réglage plutôt que laissé à découvrir.
+
+`SMAppService` demande macOS 13. En dessous, l'interrupteur ne s'allume pas et le dit : le
+remplacement — `SMLoginItemSetEnabled` — ne vaut que pour un exécutable annexe, qu'il
+faudrait écrire, signer et embarquer pour une version du système que le produit ne cible
+plus guère.
+
+Deux textes ont par ailleurs changé **des deux côtés** : ils disaient « ce téléphone » et
+« les réglages du téléphone », ce qui se lit mal sur un Mac.

@@ -56,7 +56,29 @@ class MainFlutterWindow: NSWindow {
     // ajouterait serait effacé sans message, et la photo de profil cesserait de partir
     // pour une raison introuvable dans l'historique.
     Vignette.enregistrer(flutterViewController.registrar(forPlugin: "Vignette"))
+    OuvertureDeSession.enregistrer(
+      flutterViewController.registrar(forPlugin: "OuvertureDeSession"))
 
     super.awakeFromNib()
+
+    // ─── Au démarrage de la session, GhostCal se tait ───
+    //
+    // L'application s'inscrit aux ouvertures de session pour une seule raison : rendre au
+    // rafraîchissement des rappels l'occasion de tourner, `NSBackgroundActivityScheduler`
+    // ne réveillant rien. Ce travail n'a besoin d'aucune fenêtre.
+    //
+    // En ouvrir une poserait un coffre verrouillé en plein écran chaque matin, devant
+    // quelqu'un qui n'a rien demandé — et le réglage serait retiré avant la fin de la
+    // semaine, emportant les rappels avec lui.
+    //
+    // `orderOut` et non `miniaturize` : une fenêtre réduite laisse une vignette dans le
+    // Dock, ce qui est le même dérangement en plus petit. L'icône du Dock reste, elle, et
+    // c'est par elle qu'on revient.
+    //
+    // Après `super.awakeFromNib()`, sans quoi la fin du chargement du nib remettrait la
+    // fenêtre au premier plan juste derrière.
+    if (NSApp.delegate as? AppDelegate)?.lanceeParLOuvertureDeSession == true {
+      self.orderOut(nil)
+    }
   }
 }

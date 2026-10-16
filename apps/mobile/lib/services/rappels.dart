@@ -1,6 +1,8 @@
 import 'dart:ui' show Locale, PlatformDispatcher;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show MethodChannel, MissingPluginException,
+    PlatformException;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:workmanager/workmanager.dart';
@@ -74,7 +76,24 @@ List<RappelPrevu> rappelsAPrevoir(
 ///   does not need to be open — a background refresh can run with the screen off.
 /// - **Opt-in.** Off by default; the permission is asked when the user turns it on.
 ///
-/// Android only for now: iOS background refresh needs its own setup.
+/// Android and macOS. iOS background refresh needs its own setup.
+///
+/// ─── Ce que macOS fait autrement, et ce qu'il ne fait pas ───
+///
+/// Les bannières sont les mêmes : `flutter_local_notifications` les programme auprès du
+/// centre de notifications, qui les présente à l'heure dite même application fermée.
+///
+/// Le **rafraîchissement**, lui, n'a pas d'équivalent. `workmanager` passe sur macOS par
+/// `NSBackgroundActivityScheduler`, et sa documentation est explicite : les tâches
+/// « run while the app is running/backgrounded; not after quit ». Là où Android réveille
+/// un téléphone fermé, macOS ne réveille rien.
+///
+/// D'où [lancerALOuvertureDeSession], propre à macOS et éteint par défaut : il inscrit
+/// l'application aux ouvertures de session, où elle démarre **sans fenêtre** et rend au
+/// rafraîchissement l'occasion de tourner. Sans lui, les rappels ne sont replanifiés qu'à
+/// l'ouverture de l'application — une réservation prise pendant que le Mac dort n'aura
+/// donc pas de bannière avant qu'on la rouvre. C'est dit dans le réglage plutôt que laissé
+/// à découvrir.
 class Rappels extends ChangeNotifier {
   Rappels({FlutterLocalNotificationsPlugin? plugin, this._taches})
     : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
@@ -98,7 +117,19 @@ class Rappels extends ChangeNotifier {
   static const frequence = Duration(minutes: 15);
 
   static bool get disponible =>
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.macOS);
+
+  /// Le canal des quelques choses que le greffon ne fait pas ici : l'inscription aux
+  /// ouvertures de session. Public pour qu'un témoin le feigne sans le recopier.
+  static const canalMacos = 'ch.stackops.ghostcal/rappels';
+
+  /// Public : l'écran des réglages n'affiche l'inscription à l'ouverture de session que
+  /// là où elle existe, et il ne peut pas la déduire de [aLOuvertureDeSession] — faux sur
+  /// un Mac veut aussi dire « éteint ».
+  static bool get surMacos =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
 
   bool _actif = false;
   bool get actif => _actif;
@@ -115,6 +146,8 @@ class Rappels extends ChangeNotifier {
       (v) => v.name == avance,
       orElse: () => AvanceDuRappel.dix,
     );
+    _aLOuvertureDeSession =
+        await _demanderAuSysteme<bool>('lanceALOuvertureDeSession') ?? false;
     notifyListeners();
   }
 
@@ -122,11 +155,23 @@ class Rappels extends ChangeNotifier {
   /// stays off rather than claiming reminders that will never show.
   Future<bool> activer() async {
     await _preparer();
-    final android = _plugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
-    final accorde = await android?.requestNotificationsPermission() ?? false;
+    final accorde = surMacos
+        // `alert` et `sound`, pas `badge` : une pastille sur l'icône du Dock survivrait à
+        // la bannière et resterait là jusqu'à ce qu'on ouvre l'application, en annonçant
+        // qu'il se passe quelque chose sans rien en dire. Le rappel est un instant, pas
+        // un état.
+        ? await _plugin
+                .resolvePlatformSpecificImplementation<
+                  MacOSFlutterLocalNotificationsPlugin
+                >()
+                ?.requestPermissions(alert: true, sound: true) ??
+            false
+        : await _plugin
+                .resolvePlatformSpecificImplementation<
+                  AndroidFlutterLocalNotificationsPlugin
+                >()
+                ?.requestNotificationsPermission() ??
+            false;
     if (!accorde) return false;
     _actif = true;
     notifyListeners();
@@ -154,6 +199,47 @@ class Rappels extends ChangeNotifier {
     await _gestionnaire.cancelByUniqueName(_tache);
     await _preparer();
     await _plugin.cancelAllPendingNotifications();
+  }
+
+  // ─── L'ouverture de session, sur macOS seulement ───
+
+  bool _aLOuvertureDeSession = false;
+
+  /// L'application est-elle inscrite aux ouvertures de session ?
+  ///
+  /// Toujours faux ailleurs que sur macOS, et faux tant qu'[amorcer] n'a pas demandé —
+  /// car la réponse appartient au système et non à nous : elle se retire depuis les
+  /// Réglages Système sans que l'application en soit avertie. Un réglage qui se souvient
+  /// de ce qu'on lui a dit ment dès que la plateforme change d'avis.
+  bool get aLOuvertureDeSession => _aLOuvertureDeSession;
+
+  /// Inscrit ou retire l'application, et rend l'état **constaté après coup**.
+  ///
+  /// Pas la valeur demandée : `SMAppService.register()` peut échouer, l'utilisateur ayant
+  /// pu interdire le lancement automatique depuis les Réglages Système. Rendre ce qu'on a
+  /// demandé afficherait un interrupteur allumé devant un système qui a dit non.
+  Future<bool> lancerALOuvertureDeSession(bool valeur) async {
+    _aLOuvertureDeSession =
+        await _demanderAuSysteme<bool>('lancerALOuvertureDeSession', {'valeur': valeur}) ??
+            false;
+    notifyListeners();
+    return _aLOuvertureDeSession;
+  }
+
+  /// L'appel de plateforme, qui ne jette pas là où le canal n'existe pas.
+  ///
+  /// Android n'a pas celui-ci : une `MissingPluginException` non rattrapée y ferait
+  /// échouer [amorcer], donc le lancement de l'application, pour un réglage qui n'y existe
+  /// pas.
+  Future<T?> _demanderAuSysteme<T>(String methode, [Map<String, Object?>? arguments]) async {
+    if (!surMacos) return null;
+    try {
+      return await const MethodChannel(canalMacos).invokeMethod<T>(methode, arguments);
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    }
   }
 
   Future<void> choisirLAvance(AvanceDuRappel valeur) async {
@@ -226,6 +312,15 @@ class Rappels extends ChangeNotifier {
         // The text is neutral already; hiding it on a locked screen costs nothing.
         visibility: NotificationVisibility.private,
       ),
+      // macOS n'a ni canal ni visibilité d'écran verrouillé : ce qu'il montre se règle
+      // dans les Réglages Système, par application. Il ne reste donc à dire que la forme
+      // de la présentation — et pas de pastille, pour la raison donnée dans [activer].
+      macOS: const DarwinNotificationDetails(
+        presentAlert: true,
+        presentBanner: true,
+        presentSound: true,
+        presentBadge: false,
+      ),
     );
     for (final prevu in prevus) {
       await _plugin.zonedSchedule(
@@ -246,6 +341,15 @@ class Rappels extends ChangeNotifier {
     await _plugin.initialize(
       settings: const InitializationSettings(
         android: AndroidInitializationSettings('ic_notification'),
+        // Les trois demandes sont **coupées** : l'autorisation se demande dans [activer],
+        // au moment où quelqu'un allume le réglage. Les laisser à leur défaut la ferait
+        // surgir au premier lancement, devant quelqu'un qui n'a pas encore vu à quoi sert
+        // l'application — et macOS ne repose pas la question après un refus.
+        macOS: DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestSoundPermission: false,
+          requestBadgePermission: false,
+        ),
       ),
     );
     _pret = true;

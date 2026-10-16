@@ -913,7 +913,7 @@ class LFr extends L {
 
   @override
   String get rappelsExplication =>
-      'Une notification avant chaque rendez-vous réservé, sans le nom de l\'invité ni aucun détail. Calculée sur ce téléphone, sans service de notification tiers.';
+      'Une notification avant chaque rendez-vous réservé, sans le nom de l\'invité ni aucun détail. Calculée sur cet appareil, sans service de notification tiers.';
 
   @override
   String rappelsAvance(int minutes) {
@@ -922,7 +922,7 @@ class LFr extends L {
 
   @override
   String get rappelsRefuses =>
-      'Les notifications sont refusées pour GhostCal. Autorisez-les dans les réglages du téléphone.';
+      'Les notifications sont refusées pour GhostCal. Autorisez-les dans les réglages du système.';
 
   @override
   String get rappelsCanal => 'Rappels de rendez-vous';
@@ -938,4 +938,15 @@ class LFr extends L {
   String rappelCorps(int minutes) {
     return 'Votre rendez-vous commence dans $minutes min.';
   }
+
+  @override
+  String get rappelsAuDemarrage => 'Lancer GhostCal à l\'ouverture de session';
+
+  @override
+  String get rappelsAuDemarrageExplication =>
+      'GhostCal démarre alors sans ouvrir de fenêtre, le temps de replanifier. Sans cela, une réservation prise pendant que le Mac dort n\'aura pas de rappel avant que vous rouvriez l\'application.';
+
+  @override
+  String get rappelsAuDemarrageRefuse =>
+      'macOS a refusé le lancement automatique. Il se réautorise dans Réglages Système › Général › Ouverture.';
 }

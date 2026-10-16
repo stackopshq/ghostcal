@@ -4,12 +4,14 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'package:ghostcal/main.dart';
 import 'package:ghostcal/services/agenda.dart';
 import 'package:ghostcal/services/biometrie.dart';
+import 'package:ghostcal/services/rappels.dart';
 import 'package:ghostcal/services/reglages.dart';
 import 'package:ghostcal/services/session.dart';
 import 'package:ghostcal/services/types_de_rendez_vous.dart';
@@ -131,9 +133,16 @@ void main() {
     await session.amorcer();
     final verrouillage = Verrouillage();
     await verrouillage.amorcer();
+    final rappels = Rappels();
+    await rappels.amorcer();
     await tester.pumpWidget(RepaintBoundary(
       key: cle,
-      child: GhostcalApp(session: session, verrouillage: verrouillage, locale: langue),
+      child: GhostcalApp(
+        session: session,
+        verrouillage: verrouillage,
+        locale: langue,
+        rappels: rappels,
+      ),
     ));
     await tester.pumpAndSettle();
     return session;
@@ -198,12 +207,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Web avant migration'), findsOneWidget,
         reason: 'une enveloppe sans marqueur de version ne s\'ouvre plus');
-    // Le banc dépose **exprès** un événement scellé sous une autre clé, pour qu'on voie
-    // qu'un contenu illisible s'affiche au lieu de disparaître — une ligne absente se lit
-    // « libre ». Il doit y en avoir un, et un seul : deux voudrait dire que l'enveloppe
-    // héritée est tombée dans la même case.
-    expect(find.text('Contenu illisible — clé manquante'), findsOneWidget,
-        reason: 'seul « Scellé ailleurs » doit être illisible');
+    // Et l'inverse se dit par le titre lui-même : une enveloppe que le cœur n'ouvre pas
+    // ne disparaît pas de la liste, elle s'affiche « Contenu illisible — clé manquante ».
+    // Trouver le titre, c'est donc avoir mesuré les deux.
+    //
+    // On ne compte **pas** les lignes illisibles. Le banc en dépose une exprès, mais elle
+    // vieillit comme toute donnée amorcée : hier elle était dans la fenêtre, aujourd'hui
+    // non, et le témoin rougissait pour l'âge du banc plutôt que pour l'application.
 
     // ─── Ce que l'application écrit, elle, porte le marqueur ───
     //
@@ -331,6 +341,36 @@ void main() {
 
     await biometrie.oublier();
     expect(await biometrie.sceau(), Issue.absente);
+  }, timeout: const Timeout(Duration(minutes: 2)));
+
+  /// ─── L'inscription aux ouvertures de session ───
+  ///
+  /// Les bannières passent par `flutter_local_notifications`, éprouvé chez lui. Ce qui
+  /// reste propre à ce portage est `SMAppService`, et c'était le point qui pouvait échouer
+  /// en silence : une application en bac à sable, lancée depuis un dossier de
+  /// construction, n'a aucune garantie d'être acceptée, et un refus laisserait un
+  /// interrupteur mort dans les réglages.
+  ///
+  /// Le témoin **remet la machine comme il l'a trouvée** : il n'a pas à laisser une entrée
+  /// dans les Réglages Système de qui l'exécute.
+  testWidgets('macOS accepte d\'ouvrir GhostCal à la session', (tester) async {
+    await monter(tester, langue: const Locale('fr'));
+    const canal = MethodChannel(Rappels.canalMacos);
+
+    final depart = await canal.invokeMethod<bool>('lanceALOuvertureDeSession') ?? false;
+    try {
+      expect(
+        await canal.invokeMethod<bool>('lancerALOuvertureDeSession', {'valeur': true}),
+        isTrue,
+        reason: 'macOS a refusé : le réglage serait un interrupteur mort',
+      );
+      expect(await canal.invokeMethod<bool>('lanceALOuvertureDeSession'), isTrue,
+          reason: 'l\'état n\'est pas relu auprès du système');
+    } finally {
+      await canal.invokeMethod<bool>('lancerALOuvertureDeSession', {'valeur': depart});
+    }
+    expect(await canal.invokeMethod<bool>('lanceALOuvertureDeSession'), depart,
+        reason: 'le témoin a laissé la machine autrement qu\'il l\'a trouvée');
   }, timeout: const Timeout(Duration(minutes: 2)));
 
   testWidgets('sombre, anglais, et une petite fenêtre', (tester) async {

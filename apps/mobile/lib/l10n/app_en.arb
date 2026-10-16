@@ -271,7 +271,7 @@
   "choixUnParLigne": "Choices, one per line",
   "rappels": "Reminders",
   "rappelsDeRendezVous": "Remind me of my appointments",
-  "rappelsExplication": "A notification before each booked appointment, without the invitee's name or any detail. Computed on this phone, with no third-party notification service.",
+  "rappelsExplication": "A notification before each booked appointment, without the invitee's name or any detail. Computed on this device, with no third-party notification service.",
   "rappelsAvance": "{minutes} min before",
   "@rappelsAvance": {
     "placeholders": {
@@ -280,7 +280,7 @@
       }
     }
   },
-  "rappelsRefuses": "Notifications are turned off for GhostCal. Allow them in the phone's settings.",
+  "rappelsRefuses": "Notifications are turned off for GhostCal. Allow them in the system settings.",
   "rappelsCanal": "Appointment reminders",
   "rappelsCanalDescription": "A neutral notification before each booked appointment.",
   "rappelTitre": "Appointment",
@@ -291,5 +291,8 @@
         "type": "int"
       }
     }
-  }
+  },
+  "rappelsAuDemarrage": "Open GhostCal at login",
+  "rappelsAuDemarrageExplication": "GhostCal then starts without showing a window, just long enough to reschedule. Without this, a booking made while the Mac sleeps gets no reminder until you open the app again.",
+  "rappelsAuDemarrageRefuse": "macOS refused to open GhostCal at login. Allow it again in System Settings › General › Login Items."
 }
