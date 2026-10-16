@@ -446,5 +446,28 @@
   "reponseChoix": "Liste de choix",
   "reponseCase": "Case à cocher",
   "reponseObligatoire": "Réponse obligatoire",
-  "choixUnParLigne": "Choix proposés, un par ligne"
+  "choixUnParLigne": "Choix proposés, un par ligne",
+  "rappels": "Rappels",
+  "rappelsDeRendezVous": "Rappeler mes rendez-vous",
+  "rappelsExplication": "Une notification avant chaque rendez-vous réservé, sans le nom de l'invité ni aucun détail. Calculée sur ce téléphone, sans service de notification tiers.",
+  "rappelsAvance": "{minutes} min avant",
+  "@rappelsAvance": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "rappelsRefuses": "Les notifications sont refusées pour GhostCal. Autorisez-les dans les réglages du téléphone.",
+  "rappelsCanal": "Rappels de rendez-vous",
+  "rappelsCanalDescription": "Une notification neutre avant chaque rendez-vous réservé.",
+  "rappelTitre": "Rendez-vous",
+  "rappelCorps": "Votre rendez-vous commence dans {minutes} min.",
+  "@rappelCorps": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  }
 }

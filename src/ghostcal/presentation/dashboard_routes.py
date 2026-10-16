@@ -47,6 +47,7 @@ from ghostcal.application.meetings import (
     MeetingNotFound,
     cancel_meeting,
     list_meetings,
+    share_generated_room,
     share_meeting_link,
 )
 from ghostcal.application.mirror import unmirror_booking
@@ -444,7 +445,13 @@ async def share_my_meeting_link(
     async with org_session(member.organization_id) as session:
         repo = SqlMeetingsRepository(session, member.organization_id)
         try:
-            meeting = await share_meeting_link(repo, booking_id, member.user.id, payload.url)
+            if payload.provider is not None:
+                meeting = await share_generated_room(
+                    repo, booking_id, member.user.id, payload.provider
+                )
+            else:
+                assert payload.url is not None  # MeetingLinkIn requires one of the two
+                meeting = await share_meeting_link(repo, booking_id, member.user.id, payload.url)
         except InvalidMeetingUrl as exc:
             raise HTTPException(
                 status_code=422, detail="meeting link must be an https URL"
@@ -462,7 +469,7 @@ async def share_my_meeting_link(
             event_title=meeting.event_title,
             host_name=member.user.name,
             start_at=meeting.start_at,
-            meeting_url=meeting.meeting_url or payload.url,
+            meeting_url=meeting.meeting_url or payload.url or "",
             manage_url=f"{_settings.frontend_base_url}/manage/{token}",
         )
     except Exception:

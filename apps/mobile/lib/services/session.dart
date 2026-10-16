@@ -43,6 +43,10 @@ class Session extends ChangeNotifier {
 
   ClientAPI? api;
   Auth? auth;
+
+  /// Run at sign-out, before the tokens go: stops what works on the session's behalf in
+  /// the background (the booking reminders).
+  Future<void> Function()? avantDeSortir;
   String? _organisation;
   bool _sessionEnregistree = false;
 
@@ -224,6 +228,11 @@ class Session extends ChangeNotifier {
   }
 
   Future<void> seDeconnecter() async {
+    try {
+      await avantDeSortir?.call();
+    } on Object catch (e) {
+      debugPrint('ghostcal.session: sign-out hook failed: $e');
+    }
     await auth?.revoquer();
     auth?.verrouiller();
     api?.poserLesJetons(null);
@@ -246,6 +255,7 @@ class Session extends ChangeNotifier {
       Trousseau.poser(jetons.acces, Trousseau.jetonDAcces);
       Trousseau.poser(jetons.rafraichissement, Trousseau.jetonDeRafraichissement);
     };
+    client.relireLesJetons = Trousseau.jetons;
     // La première organisation ouverte fait la courante ; sans en-tête, le serveur
     // retiendrait la plus ancienne et on lirait les données d'une équipe en en
     // affichant une autre.

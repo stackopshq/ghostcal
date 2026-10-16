@@ -99,8 +99,14 @@ jobs:
 
       # Le client psql n'est pas dans l'image du runner. Le serveur est en 16, le client de
       # Rocky Linux 10 aussi.
+      #
+      # `--disablerepo=crb` : le client vient d'AppStream, CRB n'apporte rien ici. Le 2026-10-16,
+      # un miroir attribué au runner servait un index CRB périmé : il désignait
+      # `824d1800…-primary.xml.gz`, que Rocky avait remplacé (404 chez dl.rockylinux.org, qui
+      # publiait `c00d9754…`), et le job échouait à chaque fois sur
+      # `Failed to download metadata for repo 'crb'`. `--refresh` n'y changeait rien.
       - name: Install the PostgreSQL client
-        run: sudo dnf install -y -q --setopt=install_weak_deps=False postgresql
+        run: sudo dnf install -y -q --disablerepo=crb --setopt=install_weak_deps=False postgresql
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5

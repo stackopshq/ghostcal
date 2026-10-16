@@ -4,6 +4,7 @@ import '../services/erreurs.dart';
 import '../services/agenda.dart';
 import '../services/apparence.dart';
 import '../services/biometrie.dart';
+import '../services/rappels.dart';
 import '../services/reglages.dart' as service;
 import '../services/session.dart';
 import '../services/verrouillage.dart' as v;
@@ -26,7 +27,11 @@ class EcranDeReglages extends StatefulWidget {
     required this.verrouillage,
     this.biometrie,
     this.apparence,
+    this.rappels,
   });
+
+  /// Booking reminders; the section is hidden when absent.
+  final Rappels? rappels;
 
   final Session session;
   final v.Verrouillage verrouillage;
@@ -159,6 +164,7 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
             onTap: _changerDeServeur,
           ),
           if (widget.apparence case final apparence?) ..._sectionApparence(gc, apparence),
+          if (widget.rappels case final rappels?) ..._sectionRappels(gc, rappels),
           _titre(gc, L.of(context).securite),
           // Le délai décide aussi de l'apparition du cadenas dans la barre de l'agenda :
           // à « immédiatement », quitter l'application referme déjà, et le bouton ferait
@@ -360,6 +366,68 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
     final regles = [...horaire.regles]..sort((a, b) => a.jourServeur.compareTo(b.jourServeur));
     final jours = <String>{for (final regle in regles) regle.jour(langueDesDates(context))};
     return '${jours.join(', ')} · ${horaire.fuseau}';
+  }
+
+  List<Widget> _sectionRappels(Gc gc, Rappels rappels) {
+    final l = L.of(context);
+    return [
+      _titre(gc, l.rappels),
+      SwitchListTile(
+        key: const Key('reglage.rappels'),
+        secondary: const Icon(Icons.notifications_none),
+        title: Text(l.rappelsDeRendezVous),
+        subtitle: Text(l.rappelsExplication, style: TextStyle(color: gc.estompe, fontSize: 12)),
+        value: rappels.actif,
+        onChanged: (valeur) => _basculerLesRappels(rappels, valeur),
+      ),
+      if (rappels.actif)
+        RadioGroup<AvanceDuRappel>(
+          groupValue: rappels.avance,
+          onChanged: (valeur) async {
+            if (valeur == null) return;
+            await rappels.choisirLAvance(valeur);
+            if (mounted) setState(() {});
+            await _replanifier(rappels);
+          },
+          child: Column(
+            children: [
+              for (final choix in AvanceDuRappel.values)
+                RadioListTile<AvanceDuRappel>(
+                  key: Key('reglage.rappels.${choix.minutes}'),
+                  value: choix,
+                  title: Text(l.rappelsAvance(choix.minutes)),
+                ),
+            ],
+          ),
+        ),
+    ];
+  }
+
+  Future<void> _basculerLesRappels(Rappels rappels, bool valeur) async {
+    if (!valeur) {
+      await rappels.desactiver();
+      if (mounted) setState(() {});
+      return;
+    }
+    final accorde = await rappels.activer();
+    if (!mounted) return;
+    setState(() {});
+    if (!accorde) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(L.of(context).rappelsRefuses)));
+      return;
+    }
+    await _replanifier(rappels);
+  }
+
+  Future<void> _replanifier(Rappels rappels) async {
+    final api = widget.session.api;
+    if (api == null) return;
+    try {
+      await rappels.replanifier(api, organisation: widget.session.organisation);
+    } on Object catch (e) {
+      if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
+    }
   }
 
   List<Widget> _sectionApparence(Gc gc, Apparence apparence) => [

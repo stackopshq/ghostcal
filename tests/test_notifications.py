@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Sequence
+from dataclasses import replace
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
@@ -110,3 +111,28 @@ async def test_cancellation_emails_invitee() -> None:
     assert len(mailer.sent) == 1
     assert mailer.sent[0].to == "alice@example.com"
     assert "Cancelled" in mailer.sent[0].subject
+
+
+KMEET_URL = "https://kmeet.infomaniak.com/0123456789abcdef0123456789abcdef"
+KMEET_CONF = replace(CONF, location_type="kmeet", meeting_url=KMEET_URL)
+
+
+def test_ics_points_at_the_generated_room() -> None:
+    ics = build_ics(KMEET_CONF)
+    assert f"LOCATION:{KMEET_URL}" in ics
+    assert f"URL:{KMEET_URL}" in ics
+
+
+def test_ics_without_room_keeps_the_location_label() -> None:
+    ics = build_ics(CONF)
+    assert "LOCATION:Google Meet" in ics
+    assert "URL:" not in ics
+
+
+async def test_confirmation_carries_the_join_link_to_invitee_and_host() -> None:
+    mailer = FakeMailer()
+    await send_booking_confirmation(mailer, KMEET_CONF)  # type: ignore[arg-type]
+    invitee, host = mailer.sent[0], mailer.sent[1]
+    for mail in (invitee, host):
+        assert KMEET_URL in mail.html
+        assert "Rejoindre la réunion" in mail.html

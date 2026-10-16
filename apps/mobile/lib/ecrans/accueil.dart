@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../services/session.dart';
 import '../services/apparence.dart';
+import '../services/rappels.dart';
 import '../services/verrouillage.dart';
 import '../theme.dart';
 import 'agenda.dart';
@@ -22,11 +25,13 @@ class EcranDAccueil extends StatefulWidget {
     required this.session,
     required this.verrouillage,
     this.apparence,
+    this.rappels,
   });
 
   final Session session;
   final Verrouillage verrouillage;
   final Apparence? apparence;
+  final Rappels? rappels;
 
   @override
   State<EcranDAccueil> createState() => _EcranDAccueilState();
@@ -41,6 +46,18 @@ class _EcranDAccueilState extends State<EcranDAccueil>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _replanifierLesRappels();
+  }
+
+  /// A booking taken while the app was away gets its reminder as soon as it is back,
+  /// without waiting for the background refresh.
+  void _replanifierLesRappels() {
+    final rappels = widget.rappels;
+    final api = widget.session.api;
+    if (rappels == null || api == null) return;
+    unawaited(rappels
+        .replanifier(api, organisation: widget.session.organisation)
+        .catchError((Object e) => debugPrint('ghostcal.rappels: refresh failed: $e')));
   }
 
   @override
@@ -56,6 +73,7 @@ class _EcranDAccueilState extends State<EcranDAccueil>
   @override
   void didChangeAppLifecycleState(AppLifecycleState etat) {
     if (etat == AppLifecycleState.resumed) {
+      _replanifierLesRappels();
       final parti = _partiEnArrierePlan;
       _partiEnArrierePlan = null;
       if (parti != null &&
@@ -93,6 +111,7 @@ class _EcranDAccueilState extends State<EcranDAccueil>
                 session: widget.session,
                 verrouillage: widget.verrouillage,
                 apparence: widget.apparence,
+                rappels: widget.rappels,
               ),
             ],
           ),

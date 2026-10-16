@@ -72,6 +72,16 @@ class ClientAPI {
   /// sans raison visible.
   void Function(Jetons)? auRenouvellement;
 
+  /// Reads the tokens as last saved, when a refresh is refused.
+  ///
+  /// The refresh token is single-use, and the background reminder refresh holds a copy
+  /// of it too: whichever side refreshes second is refused. Before calling the session
+  /// lost, the loser rereads what the winner saved and carries on with it.
+  Future<Jetons?> Function()? relireLesJetons;
+
+  /// How long the loser waits for the winner to save, when it reread too early.
+  static const attenteDesJetons = Duration(seconds: 2);
+
   Jetons? get jetons => _jetons;
   void poserLesJetons(Jetons? valeur) => _jetons = valeur;
   void poserLOrganisation(String? id) => _organisation = id;
@@ -186,8 +196,9 @@ class ClientAPI {
         body: jsonEncode({'refresh_token': jetons.rafraichissement}),
       );
       if (reponse.statusCode < 200 || reponse.statusCode >= 300) {
-        _jetons = null;
-        return false;
+        final relus = await _jetonsTournesAilleurs(jetons);
+        _jetons = relus;
+        return relus != null;
       }
       final json = jsonDecode(reponse.body) as Map<String, dynamic>;
       final acces = json['access_token'];
@@ -203,6 +214,20 @@ class ClientAPI {
       // Réseau coupé : on ne détruit pas la session pour autant.
       return false;
     }
+  }
+
+  /// Tokens another refresher saved after [refuses], or null if there are none.
+  Future<Jetons?> _jetonsTournesAilleurs(Jetons refuses) async {
+    final relire = relireLesJetons;
+    if (relire == null) return null;
+    for (final attente in [Duration.zero, attenteDesJetons]) {
+      if (attente > Duration.zero) await Future<void>.delayed(attente);
+      final relus = await relire();
+      if (relus != null && relus.rafraichissement != refuses.rafraichissement) {
+        return relus;
+      }
+    }
+    return null;
   }
 
   String _messageDErreur(http.Response reponse) {

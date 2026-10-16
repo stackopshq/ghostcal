@@ -129,6 +129,7 @@ class _EcranDeTypeDeRendezVousState extends State<EcranDeTypeDeRendezVous> {
   String _libelleDuLieu(L l, String lieu) => switch (lieu) {
         'google_meet' => 'Google Meet',
         'zoom' => 'Zoom',
+        'kmeet' => 'kMeet (Infomaniak)',
         'ms_teams' => 'Microsoft Teams',
         'phone' => l.lieuTelephone,
         'in_person' => l.lieuEnPersonne,

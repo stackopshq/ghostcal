@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { ApiError } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import {
+  KMEET_ROOM_PREFIX,
   cancelMeeting,
+  generateMeetingRoom,
   listMeetings,
   shareMeetingLink,
   type Meeting,
@@ -223,6 +225,8 @@ function MeetingLinkForm({
   const t = useT();
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState(meeting.meeting_url ?? "");
+  const hasKmeetRoom = meeting.meeting_url?.startsWith(KMEET_ROOM_PREFIX) ?? false;
+  const [source, setSource] = useState<"paste" | "kmeet">(hasKmeetRoom ? "kmeet" : "paste");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(
     null,
@@ -230,18 +234,35 @@ function MeetingLinkForm({
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (source === "kmeet") {
+      await send(() =>
+        // Resending keeps the room the invitee already has; only a meeting without one gets a new room.
+        hasKmeetRoom && meeting.meeting_url
+          ? shareMeetingLink(meeting.id, meeting.meeting_url)
+          : generateMeetingRoom(meeting.id, "kmeet"),
+      );
+      return;
+    }
     if (!url.trim().startsWith("https://")) {
       setStatus({ ok: false, text: t("meetings.linkInvalid") });
       return;
     }
+    await send(() => shareMeetingLink(meeting.id, url.trim()), url.trim());
+  }
+
+  async function send(call: () => Promise<Meeting>, pasted?: string) {
     setBusy(true);
     setStatus(null);
     try {
-      onShared(await shareMeetingLink(meeting.id, url.trim()));
+      const updated = await call();
+      onShared(updated);
+      setUrl(updated.meeting_url ?? "");
       setStatus({ ok: true, text: t("meetings.linkSent") });
     } catch (err) {
       const code = err instanceof ApiError ? err.status : 0;
-      if (code === 502) onShared({ ...meeting, meeting_url: url.trim() });
+      // 502: the link is saved but the email failed. A generated room's URL is only known from
+      // the next reload of the list, so only a pasted link can be shown right away.
+      if (code === 502 && pasted) onShared({ ...meeting, meeting_url: pasted });
       setStatus({
         ok: false,
         text:
@@ -273,21 +294,41 @@ function MeetingLinkForm({
 
   return (
     <form onSubmit={submit} className="mt-2 flex flex-col gap-2">
-      <label className="text-xs text-muted" htmlFor={`link-${meeting.id}`}>
-        {t("meetings.linkLabel")}
+      <label className="text-xs text-muted" htmlFor={`source-${meeting.id}`}>
+        {t("meetings.linkSource")}
       </label>
+      <select
+        id={`source-${meeting.id}`}
+        value={source}
+        onChange={(e) => setSource(e.target.value as "paste" | "kmeet")}
+        className="rounded border border-border bg-surface-2/40 px-3 py-1.5 text-sm text-foreground outline-none focus:border-accent"
+      >
+        <option value="paste">{t("meetings.linkSourcePaste")}</option>
+        <option value="kmeet">{t("meetings.linkSourceKmeet")}</option>
+      </select>
+      {source === "paste" ? (
+        <label className="text-xs text-muted" htmlFor={`link-${meeting.id}`}>
+          {t("meetings.linkLabel")}
+        </label>
+      ) : (
+        <p className="text-xs text-muted">
+          {hasKmeetRoom ? t("meetings.kmeetResend") : t("meetings.kmeetHint")}
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
-        <input
-          id={`link-${meeting.id}`}
-          type="url"
-          inputMode="url"
-          autoFocus
-          required
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder={t("meetings.linkPlaceholder")}
-          className="min-w-0 flex-1 rounded border border-border bg-surface-2/40 px-3 py-1.5 text-sm text-foreground outline-none focus:border-accent"
-        />
+        {source === "paste" && (
+          <input
+            id={`link-${meeting.id}`}
+            type="url"
+            inputMode="url"
+            autoFocus
+            required
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder={t("meetings.linkPlaceholder")}
+            className="min-w-0 flex-1 rounded border border-border bg-surface-2/40 px-3 py-1.5 text-sm text-foreground outline-none focus:border-accent"
+          />
+        )}
         <button
           type="submit"
           disabled={busy}
