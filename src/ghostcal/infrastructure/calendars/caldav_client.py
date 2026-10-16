@@ -11,6 +11,7 @@ désormais asynchrone de bout en bout, comme le reste du projet.
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, date, datetime, time, timedelta
 from urllib.parse import urljoin
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -42,6 +43,8 @@ from ghostcal.infrastructure.security.egress import (
     assert_public_url,
     calendar_private_networks,
 )
+
+_logger = logging.getLogger("ghostcal.caldav")
 
 
 def _guard(url: str) -> None:
@@ -298,19 +301,34 @@ class CaldavCalendarClient:
     async def delete_event(self, creds: CalendarCredentials, calendar_url: str, uid: str) -> None:
         _guard(creds.server_url)
         _guard(calendar_url)
+        # 1. L'URL que NOUS avons choisie à la création (`create_event` écrit
+        #    `<calendrier>/<uid>.ics`). Supprimer directement cette URL ne dépend
+        #    d'aucune requête de recherche, et c'est ce qui manquait : mesuré le
+        #    2026-10-16, une réservation annulée restait dans un agenda iCloud,
+        #    la recherche par UID n'ayant rien supprimé — sans aucune trace, son
+        #    échec étant avalé. Un 404 ici est un succès (`DavSession.delete`).
+        # 2. La recherche par UID reste, pour un événement qu'une autre
+        #    application a enregistré sous un nom que nous n'avons pas choisi.
+        #    Elle ne peut plus faire échouer la suppression, mais elle se journalise.
+        target = urljoin(calendar_url.rstrip("/") + "/", f"{uid}.ics")
         try:
             async with DavSession(creds.server_url, creds.username, creds.password) as dav:
-                # On cherche par UID plutôt que de deviner l'URL : un événement
-                # créé par une autre application y vit sous un nom que nous
-                # n'avons pas choisi.
-                xml = await dav.request("REPORT", calendar_url, _query_by_uid(uid), depth="1")
-                hrefs = [h for h, _ in parse_multistatus(xml, calendar_url)]
-                for href in hrefs:
-                    await dav.delete(href)
+                try:
+                    await dav.delete(target)
+                except DavError as exc:
+                    _logger.warning("caldav delete of %s failed: %s", target, exc)
+                try:
+                    xml = await dav.request("REPORT", calendar_url, _query_by_uid(uid), depth="1")
+                except DavError as exc:
+                    _logger.warning("caldav uid search for %s failed: %s", uid, exc)
+                    return
+                for href, _ in parse_multistatus(xml, calendar_url):
+                    if href != target:
+                        await dav.delete(href)
         except DavAuthError as exc:
             raise _translate(exc) from exc
-        except DavError:
-            # Déjà parti, ou introuvable : rien à supprimer. C'était déjà le
-            # comportement avant, et il est volontaire — la suppression est
-            # idempotente.
+        except DavError as exc:
+            # Déjà parti, ou introuvable : rien à supprimer. La suppression reste
+            # idempotente, mais l'échec se voit désormais dans les journaux.
+            _logger.warning("caldav delete for %s failed: %s", uid, exc)
             return
