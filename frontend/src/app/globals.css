@@ -104,6 +104,27 @@
   --glass: color-mix(in srgb, var(--color-surface) 65%, transparent);
 }
 
+/* Les listes déroulantes natives (`<select>`) en mode sombre.
+ *
+ * Signalé le 2026-10-18 : le menu du choix d'agenda s'ouvrait sur un fond BLANC
+ * avec le texte clair de la page — illisible. La liste ouverte n'est pas dessinée
+ * par la page mais par le navigateur, qui la peint selon `color-scheme` ; rien ne
+ * le déclarait, donc il la croyait claire. `color-scheme` suit le thème, et les
+ * `<option>` reçoivent en plus les couleurs du thème pour les navigateurs qui
+ * honorent leur style (Chromium, Firefox), ce qui garde le texte lisible même là
+ * où la palette système diffère. */
+:root {
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+select option,
+select optgroup {
+  background-color: var(--color-base);
+  color: var(--color-foreground);
+}
+
 /* Le pont entre les jetons de la charte et les classes Tailwind. Aucune valeur
  * n'est répétée : `text-sm` rend la marche `--text-sm`, `bg-surface` le fond
  * `--color-surface`. Changer une valeur se fait dans `PRODUITS`, pas ici.
