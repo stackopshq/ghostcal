@@ -300,6 +300,8 @@ export default function CalendarPage() {
   const [syncing, setSyncing] = useState(false);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [subOpen, setSubOpen] = useState(false);
+  // A subscribed feed's event opened read-only: title, time, room, notes.
+  const [detail, setDetail] = useState<GridItem | null>(null);
   const subColorOf = useMemo(
     () => new Map(subscriptions.map((s) => [s.id, s.color])),
     [subscriptions],
@@ -589,6 +591,7 @@ export default function CalendarPage() {
   function onGridEvent(it: GridItem) {
     if (it.source === "event" && it.event_id && !it.read_only)
       void openEdit(it.event_id, it.start);
+    else if (it.source === "subscription") setDetail(it);
   }
 
   async function openEdit(eventId: string, occStartIso: string) {
@@ -1218,6 +1221,15 @@ export default function CalendarPage() {
       {subOpen && (
         <SubscribeModal onClose={() => setSubOpen(false)} onDone={load} t={t} />
       )}
+      {detail && (
+        <SubscriptionEventModal
+          item={detail}
+          locale={locale}
+          sourceName={subscriptions.find((s) => s.id === detail.calendar_id)?.name ?? null}
+          onClose={() => setDetail(null)}
+          t={t}
+        />
+      )}
       {weatherOpen && (
         <WeatherModal
           current={weatherLoc}
@@ -1239,6 +1251,7 @@ export default function CalendarPage() {
           labels={{
             allDay: t("calendar.allDay"),
             sharedReadOnly: t("calendar.sharedReadOnly"),
+            subscriptionReadOnly: t("calendar.subscriptionReadOnly"),
             openDay: t("calendar.openDay"),
           }}
           weatherByDay={weatherByDay}
@@ -1270,6 +1283,7 @@ export default function CalendarPage() {
               allDay: t("calendar.allDay"),
               empty: t("calendar.nothingAhead"),
               sharedReadOnly: t("calendar.sharedReadOnly"),
+              subscriptionReadOnly: t("calendar.subscriptionReadOnly"),
             }}
           />
         </div>
@@ -1347,9 +1361,11 @@ export default function CalendarPage() {
                       <span
                         key={i}
                         title={
-                          it.read_only
-                            ? t("calendar.sharedReadOnly")
-                            : undefined
+                          it.source === "subscription"
+                            ? t("calendar.subscriptionReadOnly")
+                            : it.read_only
+                              ? t("calendar.sharedReadOnly")
+                              : undefined
                         }
                         onClick={(e) => {
                           if (
@@ -1361,6 +1377,8 @@ export default function CalendarPage() {
                             void openEdit(it.event_id, it.start);
                           } else {
                             e.stopPropagation();
+                            if (it.source === "subscription")
+                              setDetail({ ...it, color: c });
                           }
                         }}
                         // The cell now creates an event on double click. Two
@@ -1499,6 +1517,89 @@ function NewCalendarModal({
             className="rounded-pill bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-60"
           >
             {t("calendar.save")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// A subscribed feed's event, read-only. The feed is published by someone else (a university
+// timetable, a club's fixtures): GhostCal shows what it carries — title, time, room, notes — and
+// changes happen at the source.
+function SubscriptionEventModal({
+  item,
+  locale,
+  sourceName,
+  onClose,
+  t,
+}: {
+  item: GridItem;
+  locale: string;
+  sourceName: string | null;
+  onClose: () => void;
+  t: (key: string) => string;
+}) {
+  const start = new Date(item.start);
+  const end = new Date(item.end);
+  const day = start.toLocaleDateString(locale, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+  const time = item.all_day
+    ? t("calendar.allDay")
+    : `${start.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })} – ${end.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}`;
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="sub-event-title"
+        className="glass glass-opaque w-full max-w-md rounded-lg p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2
+          id="sub-event-title"
+          className="text-lg font-semibold text-foreground"
+          style={item.color ? { color: item.color } : undefined}
+        >
+          {item.title || item.label}
+        </h2>
+        <p className="mt-1 text-sm text-muted">
+          {day} · {time}
+        </p>
+        {item.location && (
+          <p className="mt-4 text-sm text-foreground">
+            <span className="text-muted">{t("calendar.detailLocation")} </span>
+            {item.location}
+          </p>
+        )}
+        {item.description && (
+          <p className="mt-3 whitespace-pre-line text-sm text-foreground">
+            {item.description}
+          </p>
+        )}
+        {!item.location && !item.description && (
+          <p className="mt-4 text-sm text-muted">{t("calendar.detailNone")}</p>
+        )}
+        <p className="mt-5 text-xs text-muted">
+          {sourceName
+            ? `${t("calendar.detailFrom")} ${sourceName} · `
+            : ""}
+          {t("calendar.detailReadOnly")}
+        </p>
+        <div className="mt-5 flex justify-end">
+          <button
+            type="button"
+            autoFocus
+            onClick={onClose}
+            className="rounded-pill px-4 py-2 text-sm text-muted hover:text-foreground"
+          >
+            {t("calendar.detailClose")}
           </button>
         </div>
       </div>

@@ -907,6 +907,9 @@ class SubscriptionEvent(Base):
     end_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     all_day: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
     summary: Mapped[str | None] = mapped_column(EncryptedString)
+    # Room and teacher of a timetable, address of a fixture: what makes the event usable.
+    location: Mapped[str | None] = mapped_column(EncryptedString)
+    description: Mapped[str | None] = mapped_column(EncryptedString)
 
 
 ATTENDEE_STATUSES = ("needs_action", "accepted", "declined", "tentative")

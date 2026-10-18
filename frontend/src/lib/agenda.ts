@@ -34,6 +34,9 @@ export type AgendaItem = {
   title: string | null; // cleartext label (bookings/external)
   read_only: boolean;
   reminder_minutes: number | null; // minutes before start to alert (events only)
+  // Details of a subscribed feed's event (room, teacher, notes), shown read-only.
+  location?: string | null;
+  description?: string | null;
 };
 
 export type EventInput = {

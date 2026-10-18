@@ -100,6 +100,8 @@ class SubEvent:
     end_at: datetime
     all_day: bool
     summary: str | None
+    location: str | None = None
+    description: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,6 +116,9 @@ class AgendaItem:
     title: str | None = None  # cleartext label (bookings/external)
     read_only: bool = False  # event from a calendar shared with the viewer
     reminder_minutes: int | None = None  # minutes before start to alert (events only)
+    # Cleartext details of a subscribed feed's event (room, teacher, notes); read-only.
+    location: str | None = None
+    description: str | None = None
 
 
 class CalendarRepository:
@@ -340,6 +345,8 @@ async def get_agenda(
                 calendar_id=se.subscription_id,  # frontend colours/toggles it like a calendar
                 title=se.summary,
                 read_only=True,
+                location=se.location,
+                description=se.description,
             )
         )
 
