@@ -868,6 +868,8 @@ class AgendaItemOut(BaseModel):
     title: str | None = None
     read_only: bool = False
     reminder_minutes: int | None = None
+    location: str | None = None
+    description: str | None = None
 
 
 class LinkCreateIn(BaseModel):
