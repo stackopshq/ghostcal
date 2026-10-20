@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -54,8 +55,32 @@ class _EcranDAccueilState extends State<EcranDAccueil>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _replanifierLesRappels();
+    // The macOS menu bar sends the same commands as the keyboard shortcuts below, so a
+    // menu item and its key always do the same thing.
     _canalDuMenu.setMethodCallHandler((appel) async {
-      if (appel.method == 'reglages' && mounted) setState(() => _onglet = 4);
+      if (!mounted) return;
+      final argument = appel.arguments;
+      switch (appel.method) {
+        case 'reglages':
+          setState(() => _onglet = 4);
+        case 'vue':
+          final vue = VueDAgenda.values
+              .where((v) => v.name == argument)
+              .firstOrNull;
+          if (vue != null) {
+            _commande(() => _agenda.currentState?.choisirLaVue(vue));
+          }
+        case 'aujourdhui':
+          _commande(() => _agenda.currentState?.aujourdhui());
+        case 'precedent':
+          _commande(() => _agenda.currentState?.deplacer(-1));
+        case 'suivant':
+          _commande(() => _agenda.currentState?.deplacer(1));
+        case 'nouveau':
+          _commande(() => _agenda.currentState?.nouvelEvenement());
+        case 'rechercher':
+          _commande(() => _agenda.currentState?.rechercher());
+      }
     });
   }
 
@@ -104,8 +129,61 @@ class _EcranDAccueilState extends State<EcranDAccueil>
     }
   }
 
+  /// An agenda command from the keyboard or the menu bar: it brings the agenda back first,
+  /// since that is what it acts on.
+  void _commande(void Function() action) {
+    if (_onglet != 0) setState(() => _onglet = 0);
+    action();
+  }
+
+  /// Fantastical's shortcuts: ⌘1–⌘4 for the views, ⌘T for today, ⌘← ⌘→ to page, ⌘N
+  /// for a new event, ⌘F to search, ⌘, for the settings. Command on Apple keyboards,
+  /// Control elsewhere — an Android tablet or a desktop with a keyboard gets them too.
+  Map<ShortcutActivator, VoidCallback> get _raccourcis {
+    final pomme = switch (defaultTargetPlatform) {
+      TargetPlatform.macOS || TargetPlatform.iOS => true,
+      _ => false,
+    };
+    SingleActivator touche(LogicalKeyboardKey cle) =>
+        SingleActivator(cle, meta: pomme, control: !pomme);
+    final agenda = _agenda.currentState;
+    return {
+      touche(LogicalKeyboardKey.digit1): () =>
+          _commande(() => agenda?.choisirLaVue(VueDAgenda.jour)),
+      touche(LogicalKeyboardKey.digit2): () =>
+          _commande(() => agenda?.choisirLaVue(VueDAgenda.semaine)),
+      touche(LogicalKeyboardKey.digit3): () =>
+          _commande(() => agenda?.choisirLaVue(VueDAgenda.mois)),
+      touche(LogicalKeyboardKey.digit4): () =>
+          _commande(() => agenda?.choisirLaVue(VueDAgenda.liste)),
+      touche(LogicalKeyboardKey.keyT): () =>
+          _commande(() => agenda?.aujourdhui()),
+      touche(LogicalKeyboardKey.arrowLeft): () =>
+          _commande(() => agenda?.deplacer(-1)),
+      touche(LogicalKeyboardKey.arrowRight): () =>
+          _commande(() => agenda?.deplacer(1)),
+      touche(LogicalKeyboardKey.keyN): () {
+        if (agenda?.peutCreer ?? false) {
+          _commande(() => agenda?.nouvelEvenement());
+        }
+      },
+      touche(LogicalKeyboardKey.keyF): () =>
+          _commande(() => agenda?.rechercher()),
+      touche(LogicalKeyboardKey.comma): () => setState(() => _onglet = 4),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
+    return CallbackShortcuts(
+      bindings: _raccourcis,
+      // Autofocus so the shortcuts work as soon as the vault opens, before anything
+      // was clicked; a focused text field still gets its keys first.
+      child: Focus(autofocus: true, child: _ecran(context)),
+    );
+  }
+
+  Widget _ecran(BuildContext context) {
     return FondGhost(
       child: Scaffold(
         // The signal that the vault is open and the app is ready, for the integration

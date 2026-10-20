@@ -126,6 +126,8 @@ class EcranDAgendaState extends State<EcranDAgenda> {
 
   void choisirLaVue(VueDAgenda vue) => _allerA(_ancre, vue: vue);
   Future<void> nouvelEvenement() => _nouvelEvenement();
+  void aujourdhui() => _allerA(DateTime.now());
+  void deplacer(int sens) => _deplacer(sens);
 
   Future<void> masquer(Set<String> masques) async {
     setState(() => _masques = masques);
