@@ -921,6 +921,22 @@ class LFr extends L {
   }
 
   @override
+  String rappelsProgrammes(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n rappels programmés',
+      one: '1 rappel programmé',
+      zero: 'Aucun rappel programmé',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get rappelsAucunRendezVous =>
+      'Aucun rendez-vous réservé dans les 7 jours à venir. Les rappels ne concernent que les rendez-vous pris par vos invités.';
+
+  @override
   String get rappelsRefuses =>
       'Les notifications sont refusées pour GhostCal. Autorisez-les dans les réglages du téléphone.';
 

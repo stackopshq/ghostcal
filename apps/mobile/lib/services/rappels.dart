@@ -130,6 +130,17 @@ class Rappels extends ChangeNotifier {
 
   bool _pret = false;
 
+  /// Combien de rappels le système tient réellement en attente, relu après chaque
+  /// planification. `null` tant que rien n'a été tenté.
+  ///
+  /// Ce n'est pas une statistique, c'est le seul moyen de savoir. Mesuré sur simulateur :
+  /// `zonedSchedule` sur iOS **n'enregistre rien** quand l'autorisation manque, sans lever
+  /// ni rien rendre. Un rappel qui ne sonne pas est alors indiscernable d'un agenda sans
+  /// rendez-vous à venir — c'est précisément le doute qu'un utilisateur ne peut pas lever
+  /// seul. Relire ce que le système tient le lève.
+  int? _programmes;
+  int? get programmes => _programmes;
+
   Future<void> amorcer() async {
     _actif = await Trousseau.lire(_cleActif) == 'true';
     final avance = await Trousseau.lire(_cleAvance);
@@ -199,6 +210,8 @@ class Rappels extends ChangeNotifier {
     if (_surAndroid) await _gestionnaire.cancelByUniqueName(_tache);
     await _preparer();
     await _plugin.cancelAllPendingNotifications();
+    _programmes = null;
+    notifyListeners();
   }
 
   Future<void> choisirLAvance(AvanceDuRappel valeur) async {
@@ -252,7 +265,10 @@ class Rappels extends ChangeNotifier {
   Future<void> _planifier(List<RappelPrevu> prevus) async {
     await _preparer();
     await _plugin.cancelAllPendingNotifications();
-    if (prevus.isEmpty) return;
+    if (prevus.isEmpty) {
+      await _relireCeQuiEstEnAttente();
+      return;
+    }
 
     final l = await _langue();
     final android = _plugin
@@ -294,6 +310,20 @@ class Rappels extends ChangeNotifier {
         body: l.rappelCorps(prevu.debut.difference(prevu.quand).inMinutes),
       );
     }
+    await _relireCeQuiEstEnAttente();
+  }
+
+  /// Relit ce que le système tient, plutôt que de compter ce qu'on a demandé.
+  ///
+  /// La différence est tout l'intérêt : sur iOS une demande refusée ne lève pas, et sur
+  /// les deux plateformes un plafond atteint écarte les suivantes en silence.
+  Future<void> _relireCeQuiEstEnAttente() async {
+    try {
+      _programmes = (await _plugin.pendingNotificationRequests()).length;
+    } on Object {
+      _programmes = null;
+    }
+    notifyListeners();
   }
 
   Future<void> _preparer() async {
