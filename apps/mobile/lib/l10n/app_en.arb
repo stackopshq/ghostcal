@@ -273,6 +273,15 @@
   "rappelsDeRendezVous": "Remind me of my appointments",
   "rappelsExplication": "A notification before each booked appointment, without the invitee's name or any detail. Computed on this device, with no third-party notification service.",
   "rappelsAvance": "{minutes} min before",
+  "rappelsProgrammes": "{n, plural, =0{No reminder scheduled} =1{1 reminder scheduled} other{{n} reminders scheduled}}",
+  "@rappelsProgrammes": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "rappelsAucunRendezVous": "No appointment booked in the next 7 days. Reminders only cover appointments your invitees book.",
   "@rappelsAvance": {
     "placeholders": {
       "minutes": {

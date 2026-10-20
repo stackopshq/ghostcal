@@ -9,6 +9,7 @@ import '../services/reglages.dart' as service;
 import '../services/session.dart';
 import '../services/verrouillage.dart' as v;
 import '../outils/dates.dart';
+import '../outils/symbole_systeme.dart';
 import '../theme.dart';
 import 'equipe.dart';
 import 'horaire.dart';
@@ -318,7 +319,9 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
 
     return ListTile(
       key: const Key('ligne.sceau'),
-      leading: Icon(empreinte?.icone ?? Icons.face_retouching_off_outlined),
+      leading: empreinte == null
+          ? const Icon(Icons.face_retouching_off_outlined)
+          : SymboleSysteme(nom: empreinte.symbole, materiel: empreinte.icone),
       title: Text(l.sceauBiometrique),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -380,6 +383,24 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
         value: rappels.actif,
         onChanged: (valeur) => _basculerLesRappels(rappels, valeur),
       ),
+      // Ce que le système tient réellement, et non ce qu'on lui a demandé.
+      //
+      // Sans cette ligne, « ça n'a pas sonné » est indécidable : on ne sait pas si
+      // l'application n'avait rien à programmer — l'agenda ne porte que des événements
+      // personnels, que les rappels ignorent — ou si le système a tout écarté. Mesuré sur
+      // simulateur : `zonedSchedule` sur iOS n'enregistre rien quand l'autorisation
+      // manque, sans lever.
+      if (rappels.actif && rappels.programmes != null)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+          child: Text(
+            rappels.programmes == 0
+                ? l.rappelsAucunRendezVous
+                : l.rappelsProgrammes(rappels.programmes!),
+            key: const Key('reglage.rappels.programmes'),
+            style: TextStyle(color: gc.estompe, fontSize: 12),
+          ),
+          ),
       // macOS seulement : sur Android, WorkManager réveille l'application fermée et il
       // n'y a rien à inscrire. `aLOuvertureDeSession` y vaut donc toujours faux — mais on
       // n'affiche pas l'interrupteur sur ce seul critère, qui serait aussi celui d'un Mac

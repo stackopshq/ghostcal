@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'l10n/generated/app_localisations.dart';
@@ -30,7 +33,12 @@ Future<void> main() async {
   await apparence.amorcer();
   Rappels? rappels;
   if (Rappels.disponible) {
-    await Workmanager().initialize(tacheDeFond);
+    // Seulement là où une tâche périodique existe : `Workmanager` sur iOS s'appuie sur
+    // `BGTaskScheduler`, qui exige des identifiants déclarés dans l'Info.plist et ne
+    // promet aucun intervalle. Les rappels iOS n'en dépendent pas — voir `Rappels`.
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      await Workmanager().initialize(tacheDeFond);
+    }
     rappels = Rappels();
     await rappels.amorcer();
     session.avantDeSortir = rappels.arreter;
@@ -144,6 +152,11 @@ class GhostcalApp extends StatelessWidget {
       // langue existait, l'imposer évitait qu'un appareil réglé autrement retombe sur le
       // français par résolution implicite — un bon résultat obtenu par accident. Avec deux
       // langues, l'imposer reviendrait à ignorer le choix de l'utilisateur.
+      // La barre d'état du système suit le thème **de l'application**, pas celui de
+      // l'appareil. Voir `_BarreDEtatSelonLeTheme`, qui porte la mesure et les trois
+      // chemins essayés avant celui-là.
+      builder: (context, enfant) =>
+          _BarreDEtatSelonLeTheme(enfant: enfant ?? const SizedBox.shrink()),
       home: accueilDEpreuve ??
           AnimatedBuilder(
             animation: session,
@@ -158,4 +171,63 @@ class GhostcalApp extends StatelessWidget {
           ),
     );
   }
+}
+
+
+/// Donne à iOS le style de barre d'état qui va avec le thème **de l'application**.
+///
+/// ─── Pourquoi un canal natif et pas `SystemChrome` ───
+///
+/// En thème clair, l'heure et la batterie sortaient blanches sur fond pâle : 1,18:1 de
+/// contraste, contre 18,73:1 en sombre. Vu sur l'iPhone comme sur le simulateur, et ce
+/// n'était pas un artefact de capture — les Réglages d'iOS, photographiés au même endroit
+/// par la même commande, rendent une horloge noire.
+///
+/// Trois correctifs par le chemin Flutter n'ont rien changé. Le quatrième essai a été
+/// **instrumenté** plutôt que supposé, et la sonde a innocenté Dart :
+///
+///     SONDE: theme=Brightness.light plateforme=Brightness.light
+///     SONDE: pose statusBarBrightness=Brightness.light
+///
+/// La bonne valeur était demandée, et la dalle restait blanche. `AnnotatedRegion`,
+/// `SystemChrome.setSystemUIOverlayStyle` et `UIViewControllerBasedStatusBarAppearance`
+/// à `false` ont tous laissé la mesure à 1,18:1. Le passage par `SystemChrome` ne tient
+/// pas sur cette version d'iOS.
+///
+/// `ControleurGhostcal` répond donc à `preferredStatusBarStyle`, le mécanisme d'UIKit,
+/// que ce widget nourrit. Rien n'est envoyé ailleurs qu'iOS : sur Android la barre suit
+/// déjà le thème, et le canal n'existe pas.
+class _BarreDEtatSelonLeTheme extends StatefulWidget {
+  const _BarreDEtatSelonLeTheme({required this.enfant});
+
+  final Widget enfant;
+
+  @override
+  State<_BarreDEtatSelonLeTheme> createState() => _EtatDeLaBarreDEtat();
+}
+
+class _EtatDeLaBarreDEtat extends State<_BarreDEtatSelonLeTheme> {
+  static const _canal = MethodChannel('ch.stackops.ghostcal/symboles');
+
+  Brightness? _posee;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) return;
+    // `Theme.of` et non `platformBrightness` : c'est le thème que `themeMode` a résolu
+    // qui est à l'écran, et c'est contre lui que la barre doit contraster. Les deux
+    // divergent dès que l'utilisateur impose un thème — exactement le cas du défaut.
+    final luminosite = Theme.of(context).brightness;
+    if (luminosite == _posee) return;
+    _posee = luminosite;
+    // Sans attendre : un échec du canal ne doit pas retarder l'affichage, et il n'y a
+    // rien à rattraper — la barre garde simplement son style précédent.
+    _canal.invokeMethod<void>('barreDEtat', {
+      'sombre': luminosite == Brightness.dark,
+    }).catchError((Object _) {});
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.enfant;
 }

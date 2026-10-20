@@ -1,8 +1,8 @@
 import 'dart:ui' show Locale, PlatformDispatcher;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show MethodChannel, MissingPluginException,
-    PlatformException;
+import 'package:flutter/services.dart'
+    show MethodChannel, MissingPluginException, PlatformException;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:workmanager/workmanager.dart';
@@ -96,7 +96,18 @@ enum EtatDesNotifications {
 ///   does not need to be open — a background refresh can run with the screen off.
 /// - **Opt-in.** Off by default; the permission is asked when the user turns it on.
 ///
-/// Android and macOS. iOS background refresh needs its own setup.
+/// ─── Android and iOS, by two different routes ───
+///
+/// Android keeps a WorkManager task that re-reads the week every fifteen minutes, its
+/// floor. iOS has no equivalent worth relying on: `BGAppRefreshTask` is opportunistic —
+/// the system decides, the interval is not a promise, and a phone left alone can skip it
+/// for hours. A reminder that depends on it would simply not ring.
+///
+/// So iOS does not refresh in the background at all. It schedules the **whole** window up
+/// front — the system then holds the notifications, through a reboot, with the app never
+/// running — and rebuilds that set whenever the app comes to the front, which
+/// `EcranDAccueil` already does on `resumed`. The price is bounded and known: a booking
+/// taken while the app is closed waits for the next opening to get its reminder.
 ///
 /// ─── Ce que macOS fait autrement, et ce qu'il ne fait pas ───
 ///
@@ -130,6 +141,11 @@ class Rappels extends ChangeNotifier {
 
   /// How far ahead reminders are scheduled, and how many at most: Android caps the
   /// alarms one app may hold, and a refresh comes long before a week runs out.
+  ///
+  /// Fifty also clears iOS's own ceiling, which is harder: iOS keeps **64** pending
+  /// local notifications per app and silently drops the rest. Since iOS schedules the
+  /// entire window at once instead of refreshing, that ceiling is the real bound, and
+  /// fifty leaves room under it rather than discovering it on a busy week.
   static const horizon = Duration(days: 7);
   static const maximum = 50;
 
@@ -139,7 +155,16 @@ class Rappels extends ChangeNotifier {
   static bool get disponible =>
       !kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS ||
           defaultTargetPlatform == TargetPlatform.macOS);
+
+  /// Android holds the exact-alarm permission and its own notification prompt.
+  static bool get _surAndroid =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  /// Where the periodic refresh runs: WorkManager on Android, NSBackgroundActivityScheduler
+  /// on macOS (only while the app runs, see above). iOS has none.
+  static bool get _avecRafraichissement => _surAndroid || surMacos;
 
   /// Le canal des quelques choses que le greffon ne fait pas ici : l'inscription aux
   /// ouvertures de session. Public pour qu'un témoin le feigne sans le recopier.
@@ -159,6 +184,17 @@ class Rappels extends ChangeNotifier {
 
   bool _pret = false;
 
+  /// Combien de rappels le système tient réellement en attente, relu après chaque
+  /// planification. `null` tant que rien n'a été tenté.
+  ///
+  /// Ce n'est pas une statistique, c'est le seul moyen de savoir. Mesuré sur simulateur :
+  /// `zonedSchedule` sur iOS **n'enregistre rien** quand l'autorisation manque, sans lever
+  /// ni rien rendre. Un rappel qui ne sonne pas est alors indiscernable d'un agenda sans
+  /// rendez-vous à venir — c'est précisément le doute qu'un utilisateur ne peut pas lever
+  /// seul. Relire ce que le système tient le lève.
+  int? _programmes;
+  int? get programmes => _programmes;
+
   Future<void> amorcer() async {
     _actif = await Trousseau.lire(_cleActif) == 'true';
     final avance = await Trousseau.lire(_cleAvance);
@@ -175,35 +211,58 @@ class Rappels extends ChangeNotifier {
   /// stays off rather than claiming reminders that will never show.
   Future<bool> activer() async {
     await _preparer();
-    final accorde = surMacos
-        // `alert` et `sound`, pas `badge` : une pastille sur l'icône du Dock survivrait à
-        // la bannière et resterait là jusqu'à ce qu'on ouvre l'application, en annonçant
-        // qu'il se passe quelque chose sans rien en dire. Le rappel est un instant, pas
-        // un état.
-        ? await _plugin
-                .resolvePlatformSpecificImplementation<
-                  MacOSFlutterLocalNotificationsPlugin
-                >()
-                ?.requestPermissions(alert: true, sound: true) ??
-            false
-        : await _plugin
-                .resolvePlatformSpecificImplementation<
-                  AndroidFlutterLocalNotificationsPlugin
-                >()
-                ?.requestNotificationsPermission() ??
-            false;
-    if (!accorde) return false;
+    if (!await _demanderLAutorisation()) return false;
     _actif = true;
     notifyListeners();
     await Trousseau.poser('true', _cleActif);
-    await _gestionnaire.registerPeriodicTask(
-      _tache,
-      _tache,
-      frequency: frequence,
-      constraints: Constraints(networkType: NetworkType.connected),
-      existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
-    );
+    // Rien de périodique sur iOS : voir l'en-tête de la classe. La fenêtre entière est
+    // planifiée par `replanifier`, que l'écran d'accueil appelle à chaque retour.
+    if (_avecRafraichissement) {
+      await _gestionnaire.registerPeriodicTask(
+        _tache,
+        _tache,
+        frequency: frequence,
+        constraints: Constraints(networkType: NetworkType.connected),
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
+      );
+    }
     return true;
+  }
+
+  /// Demande le droit de notifier, et rend ce que l'utilisateur a répondu.
+  ///
+  /// Les deux systèmes le demandent à cet instant précis et pas à l'amorçage : une
+  /// application qui réclame une autorisation au premier lancement, pour une fonction
+  /// que personne n'a allumée, se fait refuser — et le refus, sur iOS, ne se redemande
+  /// pas. C'est pourquoi `DarwinInitializationSettings` ne demande rien.
+  Future<bool> _demanderLAutorisation() async {
+    if (_surAndroid) {
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      return await android?.requestNotificationsPermission() ?? false;
+    }
+    if (surMacos) {
+      // `alert` and `sound`, no `badge`: a Dock badge would outlive the banner.
+      final macos = _plugin
+          .resolvePlatformSpecificImplementation<
+            MacOSFlutterLocalNotificationsPlugin
+          >();
+      return await macos?.requestPermissions(alert: true, sound: true) ?? false;
+    }
+    final ios = _plugin
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >();
+    // Pas de pastille : le compteur sur l'icône survivrait au rendez-vous et dirait
+    // qu'il reste quelque chose à faire. Le son et la bannière suffisent à un rappel.
+    return await ios?.requestPermissions(
+          alert: true,
+          badge: false,
+          sound: true,
+        ) ??
+        false;
   }
 
   Future<void> desactiver() async {
@@ -216,9 +275,11 @@ class Rappels extends ChangeNotifier {
   /// Stops the refresh and drops what is scheduled, keeping the user's choice: used at
   /// sign-out, so reminders resume with the next session.
   Future<void> arreter() async {
-    await _gestionnaire.cancelByUniqueName(_tache);
+    if (_avecRafraichissement) await _gestionnaire.cancelByUniqueName(_tache);
     await _preparer();
     await _plugin.cancelAllPendingNotifications();
+    _programmes = null;
+    notifyListeners();
   }
 
   // ─── Pourquoi l'autorisation a échoué, et où aller la corriger ───
@@ -236,14 +297,17 @@ class Rappels extends ChangeNotifier {
   Future<EtatDesNotifications?> etatDesNotifications() async {
     final brut = await _demanderAuSysteme<String>('etatDesNotifications');
     if (brut == null) return null;
-    return EtatDesNotifications.values.firstWhere((e) => e.name == brut,
-        orElse: () => EtatDesNotifications.inconnu);
+    return EtatDesNotifications.values.firstWhere(
+      (e) => e.name == brut,
+      orElse: () => EtatDesNotifications.inconnu,
+    );
   }
 
   /// Ouvre le volet des notifications des Réglages Système. Rend `false` si macOS n'a
   /// rien ouvert — l'écran se tait alors plutôt que de promettre un volet absent.
   Future<bool> ouvrirLesReglagesDesNotifications() async =>
-      await _demanderAuSysteme<bool>('ouvrirLesReglagesDesNotifications') ?? false;
+      await _demanderAuSysteme<bool>('ouvrirLesReglagesDesNotifications') ??
+      false;
 
   // ─── L'ouverture de session, sur macOS seulement ───
 
@@ -264,8 +328,10 @@ class Rappels extends ChangeNotifier {
   /// demandé afficherait un interrupteur allumé devant un système qui a dit non.
   Future<bool> lancerALOuvertureDeSession(bool valeur) async {
     _aLOuvertureDeSession =
-        await _demanderAuSysteme<bool>('lancerALOuvertureDeSession', {'valeur': valeur}) ??
-            false;
+        await _demanderAuSysteme<bool>('lancerALOuvertureDeSession', {
+          'valeur': valeur,
+        }) ??
+        false;
     notifyListeners();
     return _aLOuvertureDeSession;
   }
@@ -275,10 +341,14 @@ class Rappels extends ChangeNotifier {
   /// Android n'a pas celui-ci : une `MissingPluginException` non rattrapée y ferait
   /// échouer [amorcer], donc le lancement de l'application, pour un réglage qui n'y existe
   /// pas.
-  Future<T?> _demanderAuSysteme<T>(String methode, [Map<String, Object?>? arguments]) async {
+  Future<T?> _demanderAuSysteme<T>(
+    String methode, [
+    Map<String, Object?>? arguments,
+  ]) async {
     if (!surMacos) return null;
     try {
-      return await const MethodChannel(canalMacos).invokeMethod<T>(methode, arguments);
+      return await const MethodChannel(canalMacos)
+          .invokeMethod<T>(methode, arguments);
     } on MissingPluginException {
       return null;
     } on PlatformException {
@@ -337,7 +407,10 @@ class Rappels extends ChangeNotifier {
   Future<void> _planifier(List<RappelPrevu> prevus) async {
     await _preparer();
     await _plugin.cancelAllPendingNotifications();
-    if (prevus.isEmpty) return;
+    if (prevus.isEmpty) {
+      await _relireCeQuiEstEnAttente();
+      return;
+    }
 
     final l = await _langue();
     final android = _plugin
@@ -346,6 +419,27 @@ class Rappels extends ChangeNotifier {
         >();
     final exact = await android?.canScheduleExactNotifications() ?? false;
     final details = NotificationDetails(
+      // Rien à régler sur iOS pour masquer le texte à l'écran verrouillé : c'est un
+      // réglage de l'utilisateur (« Afficher les aperçus »), qu'aucune application ne
+      // commande. La neutralité du texte est donc la seule garantie qui tienne des deux
+      // côtés — et c'est celle que `rappels_test.dart` mesure.
+      iOS: const DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: false,
+        presentSound: true,
+        // `active` et non `timeSensitive`, bien qu'un rendez-vous imminent en relève :
+        // le niveau Time Sensitive **exige** le droit
+        // `com.apple.developer.usernotifications.time-sensitive`, que cette application
+        // ne déclare pas — vérifié sur la build signée, qui ne porte aucun entitlement.
+        //
+        // Sans le droit, iOS rétrograde silencieusement le niveau. Le rappel sonnerait
+        // donc quand même, et c'est ce qui rend la demande trompeuse plutôt qu'inoffensive :
+        // le code promettrait de percer un mode de concentration, ce qu'il ne fait pas.
+        //
+        // Y revenir demande d'activer la capacité dans le compte développeur et de la
+        // déclarer ici : une décision de provisionnement, pas une constante à changer.
+        interruptionLevel: InterruptionLevel.active,
+      ),
       android: AndroidNotificationDetails(
         _canal,
         l.rappelsCanal,
@@ -378,6 +472,20 @@ class Rappels extends ChangeNotifier {
         body: l.rappelCorps(prevu.debut.difference(prevu.quand).inMinutes),
       );
     }
+    await _relireCeQuiEstEnAttente();
+  }
+
+  /// Relit ce que le système tient, plutôt que de compter ce qu'on a demandé.
+  ///
+  /// La différence est tout l'intérêt : sur iOS une demande refusée ne lève pas, et sur
+  /// les deux plateformes un plafond atteint écarte les suivantes en silence.
+  Future<void> _relireCeQuiEstEnAttente() async {
+    try {
+      _programmes = (await _plugin.pendingNotificationRequests()).length;
+    } on Object {
+      _programmes = null;
+    }
+    notifyListeners();
   }
 
   Future<void> _preparer() async {
@@ -385,6 +493,13 @@ class Rappels extends ChangeNotifier {
     await _plugin.initialize(
       settings: const InitializationSettings(
         android: AndroidInitializationSettings('ic_notification'),
+        // Aucune demande ici : `activer()` s'en charge, au moment où l'utilisateur
+        // allume la fonction. iOS n'a pas d'icône à nommer, il prend celle de l'app.
+        iOS: DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
+        ),
         // Les trois demandes sont **coupées** : l'autorisation se demande dans [activer],
         // au moment où quelqu'un allume le réglage. Les laisser à leur défaut la ferait
         // surgir au premier lancement, devant quelqu'un qui n'a pas encore vu à quoi sert

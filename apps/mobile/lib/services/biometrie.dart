@@ -61,12 +61,22 @@ import 'trousseau.dart';
 /// `integration_test/biometrie_trois_etats_test.dart`, qui le refait à chaque exécution
 /// plutôt que de le croire sur parole.
 enum Empreinte {
-  visage(Icons.face),
-  doigt(Icons.fingerprint),
-  autre(Icons.lock_outline);
+  visage(Icons.face, 'faceid'),
+  doigt(Icons.fingerprint, 'touchid'),
+  autre(Icons.lock_outline, 'lock.shield');
 
-  const Empreinte(this.icone);
+  const Empreinte(this.icone, this.symbole);
+
+  /// L'icône Material, affichée sur Android et là où [symbole] n'existe pas.
   final IconData icone;
+
+  /// Le SF Symbol correspondant, affiché sur iOS par `SymboleSysteme`.
+  ///
+  /// Les trois mêmes noms que `Biometrics.icon` de GhostPass iOS, repris tels quels :
+  /// deux produits de la même suite qui annoncent le même geste doivent montrer le même
+  /// dessin. `Icons.face` donnait une tête ronde souriante là où l'utilisateur attend le
+  /// cadre de Face ID.
+  final String symbole;
 
   /// Le nom du geste, dans la langue de l'écran.
   ///

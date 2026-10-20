@@ -917,6 +917,22 @@ class LEn extends L {
   }
 
   @override
+  String rappelsProgrammes(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n reminders scheduled',
+      one: '1 reminder scheduled',
+      zero: 'No reminder scheduled',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get rappelsAucunRendezVous =>
+      'No appointment booked in the next 7 days. Reminders only cover appointments your invitees book.';
+
+  @override
   String get rappelsRefuses =>
       'Notifications are turned off for GhostCal. Allow them in the system settings.';
 

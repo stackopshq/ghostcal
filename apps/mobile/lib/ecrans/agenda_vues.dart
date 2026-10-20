@@ -25,7 +25,19 @@ String heureCourte(BuildContext context, DateTime d) {
 
 /// The label of an item and how it is styled. What cannot be decrypted is still shown:
 /// a missing row reads as "free", which is false and costs a double booking.
+/// Ce qu'une ligne annonce, et dans quel style.
+///
+/// Une réservation est nommée par **qui** l'a prise, pas par le type de rendez-vous : une
+/// journée de « RDV en visioconférence » empilés n'apprenait rien, et il fallait ouvrir
+/// chaque fiche. Le type ne disparaît pas pour autant, il passe en sous-titre, à côté de
+/// l'heure.
 (String, TextStyle) titreAffiche(BuildContext context, LigneDAgenda ligne, Gc gc) =>
+    switch (ligne.invite) {
+      final nom? when nom.isNotEmpty => (nom, TextStyle(color: gc.encre)),
+      _ => _titreSansInvite(context, ligne, gc),
+    };
+
+(String, TextStyle) _titreSansInvite(BuildContext context, LigneDAgenda ligne, Gc gc) =>
     switch (ligne.provenance) {
       ProvenanceDuTitre.dechiffre ||
       ProvenanceDuTitre.enClair =>

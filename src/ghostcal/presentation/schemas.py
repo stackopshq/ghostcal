@@ -868,6 +868,12 @@ class AgendaItemOut(BaseModel):
     title: str | None = None
     read_only: bool = False
     reminder_minutes: int | None = None
+    # Qui a réservé, pour les lignes `booking`. `invitee_private` est un sceau que le
+    # serveur transporte sans pouvoir le lire ; l'hôte l'ouvre chez lui. Champ distinct de
+    # `content`, qui porte l'enveloppe d'un **événement** et n'a pas la même forme :
+    # les confondre ferait échouer le déchiffrement sans dire pourquoi.
+    invitee_name: str | None = None
+    invitee_private: str | None = None
     location: str | None = None
     description: str | None = None
 

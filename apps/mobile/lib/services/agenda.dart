@@ -102,6 +102,7 @@ class LigneDAgenda {
     required this.source,
     this.lieu,
     this.calendrier,
+    this.invite,
   });
 
   final String id;
@@ -123,6 +124,14 @@ class LigneDAgenda {
   final String titre;
   final String? lieu;
   final String source;
+
+  /// Qui a réservé, pour une ligne `booking` ; nul partout ailleurs.
+  ///
+  /// L'agenda ne nommait que le type de rendez-vous — « RDV en visioconférence » — et il
+  /// fallait ouvrir la fiche pour savoir de qui il s'agissait. Le nom vient soit du champ
+  /// en clair, soit du sceau `invitee_private` que seul l'hôte ouvre : c'est le même
+  /// chemin que l'écran Réunions, et il est repris tel quel plutôt que réinventé.
+  final String? invite;
 }
 
 /// Le détail d'un événement, tel que le serveur le rend, contenu ouvert quand on a pu.
@@ -210,6 +219,21 @@ class Agenda {
         }
       }
 
+      // Qui a réservé. Deux sources, dans cet ordre : le sceau, que seul l'hôte ouvre, et
+      // le champ en clair que le serveur rend encore pour les réservations anciennes. Un
+      // sceau illisible ne vaut pas un aveu d'échec ici — contrairement au titre d'un
+      // événement, la ligne garde son sens sans le nom, et elle dit déjà l'heure occupée.
+      String? invite;
+      final nomEnClair = brute['invitee_name'];
+      if (nomEnClair is String && nomEnClair.isNotEmpty) invite = nomEnClair;
+      final sceauDeLInvite = brute['invitee_private'];
+      if (sceauDeLInvite is String && sceauDeLInvite.isNotEmpty) {
+        final clair = await auth.ouvrir(sceauDeLInvite, organisation: organisation);
+        final contenu =
+            clair == null ? null : ContenuDInvite.depuisJson(utf8.decode(clair));
+        if (contenu != null && contenu.name.isNotEmpty) invite = contenu.name;
+      }
+
       final debut = DateTime.parse('${brute['start']}').toLocal();
       final lectureSeule = brute['read_only'] == true;
       final evenement = brute['event_id'] as String?;
@@ -228,6 +252,7 @@ class Agenda {
         lieu: lieu,
         source: '${brute['source']}',
         calendrier: brute['calendar_id'] as String?,
+        invite: invite,
       ));
     }
     resultat.sort(comparerLesLignes);

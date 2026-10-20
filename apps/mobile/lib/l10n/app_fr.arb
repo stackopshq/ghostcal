@@ -451,6 +451,15 @@
   "rappelsDeRendezVous": "Rappeler mes rendez-vous",
   "rappelsExplication": "Une notification avant chaque rendez-vous réservé, sans le nom de l'invité ni aucun détail. Calculée sur cet appareil, sans service de notification tiers.",
   "rappelsAvance": "{minutes} min avant",
+  "rappelsProgrammes": "{n, plural, =0{Aucun rappel programmé} =1{1 rappel programmé} other{{n} rappels programmés}}",
+  "@rappelsProgrammes": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "rappelsAucunRendezVous": "Aucun rendez-vous réservé dans les 7 jours à venir. Les rappels ne concernent que les rendez-vous pris par vos invités.",
   "@rappelsAvance": {
     "placeholders": {
       "minutes": {

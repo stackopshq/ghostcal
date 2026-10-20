@@ -12,6 +12,8 @@ import 'package:ghostcal/services/api.dart';
 import 'package:ghostcal/services/rappels.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, debugDefaultTargetPlatformOverride;
 import 'package:flutter/widgets.dart' show Locale;
 
 void main() {
@@ -133,12 +135,12 @@ void main() {
       inscrit = false;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(canal, (appel) async {
-        appels.add(appel);
-        if (appel.method == 'lancerALOuvertureDeSession') {
-          inscrit = (appel.arguments as Map)['valeur'] == true;
-        }
-        return inscrit;
-      });
+            appels.add(appel);
+            if (appel.method == 'lancerALOuvertureDeSession') {
+              inscrit = (appel.arguments as Map)['valeur'] == true;
+            }
+            return inscrit;
+          });
     });
 
     tearDown(() {
@@ -147,16 +149,19 @@ void main() {
           .setMockMethodCallHandler(canal, null);
     });
 
-    test('sur macOS, l\'état est demandé au système et non relu d\'un réglage', () async {
-      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
-      final rappels = Rappels();
-      await rappels.amorcer();
-      expect(appels.single.method, 'lanceALOuvertureDeSession');
-      expect(rappels.aLOuvertureDeSession, isFalse);
+    test(
+      'sur macOS, l\'état est demandé au système et non relu d\'un réglage',
+      () async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+        final rappels = Rappels();
+        await rappels.amorcer();
+        expect(appels.single.method, 'lanceALOuvertureDeSession');
+        expect(rappels.aLOuvertureDeSession, isFalse);
 
-      expect(await rappels.lancerALOuvertureDeSession(true), isTrue);
-      expect(rappels.aLOuvertureDeSession, isTrue);
-    });
+        expect(await rappels.lancerALOuvertureDeSession(true), isTrue);
+        expect(rappels.aLOuvertureDeSession, isTrue);
+      },
+    );
 
     /// Le système peut refuser : l'utilisateur a pu interdire le lancement automatique
     /// depuis les Réglages Système. L'interrupteur doit alors retomber **et le dire**,
@@ -175,20 +180,28 @@ void main() {
       final rappels = Rappels();
       await rappels.amorcer();
       expect(await rappels.lancerALOuvertureDeSession(true), isFalse);
-      expect(appels, isEmpty,
-          reason: 'le canal n\'existe pas là-bas : amorcer lèverait au démarrage');
+      expect(
+        appels,
+        isEmpty,
+        reason: 'le canal n\'existe pas là-bas : amorcer lèverait au démarrage',
+      );
     });
 
-    test('les rappels existent sur les deux plateformes, et nulle part ailleurs', () {
-      for (final plateforme in [TargetPlatform.android, TargetPlatform.macOS]) {
+    test('reminders exist on Android, iOS and macOS, and nowhere else', () {
+      for (final plateforme in [
+        TargetPlatform.android,
+        TargetPlatform.iOS,
+        TargetPlatform.macOS,
+      ]) {
         debugDefaultTargetPlatformOverride = plateforme;
         expect(Rappels.disponible, isTrue, reason: '$plateforme');
       }
       for (final plateforme in [TargetPlatform.iOS, TargetPlatform.linux]) {
         debugDefaultTargetPlatformOverride = plateforme;
-        expect(Rappels.disponible, isFalse, reason: '$plateforme');
-        expect(Rappels.surMacos, isFalse);
+        expect(Rappels.surMacos, isFalse, reason: '$plateforme');
       }
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      expect(Rappels.disponible, isFalse);
     });
   });
 
@@ -237,5 +250,14 @@ void main() {
       );
       expect(api.jetons, isNull);
     });
+  });
+
+  // Un garde-fou plutôt qu'une mesure : iOS garde **64** notifications locales en
+  // attente par application et laisse tomber les suivantes, sans rien dire. Comme iOS
+  // planifie toute la fenêtre d'un coup au lieu de la rafraîchir, ce plafond est la
+  // vraie borne. Quiconque relèvera `maximum` croisera ce témoin avant l'utilisateur
+  // dont le huitième rendez-vous de la semaine n'a pas sonné.
+  test('le plafond reste sous celui d\'iOS', () {
+    expect(Rappels.maximum, lessThanOrEqualTo(64));
   });
 }

@@ -4,6 +4,7 @@ import '../services/biometrie.dart';
 import '../services/erreurs.dart';
 import '../services/auth.dart' show SecondFacteurRequis;
 import '../services/session.dart';
+import '../outils/symbole_systeme.dart';
 import '../theme.dart';
 import '../l10n/generated/app_localisations.dart';
 
@@ -436,7 +437,11 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
               side: BorderSide(color: gc.bordureFranche),
               foregroundColor: gc.accentTexte,
             ),
-            child: Icon(empreinte.icone, size: 24),
+            child: SymboleSysteme(
+              nom: empreinte.symbole,
+              materiel: empreinte.icone,
+              taille: 24,
+            ),
           ),
         ),
       ];
@@ -505,7 +510,7 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
     return [
       _champ(
         gc,
-        'Serveur',
+        L.of(context).serveur,
         controleur: _serveur,
         cle: const Key('champ.serveur'),
         // Le domaine est celui que la RFC 2606 réserve aux exemples — il ne résout
