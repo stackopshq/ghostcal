@@ -375,6 +375,9 @@ class _GrilleHoraireState extends State<GrilleHoraire> {
     // chevauchent partagent la largeur, et c'est la moitié obtenue qui décide si le titre
     // tient. 110 points est ce qu'il faut pour deux mots de douze points et la marge.
     final etroit = largeurDeCouloir < 110;
+    // L'horaire sous le titre : seulement dans un bloc assez haut et assez large. Nommé
+    // ici parce que le **budget de lignes** ci-dessous doit lui réserver sa place.
+    final avecHoraire = hauteur > 34 && !etroit;
     return Positioned(
       top: haut,
       height: hauteur,
@@ -395,22 +398,31 @@ class _GrilleHoraireState extends State<GrilleHoraire> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  titre,
-                  // As many lines as the block holds: in a week column a one-line title
-                  // read "Point …" for a 45-minute meeting.
-                  maxLines: ((hauteur - 4) / (etroit ? 13 : 16)).floor().clamp(
-                    1,
-                    6,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  style: style.copyWith(
-                    fontSize: etroit ? 9.5 : 12,
-                    height: 1.2,
-                    fontWeight: FontWeight.w600,
+                // ─── `Flexible`, et plus d'arithmétique à tenir ───
+                //
+                // Le titre prend ce que la ligne d'horaire laisse, et la mise en page le
+                // calcule elle-même. Soustraire les hauteurs à la main marchait à onze
+                // pixels près, puis à un tiers de pixel près — et un tiers de pixel
+                // suffit à peindre les barres de débordement. Un budget qu'on recopie est
+                // un budget qui dérive ; celui-ci n'existe plus.
+                //
+                // `maxLines` reste, mais comme **plafond de lisibilité** et non comme
+                // calcul de place : au-delà de six lignes un bloc devient un paragraphe.
+                Flexible(
+                  child: Text(
+                    titre,
+                    maxLines: ((hauteur - _margesDuBloc) / (etroit ? 13 : 16))
+                        .floor()
+                        .clamp(1, 6),
+                    overflow: TextOverflow.ellipsis,
+                    style: style.copyWith(
+                      fontSize: etroit ? 9.5 : 12,
+                      height: 1.2,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-                if (hauteur > 34 && !etroit)
+                if (avecHoraire)
                   Text(
                     [
                       '${heureCourte(context, ligne.debut)} – ${heureCourte(context, ligne.fin)}',
@@ -428,6 +440,11 @@ class _GrilleHoraireState extends State<GrilleHoraire> {
     );
   }
 }
+
+/// Les marges verticales d'un bloc. Le plafond de lignes du titre les retire — c'est tout
+/// ce qui reste d'arithmétique ici, et elle ne décide plus de la place : `Flexible` s'en
+/// charge.
+const _margesDuBloc = 5.0;
 
 class _Lignes extends CustomPainter {
   _Lignes(this.hauteurDHeure, this.couleur, {this.gauche = false});

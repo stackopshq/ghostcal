@@ -123,7 +123,43 @@ void main() {
           reason: '72 points par jour : l\'horaire ne tiendrait pas');
     });
 
-    testWidgets('une fenêtre large rend l\'horaire au bloc', (tester) async {
+        /// ─── Le débordement de la semaine, frère de celui du mois ───
+    ///
+    /// Le budget de lignes du titre se calculait sur la hauteur entière du bloc, puis la
+    /// ligne d'horaire s'ajoutait par-dessus. Un bloc de 47 points dans un couloir large
+    /// débordait de onze. Comme pour la case du mois, `takeException` est la seule façon
+    /// de le voir : un débordement est une erreur de rendu, pas une assertion.
+    ///
+    /// Les durées balayées encadrent le seuil des 34 points où l'horaire paraît, parce
+    /// que c'est là que l'oubli se payait.
+    testWidgets('aucune largeur ni durée ne fait déborder un bloc', (tester) async {
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final sept = [for (var i = 0; i < 7; i++) plusJours(DateTime(2026, 10, 12), i)];
+      // La semaine, parce que c'est là que les couloirs sont étroits sans l'être assez
+      // pour basculer en mode compact — l'intervalle où l'oubli se payait. Les largeurs
+      // balaient cet intervalle, les durées encadrent le seuil de la ligne d'horaire.
+      for (final largeur in [900.0, 1000.0, 1050.0, 1100.0, 1200.0, 1440.0]) {
+        for (final minutes in [20, 30, 35, 40, 45, 50, 55, 60, 75, 90]) {
+          await tester.binding.setSurfaceSize(Size(largeur, 900));
+          await tester.pumpWidget(appDEpreuve(Scaffold(
+            body: GrilleHoraire(
+              jours: sept,
+              lignes: [
+                ligne('Comité de direction élargi aux partenaires',
+                    DateTime(2026, 10, 15, 9), minutes),
+              ],
+              couleurDe: (_) => Colors.teal,
+              surLigne: (_) {},
+            ),
+          )));
+          await tester.pump();
+          expect(tester.takeException(), isNull,
+              reason: 'largeur $largeur, bloc de $minutes min');
+        }
+      }
+    });
+
+testWidgets('une fenêtre large rend l\'horaire au bloc', (tester) async {
       await tester.binding.setSurfaceSize(const Size(1100, 900));
       await tester.pumpWidget(semaine());
       await tester.pump();
