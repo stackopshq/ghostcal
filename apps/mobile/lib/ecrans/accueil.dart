@@ -46,42 +46,20 @@ class _EcranDAccueilState extends State<EcranDAccueil>
   DateTime? _partiEnArrierePlan;
   final _agenda = GlobalKey<EcranDAgendaState>();
 
-  /// The macOS menu bar's "Settings…" (⌘,) arrives here; the native side sends
-  /// `reglages`. Nothing sends it elsewhere.
+  /// The macOS menu bar. The native side names the methods; see
+  /// `macos/Runner/MenuDeLApplication.swift`.
   static const _canalDuMenu = MethodChannel('ch.stackops.ghostcal/menu');
+
+  /// The search screen covers the agenda, so the menu stops reaching it — see
+  /// [_recevoirDuMenu].
+  bool _rechercheOuverte = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _replanifierLesRappels();
-    // The macOS menu bar sends the same commands as the keyboard shortcuts below, so a
-    // menu item and its key always do the same thing.
-    _canalDuMenu.setMethodCallHandler((appel) async {
-      if (!mounted) return;
-      final argument = appel.arguments;
-      switch (appel.method) {
-        case 'reglages':
-          setState(() => _onglet = 4);
-        case 'vue':
-          final vue = VueDAgenda.values
-              .where((v) => v.name == argument)
-              .firstOrNull;
-          if (vue != null) {
-            _commande(() => _agenda.currentState?.choisirLaVue(vue));
-          }
-        case 'aujourdhui':
-          _commande(() => _agenda.currentState?.aujourdhui());
-        case 'precedent':
-          _commande(() => _agenda.currentState?.deplacer(-1));
-        case 'suivant':
-          _commande(() => _agenda.currentState?.deplacer(1));
-        case 'nouveau':
-          _commande(() => _agenda.currentState?.nouvelEvenement());
-        case 'rechercher':
-          _commande(() => _agenda.currentState?.rechercher());
-      }
-    });
+    _canalDuMenu.setMethodCallHandler(_recevoirDuMenu);
   }
 
   /// A booking taken while the app was away gets its reminder as soon as it is back,
@@ -97,6 +75,77 @@ class _EcranDAccueilState extends State<EcranDAccueil>
             (Object e) => debugPrint('ghostcal.rappels: refresh failed: $e'),
           ),
     );
+  }
+
+  /// Ce qu'un raccourci de la barre de menus déclenche.
+  ///
+  /// Les noms de méthode viennent du natif : `macos/Runner/MenuDeLApplication.swift`.
+  /// Les deux listes doivent coïncider, et `test/menu_macos_test.dart` échoue si
+  /// l'une des deux prend de l'avance — un item de menu dont la méthode n'arrive
+  /// nulle part est un raccourci qui ne fait rien, en silence.
+  ///
+  /// Hormis « Réglages… » et « Verrouiller », ces commandes pilotent l'agenda et le
+  /// ramènent donc d'abord devant : choisir « Mois » alors que les réglages occupent
+  /// l'écran changerait une vue que personne ne regarde. La feuille de menu du bas
+  /// fait déjà exactement cela.
+  ///
+  /// Et tant que l'écran de recherche est au premier plan, il couvre l'agenda :
+  /// seul « Verrouiller » passe encore. ⌘F en particulier doit laisser une requête à
+  /// moitié tapée tranquille plutôt que d'empiler une seconde recherche par-dessus.
+  Future<void> _recevoirDuMenu(MethodCall appel) async {
+    if (!mounted) return;
+
+    // Avant la garde, et avant tout le reste : verrouiller est une commande de
+    // sécurité. Elle doit aboutir quel que soit l'écran au premier plan — refuser de
+    // fermer le coffre parce qu'une recherche est ouverte serait le mauvais arbitrage.
+    if (appel.method == 'verrouiller') {
+      widget.session.verrouiller();
+      return;
+    }
+    if (_rechercheOuverte) return;
+    final agenda = _agenda.currentState;
+
+    void surLAgenda(void Function(EcranDAgendaState agenda) faire) {
+      if (agenda == null) return;
+      setState(() => _onglet = 0);
+      faire(agenda);
+    }
+
+    switch (appel.method) {
+      case 'reglages':
+        setState(() => _onglet = 4);
+      case 'vue':
+        final vue = switch (appel.arguments) {
+          'jour' => VueDAgenda.jour,
+          'semaine' => VueDAgenda.semaine,
+          'mois' => VueDAgenda.mois,
+          'liste' => VueDAgenda.liste,
+          _ => null,
+        };
+        if (vue != null) surLAgenda((a) => a.choisirLaVue(vue));
+      case 'aujourdhui':
+        surLAgenda((a) => a.allerAujourdhui());
+      case 'precedent':
+        surLAgenda((a) => a.deplacer(-1));
+      case 'suivant':
+        surLAgenda((a) => a.deplacer(1));
+      case 'nouveau':
+        // Le bouton de la barre disparaît sans calendrier inscriptible ; le
+        // raccourci suit la même règle, plutôt que d'ouvrir un formulaire qui ne
+        // pourra pas être enregistré.
+        if (agenda != null && agenda.peutCreer) {
+          surLAgenda((a) => a.nouvelEvenement());
+        }
+      case 'rechercher':
+        if (agenda == null) return;
+        setState(() => _onglet = 0);
+        _rechercheOuverte = true;
+        try {
+          await agenda.rechercher();
+        } finally {
+          _rechercheOuverte = false;
+        }
+    }
   }
 
   @override
@@ -129,16 +178,14 @@ class _EcranDAccueilState extends State<EcranDAccueil>
     }
   }
 
-  /// An agenda command from the keyboard or the menu bar: it brings the agenda back first,
-  /// since that is what it acts on.
-  void _commande(void Function() action) {
-    if (_onglet != 0) setState(() => _onglet = 0);
-    action();
-  }
-
-  /// Fantastical's shortcuts: ⌘1–⌘4 for the views, ⌘T for today, ⌘← ⌘→ to page, ⌘N
-  /// for a new event, ⌘F to search, ⌘, for the settings. Command on Apple keyboards,
-  /// Control elsewhere — an Android tablet or a desktop with a keyboard gets them too.
+  /// Fantastical's shortcuts on any keyboard: ⌘1–⌘4 for the views, ⌘T for today,
+  /// ⌘← ⌘→ to page, ⌘N for a new event, ⌘F to search, ⌘, for the settings, ⌘L to
+  /// lock. Command on Apple keyboards, Control elsewhere — an Android tablet or a
+  /// desktop with a keyboard gets them too.
+  ///
+  /// Each key sends the menu bar's command to [_recevoirDuMenu], so a key and its menu
+  /// item share one path and one set of guards. On macOS AppKit answers the key first
+  /// through the menu item, and this map never sees it.
   Map<ShortcutActivator, VoidCallback> get _raccourcis {
     final pomme = switch (defaultTargetPlatform) {
       TargetPlatform.macOS || TargetPlatform.iOS => true,
@@ -146,30 +193,20 @@ class _EcranDAccueilState extends State<EcranDAccueil>
     };
     SingleActivator touche(LogicalKeyboardKey cle) =>
         SingleActivator(cle, meta: pomme, control: !pomme);
-    final agenda = _agenda.currentState;
+    VoidCallback commande(String methode, [Object? argument]) =>
+        () => unawaited(_recevoirDuMenu(MethodCall(methode, argument)));
     return {
-      touche(LogicalKeyboardKey.digit1): () =>
-          _commande(() => agenda?.choisirLaVue(VueDAgenda.jour)),
-      touche(LogicalKeyboardKey.digit2): () =>
-          _commande(() => agenda?.choisirLaVue(VueDAgenda.semaine)),
-      touche(LogicalKeyboardKey.digit3): () =>
-          _commande(() => agenda?.choisirLaVue(VueDAgenda.mois)),
-      touche(LogicalKeyboardKey.digit4): () =>
-          _commande(() => agenda?.choisirLaVue(VueDAgenda.liste)),
-      touche(LogicalKeyboardKey.keyT): () =>
-          _commande(() => agenda?.aujourdhui()),
-      touche(LogicalKeyboardKey.arrowLeft): () =>
-          _commande(() => agenda?.deplacer(-1)),
-      touche(LogicalKeyboardKey.arrowRight): () =>
-          _commande(() => agenda?.deplacer(1)),
-      touche(LogicalKeyboardKey.keyN): () {
-        if (agenda?.peutCreer ?? false) {
-          _commande(() => agenda?.nouvelEvenement());
-        }
-      },
-      touche(LogicalKeyboardKey.keyF): () =>
-          _commande(() => agenda?.rechercher()),
-      touche(LogicalKeyboardKey.comma): () => setState(() => _onglet = 4),
+      touche(LogicalKeyboardKey.digit1): commande('vue', 'jour'),
+      touche(LogicalKeyboardKey.digit2): commande('vue', 'semaine'),
+      touche(LogicalKeyboardKey.digit3): commande('vue', 'mois'),
+      touche(LogicalKeyboardKey.digit4): commande('vue', 'liste'),
+      touche(LogicalKeyboardKey.keyT): commande('aujourdhui'),
+      touche(LogicalKeyboardKey.arrowLeft): commande('precedent'),
+      touche(LogicalKeyboardKey.arrowRight): commande('suivant'),
+      touche(LogicalKeyboardKey.keyN): commande('nouveau'),
+      touche(LogicalKeyboardKey.keyF): commande('rechercher'),
+      touche(LogicalKeyboardKey.comma): commande('reglages'),
+      touche(LogicalKeyboardKey.keyL): commande('verrouiller'),
     };
   }
 

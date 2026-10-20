@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'l10n/generated/app_localisations.dart';
+
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:workmanager/workmanager.dart';
 
@@ -43,13 +44,20 @@ Future<void> main() async {
     await rappels.amorcer();
     session.avantDeSortir = rappels.arreter;
   }
-  runApp(GhostcalApp(
-    session: session,
-    verrouillage: verrouillage,
-    apparence: apparence,
-    rappels: rappels,
-  ));
+  runApp(
+    GhostcalApp(
+      session: session,
+      verrouillage: verrouillage,
+      apparence: apparence,
+      rappels: rappels,
+    ),
+  );
 }
+
+/// Le navigateur de l'application. De portée fichier, parce qu'il n'y en a qu'un, et
+/// nécessaire : `_RetirerLesEcransAuVerrouillage` se place **au-dessus** du navigateur,
+/// là où `Navigator.of(context)` ne le trouverait pas.
+final _navigateur = GlobalKey<NavigatorState>();
 
 class GhostcalApp extends StatelessWidget {
   const GhostcalApp({
@@ -103,6 +111,7 @@ class GhostcalApp extends StatelessWidget {
 
   Widget _application(Apparence? apparence) {
     return MaterialApp(
+      navigatorKey: _navigateur,
       title: 'GhostCal',
       debugShowCheckedModeBanner: false,
       theme: themeGhostcal(Brightness.light),
@@ -155,9 +164,14 @@ class GhostcalApp extends StatelessWidget {
       // La barre d'état du système suit le thème **de l'application**, pas celui de
       // l'appareil. Voir `_BarreDEtatSelonLeTheme`, qui porte la mesure et les trois
       // chemins essayés avant celui-là.
-      builder: (context, enfant) =>
-          _BarreDEtatSelonLeTheme(enfant: enfant ?? const SizedBox.shrink()),
-      home: accueilDEpreuve ??
+      builder: (context, enfant) => _BarreDEtatSelonLeTheme(
+        enfant: _RetirerLesEcransAuVerrouillage(
+          session: session,
+          enfant: enfant ?? const SizedBox.shrink(),
+        ),
+      ),
+      home:
+          accueilDEpreuve ??
           AnimatedBuilder(
             animation: session,
             builder: (context, _) => session.etat == Etat.ouvert
@@ -173,6 +187,76 @@ class GhostcalApp extends StatelessWidget {
   }
 }
 
+/// Retire les écrans empilés quand le coffre se referme.
+///
+/// ─── Le défaut que ce widget corrige ───
+///
+/// `home` change bien : `EcranDeConnexion` remplace `EcranDAccueil` dès que la session
+/// n'est plus ouverte. Mais les écrans ouverts par `Navigator.push` — la recherche, le
+/// détail d'un événement, une fiche — sont empilés **au-dessus** de `home`, sur le
+/// navigateur de `MaterialApp`. Remplacer la route du bas ne les retire pas : ils
+/// restent affichés, avec leur contenu déchiffré, par-dessus un coffre verrouillé.
+///
+/// Mesuré le 2026-10-20 par `integration_test/macos_test.dart`, et non déduit : coffre
+/// verrouillé, `EcranDeConnexion` monté, `EcranDAccueil` démonté — et l'écran de
+/// recherche toujours **visible** au premier plan.
+///
+/// Le verrouillage automatique au retour d'arrière-plan emprunte le même appel, donc le
+/// défaut n'avait pas besoin d'un raccourci clavier pour se produire : il suffisait de
+/// quitter l'application en laissant un événement ouvert. ⌘L l'a seulement rendu
+/// immédiat, puis visible.
+///
+/// ─── Pourquoi ici, et pas dans l'écran d'accueil ───
+///
+/// `builder` enveloppe le navigateur ; ce widget vit donc au-dessus des routes et
+/// survit au changement de `home`. Un garde posé dans `EcranDAccueil` serait démonté
+/// par le changement même qu'il doit traiter, et dépendrait de l'ordre dans lequel les
+/// auditeurs du `Session` sont appelés.
+class _RetirerLesEcransAuVerrouillage extends StatefulWidget {
+  const _RetirerLesEcransAuVerrouillage({
+    required this.session,
+    required this.enfant,
+  });
+
+  final Session session;
+  final Widget enfant;
+
+  @override
+  State<_RetirerLesEcransAuVerrouillage> createState() => _EtatDuRetrait();
+}
+
+class _EtatDuRetrait extends State<_RetirerLesEcransAuVerrouillage> {
+  /// L'état précédent, tenu à la main : `Session` prévient à chaque changement, et on
+  /// ne doit dépiler qu'au **passage** d'ouvert à fermé. Dépiler à chaque notification
+  /// renverrait l'utilisateur à l'agenda au moindre rafraîchissement.
+  late Etat _etat = widget.session.etat;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.session.addListener(_surChangement);
+  }
+
+  @override
+  void dispose() {
+    widget.session.removeListener(_surChangement);
+    super.dispose();
+  }
+
+  void _surChangement() {
+    final avant = _etat;
+    _etat = widget.session.etat;
+    if (avant != Etat.ouvert || _etat == Etat.ouvert) return;
+    // Après la trame : dépiler pendant la notification reconstruirait le navigateur au
+    // milieu de sa propre mise à jour.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _navigateur.currentState?.popUntil((route) => route.isFirst);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.enfant;
+}
 
 /// Donne à iOS le style de barre d'état qui va avec le thème **de l'application**.
 ///
@@ -223,9 +307,11 @@ class _EtatDeLaBarreDEtat extends State<_BarreDEtatSelonLeTheme> {
     _posee = luminosite;
     // Sans attendre : un échec du canal ne doit pas retarder l'affichage, et il n'y a
     // rien à rattraper — la barre garde simplement son style précédent.
-    _canal.invokeMethod<void>('barreDEtat', {
-      'sombre': luminosite == Brightness.dark,
-    }).catchError((Object _) {});
+    _canal
+        .invokeMethod<void>('barreDEtat', {
+          'sombre': luminosite == Brightness.dark,
+        })
+        .catchError((Object _) {});
   }
 
   @override

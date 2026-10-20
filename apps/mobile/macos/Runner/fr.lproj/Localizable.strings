@@ -1,0 +1,24 @@
+/* Les titres des items de menu que l'application **ajoute**, par opposition à ceux du
+   gabarit d'AppKit qui vivent dans MainMenu.strings, indexés par identifiant d'objet.
+
+   Ceux-ci n'ont pas d'identifiant : ils sont construits en Swift, parce qu'ils n'existent
+   dans aucun nib — il n'y a pas de menu « Fichier » dans le gabarit de Flutter, et le menu
+   « Présentation » ne porte que le plein écran.
+
+   ─── Ces menus suivent la langue du SYSTÈME, pas celle de l'application ───
+
+   C'est déjà vrai des menus du gabarit, et ça ne se rattrape pas : la barre de menus est
+   construite avant que Flutter démarre, et l'utilisateur peut changer la langue de
+   l'application en cours de route depuis les réglages. Un Mac en anglais dont GhostCal
+   est réglé en français aura donc des menus anglais au-dessus d'une interface française.
+   Le noter ici plutôt que de le découvrir. */
+"menu.fichier" = "Fichier";
+"menu.nouvelEvenement" = "Nouvel événement";
+"menu.jour" = "Jour";
+"menu.semaine" = "Semaine";
+"menu.mois" = "Mois";
+"menu.liste" = "Liste";
+"menu.aujourdhui" = "Aujourd'hui";
+"menu.periodePrecedente" = "Période précédente";
+"menu.periodeSuivante" = "Période suivante";
+"menu.verrouiller" = "Verrouiller le coffre";

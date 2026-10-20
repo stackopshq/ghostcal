@@ -120,13 +120,21 @@ class EcranDAgendaState extends State<EcranDAgenda> {
   // ─── What the bottom bar reads and drives ───
 
   VueDAgenda get vue => _vue;
+
+  /// Le jour autour duquel la vue est construite. Lu par les témoins : « Aujourd'hui »
+  /// et les deux flèches ne changent **que** cela, et ne se constatent donc nulle part
+  /// ailleurs sans relire un titre mis en forme.
+  DateTime get ancre => _ancre;
   bool get peutCreer => _inscriptibles.isNotEmpty;
   List<Calendrier> get calendriers => _calendriers;
   Set<String> get masques => _masques;
 
   void choisirLaVue(VueDAgenda vue) => _allerA(_ancre, vue: vue);
   Future<void> nouvelEvenement() => _nouvelEvenement();
-  void aujourdhui() => _allerA(DateTime.now());
+
+  /// The macOS menu bar drives these two. `_allerA` and `_deplacer` stay private:
+  /// they take an anchor and a sign that only this screen knows how to form.
+  void allerAujourdhui() => _allerA(DateTime.now());
   void deplacer(int sens) => _deplacer(sens);
 
   Future<void> masquer(Set<String> masques) async {

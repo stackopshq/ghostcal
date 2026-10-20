@@ -240,6 +240,41 @@ Campagne du 2026-10-15, `flutter test integration_test/macos_test.dart -d macos`
 | Une bannière de rappel paraît | **À la main**, par Clara, le 2026-10-20 : réglage allumé, autorisation accordée, réservation prise depuis la page publique, bannière reçue à l'heure dite. L'alerte d'autorisation et la bannière attendent l'une un clic, l'autre son heure — aucun témoin ne les atteint |
 | L'ouverture du coffre par Touch ID | **À la main**, par Clara, le 2026-10-20 sur l'application installée dans `/Applications` : cocher « Ouvrir avec Touch ID », verrouiller, rouvrir, poser le doigt. Aucun témoin ne peut le faire — c'est le propre d'une biométrie |
 | L'inscription aux ouvertures de session | Posée, relue **auprès du système**, puis remise comme elle était — un témoin n'a pas à laisser une entrée dans les Réglages Système de qui l'exécute |
+| Les dix raccourcis de la barre de menus | Deux moitiés, mesurées séparément. La frappe → l'envoi natif : l'envoi instrumenté, les dix équivalents déclenchés par `System Events`, **y compris sur ABC-AZERTY** — voir ci-dessous. L'envoi → l'écran : `integration_test/macos_test.dart`, qui pousse chaque commande sur le canal et relit la vue, l'ancre, l'écran de recherche et l'état du coffre |
+| Les deux côtés parlent la même langue | `test/menu_macos_test.dart` compare les noms de méthode émis par le Swift à ceux traités par `accueil.dart`, dans les deux sens. Sans témoin, un item renommé d'un seul côté donne un raccourci qui ne fait rien, en silence |
+
+### Les chiffres, sur un clavier qui n'en porte pas à cet endroit
+
+`keyEquivalent: "1"` ne reste pas « 1 ». AppKit le traduit pour la disposition active :
+sur ABC-AZERTY, l'item relit `keyEquivalent == "&"`, et la barre affiche ⌘&, ⌘É, ⌘", ⌘'
+pour Jour, Semaine, Mois, Liste. C'est le bon résultat — ce sont les caractères que
+portent physiquement les touches 1 à 4 ici, donc le menu annonce la frappe qu'on fait.
+
+Et les deux frappes aboutissent : ⌘& comme ⌘1 (Maj comprise) rendent « Jour ». Vérifié en
+instrumentant l'envoi, le 2026-10-20, et non déduit — il aurait été aussi facile de croire
+que poser « 1 » sur un clavier français ne déclenche rien, et d'aller réécrire ce qui
+marchait.
+
+Les deux flèches ne rendent aucun `AXMenuItemCmdChar` : c'est attendu d'une touche de
+fonction, dont le glyphe passe par `AXMenuItemCmdGlyph`. Elles déclenchent, mesuré de la
+même façon.
+
+### Ce que ⌘L a fait apparaître, et qui n'était pas un défaut de macOS
+
+Verrouiller laissait l'écran du dessus affiché. `home` change bien — `EcranDeConnexion`
+remplace `EcranDAccueil` dès que la session se ferme — mais les écrans ouverts par
+`Navigator.push` sont empilés **au-dessus** de `home` : la recherche, le détail d'un
+événement, une fiche restaient visibles, déchiffrés, par-dessus un coffre verrouillé.
+
+Mesuré le 2026-10-20 : coffre verrouillé, `EcranDeConnexion` monté, `EcranDAccueil`
+démonté, et l'écran de recherche toujours au premier plan.
+
+Ce défaut ne venait pas du raccourci et ne concerne pas que macOS : le verrouillage
+automatique au retour d'arrière-plan emprunte le même appel, sur les trois plateformes. Il
+suffisait de quitter l'application en laissant un événement ouvert. ⌘L l'a seulement rendu
+immédiat, donc visible. Corrigé par `_RetirerLesEcransAuVerrouillage`, dans `main.dart`,
+posé au-dessus du navigateur pour survivre au changement de `home` ; le témoin
+d'intégration le garde, et il était rouge avant la correction.
 
 La fenêtre et les menus ont été interrogés sur l'application **lancée**, par
 `System Events` — un témoin Flutter dimensionne la vue, pas la fenêtre d'AppKit, et ne
@@ -254,7 +289,14 @@ $ osascript -e '… get size of window 1'
 720, 592                               # le plancher tient : 720 × 560 + la barre de titre
 
 $ osascript -e '… get name of menu bar items of menu bar 1'
-Apple, GhostCal, Édition, Présentation, Fenêtre, Aide
+Apple, GhostCal, Fichier, Édition, Présentation, Fenêtre, Aide
+
+$ osascript -e '… get {name, value of attribute "AXMenuItemCmdChar"} of … "Fichier" …'
+Nouvel événement, missing value, Verrouiller le coffre, N, missing value, L
+
+$ osascript -e '… get {name, value of attribute "AXMenuItemCmdChar"} of … "Présentation" …'
+Jour, Semaine, Mois, Liste, …, Aujourd'hui, Période précédente, Période suivante
+&, É, ", ', …, T, , 
 
 $ osascript -e '… get name of menu items of menu 1 of menu bar item 2 …'
 À propos de GhostCal, …, Réglages…, …, Masquer GhostCal, …, Quitter GhostCal, …

@@ -784,15 +784,20 @@ class BandeauDeSemaine extends StatelessWidget {
 ///
 /// Les deux dimensions comptent, et pas pour la même raison :
 ///
-/// - la **largeur** décide s'il y a de quoi lire — 90 points est le minimum pour deux
-///   mots de onze points et la pastille de couleur qui les précède ;
+/// - la **largeur** décide s'il y a de quoi lire. 135 points, et ce nombre est mesuré :
+///   une case de 101 points — ce que donne une fenêtre de 720 — laisse 89 points de
+///   texte une fois la pastille et les marges retirées, soit **douze caractères** à onze
+///   points. « Point hebdom… », « Comité de dire… » : de l'ellipse, pas des titres. Le
+///   premier seuil valait 90 et je l'avais posé sans le mesurer sur de vraies données.
+///   135 points par case demande une fenêtre d'environ 960, et rend au mode pastilles —
+///   grille plus liste du jour — les tailles où il lit mieux ;
 /// - la **hauteur** décide combien, une fois le numéro du jour placé.
 ///
 /// Bornée à cinq : au-delà, une case devient un écran à elle seule, et ce qui dépasse se
 /// dit par « +N », comme chez Fantastical.
 int titresParCaseDuMois(Size grille) {
   final largeurDeCase = (grille.width - 12) / 7;
-  if (largeurDeCase < 90) return 0;
+  if (largeurDeCase < 135) return 0;
   // 18 pour l'en-tête des jours de la semaine et son écart, puis six rangées.
   final hauteurDeCase = (grille.height - 18) / 6;
   // Les mêmes mesures que la case applique — voir `GrilleDuMois._hauteurDuNumero` et
