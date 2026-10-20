@@ -161,6 +161,30 @@ void main() {
           await tester.pumpAndSettle();
         }
 
+        // ── L'agenda, dans ses quatre vues ──
+        //
+        // La refonte vit ici, et une assertion ne sait pas dire si elle est belle. On
+        // traverse donc les quatre vues et on photographie, pour que quelqu'un regarde.
+        // Seulement en français : les libellés sont déjà éprouvés dans les deux langues
+        // par les onglets ci-dessus, et doubler le jeu doublerait le temps sans rien
+        // apprendre de plus sur la mise en page.
+        if (langue == ChoixDeLangue.francais) {
+          await tester.tap(find.text('Agenda').first);
+          await tester.pumpAndSettle();
+          for (final vue in ['Jour', 'Semaine', 'Mois', 'Liste']) {
+            final bouton = find.text(vue);
+            if (bouton.evaluate().isEmpty) {
+              fail('La vue « $vue » a disparu du sélecteur : la refonte a changé les '
+                  'libellés, et ce témoin ne sait plus ce qu\'il regarde.');
+            }
+            await tester.tap(bouton.first);
+            await tester.pumpAndSettle();
+            await photographier(tester, 'agenda-${vue.toLowerCase()}-${theme.name}');
+          }
+          await tester.tap(find.text('Réglages').first);
+          await tester.pumpAndSettle();
+        }
+
         // La section neuve, dans la langue courante : un libellé resté en dur se verrait
         // ici avant de se voir en production.
         //

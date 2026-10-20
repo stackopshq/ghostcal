@@ -95,4 +95,32 @@ void main() {
       );
     });
   });
+
+  // Le premier écran, dans la langue de l'appareil.
+  //
+  // « Serveur » était écrit en dur à côté de trois libellés traduits : sur une interface
+  // anglaise, le premier champ du premier écran s'affichait en français. Relevé en
+  // photographiant le simulateur, pas en relisant — « EMAIL ADDRESS », « MASTER PASSWORD »,
+  // « Sign in », et « SERVEUR » au milieu.
+  //
+  // C'est l'écran que voit l'examinateur d'Apple avant tout autre.
+  testWidgets('le libellé du serveur suit la langue', (tester) async {
+    for (final (locale, attendu, absent) in [
+      // En majuscules : `_libelle` passe le titre par `toUpperCase()`. Assertir sur la
+      // casse d'origine mesurerait cette transformation autant que la traduction, et
+      // c'est ce qui a fait rougir la première version de ce témoin.
+      (const Locale('en'), 'SERVER', 'SERVEUR'),
+      (const Locale('fr'), 'SERVEUR', 'SERVER'),
+    ]) {
+      await tester.pumpWidget(appDEpreuve(
+        EcranDeConnexion(session: Session()),
+        locale: locale,
+      ));
+      await tester.pump();
+      expect(find.text(attendu), findsWidgets,
+          reason: 'en ${locale.languageCode}, le champ doit dire « $attendu »');
+      expect(find.text(absent), findsNothing,
+          reason: 'en ${locale.languageCode}, « $absent » n\'a rien à faire là');
+    }
+  });
 }
