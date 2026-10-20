@@ -9,6 +9,7 @@ import '../services/reglages.dart' as service;
 import '../services/session.dart';
 import '../services/verrouillage.dart' as v;
 import '../outils/dates.dart';
+import '../outils/symbole_systeme.dart';
 import '../theme.dart';
 import 'equipe.dart';
 import 'horaire.dart';
@@ -318,7 +319,9 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
 
     return ListTile(
       key: const Key('ligne.sceau'),
-      leading: Icon(empreinte?.icone ?? Icons.face_retouching_off_outlined),
+      leading: empreinte == null
+          ? const Icon(Icons.face_retouching_off_outlined)
+          : SymboleSysteme(nom: empreinte.symbole, materiel: empreinte.icone),
       title: Text(l.sceauBiometrique),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
