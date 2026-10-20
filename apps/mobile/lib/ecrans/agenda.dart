@@ -452,7 +452,13 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
       minLeadingWidth: 4,
       title: Text(titre, style: style.copyWith(fontSize: 15, fontWeight: FontWeight.w500)),
       subtitle: Text(
-        [_horaire(context, ligne), if (ligne.lieu != null) ligne.lieu!].join(' · '),
+        [
+          _horaire(context, ligne),
+          // Le type de rendez-vous, quand le titre a cédé la place au nom de l'invité :
+          // « 14:00–14:30 · RDV en visioconférence » dit les deux sans rien perdre.
+          if (ligne.invite != null && ligne.titre.isNotEmpty) ligne.titre,
+          if (ligne.lieu != null) ligne.lieu!,
+        ].join(' · '),
         style: TextStyle(color: gc.estompe, fontSize: 12),
       ),
       trailing: ligne.evenement == null

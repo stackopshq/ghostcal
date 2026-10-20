@@ -213,6 +213,8 @@ async def read_agenda(
             title=i.title,
             read_only=i.read_only,
             reminder_minutes=i.reminder_minutes,
+            invitee_name=i.invitee_name,
+            invitee_private=i.invitee_private,
         )
         for i in items
     ]

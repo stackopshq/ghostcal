@@ -304,7 +304,16 @@ class SqlCalendarRepository(CalendarRepository):
     ) -> list[BusyBlock]:
         rows = (
             await self._session.execute(
-                select(models.Booking.start_at, models.Booking.end_at, models.EventType.title)
+                select(
+                    models.Booking.start_at,
+                    models.Booking.end_at,
+                    models.EventType.title,
+                    # Qui a réservé. Sans ces deux colonnes, l'agenda ne nommait que le type
+                    # de rendez-vous — « RDV en visioconférence » — et il fallait ouvrir la
+                    # fiche pour savoir de qui il s'agissait.
+                    models.Booking.invitee_name,
+                    models.Booking.invitee_private,
+                )
                 .join(models.EventType, models.Booking.event_type_id == models.EventType.id)
                 .where(
                     models.Booking.host_id == owner_id,
@@ -314,7 +323,16 @@ class SqlCalendarRepository(CalendarRepository):
                 )
             )
         ).all()
-        return [BusyBlock(start_at=r.start_at, end_at=r.end_at, title=r.title) for r in rows]
+        return [
+            BusyBlock(
+                start_at=r.start_at,
+                end_at=r.end_at,
+                title=r.title,
+                invitee_name=r.invitee_name,
+                invitee_private=r.invitee_private,
+            )
+            for r in rows
+        ]
 
     async def external_busy_in_range(
         self, owner_id: uuid.UUID, start: datetime, end: datetime

@@ -91,6 +91,11 @@ class BusyBlock:
     # Which connected calendar this came from (external busy only). A member may have several, and
     # each is its own overlay — so the agenda has to say which, or they all collapse into one chip.
     connection_id: uuid.UUID | None = None
+    # Who booked (bookings only). ``invitee_name`` is cleartext and legacy; a booking taken from
+    # the public page seals the name into ``invitee_private``, which only the host can open.
+    # Both are None for external busy, which knows of no invitee.
+    invitee_name: str | None = None
+    invitee_private: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,6 +119,10 @@ class AgendaItem:
     title: str | None = None  # cleartext label (bookings/external)
     read_only: bool = False  # event from a calendar shared with the viewer
     reminder_minutes: int | None = None  # minutes before start to alert (events only)
+    # Who booked (bookings only), so a row can say more than the event type's name.
+    # ``invitee_private`` is a sealed box: the server carries it and cannot read it.
+    invitee_name: str | None = None
+    invitee_private: str | None = None
 
 
 class CalendarRepository:
@@ -317,7 +326,16 @@ async def get_agenda(
             )
 
     for b in await repo.bookings_in_range(owner_id, start, end):
-        items.append(AgendaItem(source="booking", start=b.start_at, end=b.end_at, title=b.title))
+        items.append(
+            AgendaItem(
+                source="booking",
+                start=b.start_at,
+                end=b.end_at,
+                title=b.title,
+                invitee_name=b.invitee_name,
+                invitee_private=b.invitee_private,
+            )
+        )
     for b in await repo.external_busy_in_range(owner_id, start, end):
         items.append(
             AgendaItem(
