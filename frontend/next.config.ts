@@ -44,6 +44,12 @@ const nextConfig: NextConfig = {
       // handler, which resolves the backend at request time. A dot-prefixed segment cannot be a
       // route folder, hence the detour rather than a second handler.
       { source: "/.well-known/ghostapp.yaml", destination: "/api/.well-known/ghostapp.yaml" },
+      // The API at the origin's root as well as under /api. The apps ask for a server address,
+      // and people type the address they see in the browser — `https://cal.ghostsuite.cloud` —
+      // without the /api the API lives under; every request then met Next's 404 page. A rewrite
+      // and not a redirect: a 307 keeps a POST's body only for clients that follow it, and the
+      // sign-in is a POST. No page lives under /v1, so nothing on the web side is shadowed.
+      { source: "/v1/:path*", destination: "/api/v1/:path*" },
     ];
   },
   async headers() {

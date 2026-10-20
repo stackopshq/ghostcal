@@ -16,9 +16,11 @@
 // d'ajouter un `redirect_uri` chez Cloudflare Access. Aucun objet d'identité
 // n'est touché, ce qui vaut mieux qu'une reconstruction pour un tel gain.
 //
-// La portée est délibérément `/v1/auth/*` et non `/v1/*` : seule
-// l'authentification a besoin d'être atteinte sous ce préfixe, et l'API reste
-// autrement joignable par le seul `/api`.
+// La portée était `/v1/auth/*` et non `/v1/*`. Depuis le 2026-10-20, le reste de
+// `/v1/*` est servi aussi, par une réécriture dans `next.config.ts` : les
+// applications demandent l'adresse du serveur, et on y tape celle du navigateur,
+// sans le `/api`. Ce gestionnaire reste en place et passe avant la réécriture
+// (les routes du système de fichiers sont vues d'abord).
 
 import { NextRequest } from "next/server";
 import { proxyToApi } from "@/lib/api-proxy";
