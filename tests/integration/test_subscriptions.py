@@ -79,6 +79,8 @@ _FEED = [
         end_at=datetime(2026, 3, 24, 10, 0, tzinfo=UTC),
         all_day=False,
         summary="Team offsite",
+        location="Salle B204",
+        description="Enseignant : M. Dupont",
     ),
     FeedEvent(
         uid="holiday-2@example.test",
@@ -149,6 +151,10 @@ async def test_subscription_events_surface_in_agenda(
         by_title = {i.title: i for i in items}
         assert by_title["Team offsite"].all_day is False
         assert by_title["Public holiday"].all_day is True
+        # Room and teacher reach the agenda, so the subscriber can read them.
+        assert by_title["Team offsite"].location == "Salle B204"
+        assert by_title["Team offsite"].description == "Enseignant : M. Dupont"
+        assert by_title["Public holiday"].location is None
     finally:
         if user_id is not None:
             maker = async_sessionmaker(admin_engine)

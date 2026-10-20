@@ -874,6 +874,8 @@ class AgendaItemOut(BaseModel):
     # les confondre ferait échouer le déchiffrement sans dire pourquoi.
     invitee_name: str | None = None
     invitee_private: str | None = None
+    location: str | None = None
+    description: str | None = None
 
 
 class LinkCreateIn(BaseModel):

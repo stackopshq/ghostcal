@@ -25,7 +25,12 @@ export default function CalendarAgendaList({
   items: GridItem[];
   locale: string;
   onEventClick: (item: GridItem) => void;
-  labels: { allDay: string; empty: string; sharedReadOnly: string };
+  labels: {
+    allDay: string;
+    empty: string;
+    sharedReadOnly: string;
+    subscriptionReadOnly: string;
+  };
 }) {
   const days = useMemo(() => {
     const byDay = new Map<string, { date: Date; items: GridItem[] }>();
@@ -119,14 +124,20 @@ export default function CalendarAgendaList({
                     // même chose en 12 px, et la phrase reste accessible au
                     // lecteur d'écran comme au survol.
                     <span
-                      title={labels.sharedReadOnly}
+                      title={
+                        item.source === "subscription"
+                          ? labels.subscriptionReadOnly
+                          : labels.sharedReadOnly
+                      }
                       className="shrink-0 text-xs text-muted"
                     >
                       <span aria-hidden className="sm:hidden">
                         <LockIcon />
                       </span>
                       <span className="sr-only sm:not-sr-only">
-                        {labels.sharedReadOnly}
+                        {item.source === "subscription"
+                          ? labels.subscriptionReadOnly
+                          : labels.sharedReadOnly}
                       </span>
                     </span>
                   )}

@@ -317,7 +317,18 @@ class _GrilleHoraireState extends State<GrilleHoraire> {
     final largeurDeCouloir = largeur / couloir.couloirs;
     final couleur = widget.couleurDe(ligne);
     final (titre, style) = titreAffiche(context, ligne, gc);
-    final etroit = widget.jours.length > 1;
+    // ─── Étroit, c'est une largeur, pas un nombre de jours ───
+    //
+    // La condition était `jours.length > 1` : toute vue de semaine passait en 9,5 points
+    // et perdait sa ligne d'horaire, quelle que soit la place disponible. C'était juste
+    // tant que la largeur était bornée à 560 — sept colonnes y font 72 points. Dans une
+    // fenêtre de Mac, la même semaine a 150 points par jour et se lirait comme la vue du
+    // jour ; elle restait en caractères de téléphone.
+    //
+    // Le seuil porte sur le **couloir** et non sur la colonne : deux rendez-vous qui se
+    // chevauchent partagent la largeur, et c'est la moitié obtenue qui décide si le titre
+    // tient. 110 points est ce qu'il faut pour deux mots de douze points et la marge.
+    final etroit = largeurDeCouloir < 110;
     return Positioned(
       top: haut,
       height: hauteur,
@@ -495,7 +506,36 @@ class BandeauDeSemaine extends StatelessWidget {
   }
 }
 
-/// The month grid: six weeks, dots for busy days, the selected day outlined.
+/// ─── Combien de titres une case du mois peut porter ───
+///
+/// Zéro veut dire « des pastilles », et c'est le cas du téléphone : sept colonnes dans
+/// 390 points font 54 points par jour, où un titre ne tient pas — il ne resterait qu'une
+/// ellipse. La grille y garde donc ses pastilles, et la liste du jour sous elle.
+///
+/// La fonction est **pure et sortie du widget** pour que l'écran puisse décider, avec la
+/// même mesure, s'il montre encore cette liste : les titres dans la grille la rendent
+/// redondante, et deux règles séparées divergeraient le jour où l'une change.
+///
+/// Les deux dimensions comptent, et pas pour la même raison :
+///
+/// - la **largeur** décide s'il y a de quoi lire — 90 points est le minimum pour deux
+///   mots de onze points et la pastille de couleur qui les précède ;
+/// - la **hauteur** décide combien, une fois le numéro du jour placé.
+///
+/// Bornée à cinq : au-delà, une case devient un écran à elle seule, et ce qui dépasse se
+/// dit par « +N », comme chez Fantastical.
+int titresParCaseDuMois(Size grille) {
+  final largeurDeCase = (grille.width - 12) / 7;
+  if (largeurDeCase < 90) return 0;
+  // 18 pour l'en-tête des jours de la semaine et son écart, puis six rangées.
+  final hauteurDeCase = (grille.height - 18) / 6;
+  // 34 : le numéro du jour (30) et l'écart qui le suit. 14 : une ligne de titre.
+  final tiennent = ((hauteurDeCase - 34) / 14).floor();
+  return tiennent.clamp(0, 5);
+}
+
+/// The month grid: six weeks, the selected day outlined, and the days' contents —
+/// titles when the cells are big enough to read them, dots otherwise.
 class GrilleDuMois extends StatelessWidget {
   const GrilleDuMois({
     super.key,
@@ -505,6 +545,7 @@ class GrilleDuMois extends StatelessWidget {
     required this.lignes,
     required this.couleurDe,
     required this.surJour,
+    this.titresParCase = 0,
   });
 
   /// Any date in the month shown.
@@ -514,6 +555,13 @@ class GrilleDuMois extends StatelessWidget {
   final List<LigneDAgenda> lignes;
   final CouleurDe couleurDe;
   final ValueChanged<DateTime> surJour;
+
+  /// Combien de titres chaque case affiche, zéro pour des pastilles — voir
+  /// [titresParCaseDuMois]. Donné par l'écran, qui l'emploie aussi pour décider du sort
+  /// de la liste du jour.
+  final int titresParCase;
+
+  bool get _avecTitres => titresParCase > 0;
 
   @override
   Widget build(BuildContext context) {
@@ -537,35 +585,114 @@ class GrilleDuMois extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           for (var semaine = 0; semaine < 6; semaine++)
-            Row(
-              children: [
-                for (final jour in jours.skip(semaine * 7).take(7))
-                  Expanded(
-                    child: InkWell(
-                      key: Key('mois.${jour.month}.${jour.day}'),
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () => surJour(jour),
-                      child: SizedBox(
-                        height: 50,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _numero(gc, jour,
-                                aujourdhui: memeJour(jour, maintenant),
-                                selection: memeJour(jour, selection),
-                                estompe: jour.month != mois.month),
-                            const SizedBox(height: 2),
-                            _points([
-                              for (final l in lignes.where((l) => couvre(l, jour)))
-                                couleurDe(l),
-                            ]),
-                          ],
-                        ),
+            // ─── Les rangées prennent la hauteur qu'on leur donne ───
+            //
+            // Elles valaient 50 points, quelle que soit la fenêtre : un reste de
+            // téléphone. Sur un Mac, la grille occupait trois cents points en haut et
+            // laissait le reste vide — c'est ce que la comparaison avec Fantastical a
+            // rendu évident. `Expanded` ici, et la grille remplit ce qu'elle a.
+            //
+            // En mode pastilles, l'écran borne la grille lui-même : sans quoi six rangées
+            // étirées sur un téléphone donneraient des cases hautes et vides, ce qui est
+            // l'autre façon de mal occuper la place.
+            Expanded(
+              child: Row(
+                children: [
+                  for (final jour in jours.skip(semaine * 7).take(7))
+                    Expanded(
+                      child: InkWell(
+                        key: Key('mois.${jour.month}.${jour.day}'),
+                        borderRadius: BorderRadius.circular(_avecTitres ? 6 : 12),
+                        onTap: () => surJour(jour),
+                        child: _case(context, gc, jour, maintenant),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _case(BuildContext context, Gc gc, DateTime jour, DateTime maintenant) {
+    final numero = _numero(gc, jour,
+        aujourdhui: memeJour(jour, maintenant),
+        selection: memeJour(jour, selection),
+        estompe: jour.month != mois.month);
+
+    if (!_avecTitres) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          numero,
+          const SizedBox(height: 2),
+          _points([for (final l in lignes.where((l) => couvre(l, jour))) couleurDe(l)]),
+        ],
+      );
+    }
+
+    final duJour = lignes.where((l) => couvre(l, jour)).toList()
+      ..sort(Agenda.comparerLesLignes);
+    final montres = duJour.take(titresParCase).toList();
+    final reste = duJour.length - montres.length;
+
+    return Container(
+      // Un filet en haut de chaque case : sans lui, des titres alignés sur sept colonnes
+      // se lisent comme une seule liste en désordre. C'est ce que dessine tout agenda qui
+      // écrit dans ses cases, et ça ne coûte qu'un trait.
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: gc.bordure)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Le numéro n'est plus centré : il tient le coin, et les titres commencent sous
+          // lui. Centré, il laisserait une colonne de vide à sa gauche et à sa droite.
+          numero,
+          for (final ligne in montres) _titreDeCase(context, gc, ligne),
+          // `+N`, et non les N titres suivants écrasés : une case qui déborde doit le
+          // dire, pas le cacher derrière trois ellipses.
+          if (reste > 0)
+            Padding(
+              padding: const EdgeInsets.only(left: 2),
+              child: Text(
+                L.of(context).autresEvenements(reste),
+                style: TextStyle(fontSize: 10, color: gc.estompe),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Un titre dans une case : la pastille de son calendrier, puis le texte sur une ligne.
+  ///
+  /// Le style vient de [titreAffiche] et non d'une constante : un contenu que la clé
+  /// n'ouvre pas doit se lire « Contenu illisible » en rouge **ici aussi**. La grille du
+  /// mois est souvent le premier écran qu'on regarde ; y masquer ce cas le ferait
+  /// découvrir ailleurs, ou jamais.
+  Widget _titreDeCase(BuildContext context, Gc gc, LigneDAgenda ligne) {
+    final (titre, style) = titreAffiche(context, ligne, gc);
+    return SizedBox(
+      height: 14,
+      child: Row(
+        children: [
+          Container(
+            width: 5,
+            height: 5,
+            margin: const EdgeInsets.only(right: 3),
+            decoration: BoxDecoration(color: couleurDe(ligne), shape: BoxShape.circle),
+          ),
+          Expanded(
+            child: Text(
+              titre,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: style.copyWith(fontSize: 11, height: 1.1),
+            ),
+          ),
         ],
       ),
     );

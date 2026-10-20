@@ -383,6 +383,31 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
         value: rappels.actif,
         onChanged: (valeur) => _basculerLesRappels(rappels, valeur),
       ),
+      // macOS seulement : sur Android, WorkManager réveille l'application fermée et il
+      // n'y a rien à inscrire. `aLOuvertureDeSession` y vaut donc toujours faux — mais on
+      // n'affiche pas l'interrupteur sur ce seul critère, qui serait aussi celui d'un Mac
+      // où le réglage est simplement éteint.
+      if (rappels.actif && Rappels.surMacos)
+        SwitchListTile(
+          key: const Key('reglage.rappels.session'),
+          secondary: const Icon(Icons.restart_alt),
+          title: Text(l.rappelsAuDemarrage),
+          subtitle: Text(l.rappelsAuDemarrageExplication,
+              style: TextStyle(color: gc.estompe, fontSize: 12)),
+          value: rappels.aLOuvertureDeSession,
+          onChanged: (valeur) async {
+            // L'état vient du système, pas du geste : `register()` peut échouer, et un
+            // interrupteur qui retombe sans un mot ressemble à un défaut de
+            // l'application.
+            final pose = await rappels.lancerALOuvertureDeSession(valeur);
+            if (!mounted) return;
+            setState(() {});
+            if (valeur && !pose) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(L.of(context).rappelsAuDemarrageRefuse)));
+            }
+          },
+        ),
       if (rappels.actif)
         RadioGroup<AvanceDuRappel>(
           groupValue: rappels.avance,
@@ -415,12 +440,37 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
     final accorde = await rappels.activer();
     if (!mounted) return;
     setState(() {});
-    if (!accorde) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(L.of(context).rappelsRefuses)));
+    if (accorde) {
+      await _replanifier(rappels);
       return;
     }
-    await _replanifier(rappels);
+
+    // ─── Un refus n'est pas l'autre ───
+    //
+    // `activer` rend `false` dans deux cas qui ne se corrigent pas de la même façon : on
+    // vient d'écarter l'alerte, ou macOS ne l'a **jamais présentée** parce qu'un refus est
+    // déjà enregistré. Dans le second, attendre l'alerte au prochain essai est attendre
+    // pour rien — le système n'en présente qu'une par application.
+    //
+    // Mesuré le 2026-10-20 : `authorizationStatus` à `.denied` sans qu'aucune alerte
+    // n'ait jamais paru, et l'application absente de la liste des Réglages Système. Le
+    // message précédent disait « autorisez-les dans les réglages » et n'offrait rien à
+    // cliquer : un cul-de-sac exactement là où quelqu'un vient de demander la fonction.
+    final l = L.of(context);
+    final etat = await rappels.etatDesNotifications();
+    if (!mounted) return;
+    final bloque = etat == EtatDesNotifications.refuse;
+    final messager = ScaffoldMessenger.of(context);
+    messager.showSnackBar(SnackBar(
+      content: Text(bloque ? l.rappelsBloques : l.rappelsRefuses),
+      duration: Duration(seconds: bloque ? 10 : 4),
+      action: bloque
+          ? SnackBarAction(
+              label: l.ouvrirLesReglagesSysteme,
+              onPressed: () => rappels.ouvrirLesReglagesDesNotifications(),
+            )
+          : null,
+    ));
   }
 
   Future<void> _replanifier(Rappels rappels) async {
