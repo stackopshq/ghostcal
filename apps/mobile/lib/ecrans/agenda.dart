@@ -36,6 +36,12 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
   /// Days shown by the list view, from the selected day.
   static const _joursDeLaListe = 30;
 
+  /// La hauteur que la grille prend quand elle n'affiche que des pastilles.
+  ///
+  /// L'en-tête des jours et son écart, puis six rangées de 50 — les mesures d'avant,
+  /// gardées telles quelles : c'est la mise en page du téléphone, et elle était juste.
+  static const _hauteurDeLaGrilleEnPastilles = 18.0 + 6 * 50;
+
   VueDAgenda _vue = VueDAgenda.jour;
   DateTime _ancre = minuit(DateTime.now());
   ({DateTime de, DateTime a})? _fenetreChargee;
@@ -367,25 +373,41 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
       case VueDAgenda.mois:
         final du = lignes.where((l) => couvre(l, _ancre)).toList()
           ..sort(Agenda.comparerLesLignes);
-        return Column(
-          children: [
-            GrilleDuMois(
-              mois: _ancre,
-              jours: joursDeLaGrilleDuMois(_ancre, _premierJour),
-              selection: _ancre,
-              lignes: lignes,
-              couleurDe: _couleurDe,
-              // Tapping the selected day again opens it, as in Fantastical.
-              surJour: (jour) => memeJour(jour, _ancre)
-                  ? _allerA(jour, vue: VueDAgenda.jour)
-                  : (jour.month == _ancre.month
-                      ? setState(() => _ancre = minuit(jour))
-                      : _allerA(jour)),
-            ),
-            Divider(height: 12, color: Gc.of(context).bordure),
-            Expanded(child: _listeDuJour(context, du)),
-          ],
-        );
+        // Tapping the selected day again opens it, as in Fantastical.
+        void surJour(DateTime jour) => memeJour(jour, _ancre)
+            ? _allerA(jour, vue: VueDAgenda.jour)
+            : (jour.month == _ancre.month
+                ? setState(() => _ancre = minuit(jour))
+                : _allerA(jour));
+        return LayoutBuilder(builder: (context, contraintes) {
+          // ─── Une seule mesure, deux décisions ───
+          //
+          // Les cases assez grandes portent les titres ; la liste du jour, en dessous,
+          // ne dit alors plus rien que la grille ne dise déjà — on la retire. Les deux
+          // décisions viennent du **même** appel : séparées, elles finiraient par se
+          // contredire, et on aurait soit les titres deux fois, soit un mois muet
+          // au-dessus d'une liste.
+          final titres = titresParCaseDuMois(contraintes.biggest);
+          final grille = GrilleDuMois(
+            mois: _ancre,
+            jours: joursDeLaGrilleDuMois(_ancre, _premierJour),
+            selection: _ancre,
+            lignes: lignes,
+            couleurDe: _couleurDe,
+            titresParCase: titres,
+            surJour: surJour,
+          );
+          if (titres > 0) return grille;
+          // Sans titres, la grille garde la hauteur d'un téléphone et cède le reste à la
+          // liste : étirée, elle donnerait six rangées hautes et vides.
+          return Column(
+            children: [
+              SizedBox(height: _hauteurDeLaGrilleEnPastilles, child: grille),
+              Divider(height: 12, color: Gc.of(context).bordure),
+              Expanded(child: _listeDuJour(context, du)),
+            ],
+          );
+        });
       case VueDAgenda.liste:
         return RefreshIndicator(onRefresh: _recharger, child: _listeContinue(context, lignes));
     }
