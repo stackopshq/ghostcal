@@ -47,7 +47,12 @@ export default function CalendarMonthCompact({
     const colours: string[] = [];
     for (const x of tasks) {
       const due = new Date(x.due_at).getTime();
-      if ((due >= start && due < end) || (key(day) === todayKey && due < start)) {
+      const todayStart = new Date(new Date().setHours(0, 0, 0, 0)).getTime();
+      // An overdue task shows on today only: on its own past day as well, it read as two tasks.
+      if (
+        (due >= start && due < end && due >= todayStart) ||
+        (key(day) === todayKey && due < start)
+      ) {
         colours.push("var(--color-emerald-500, #10b981)");
       }
     }
