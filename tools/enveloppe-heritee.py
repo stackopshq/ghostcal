@@ -51,9 +51,7 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 API = os.environ.get("GHOSTCAL_API", "http://127.0.0.1:8099")
 EMAIL = os.environ.get("GHOSTCAL_EMAIL", "clara@example.com")
-MOTDEPASSE = os.environ.get(
-    "GHOSTCAL_MOTDEPASSE", "banc-local-ghostcal-jetable-2026"
-)
+MOTDEPASSE = os.environ.get("GHOSTCAL_MOTDEPASSE", "banc-local-ghostcal-jetable-2026")
 DOMAINE = "ghostcal-zk-v1"
 TITRE = "Web avant migration"
 
@@ -66,9 +64,9 @@ B64 = lambda b: base64.b64encode(b).decode()  # noqa: E731
 
 def _cle(prive: X25519PrivateKey, pair: X25519PublicKey, domaine: str) -> bytes:
     partage = prive.exchange(pair)
-    return HKDF(
-        algorithm=hashes.SHA256(), length=32, salt=None, info=domaine.encode()
-    ).derive(partage)
+    return HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=domaine.encode()).derive(
+        partage
+    )
 
 
 def sceller_herite(publique_b64: str, clair: bytes, domaine: str) -> str:
