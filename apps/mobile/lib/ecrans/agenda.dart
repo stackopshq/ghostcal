@@ -475,6 +475,8 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
                 surCreneau: _inscriptibles.isEmpty
                     ? null
                     : (d) => _nouvelEvenement(debut: d),
+                taches: _taches,
+                surTache: _cocher,
               ),
             ),
           ],
@@ -491,6 +493,8 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
               ? null
               : (d) => _nouvelEvenement(debut: d),
           surJour: (jour) => _allerA(jour, vue: VueDAgenda.jour),
+          taches: _taches,
+          surTache: _cocher,
         );
       case VueDAgenda.mois:
         // Tapping the selected day again opens it, as in Fantastical.
@@ -528,22 +532,34 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
               _premierJour,
             ).last;
             final restants = finDeLaGrille.difference(_ancre).inDays + 1;
+            final liste = ListeParJour(
+              key: ValueKey(('month-list', _ancre)),
+              debut: _ancre,
+              jours: restants.clamp(1, _joursSousLeMois),
+              lignes: lignes,
+              taches: _taches,
+              couleurDe: _couleurDe,
+              surLigne: _ouvrir,
+              surTache: _cocher,
+            );
+            final bordure = Gc.of(context).bordureFranche;
+            // Too short for the grid above a list — a phone held sideways: the grid takes
+            // the left and the list the right, as on a tablet, rather than the grid
+            // running under the tab bar.
+            if (contraintes.maxHeight < _hauteurDeLaGrilleEnPastilles + 160) {
+              return Row(
+                children: [
+                  Expanded(flex: 3, child: grille),
+                  VerticalDivider(width: 1, color: bordure),
+                  Expanded(flex: 2, child: liste),
+                ],
+              );
+            }
             return Column(
               children: [
                 SizedBox(height: _hauteurDeLaGrilleEnPastilles, child: grille),
-                Divider(height: 1, color: Gc.of(context).bordureFranche),
-                Expanded(
-                  child: ListeParJour(
-                    key: ValueKey(('month-list', _ancre)),
-                    debut: _ancre,
-                    jours: restants.clamp(1, _joursSousLeMois),
-                    lignes: lignes,
-                    taches: _taches,
-                    couleurDe: _couleurDe,
-                    surLigne: _ouvrir,
-                    surTache: _cocher,
-                  ),
-                ),
+                Divider(height: 1, color: bordure),
+                Expanded(child: liste),
               ],
             );
           },

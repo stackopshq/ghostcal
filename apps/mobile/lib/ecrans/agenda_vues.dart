@@ -8,7 +8,9 @@ import '../outils/calendrier.dart';
 import '../outils/couloirs.dart';
 import '../outils/dates.dart';
 import '../services/agenda.dart';
+import '../services/taches.dart';
 import '../theme.dart';
+import 'agenda_jours.dart' show tachesDuJour;
 
 /// The building blocks of the agenda views (day, week, month), Fantastical-style.
 /// The screen (`agenda.dart`) owns the data and navigation; these widgets only draw.
@@ -79,6 +81,8 @@ class GrilleHoraire extends StatefulWidget {
     required this.surLigne,
     this.surCreneau,
     this.surJour,
+    this.taches = const [],
+    this.surTache,
   });
 
   final List<DateTime> jours;
@@ -91,6 +95,11 @@ class GrilleHoraire extends StatefulWidget {
 
   /// Tapping a day header (week view): open that day.
   final ValueChanged<DateTime>? surJour;
+
+  /// Tasks, shown in the strip above the hours on the day they are due (today also
+  /// gathers the overdue ones), as in Fantastical.
+  final List<Tache> taches;
+  final ValueChanged<Tache>? surTache;
 
   @override
   State<GrilleHoraire> createState() => _GrilleHoraireState();
@@ -128,37 +137,145 @@ class _GrilleHoraireState extends State<GrilleHoraire> {
   Widget build(BuildContext context) {
     final gc = Gc.of(context);
     final semaine = widget.jours.length > 1;
+    final maintenant = DateTime.now();
     final journees = [
       for (final j in widget.jours)
         widget.lignes.where((l) => l.journeeEntiere && couvre(l, j)).toList(),
     ];
-    return Column(
-      children: [
-        if (semaine) _entete(context, gc),
-        if (journees.any((j) => j.isNotEmpty))
-          _bandeauDesJournees(context, gc, journees),
-        Divider(height: 1, color: gc.bordure),
-        Expanded(
-          child: SingleChildScrollView(
-            controller: _defilement,
-            child: SizedBox(
-              height: 24 * _hauteurDHeure,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _heures(context, gc),
-                  for (final jour in widget.jours)
-                    Expanded(child: _colonne(context, gc, jour)),
-                ],
+    final taches = [
+      for (final j in widget.jours)
+        tachesDuJour(widget.taches, j, maintenant: maintenant),
+    ];
+    final iAujourdhui = widget.jours.indexWhere((j) => memeJour(j, maintenant));
+    return LayoutBuilder(
+      builder: (context, dehors) {
+        // A phone held sideways: the header goes on one line and the strip keeps one
+        // item a day, or the hours — what the view is for — would have no room left.
+        final court = dehors.maxHeight < 450;
+        return Column(
+          children: [
+            if (semaine) _entete(context, gc, court: court),
+            if (journees.any((j) => j.isNotEmpty) ||
+                taches.any((t) => t.isNotEmpty))
+              _bandeauDesJournees(
+                context,
+                gc,
+                journees,
+                taches,
+                visibles: court ? 1 : 3,
+              ),
+            Divider(height: 1, color: gc.bordure),
+            Expanded(
+              child: SingleChildScrollView(
+                controller: _defilement,
+                child: SizedBox(
+                  height: 24 * _hauteurDHeure,
+                  child: LayoutBuilder(
+                    builder: (context, contraintes) => Stack(
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _heures(context, gc, maintenant, iAujourdhui >= 0),
+                            for (final jour in widget.jours)
+                              Expanded(
+                                child: ColoredBox(
+                                  // Today's column is tinted in a week, the way the eye
+                                  // looks for it before reading any date.
+                                  color: semaine && memeJour(jour, maintenant)
+                                      ? Gc.neon.withValues(
+                                          alpha: gc.sombre ? 0.10 : 0.06,
+                                        )
+                                      : Colors.transparent,
+                                  child: _colonne(context, gc, jour),
+                                ),
+                              ),
+                          ],
+                        ),
+                        if (iAujourdhui >= 0)
+                          _ligneDeMaintenant(
+                            context,
+                            gc,
+                            maintenant,
+                            colonne: iAujourdhui,
+                            largeurDeColonne:
+                                (contraintes.maxWidth - _gouttiere) /
+                                widget.jours.length,
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 
-  Widget _entete(BuildContext context, Gc gc) {
+  /// The "now" line: the time in red in the gutter, a line across every day of the
+  /// grid, and a dot where it crosses today — Fantastical's reading of the hour.
+  Widget _ligneDeMaintenant(
+    BuildContext context,
+    Gc gc,
+    DateTime maintenant, {
+    required int colonne,
+    required double largeurDeColonne,
+  }) {
+    final y = (maintenant.hour * 60 + maintenant.minute) / 60 * _hauteurDHeure;
+    return Positioned(
+      top: y - 7,
+      left: 0,
+      right: 0,
+      height: 14,
+      child: IgnorePointer(
+        child: Stack(
+          children: [
+            Positioned(
+              left: 0,
+              width: _gouttiere - 4,
+              top: 0,
+              bottom: 0,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  heureCourte(context, maintenant),
+                  key: const Key('grille.maintenant'),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: gc.danger,
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: _gouttiere,
+              right: 0,
+              top: 6.25,
+              height: 1.5,
+              child: ColoredBox(color: gc.danger),
+            ),
+            Positioned(
+              left: _gouttiere + colonne * largeurDeColonne - 5,
+              top: 2,
+              width: 10,
+              height: 10,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: gc.danger,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _entete(BuildContext context, Gc gc, {bool court = false}) {
     final langue = langueDesDates(context);
     final maintenant = DateTime.now();
     return Padding(
@@ -174,14 +291,27 @@ class _GrilleHoraireState extends State<GrilleHoraire> {
                     : () => widget.surJour!(jour),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Column(
+                  child: Flex(
+                    direction: court ? Axis.horizontal : Axis.vertical,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                         DateFormat.E(langue).format(jour).toUpperCase(),
-                        style: TextStyle(fontSize: 10, color: gc.estompe),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: memeJour(jour, maintenant)
+                              ? Gc.neon
+                              : gc.estompe,
+                        ),
                       ),
-                      const SizedBox(height: 2),
-                      _numero(gc, jour, aujourdhui: memeJour(jour, maintenant)),
+                      const SizedBox(height: 2, width: 6),
+                      _numero(
+                        gc,
+                        jour,
+                        aujourdhui: memeJour(jour, maintenant),
+                        taille: court ? 24 : 30,
+                      ),
                     ],
                   ),
                 ),
@@ -196,26 +326,87 @@ class _GrilleHoraireState extends State<GrilleHoraire> {
     BuildContext context,
     Gc gc,
     List<List<LigneDAgenda>> journees,
-  ) {
+    List<List<Tache>> taches, {
+    required int visibles,
+  }) {
+    // A few items a day at most, tasks first: the strip is a summary, and "+N" says
+    // what it leaves out.
     return Padding(
-      padding: const EdgeInsets.only(left: _gouttiere, bottom: 4),
+      padding: const EdgeInsets.only(left: _gouttiere, bottom: 4, top: 2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final lignes in journees)
+          for (var i = 0; i < journees.length; i++)
             Expanded(
               child: Column(
                 children: [
-                  for (final ligne in lignes.take(2)) _puce(context, gc, ligne),
-                  if (lignes.length > 2)
+                  for (final t in taches[i].take(visibles))
+                    _puceDeTache(context, gc, t),
+                  for (final ligne in journees[i].take(
+                    (visibles - taches[i].length).clamp(0, visibles),
+                  ))
+                    _puce(context, gc, ligne),
+                  if (taches[i].length + journees[i].length > visibles)
                     Text(
-                      L.of(context).autresEvenements(lignes.length - 2),
+                      L
+                          .of(context)
+                          .autresEvenements(
+                            taches[i].length + journees[i].length - visibles,
+                          ),
                       style: TextStyle(fontSize: 10, color: gc.estompe),
                     ),
                 ],
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  /// A task in the strip: an open box and the title, on a green tint. Tapping it ticks
+  /// it, as in the day list.
+  Widget _puceDeTache(BuildContext context, Gc gc, Tache tache) {
+    final titre = switch (tache.provenance) {
+      ProvenanceDuTitre.illisible => L.of(context).contenuIllisible,
+      ProvenanceDuTitre.sansTitre => L.of(context).sansTitre,
+      _ => tache.titre,
+    };
+    return GestureDetector(
+      key: Key('bandeau.tache.${tache.id}'),
+      onTap: widget.surTache == null ? null : () => widget.surTache!(tache),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: gc.succes.withValues(alpha: gc.sombre ? 0.22 : 0.14),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 10,
+              height: 10,
+              margin: const EdgeInsets.only(right: 4),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(2.5),
+                border: Border.all(color: gc.succes, width: 1.5),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                titre,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: gc.succes,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -247,20 +438,29 @@ class _GrilleHoraireState extends State<GrilleHoraire> {
     );
   }
 
-  Widget _heures(BuildContext context, Gc gc) {
+  Widget _heures(
+    BuildContext context,
+    Gc gc,
+    DateTime maintenant,
+    bool aujourdhui,
+  ) {
+    final minutes = maintenant.hour * 60 + maintenant.minute;
     return SizedBox(
       width: _gouttiere,
       child: Stack(
         children: [
           for (var h = 1; h < 24; h++)
-            Positioned(
-              top: h * _hauteurDHeure - 7,
-              right: 6,
-              child: Text(
-                heureCourte(context, DateTime(2000, 1, 1, h)),
-                style: TextStyle(fontSize: 10, color: gc.estompe),
+            // The hour the red time would sit on is left out: two labels on one line
+            // read as neither.
+            if (!aujourdhui || (minutes - h * 60).abs() > 15)
+              Positioned(
+                top: h * _hauteurDHeure - 7,
+                right: 6,
+                child: Text(
+                  heureCourte(context, DateTime(2000, 1, 1, h)),
+                  style: TextStyle(fontSize: 10, color: gc.estompe),
+                ),
               ),
-            ),
         ],
       ),
     );
@@ -285,7 +485,6 @@ class _GrilleHoraireState extends State<GrilleHoraire> {
         }(),
     ];
     final couloirs = repartirEnCouloirs(boites);
-    final maintenant = DateTime.now();
     final h = _hauteurDHeure;
 
     return LayoutBuilder(
@@ -318,28 +517,6 @@ class _GrilleHoraireState extends State<GrilleHoraire> {
                   couloirs[i],
                   debutDuJour,
                   largeur,
-                ),
-              if (memeJour(jour, maintenant))
-                Positioned(
-                  top:
-                      maintenant.difference(debutDuJour).inMinutes / 60 * h - 4,
-                  left: 0,
-                  right: 0,
-                  child: IgnorePointer(
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: gc.danger,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        Expanded(child: Container(height: 2, color: gc.danger)),
-                      ],
-                    ),
-                  ),
                 ),
             ],
           ),
@@ -515,6 +692,7 @@ Widget _numero(
 Widget _points(List<Color> couleurs) => SizedBox(
   height: 6,
   child: Row(
+    mainAxisSize: MainAxisSize.min,
     mainAxisAlignment: MainAxisAlignment.center,
     children: [
       for (final c in couleurs.take(3))
@@ -751,15 +929,21 @@ class GrilleDuMois extends StatelessWidget {
     );
 
     if (!_avecTitres) {
-      return Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          numero,
-          const SizedBox(height: 3),
-          _points([
-            for (final l in lignes.where((l) => couvre(l, jour))) couleurDe(l),
-          ]),
-        ],
+      // Scaled down, never cut: a phone held sideways leaves rows lower than the
+      // number and its dots, and a dot spilling into the next week reads as that day's.
+      return FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            numero,
+            const SizedBox(height: 3),
+            _points([
+              for (final l in lignes.where((l) => couvre(l, jour)))
+                couleurDe(l),
+            ]),
+          ],
+        ),
       );
     }
 
@@ -777,18 +961,27 @@ class GrilleDuMois extends StatelessWidget {
     // `LayoutBuilder` donne la hauteur que la case a vraiment, et le compte en découle —
     // y compris la ligne de débordement, qui prend la place d'un titre quand elle paraît.
     // Plus d'arithmétique à tenir en double.
-    return LayoutBuilder(builder: (context, contraintes) {
-      final place = contraintes.maxHeight - _hauteurDuNumero;
-      final tiennent = (place / _hauteurDUneLigne).floor().clamp(0, 8);
-      var montres = duJour.take(tiennent).toList();
-      var reste = duJour.length - montres.length;
-      if (reste > 0) {
-        // « +N » occupe une ligne : elle se prend sur les titres, pas sur le vide.
-        montres = duJour.take((tiennent - 1).clamp(0, tiennent)).toList();
-        reste = duJour.length - montres.length;
-      }
-      return _contenuDeCase(context, gc, numero, montres, reste);
-    });
+    final cetteCase = LayoutBuilder(
+      builder: (context, contraintes) {
+        final place = contraintes.maxHeight - _hauteurDuNumero;
+        final tiennent = (place / _hauteurDUneLigne).floor().clamp(0, 8);
+        var montres = duJour.take(tiennent).toList();
+        var reste = duJour.length - montres.length;
+        if (reste > 0) {
+          // « +N » occupe une ligne : elle se prend sur les titres, pas sur le vide.
+          montres = duJour.take((tiennent - 1).clamp(0, tiennent)).toList();
+          reste = duJour.length - montres.length;
+        }
+        return _contenuDeCase(context, gc, numero, montres, reste);
+      },
+    );
+    // Today's cell is tinted, so today reads before its number does.
+    return memeJour(jour, maintenant)
+        ? ColoredBox(
+            color: Gc.neon.withValues(alpha: gc.sombre ? 0.16 : 0.08),
+            child: cetteCase,
+          )
+        : cetteCase;
   }
 
   /// Hauteurs réelles, nommées une fois : [titresParCaseDuMois] les estime pour choisir le
@@ -796,8 +989,13 @@ class GrilleDuMois extends StatelessWidget {
   static const _hauteurDuNumero = 32.0;
   static const _hauteurDUneLigne = 14.0;
 
-  Widget _contenuDeCase(BuildContext context, Gc gc, Widget numero,
-      List<LigneDAgenda> montres, int reste) {
+  Widget _contenuDeCase(
+    BuildContext context,
+    Gc gc,
+    Widget numero,
+    List<LigneDAgenda> montres,
+    int reste,
+  ) {
     return Container(
       // Un filet en haut de chaque case : sans lui, des titres alignés sur sept colonnes
       // se lisent comme une seule liste en désordre. C'est ce que dessine tout agenda qui
@@ -844,6 +1042,28 @@ class GrilleDuMois extends StatelessWidget {
   /// découvrir ailleurs, ou jamais.
   Widget _titreDeCase(BuildContext context, Gc gc, LigneDAgenda ligne) {
     final (titre, style) = titreAffiche(context, ligne, gc);
+    // An all-day item is a band in its colour, a timed one a dot and a title: the
+    // two read apart at a glance, as in Fantastical.
+    if (ligne.journeeEntiere) {
+      final couleur = couleurDe(ligne);
+      return Container(
+        height: 14,
+        margin: const EdgeInsets.only(bottom: 0),
+        padding: const EdgeInsets.only(left: 3),
+        decoration: BoxDecoration(
+          color: couleur.withValues(alpha: gc.sombre ? 0.30 : 0.18),
+          border: Border(left: BorderSide(color: couleur, width: 2.5)),
+        ),
+        alignment: Alignment.centerLeft,
+        child: Text(
+          titre,
+          maxLines: 1,
+          overflow: TextOverflow.clip,
+          softWrap: false,
+          style: style.copyWith(fontSize: 11, height: 1.1),
+        ),
+      );
+    }
     return SizedBox(
       height: 14,
       child: Row(
