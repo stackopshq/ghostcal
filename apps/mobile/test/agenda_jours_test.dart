@@ -49,13 +49,10 @@ void main() {
         ).map((t) => t.id),
         ['tomorrow'],
       );
+      // Overdue: on today only, not also on its own past day.
       expect(
-        tachesDuJour(
-          taches,
-          DateTime(2026, 10, 13),
-          maintenant: maintenant,
-        ).map((t) => t.id),
-        ['late'],
+        tachesDuJour(taches, DateTime(2026, 10, 13), maintenant: maintenant),
+        isEmpty,
       );
     });
   });

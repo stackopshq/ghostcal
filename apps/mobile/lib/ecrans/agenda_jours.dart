@@ -103,7 +103,8 @@ class ListeParJour extends StatelessWidget {
 }
 
 /// The tasks a day's section lists: those due that day, not done. Today also gathers
-/// every overdue task, so a late one stays in sight instead of sinking into the past.
+/// every overdue task, so a late one stays in sight instead of sinking into the past —
+/// and only today: its own past day no longer lists it.
 List<Tache> tachesDuJour(
   List<Tache> taches,
   DateTime jour, {
@@ -113,8 +114,10 @@ List<Tache> tachesDuJour(
   final retenues = taches.where((t) {
     final echeance = t.echeance;
     if (t.faite || echeance == null) return false;
-    if (memeJour(echeance, jour)) return true;
-    return aujourdhui && echeance.isBefore(minuit(maintenant));
+    final enRetard = echeance.isBefore(minuit(maintenant));
+    // An overdue task shows on today only: on its own past day as well, it read as two.
+    if (memeJour(echeance, jour)) return !enRetard;
+    return aujourdhui && enRetard;
   }).toList();
   return Taches.ordonner(retenues);
 }
