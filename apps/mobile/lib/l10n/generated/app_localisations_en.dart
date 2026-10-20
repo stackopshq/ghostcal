@@ -945,4 +945,11 @@ class LEn extends L {
   @override
   String get rappelsAuDemarrageRefuse =>
       'macOS refused to open GhostCal at login. Allow it again in System Settings › General › Login Items.';
+
+  @override
+  String get rappelsBloques =>
+      'macOS is blocking GhostCal\'s notifications and will not ask again: allow them in System Settings.';
+
+  @override
+  String get ouvrirLesReglagesSysteme => 'Open System Settings';
 }

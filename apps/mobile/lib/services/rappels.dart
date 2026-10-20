@@ -67,6 +67,26 @@ List<RappelPrevu> rappelsAPrevoir(
   return tries.take(maximum).toList();
 }
 
+/// Ce que le système répond quand on lui demande où en est le droit de notifier.
+///
+/// Les noms viennent du Swift, pas d'un rang : un entier se recopierait de travers le jour
+/// où Apple ajoute un cas, et sans rien casser à la compilation.
+enum EtatDesNotifications {
+  /// L'alerte n'a jamais été présentée. C'est le seul état où la demander sert à quelque
+  /// chose.
+  jamaisDemande,
+
+  /// Refusé — par l'utilisateur, ou par le système qui n'a jamais posé la question.
+  /// L'alerte ne reparaîtra pas : la correction est dans les Réglages Système.
+  refuse,
+
+  accorde,
+  provisoire,
+
+  /// Un cas qu'Apple a ajouté depuis. On ne devine pas ce qu'il veut dire.
+  inconnu,
+}
+
 /// Neutral booking reminders, computed and shown on the device.
 ///
 /// - **No push service.** Notifications are scheduled locally; no third party learns
@@ -200,6 +220,30 @@ class Rappels extends ChangeNotifier {
     await _preparer();
     await _plugin.cancelAllPendingNotifications();
   }
+
+  // ─── Pourquoi l'autorisation a échoué, et où aller la corriger ───
+
+  /// L'état du droit de notifier, demandé **au système**.
+  ///
+  /// `requestPermissions` rend un simple `false`, et ce `false` recouvre deux situations
+  /// qui ne se corrigent pas de la même façon : on vient de refuser l'alerte, ou macOS ne
+  /// l'a jamais posée parce qu'un refus est déjà enregistré. Dans le second cas l'alerte
+  /// ne reparaîtra plus — le système n'en présente qu'une par application — et il faut
+  /// passer par les Réglages Système. Dire « autorisez-les dans les réglages » sans
+  /// distinguer les deux laisse chercher une alerte qui ne viendra jamais.
+  ///
+  /// `null` hors macOS : Android a son propre chemin, déjà traité par le greffon.
+  Future<EtatDesNotifications?> etatDesNotifications() async {
+    final brut = await _demanderAuSysteme<String>('etatDesNotifications');
+    if (brut == null) return null;
+    return EtatDesNotifications.values.firstWhere((e) => e.name == brut,
+        orElse: () => EtatDesNotifications.inconnu);
+  }
+
+  /// Ouvre le volet des notifications des Réglages Système. Rend `false` si macOS n'a
+  /// rien ouvert — l'écran se tait alors plutôt que de promettre un volet absent.
+  Future<bool> ouvrirLesReglagesDesNotifications() async =>
+      await _demanderAuSysteme<bool>('ouvrirLesReglagesDesNotifications') ?? false;
 
   // ─── L'ouverture de session, sur macOS seulement ───
 

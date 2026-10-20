@@ -1,8 +1,10 @@
+import AppKit
 import FlutterMacOS
 import Foundation
 import ServiceManagement
+import UserNotifications
 
-/// Inscrire l'application aux ouvertures de session, et rien d'autre.
+/// Ce que les rappels demandent au système et que le greffon ne sait pas faire ici.
 ///
 /// ─── Pourquoi il reste si peu à faire ici ───
 ///
@@ -17,7 +19,23 @@ import ServiceManagement
 /// `NSBackgroundActivityScheduler`, qui « only fires while the app process is alive and
 /// the Mac is awake » — sa propre documentation. Android réveille un téléphone fermé ;
 /// macOS ne réveille rien. Rendre à l'application l'occasion de tourner est donc le seul
-/// moyen, et c'est tout ce que fait ce fichier.
+/// moyen, et c'est la première moitié de ce fichier.
+///
+/// ─── La seconde : dire pourquoi, et où aller ───
+///
+/// `requestPermissions` rend un simple `false`, et ce `false` recouvre deux situations qui
+/// ne se corrigent pas du tout de la même façon : on vient de refuser l'alerte, ou macOS
+/// ne l'a **jamais posée** parce qu'un refus est déjà enregistré. Dans le second cas,
+/// l'alerte ne reparaîtra plus jamais — le système n'en présente qu'une par application —
+/// et l'utilisateur doit passer par les Réglages Système.
+///
+/// Mesuré le 2026-10-20 : `UNErrorDomain` code 1, « Notifications are not allowed for this
+/// application », `authorizationStatus` déjà à `.denied` avant toute demande. L'écran
+/// disait alors « autorisez-les dans les réglages du système » sans rien de cliquable, et
+/// l'application n'était pas davantage listée dans ces réglages. Un cul-de-sac.
+///
+/// [etatDesNotifications] distingue les deux, et [ouvrirLesReglagesDesNotifications] mène
+/// à l'endroit exact plutôt qu'à la racine des Réglages Système.
 enum OuvertureDeSession {
   static let canal = "ch.stackops.ghostcal/rappels"
 
@@ -31,6 +49,10 @@ enum OuvertureDeSession {
         repondre(inscrire(arguments["valeur"] as? Bool ?? false))
       case "lanceALOuvertureDeSession":
         repondre(inscrit())
+      case "etatDesNotifications":
+        etatDesNotifications(repondre)
+      case "ouvrirLesReglagesDesNotifications":
+        repondre(ouvrirLesReglagesDesNotifications())
       default:
         repondre(FlutterMethodNotImplemented)
       }
@@ -61,6 +83,45 @@ enum OuvertureDeSession {
     }
     return inscrit()
   }
+
+  // MARK: - Le droit de notifier
+
+  /// L'état du droit, **tel que le système le donne** — jamais ce que l'application croit.
+  ///
+  /// Les quatre cas d'`UNAuthorizationStatus`, rendus par leur nom plutôt que par leur
+  /// rang : un entier se recopierait de travers le jour où Apple en ajoute un, et sans
+  /// rien casser à la compilation.
+  private static func etatDesNotifications(_ repondre: @escaping FlutterResult) {
+    UNUserNotificationCenter.current().getNotificationSettings { reglages in
+      let etat: String
+      switch reglages.authorizationStatus {
+      case .notDetermined: etat = "jamaisDemande"
+      case .denied: etat = "refuse"
+      case .authorized: etat = "accorde"
+      case .provisional: etat = "provisoire"
+      @unknown default: etat = "inconnu"
+      }
+      DispatchQueue.main.async { repondre(etat) }
+    }
+  }
+
+  /// Ouvre le volet **des notifications**, pas la racine des Réglages Système.
+  ///
+  /// L'URL est celle de l'extension de réglages, et elle n'est pas devinée : la racine
+  /// laisserait chercher parmi trente volets quelqu'un à qui on vient de dire que sa
+  /// fonction est bloquée.
+  ///
+  /// macOS ne rend rien d'utile quand l'URL n'ouvre rien ; on rend ce que dit `NSWorkspace`
+  /// pour que l'écran puisse se taire plutôt que de promettre un volet qui ne s'est pas
+  /// ouvert.
+  private static func ouvrirLesReglagesDesNotifications() -> Bool {
+    guard let url = URL(
+      string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension")
+    else { return false }
+    return NSWorkspace.shared.open(url)
+  }
+
+  // MARK: - L'ouverture de session
 
   private static func inscrit() -> Bool {
     guard #available(macOS 13.0, *) else { return false }

@@ -949,4 +949,11 @@ class LFr extends L {
   @override
   String get rappelsAuDemarrageRefuse =>
       'macOS a refusé le lancement automatique. Il se réautorise dans Réglages Système › Général › Ouverture.';
+
+  @override
+  String get rappelsBloques =>
+      'macOS bloque les notifications de GhostCal et ne reposera pas la question : l\'autorisation se redonne dans les Réglages Système.';
+
+  @override
+  String get ouvrirLesReglagesSysteme => 'Ouvrir les Réglages Système';
 }

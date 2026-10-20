@@ -475,5 +475,10 @@
     "description": "macOS seulement. NSBackgroundActivityScheduler ne réveille pas une application fermée : sans ce réglage, les rappels ne sont replanifiés qu'à l'ouverture de l'application."
   },
   "rappelsAuDemarrageExplication": "GhostCal démarre alors sans ouvrir de fenêtre, le temps de replanifier. Sans cela, une réservation prise pendant que le Mac dort n'aura pas de rappel avant que vous rouvriez l'application.",
-  "rappelsAuDemarrageRefuse": "macOS a refusé le lancement automatique. Il se réautorise dans Réglages Système › Général › Ouverture."
+  "rappelsAuDemarrageRefuse": "macOS a refusé le lancement automatique. Il se réautorise dans Réglages Système › Général › Ouverture.",
+  "rappelsBloques": "macOS bloque les notifications de GhostCal et ne reposera pas la question : l'autorisation se redonne dans les Réglages Système.",
+  "@rappelsBloques": {
+    "description": "Distinct de rappelsRefuses : ici l'alerte n'a pas été présentée du tout, parce qu'un refus est déjà enregistré. Dire « autorisez-les dans les réglages » sans le préciser laisse attendre une alerte qui ne viendra jamais."
+  },
+  "ouvrirLesReglagesSysteme": "Ouvrir les Réglages Système"
 }

@@ -1734,6 +1734,18 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'macOS a refusé le lancement automatique. Il se réautorise dans Réglages Système › Général › Ouverture.'**
   String get rappelsAuDemarrageRefuse;
+
+  /// Distinct de rappelsRefuses : ici l'alerte n'a pas été présentée du tout, parce qu'un refus est déjà enregistré. Dire « autorisez-les dans les réglages » sans le préciser laisse attendre une alerte qui ne viendra jamais.
+  ///
+  /// In fr, this message translates to:
+  /// **'macOS bloque les notifications de GhostCal et ne reposera pas la question : l\'autorisation se redonne dans les Réglages Système.'**
+  String get rappelsBloques;
+
+  /// No description provided for @ouvrirLesReglagesSysteme.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ouvrir les Réglages Système'**
+  String get ouvrirLesReglagesSysteme;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {
