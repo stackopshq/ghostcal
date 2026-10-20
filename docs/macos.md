@@ -237,6 +237,7 @@ Campagne du 2026-10-15, `flutter test integration_test/macos_test.dart -d macos`
 | Une photo HEIC devient un JPEG d'au plus 1024 points | Passée par le canal natif, décodée pour en mesurer les côtés, téléversée, relue depuis le serveur, retirée |
 | Le trousseau accepte une phrase sous contrainte matérielle | `retenir` rend `true` — donc le groupe d'accès est accordé —, et l'interrogation de présence répond en moins de trois secondes, donc sans invite |
 | Les écrans en clair et en sombre, en français et en anglais, en petite et en grande fenêtre | Huit captures, extraites par `tools/macos/extraire-captures.py` |
+| L'ouverture du coffre par Touch ID | **À la main**, par Clara, le 2026-10-20 sur l'application installée dans `/Applications` : cocher « Ouvrir avec Touch ID », verrouiller, rouvrir, poser le doigt. Aucun témoin ne peut le faire — c'est le propre d'une biométrie |
 | L'inscription aux ouvertures de session | Posée, relue **auprès du système**, puis remise comme elle était — un témoin n'a pas à laisser une entrée dans les Réglages Système de qui l'exécute |
 
 La fenêtre et les menus ont été interrogés sur l'application **lancée**, par
@@ -267,11 +268,6 @@ Architectures in the fat file: … are: x86_64 arm64
 ```
 
 ## Ce qui n'a pas pu être vérifié
-
-**L'invite Touch ID elle-même.** Elle demande un doigt, et aucun appareil réel ne la
-simule — c'est le propre d'une biométrie. Tout ce qui y mène est éprouvé (voir le tableau),
-mais la séquence « cocher *Ouvrir avec Touch ID*, verrouiller, rouvrir, poser le doigt »
-reste à faire à la main, une fois.
 
 **Le texte de cette invite.** Sur Android, l'application fournit les trois libellés et ils
 viennent des traductions. Sur macOS, c'est le trousseau qui compose l'alerte, et
