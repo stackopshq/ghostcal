@@ -261,6 +261,9 @@ class _EcranDAccueilState extends State<EcranDAccueil>
     final choix = await showModalBottomSheet<Object>(
       context: context,
       showDragHandle: true,
+      // Its own height, not the default nine-sixteenths of the screen: Settings, the
+      // last entry, was cut off on a phone.
+      isScrollControlled: true,
       builder: (context) {
         Widget entree(
           Object valeur,
@@ -268,6 +271,7 @@ class _EcranDAccueilState extends State<EcranDAccueil>
           String libelle,
           bool courant,
         ) => ListTile(
+          visualDensity: VisualDensity.compact,
           leading: Icon(icone),
           title: Text(libelle),
           trailing: courant ? const Icon(Icons.check) : null,

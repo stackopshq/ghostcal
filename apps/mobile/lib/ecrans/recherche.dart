@@ -146,7 +146,10 @@ class _EcranDeRechercheState extends State<EcranDeRecherche> {
             textInputAction: TextInputAction.search,
             decoration: InputDecoration(
               hintText: l.rechercherDansLAgenda,
+              // The app bar is the field: the theme's outline would draw a box in it.
               border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
               filled: false,
             ),
           ),
