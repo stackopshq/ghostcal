@@ -57,7 +57,12 @@ export default function CalendarTimeGrid({
    *  the caller says so by not passing it rather than by us guessing from
    *  `days.length === 1`. */
   onDayClick?: (day: Date) => void;
-  labels: { allDay: string; sharedReadOnly: string; openDay: string };
+  labels: {
+    allDay: string;
+    sharedReadOnly: string;
+    subscriptionReadOnly: string;
+    openDay: string;
+  };
   weatherByDay?: Map<string, { glyph: string; tmax: number; tmin: number }>;
 }) {
   const todayKey = ymd(new Date());
@@ -162,7 +167,13 @@ export default function CalendarTimeGrid({
                 <button
                   key={i}
                   type="button"
-                  title={it.read_only ? labels.sharedReadOnly : undefined}
+                  title={
+                    it.source === "subscription"
+                      ? labels.subscriptionReadOnly
+                      : it.read_only
+                        ? labels.sharedReadOnly
+                        : undefined
+                  }
                   onClick={() => onEventClick(it)}
                   style={eventStyle(it)}
                   className={`truncate rounded-pill px-1.5 py-0.5 text-left text-2xs ${eventClasses(it)}`}
@@ -213,7 +224,13 @@ export default function CalendarTimeGrid({
                   key={i}
                   type="button"
                   // A narrow lane truncates the label; the tooltip gives it back.
-                  title={it.read_only ? labels.sharedReadOnly : `${it.label} · ${hm(it.start)}`}
+                  title={
+                    it.source === "subscription"
+                      ? labels.subscriptionReadOnly
+                      : it.read_only
+                        ? labels.sharedReadOnly
+                        : `${it.label} · ${hm(it.start)}`
+                  }
                   onClick={() => onEventClick(it)}
                   style={{ top, height, left, width, ...eventStyle(it) }}
                   className={`absolute overflow-hidden rounded px-1.5 py-0.5 text-left text-2xs leading-tight ${eventClasses(it)}`}

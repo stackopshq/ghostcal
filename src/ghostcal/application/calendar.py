@@ -105,6 +105,8 @@ class SubEvent:
     end_at: datetime
     all_day: bool
     summary: str | None
+    location: str | None = None
+    description: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,6 +125,9 @@ class AgendaItem:
     # ``invitee_private`` is a sealed box: the server carries it and cannot read it.
     invitee_name: str | None = None
     invitee_private: str | None = None
+    # Cleartext details of a subscribed feed's event (room, teacher, notes); read-only.
+    location: str | None = None
+    description: str | None = None
 
 
 class CalendarRepository:
@@ -358,6 +363,8 @@ async def get_agenda(
                 calendar_id=se.subscription_id,  # frontend colours/toggles it like a calendar
                 title=se.summary,
                 read_only=True,
+                location=se.location,
+                description=se.description,
             )
         )
 

@@ -20,6 +20,8 @@ from ghostcal.infrastructure.security.egress import (
 
 _MAX_BYTES = 8 * 1024 * 1024  # 8 MiB
 _MAX_EVENTS = 5000
+_MAX_LOCATION = 500
+_MAX_DESCRIPTION = 4000
 
 
 class IcsFeedError(Exception):
@@ -42,6 +44,18 @@ class FeedEvent:
     # qui désigne l'occurrence remplacée. C'est le fonctionnement normal, pas
     # un flux malformé — n'importe quel agenda réel finit par en contenir un.
     recurrence_id: str = ""
+    # La salle et l'enseignant d'un emploi du temps, l'adresse d'un match : ce qui
+    # rend l'événement utilisable. Bornés, comme le reste du flux.
+    location: str | None = None
+    description: str | None = None
+
+
+def _text(value: object, limit: int) -> str | None:
+    """A TEXT property as a trimmed, bounded string, or None when empty."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text[:limit] or None
 
 
 def _to_dt(value: object) -> tuple[datetime, bool]:
@@ -113,6 +127,8 @@ def parse_feed_body(body: bytes) -> list[FeedEvent]:
                 all_day=all_day,
                 summary=str(summary) if summary else None,
                 recurrence_id=recurrence_id,
+                location=_text(comp.get("location"), _MAX_LOCATION),
+                description=_text(comp.get("description"), _MAX_DESCRIPTION),
             )
         )
         if len(events) >= _MAX_EVENTS:

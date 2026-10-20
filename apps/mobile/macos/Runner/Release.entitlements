@@ -1,8 +1,55 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Les droits de la version livrée. Le gabarit de Flutter n'en déclarait qu'un — le bac à
+  sable — et les trois qui manquaient ne produisent pas d'erreur de compilation : ils
+  produisent une application qui se construit, se signe, se lance, et ne fait rien.
+
+  ─── Le réseau, et le silence qu'il coûtait ───
+
+  `com.apple.security.network.client` est **la sortie** du bac à sable. Sans lui, chaque
+  appel à l'API part et revient en « Operation not permitted » ; l'écran d'entrée affiche
+  une erreur de connexion sur un serveur parfaitement joignable depuis le navigateur de la
+  même machine. C'était l'état du projet macOS tel qu'il sortait de `flutter create` :
+  l'application n'aurait jamais joint son serveur.
+
+  Le droit **serveur**, lui, reste à DebugProfile seul : il n'existe que pour le service
+  de débogage de `flutter run`, et une application livrée qui écoute est une surface
+  d'attaque qu'on n'a aucune raison d'ouvrir.
+
+  ─── Le trousseau, et pourquoi macOS exige ce qu'iOS donne ───
+
+  `flutter_secure_storage` passe sur macOS par le trousseau de protection des données
+  (`kSecUseDataProtectionKeychain`, vrai par défaut dans le greffon darwin). Celui-ci est
+  cloisonné par groupe d'accès, et un groupe ne s'obtient qu'en le déclarant : sans cette
+  entrée, `SecItemAdd` rend `errSecMissingEntitlement` (-34018) et **rien** ne s'écrit —
+  ni les jetons de session, ni la phrase scellée sous Touch ID.
+
+  `$(AppIdentifierPrefix)` est interpolé à la signature par l'identifiant de l'équipe ;
+  l'écrire en dur ferait diverger le droit du certificat le jour où l'équipe change.
+
+  ─── Le fichier choisi, pour la photo de profil ───
+
+  `image_picker` n'a pas d'implémentation macOS propre : il délègue à `file_selector_macos`
+  (voir `GeneratedPluginRegistrant.swift`), c'est-à-dire à `NSOpenPanel`. Le panneau
+  s'ouvre hors du bac à sable, mais le fichier qu'il rend n'est lisible que si ce droit est
+  déclaré. Sans lui, la photo se choisit et ne se lit pas.
+
+  **Lecture seule**, et c'est volontaire : l'application lit la photo, l'envoie, et ne
+  réécrit jamais dans le dossier de l'utilisateur. Le droit en écriture serait un pouvoir
+  dont rien ici ne se sert.
+-->
 <plist version="1.0">
 <dict>
 	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<key>com.apple.security.network.client</key>
+	<true/>
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)ch.stackops.ghostcal</string>
+	</array>
+	<key>com.apple.security.files.user-selected.read-only</key>
 	<true/>
 </dict>
 </plist>

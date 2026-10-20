@@ -317,7 +317,18 @@ class _GrilleHoraireState extends State<GrilleHoraire> {
     final largeurDeCouloir = largeur / couloir.couloirs;
     final couleur = widget.couleurDe(ligne);
     final (titre, style) = titreAffiche(context, ligne, gc);
-    final etroit = widget.jours.length > 1;
+    // ─── Étroit, c'est une largeur, pas un nombre de jours ───
+    //
+    // La condition était `jours.length > 1` : toute vue de semaine passait en 9,5 points
+    // et perdait sa ligne d'horaire, quelle que soit la place disponible. C'était juste
+    // tant que la largeur était bornée à 560 — sept colonnes y font 72 points. Dans une
+    // fenêtre de Mac, la même semaine a 150 points par jour et se lirait comme la vue du
+    // jour ; elle restait en caractères de téléphone.
+    //
+    // Le seuil porte sur le **couloir** et non sur la colonne : deux rendez-vous qui se
+    // chevauchent partagent la largeur, et c'est la moitié obtenue qui décide si le titre
+    // tient. 110 points est ce qu'il faut pour deux mots de douze points et la marge.
+    final etroit = largeurDeCouloir < 110;
     return Positioned(
       top: haut,
       height: hauteur,

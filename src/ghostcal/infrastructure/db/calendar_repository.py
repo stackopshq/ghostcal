@@ -372,6 +372,8 @@ class SqlCalendarRepository(CalendarRepository):
                     models.SubscriptionEvent.end_at,
                     models.SubscriptionEvent.all_day,
                     models.SubscriptionEvent.summary,
+                    models.SubscriptionEvent.location,
+                    models.SubscriptionEvent.description,
                 ).where(
                     models.SubscriptionEvent.owner_id == owner_id,
                     models.SubscriptionEvent.start_at < end,
@@ -386,6 +388,8 @@ class SqlCalendarRepository(CalendarRepository):
                 end_at=r.end_at,
                 all_day=r.all_day,
                 summary=r.summary,
+                location=r.location,
+                description=r.description,
             )
             for r in rows
         ]

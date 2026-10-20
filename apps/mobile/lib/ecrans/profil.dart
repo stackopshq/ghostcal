@@ -7,6 +7,7 @@ import '../services/agenda.dart' show Agenda;
 import '../services/erreurs.dart';
 import '../services/reglages.dart';
 import '../services/session.dart';
+import '../services/vignette.dart';
 import '../theme.dart';
 import 'choix_du_fuseau.dart';
 import '../l10n/generated/app_localisations.dart';
@@ -17,9 +18,13 @@ import '../l10n/generated/app_localisations.dart';
 /// changer demande une vérification que cette route ne déclenche pas. Un champ désactivé
 /// promettrait une fonction inexistante et laisserait chercher comment l'activer.
 class EcranDeProfil extends StatefulWidget {
-  const EcranDeProfil({super.key, required this.session});
+  const EcranDeProfil({super.key, required this.session, this.vignette = const Vignette()});
 
   final Session session;
+
+  /// Le ré-encodage de la photo choisie. Sans effet hors macOS — voir [Vignette].
+  /// Injectable pour qu'un témoin puisse éprouver le chemin sans canal de plateforme.
+  final Vignette vignette;
 
   @override
   State<EcranDeProfil> createState() => _EcranDeProfilState();
@@ -106,12 +111,27 @@ class _EcranDeProfilState extends State<EcranDeProfil> {
       _message = null;
     });
     try {
-      final octets = await image.readAsBytes();
+      // ─── Sur macOS, les trois options ci-dessus n'ont rien fait ───
+      //
+      // `image_picker_macos` les ignore **en silence** : ce n'est qu'un `NSOpenPanel`, et
+      // le fichier remonte tel que l'utilisateur l'a choisi. Une photo d'iPhone arrive
+      // donc en HEIC, que le serveur refuse (`FORMATS_ACCEPTES`), et en plusieurs
+      // méga-octets, que la borne ci-dessous refuse avant lui. Les deux échecs tombent sur
+      // le parcours normal, et aucun ne nomme sa cause.
+      //
+      // [Vignette] fait le travail avec le décodeur du système — le seul qui lise le HEIC.
+      // Ailleurs elle rend `null` et `image_picker` a déjà fait le sien.
+      final reduite = await widget.vignette.reduire(image.path);
+      final octets = reduite ?? await image.readAsBytes();
       if (octets.length > _octetsMax) {
         setState(() => _erreur = l.photoTropLourde);
         return;
       }
-      await service.televerserLaPhoto(octets, image.name);
+      // Le nom porte l'extension du **résultat** et non celle de la source : le serveur ne
+      // croit ni l'extension ni le type annoncé, mais lui présenter « photo.heic » pour du
+      // JPEG serait écrire quelque chose de faux parce que personne ne le lit.
+      final nom = reduite == null ? image.name : _enJpeg(image.name);
+      await service.televerserLaPhoto(octets, nom);
       final profil = await service.profil();
       if (!mounted) return;
       setState(() {
@@ -124,6 +144,12 @@ class _EcranDeProfilState extends State<EcranDeProfil> {
     } finally {
       if (mounted) setState(() => _photoEnCours = false);
     }
+  }
+
+  /// Le nom du fichier, extension remplacée par celle de ce qu'on envoie vraiment.
+  static String _enJpeg(String nom) {
+    final point = nom.lastIndexOf('.');
+    return '${point <= 0 ? nom : nom.substring(0, point)}.jpg';
   }
 
   Future<void> _retirerLaPhotoTeleversee() async {
