@@ -40,7 +40,7 @@
 ---
 
 > **Project status.** The web app runs in production at
-> [cal.ghostsuite.cloud](https://cal.ghostsuite.cloud), and the apps are at **1.4.0** on Android and
+> [cal.ghostsuite.cloud](https://cal.ghostsuite.cloud), and the apps are at **1.4.1** on Android and
 > macOS ([download](#apps)), with iOS under App Store review. A scheduler (FastAPI) and a client
 > (Next.js on the web, Flutter in the apps) built on a pure, exhaustively-tested availability engine: timezone- and DST-correct slot computation with
 > **no-double-booking guaranteed by the database**, not by the application. Multi-tenant from day one
@@ -236,16 +236,16 @@ Titles and notes are sealed client-side; only the due date is cleartext:
 
 ## Apps
 
-GhostCal 1.4.0 for **Android**, **iPhone and iPad**, and **macOS**, built from one Flutter code base
+GhostCal 1.4.1 for **Android**, **iPhone and iPad**, and **macOS**, built from one Flutter code base
 in [`apps/mobile`](apps/mobile/README.md), with the same encryption core as the web.
 
 | Platform | Get it | Requires |
 |---|---|---|
-| macOS | [GhostCal-1.4.0.dmg](https://github.com/stackopshq/ghostcal/releases/download/mobile-v1.4.0/GhostCal-1.4.0.dmg) — Developer ID, notarised | macOS 12, Intel or Apple Silicon |
-| Android | [GhostCal-1.4.0-arm64.apk](https://github.com/stackopshq/ghostcal/releases/download/mobile-v1.4.0/GhostCal-1.4.0-arm64.apk); Google Play in testing | Android 7 (API 24), arm64 |
+| macOS | [GhostCal-1.4.1.dmg](https://github.com/stackopshq/ghostcal/releases/download/mobile-v1.4.1/GhostCal-1.4.1.dmg) — Developer ID, notarised | macOS 12, Intel or Apple Silicon |
+| Android | [GhostCal-1.4.1-arm64.apk](https://github.com/stackopshq/ghostcal/releases/download/mobile-v1.4.1/GhostCal-1.4.1-arm64.apk); Google Play in testing | Android 7 (API 24), arm64 |
 | iPhone, iPad | App Store, under review | iOS 15 |
 
-Fingerprints: [`SHA256SUMS`](https://github.com/stackopshq/ghostcal/releases/download/mobile-v1.4.0/SHA256SUMS).
+Fingerprints: [`SHA256SUMS`](https://github.com/stackopshq/ghostcal/releases/download/mobile-v1.4.1/SHA256SUMS).
 The apps ask for a server address on first launch — `https://cal.ghostsuite.cloud/api` for the
 StackOps instance.
 
