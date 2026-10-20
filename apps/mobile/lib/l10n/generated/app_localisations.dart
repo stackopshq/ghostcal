@@ -1681,6 +1681,18 @@ abstract class L {
   /// **'{minutes} min avant'**
   String rappelsAvance(int minutes);
 
+  /// No description provided for @rappelsProgrammes.
+  ///
+  /// In fr, this message translates to:
+  /// **'{n, plural, =0{Aucun rappel programmé} =1{1 rappel programmé} other{{n} rappels programmés}}'**
+  String rappelsProgrammes(int n);
+
+  /// No description provided for @rappelsAucunRendezVous.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun rendez-vous réservé dans les 7 jours à venir. Les rappels ne concernent que les rendez-vous pris par vos invités.'**
+  String get rappelsAucunRendezVous;
+
   /// No description provided for @rappelsRefuses.
   ///
   /// In fr, this message translates to:

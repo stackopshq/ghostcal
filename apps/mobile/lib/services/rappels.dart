@@ -184,6 +184,17 @@ class Rappels extends ChangeNotifier {
 
   bool _pret = false;
 
+  /// Combien de rappels le système tient réellement en attente, relu après chaque
+  /// planification. `null` tant que rien n'a été tenté.
+  ///
+  /// Ce n'est pas une statistique, c'est le seul moyen de savoir. Mesuré sur simulateur :
+  /// `zonedSchedule` sur iOS **n'enregistre rien** quand l'autorisation manque, sans lever
+  /// ni rien rendre. Un rappel qui ne sonne pas est alors indiscernable d'un agenda sans
+  /// rendez-vous à venir — c'est précisément le doute qu'un utilisateur ne peut pas lever
+  /// seul. Relire ce que le système tient le lève.
+  int? _programmes;
+  int? get programmes => _programmes;
+
   Future<void> amorcer() async {
     _actif = await Trousseau.lire(_cleActif) == 'true';
     final avance = await Trousseau.lire(_cleAvance);
@@ -267,6 +278,8 @@ class Rappels extends ChangeNotifier {
     if (_avecRafraichissement) await _gestionnaire.cancelByUniqueName(_tache);
     await _preparer();
     await _plugin.cancelAllPendingNotifications();
+    _programmes = null;
+    notifyListeners();
   }
 
   // ─── Pourquoi l'autorisation a échoué, et où aller la corriger ───
@@ -394,7 +407,10 @@ class Rappels extends ChangeNotifier {
   Future<void> _planifier(List<RappelPrevu> prevus) async {
     await _preparer();
     await _plugin.cancelAllPendingNotifications();
-    if (prevus.isEmpty) return;
+    if (prevus.isEmpty) {
+      await _relireCeQuiEstEnAttente();
+      return;
+    }
 
     final l = await _langue();
     final android = _plugin
@@ -411,7 +427,18 @@ class Rappels extends ChangeNotifier {
         presentAlert: true,
         presentBadge: false,
         presentSound: true,
-        interruptionLevel: InterruptionLevel.timeSensitive,
+        // `active` et non `timeSensitive`, bien qu'un rendez-vous imminent en relève :
+        // le niveau Time Sensitive **exige** le droit
+        // `com.apple.developer.usernotifications.time-sensitive`, que cette application
+        // ne déclare pas — vérifié sur la build signée, qui ne porte aucun entitlement.
+        //
+        // Sans le droit, iOS rétrograde silencieusement le niveau. Le rappel sonnerait
+        // donc quand même, et c'est ce qui rend la demande trompeuse plutôt qu'inoffensive :
+        // le code promettrait de percer un mode de concentration, ce qu'il ne fait pas.
+        //
+        // Y revenir demande d'activer la capacité dans le compte développeur et de la
+        // déclarer ici : une décision de provisionnement, pas une constante à changer.
+        interruptionLevel: InterruptionLevel.active,
       ),
       android: AndroidNotificationDetails(
         _canal,
@@ -445,6 +472,20 @@ class Rappels extends ChangeNotifier {
         body: l.rappelCorps(prevu.debut.difference(prevu.quand).inMinutes),
       );
     }
+    await _relireCeQuiEstEnAttente();
+  }
+
+  /// Relit ce que le système tient, plutôt que de compter ce qu'on a demandé.
+  ///
+  /// La différence est tout l'intérêt : sur iOS une demande refusée ne lève pas, et sur
+  /// les deux plateformes un plafond atteint écarte les suivantes en silence.
+  Future<void> _relireCeQuiEstEnAttente() async {
+    try {
+      _programmes = (await _plugin.pendingNotificationRequests()).length;
+    } on Object {
+      _programmes = null;
+    }
+    notifyListeners();
   }
 
   Future<void> _preparer() async {
