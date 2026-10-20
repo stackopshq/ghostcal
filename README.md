@@ -30,7 +30,8 @@
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-async-00F0FF?style=flat-square&logo=fastapi&logoColor=white">
   <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-RLS-00F0FF?style=flat-square&logo=postgresql&logoColor=white">
   <img alt="Next.js" src="https://img.shields.io/badge/Next.js-16-00F0FF?style=flat-square&logo=nextdotjs&logoColor=white">
-  <img alt="Crypto" src="https://img.shields.io/badge/crypto-WebCrypto%20%2B%20hash--wasm-00F0FF?style=flat-square">
+  <img alt="Crypto" src="https://img.shields.io/badge/crypto-ghost--crypto%20(Rust%2FWASM)-00F0FF?style=flat-square">
+  <img alt="Apps" src="https://img.shields.io/badge/apps-Android%20%C2%B7%20iOS%20%C2%B7%20macOS-00F0FF?style=flat-square&logo=flutter&logoColor=white">
   <img alt="Lint: Ruff" src="https://img.shields.io/badge/lint-ruff-00F0FF?style=flat-square&logo=ruff&logoColor=white">
   <img alt="Types: mypy strict" src="https://img.shields.io/badge/types-mypy%20strict-00F0FF?style=flat-square">
   <img alt="License: Elastic-2.0" src="https://img.shields.io/badge/license-Elastic--2.0-00F0FF?style=flat-square">
@@ -38,8 +39,10 @@
 
 ---
 
-> **Project status — v0.1.** A working scheduler (FastAPI) and booking frontend (Next.js) built on a
-> pure, exhaustively-tested availability engine: timezone- and DST-correct slot computation with
+> **Project status.** The web app runs in production at
+> [cal.ghostsuite.cloud](https://cal.ghostsuite.cloud), and the apps are at **1.4.0** on Android and
+> macOS ([download](#apps)), with iOS under App Store review. A scheduler (FastAPI) and a client
+> (Next.js on the web, Flutter in the apps) built on a pure, exhaustively-tested availability engine: timezone- and DST-correct slot computation with
 > **no-double-booking guaranteed by the database**, not by the application. Multi-tenant from day one
 > (Postgres RLS), **zero-knowledge** invitee data and calendar content throughout, and part of the
 > [ghost suite](https://github.com/stackopshq) — it talks to GhostMail, and neither app ever calls the
@@ -56,8 +59,11 @@ product allows and encrypt the rest at rest. Three honest tiers:
 **🔒 Tier 1 — zero-knowledge (the server can never read it).** The invitee's **name**, their
 **answers to your custom questions** (phone, address, "what's this about", case numbers, medical
 context…) and a free-text **notes / agenda** field are sealed in the browser
-(WebCrypto X25519 ECDH → AES-256-GCM) to your organization's public key. The server
-stores one opaque blob and **cannot decrypt it** — only you can, in your browser.
+(X25519 ECDH → HKDF-SHA256 → XChaCha20-Poly1305, by the suite's
+[`ghost-crypto`](https://github.com/stackopshq/ghostsuite) core — Rust, compiled to WebAssembly in the
+browser and native in the apps) to your organization's public key. The server stores one opaque blob
+and **cannot decrypt it** — only you can, in your browser or the app. Envelopes written before the
+move to the shared core (AES-256-GCM) are still read, never written.
 
 ```
 Invitee's browser  ──seal(name+answers+notes, ORG_PUBLIC_KEY)──▶  server stores ciphertext only
@@ -122,7 +128,7 @@ and custom questions; a weekly, timezone-correct availability editor:
 | --- | --- |
 | ![Event types](docs/assets/event-types-dark.png) | ![Availability editor](docs/assets/availability-dark.png) |
 
-**Private calendar — the server knows *when*, never *what*.** A zero-knowledge month view: event
+**Private calendar — the server knows *when*, never *what*.** Zero-knowledge month, week, day, year and list views: event
 titles, locations and notes are sealed in your browser; only the times are cleartext (so free-busy
 and reminders still work). The foundation for ghostmail:
 
@@ -185,11 +191,12 @@ Titles and notes are sealed client-side; only the due date is cleartext:
   zero-knowledge.
 - **Booking page** — timezone picker, custom questions, a notes field, additional guests; readable
   slug URLs; an **embeddable widget** (`/embed/...`) with a copy-paste iframe snippet.
-- **Private calendar** — a zero-knowledge month view: create recurring events whose
+- **Private calendar** — zero-knowledge month, week, day, year and list views, with tasks among the
+  days and a red now-line; create recurring events whose
   title/location/notes are sealed in the browser; the server stores ciphertext and only reads the
   times (for free-busy and reminders). Unified agenda over your events + bookings + external busy.
-- **Privacy** — zero-knowledge invitee name/answers/notes and calendar content (WebCrypto X25519
-  ECDH + AES-256-GCM, Argon2id-wrapped org key + recovery key); at-rest envelope encryption for
+- **Privacy** — zero-knowledge invitee name/answers/notes and calendar content (X25519 +
+  XChaCha20-Poly1305 via `ghost-crypto`, Argon2id-wrapped org key + recovery key); at-rest envelope encryption for
   emails and meeting links; multi-tenant Postgres RLS; no telemetry, no third-party calls on the
   booking path.
 - **Sharing** — inside the team (read-only or read-write, decrypted with the team key they already
@@ -203,16 +210,20 @@ Titles and notes are sealed client-side; only the due date is cleartext:
 - **Account lifecycle** — deletion (with tombstoned shared bookings), data export, retention and
   auto-purge ([ADR-0006](docs/adr/0006-account-lifecycle-and-erasure.md)).
 - **Key rotation** — rotate the organization keypair and re-seal, so removing a member truly revokes
-  the key they had cached ([ADR-0007](docs/adr/0007-per-user-keypairs-and-org-key-rotation.md)).
+  the key they had cached ([ADR-0007](docs/adr/0007-org-key-rotation-and-revocation.md)).
 - **Invitee self-service** — cancel / reschedule via a signed link (no account).
 - **Teams** — organizations, members & roles (owner/admin/member), token invitations.
 - **SSO / OIDC** — optional single-provider sign-in (Authlib, PKCE), off by default. Authentication
   only: the zero-knowledge content stays sealed and is unlocked by a **separate encryption
   passphrase** the server never sees (Proton/Bitwarden-style), so SSO never weakens the guarantee.
 - **Meeting polls** — propose times → invitees vote → host finalizes and everyone is emailed.
-- **Notifications** — confirmation/cancellation emails with `.ics`; automated **reminders**
-  (Celery). Server-sent mail never names the invitee — that stays encrypted.
-- **Calendar sync** — bidirectional **CalDAV** (read busy + write bookings).
+- **Notifications** — confirmation/cancellation emails with `.ics`, in French and English; automated
+  **reminders** (Celery) that never name the event, task or invitee; browser notifications with the
+  real title, decrypted in an open tab; and, in the apps, opt-in **booking reminders computed on the
+  device** with a neutral text and no push service.
+- **Calendar sync** — **CalDAV** in three directions: read busy times every 15 min, write bookings
+  (busy-only or detailed), and publish your own events while a browser tab holds the key — the
+  browser decrypts, the server only relays.
 - **Public calendar subscriptions** — subscribe to any public **iCal/ICS feed** (holidays,
   fixtures, a shared calendar); read-only, colour-coded, toggleable overlays, refreshed by a
   background worker. Fetched server-side behind the SSRF guard; event summaries encrypted at rest.
@@ -222,6 +233,31 @@ Titles and notes are sealed client-side; only the due date is cleartext:
 - **i18n** — full UI in English and French, with a light/dark theme toggle.
 - **Ops** — per-IP rate limiting, Redis availability cache, booking **analytics** dashboard,
   structured JSON logs with request ids.
+
+## Apps
+
+GhostCal 1.4.0 for **Android**, **iPhone and iPad**, and **macOS**, built from one Flutter code base
+in [`apps/mobile`](apps/mobile/README.md), with the same encryption core as the web.
+
+| Platform | Get it | Requires |
+|---|---|---|
+| macOS | [GhostCal-1.4.0.dmg](https://github.com/stackopshq/ghostcal/releases/download/mobile-v1.4.0/GhostCal-1.4.0.dmg) — Developer ID, notarised | macOS 12, Intel or Apple Silicon |
+| Android | [GhostCal-1.4.0-arm64.apk](https://github.com/stackopshq/ghostcal/releases/download/mobile-v1.4.0/GhostCal-1.4.0-arm64.apk); Google Play in testing | Android 7 (API 24), arm64 |
+| iPhone, iPad | App Store, under review | iOS 15 |
+
+Fingerprints: [`SHA256SUMS`](https://github.com/stackopshq/ghostcal/releases/download/mobile-v1.4.0/SHA256SUMS).
+The apps ask for a server address on first launch — `https://cal.ghostsuite.cloud/api` for the
+StackOps instance.
+
+What the apps do: day, week, compact or expanded month, and list views with tasks among the days;
+quick entry in English and French; events, tasks, booking types (with their questions),
+availability, polls, meetings and team invitations; **on-device search** over a year of the
+calendar; a calendar filter; Face ID / Touch ID / fingerprint unlock with a hardware-sealed key and
+auto-lock; opt-in booking reminders computed on the device; keyboard shortcuts and, on macOS, the
+menu bar.
+
+Not in the apps yet: offline access, creating or editing recurring events, event attendees, sign-up
+and password changes (on the web).
 
 ## Roadmap
 
@@ -243,7 +279,7 @@ however it is set. *(see [ADR-0011](docs/adr/0011-private-network-allow-list-for
 ## Stack
 
 Python 3.14 · FastAPI · PostgreSQL (RLS, `tstzrange` + `EXCLUDE`) · SQLAlchemy 2.0 (async) ·
-Alembic · Celery (Redis) · Next.js 16 + WebCrypto/hash-wasm (frontend). Tooling: `uv`, `ruff`, `mypy`,
+Alembic · Celery (Redis) · Next.js 16 (web) · Flutter 3.47 (Android, iOS, macOS) · `ghost-crypto` (Rust, WASM and native). Tooling: `uv`, `ruff`, `mypy`,
 `pytest` + Hypothesis. Containers built and run with **Podman**.
 
 ## Run (development)
