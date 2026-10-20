@@ -193,13 +193,18 @@ class _EcranDAccueilState extends State<EcranDAccueil>
     };
     SingleActivator touche(LogicalKeyboardKey cle) =>
         SingleActivator(cle, meta: pomme, control: !pomme);
+    // The digits by the key's position, not its character: on a French keyboard the
+    // key above Q types "&", so ⌘1 by character never fired without Shift. AppKit
+    // does this translation for the macOS menu; the map has to do it elsewhere.
+    ShortcutActivator chiffre(PhysicalKeyboardKey cle) =>
+        _ToucheParPosition(cle, meta: pomme, control: !pomme);
     VoidCallback commande(String methode, [Object? argument]) =>
         () => unawaited(_recevoirDuMenu(MethodCall(methode, argument)));
     return {
-      touche(LogicalKeyboardKey.digit1): commande('vue', 'jour'),
-      touche(LogicalKeyboardKey.digit2): commande('vue', 'semaine'),
-      touche(LogicalKeyboardKey.digit3): commande('vue', 'mois'),
-      touche(LogicalKeyboardKey.digit4): commande('vue', 'liste'),
+      chiffre(PhysicalKeyboardKey.digit1): commande('vue', 'jour'),
+      chiffre(PhysicalKeyboardKey.digit2): commande('vue', 'semaine'),
+      chiffre(PhysicalKeyboardKey.digit3): commande('vue', 'mois'),
+      chiffre(PhysicalKeyboardKey.digit4): commande('vue', 'liste'),
       touche(LogicalKeyboardKey.keyT): commande('aujourdhui'),
       touche(LogicalKeyboardKey.arrowLeft): commande('precedent'),
       touche(LogicalKeyboardKey.arrowRight): commande('suivant'),
@@ -537,4 +542,30 @@ class _Flottant extends StatelessWidget {
       child: SizedBox(height: 52, child: Center(widthFactor: 1, child: child)),
     );
   }
+}
+
+/// A shortcut matched on the physical key and its modifiers, whatever character the
+/// layout puts there.
+class _ToucheParPosition extends ShortcutActivator {
+  const _ToucheParPosition(this.cle, {this.meta = false, this.control = false});
+
+  final PhysicalKeyboardKey cle;
+  final bool meta;
+  final bool control;
+
+  @override
+  Iterable<LogicalKeyboardKey>? get triggers => null;
+
+  @override
+  bool accepts(KeyEvent event, HardwareKeyboard state) =>
+      event is KeyDownEvent &&
+      event.physicalKey == cle &&
+      state.isMetaPressed == meta &&
+      state.isControlPressed == control &&
+      !state.isAltPressed &&
+      !state.isShiftPressed;
+
+  @override
+  String debugDescribeKeys() =>
+      '${meta ? 'Meta+' : ''}${control ? 'Control+' : ''}${cle.debugName}';
 }
