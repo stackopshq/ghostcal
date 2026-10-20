@@ -290,3 +290,19 @@ body {
 .glass-opaque {
   background: var(--glass-opaque);
 }
+
+/* The calendar's floating bar on a phone (`data-barre-mobile` on <body>, set while it is shown).
+ *
+ * The theme and language pill sits in the same bottom-right corner on every page and covered the
+ * bar's search and "new" buttons; on a phone with the bar it steps aside — both settings stay in
+ * the command palette and in Settings. The notification prompt moves above the bar instead of
+ * across it. */
+@media (max-width: 639px) {
+  body[data-barre-mobile] .gc-reglages-flottants {
+    display: none;
+  }
+  body[data-barre-mobile] .gc-invite-notifications {
+    bottom: 5.5rem;
+  }
+}
+
