@@ -438,6 +438,7 @@ class EcranDAgendaState extends State<EcranDAgenda> {
           calendriers: _inscriptibles,
           jour: ligne.debut,
           evenement: ligne.evenement,
+          occurrence: ligne.debut,
         ),
       ),
     );
