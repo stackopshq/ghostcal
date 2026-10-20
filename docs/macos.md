@@ -123,21 +123,17 @@ xcodebuild -exportArchive \
   -exportPath build/export
 ```
 
-`macos/ExportOptions.plist` **reste à écrire** — il n'existe pas encore, délibérément : il
-porte l'identifiant d'équipe, et rien ne sert à l'écrire avant d'avoir le certificat qui
-va avec. Son contenu :
-
-```xml
-<plist version="1.0"><dict>
-  <key>method</key><string>developer-id</string>
-  <key>teamID</key><string>9WHCJ5W7S6</string>
-  <key>signingStyle</key><string>automatic</string>
-</dict></plist>
-```
+`macos/ExportOptions.plist` existe désormais, et porte son propre commentaire. Deux clés
+y méritent une relecture avant toute modification :
 
 `teamID` **écrite** et non découverte, pour le motif donné dans `docs/appstore.md` : un
 certificat d'équipe personnelle cohabite dans le trousseau de cette machine, et la
 signature automatique peut le choisir sans rien dire.
+
+`destination` à `export`, qui n'est pas cosmétique : sans elle, `xcodebuild
+-exportArchive` en `developer-id` **peut notariser de lui-même** selon la version de
+Xcode. Une commande qui dit « exporter » enverrait le paquet chez Apple sans que personne
+l'ait décidé. L'envoi est une étape à part, et elle a son moment plus bas.
 
 Le contrôle qui compte, avant d'envoyer quoi que ce soit :
 
@@ -174,10 +170,22 @@ codesign --sign "Developer ID Application: … (9WHCJ5W7S6)" \
 
 C'est l'étape qui part chez Apple. Quelques minutes en général.
 
+Deux façons de s'authentifier, et la seconde est celle qui a servi : un mot de passe
+d'application rangé par `notarytool store-credentials` sous un nom de profil, **ou** la
+clé API App Store Connect que porte déjà cette machine pour l'envoi iOS. La seconde évite
+de créer un second secret pour la même machine.
+
 ```sh
-xcrun notarytool submit build/GhostCal-1.2.0.dmg \
-  --keychain-profile "ghostcal-notarisation" --wait
+xcrun notarytool submit build/dmg/GhostCal-1.4.0.dmg \
+  --key ~/.appstoreconnect/private_keys/AuthKey_<ID>.p8 \
+  --key-id <ID> \
+  --issuer <UUID d'équipe, en clair dans App Store Connect> \
+  --wait
 ```
+
+L'identifiant d'émetteur ne se déduit pas de la clé : c'est la revendication `iss` du
+jeton qu'il faut justement signer. Il s'affiche dans App Store Connect, au-dessus du
+tableau des clés.
 
 En cas de refus, le rapport nomme la cause, et il faut le demander — le message de
 `submit` ne la donne pas :
@@ -189,9 +197,39 @@ xcrun notarytool log <l-identifiant-de-soumission> \
 
 ### 6 · L'agrafage, et pourquoi il n'est pas facultatif
 
+**Il faut agrafer les deux : l'image, et l'application qu'elle contient.** Agrafer la
+seule image ne suffit pas, et le défaut est invisible sur la machine qui a notarisé.
+
 ```sh
-xcrun stapler staple build/GhostCal-1.2.0.dmg
-xcrun stapler validate build/GhostCal-1.2.0.dmg
+xcrun stapler staple build/export/GhostCal.app     # le billet existe déjà, voir plus bas
+xcrun stapler staple build/dmg/GhostCal-1.4.0.dmg
+xcrun stapler validate build/dmg/GhostCal-1.4.0.dmg
+```
+
+Mesuré le 2026-10-20 : image agrafée, `spctl` l'accepte, et l'application **à
+l'intérieur** répondait `GhostCal.app does not have a ticket stapled to it`. Le billet de
+l'image ne voyage pas avec l'application qu'on en glisse vers *Applications* : une fois
+sortie, elle n'a plus rien de local, et son premier lancement redemande le réseau — ce
+qu'on ne voit jamais ici, puisque la machine qui notarise a toujours du réseau.
+
+L'ordre coûte un envoi de plus, et il n'y a pas moyen de l'éviter : l'image change quand
+on y remplace l'application, donc elle doit être resignée et renotariée.
+
+1. notariser l'image (l'application qu'elle contient reçoit son billet au passage) ;
+2. `stapler staple` sur **l'application** — le billet est déjà émis pour son empreinte,
+   donc l'agrafe se pose sans réenvoi ;
+3. refabriquer l'image autour de l'application agrafée ;
+4. resigner l'image, la renotariser, l'agrafer.
+
+Le contrôle final porte sur les deux, et sur l'application montée depuis l'image :
+
+```sh
+xcrun stapler validate build/dmg/GhostCal-1.4.0.dmg
+spctl -a -vvv -t install build/dmg/GhostCal-1.4.0.dmg
+PT=$(hdiutil attach -nobrowse -readonly build/dmg/GhostCal-1.4.0.dmg | grep -oE '/Volumes/.*')
+xcrun stapler validate "$PT/GhostCal.app"
+spctl -a -vvv -t exec "$PT/GhostCal.app"
+hdiutil detach "$PT"
 ```
 
 Sans agrafage, l'image marche quand même — **tant que la machine qui l'ouvre a du
@@ -222,6 +260,32 @@ macOS écrit ses enveloppes en `v:1` — vérifié sur les octets rendus par le 
 ci-dessous. Le web actuellement déployé ne les lit pas : un événement créé depuis le Mac
 s'afficherait illisible dans le navigateur. La version du web qui corrige cela est la
 #176 ; tant qu'elle n'est pas déployée, l'image disque ne se met pas en ligne.
+
+## La notarisation du 2026-10-20
+
+Faite, et vérifiée. `GhostCal 1.4.0 (5)`, universelle (`x86_64 arm64`), depuis `b5e2846`.
+
+| | |
+|---|---|
+| Envoi de l'image | `f49a440d-bfa9-4caa-93bb-ad0d8ce6c2cc` — **Accepted** |
+| Envoi de l'image refabriquée autour de l'application agrafée | `3a96acfd-3698-4122-a34b-4f6cd125e243` — **Accepted** |
+| `spctl -t install` sur l'image | `accepted`, `source=Notarized Developer ID` |
+| `spctl -t exec` sur l'application montée | `accepted`, `source=Notarized Developer ID` |
+| `stapler validate` | passe sur l'image **et** sur l'application |
+| Droits portés | `app-sandbox`, `network.client`, `files.user-selected.read-only`, `keychain-access-groups` — et **pas** `network.server`, qui reste au Debug |
+| `get-task-allow` | absent |
+| Démarrage | l'application signée s'ouvre, barre de menus complète, fenêtre peuplée — interrogée par `System Events` |
+
+Ce qui a débloqué l'export : l'ACL de la clé privée n'accordait pas l'accès à `codesign`,
+et aucune interface ne le demandait — d'où un `errSecInternalComponent` opaque. Le geste
+est dans Trousseaux d'accès, catégorie *Clés*, sur la clé privée du certificat Developer
+ID : ⌘I → **Contrôle d'accès** → « Toujours autoriser ». Le vérifier plutôt que de
+conclure sur une signature qui passe : une invite acceptée **une seule fois** donne le
+même résultat et rouvrira au prochain export. Le contrôle est qu'une seconde signature
+passe sans invite.
+
+**L'image n'est pas distribuée.** La condition posée tient : rien ne se met en ligne avant
+que le web qui lit le format `v:1` soit en production (#176).
 
 ## Ce qui a été vérifié, et comment
 
