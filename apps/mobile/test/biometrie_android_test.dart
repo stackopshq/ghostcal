@@ -6,76 +6,10 @@
 // launch and on opening the settings.
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ghostcal/services/biometrie.dart';
 
-/// An in-memory store that counts every call, so a test can prove it was never touched.
-class MagasinCompte extends Fake implements FlutterSecureStorage {
-  final Map<String, String> valeurs = {};
-  int appels = 0;
-
-  @override
-  Future<bool> containsKey({
-    required String key,
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async {
-    appels++;
-    return valeurs.containsKey(key);
-  }
-
-  @override
-  Future<String?> read({
-    required String key,
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async {
-    appels++;
-    return valeurs[key];
-  }
-
-  @override
-  Future<void> write({
-    required String key,
-    required String? value,
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async {
-    appels++;
-    if (value == null) {
-      valeurs.remove(key);
-    } else {
-      valeurs[key] = value;
-    }
-  }
-
-  @override
-  Future<void> delete({
-    required String key,
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async {
-    appels++;
-    valeurs.remove(key);
-  }
-}
+import 'harnais.dart';
 
 void main() {
   late MagasinCompte scelle;

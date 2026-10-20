@@ -292,6 +292,27 @@ class Biometrie {
       // propre visage et ouvre le coffre.
       accessControlFlags: [AccessControlFlag.biometryCurrentSet],
     ),
+    // ─── Le même magasin sur macOS, et il faut l'écrire deux fois ───
+    //
+    // `iOptions` **n'est pas lu** sur macOS. Le paquet choisit par plateforme — iOS prend
+    // `iOptions`, macOS `mOptions` — et le défaut de `mOptions` est
+    // `MacOsOptions()` : accessibilité `unlocked`, aucun contrôle d'accès, et le nom de
+    // service générique `flutter_secure_storage_service`.
+    //
+    // Rien n'aurait signalé l'oubli. Le code compile, le coffre s'ouvre, le bouton
+    // Touch ID paraît — et la phrase est posée en clair dans le trousseau, lisible sans
+    // le doigt, dans le **même** cloisonnement que les jetons de session. C'est-à-dire
+    // exactement ce que l'en-tête de ce fichier dit ne jamais faire, obtenu par une
+    // option tue plutôt que par une décision.
+    //
+    // Les deux listes doivent donc rester identiques, et c'est un test qui le garde —
+    // le lire à l'œil ne tiendrait pas une montée de version.
+    mOptions: MacOsOptions(
+      accountName: 'ghostcal.biometrie',
+      authenticationUIBehavior: muet ? _sansInvite : null,
+      accessibility: KeychainAccessibility.passcode,
+      accessControlFlags: const [AccessControlFlag.biometryCurrentSet],
+    ),
     aOptions: AndroidOptions.biometric(
       enforceBiometrics: true,
       biometricType: AndroidBiometricType.strongBiometricOnly,

@@ -22,6 +22,11 @@ class Trousseau {
   /// jeton, et rien à l'écran ne le dirait avant l'appareil.
   static const magasin = FlutterSecureStorage(
     iOptions: IOSOptions(accessibility: KeychainAccessibility.unlocked_this_device),
+    // macOS lit `mOptions` et **ignore** `iOptions` : le paquet choisit par plateforme.
+    // Sans cette ligne, les jetons y retombaient sur le défaut `unlocked`, qui survit à
+    // une sauvegarde et peut donc suivre le compte sur une autre machine. Le réglage
+    // d'iOS avait l'air de valoir pour les deux ; il ne vaut que pour iOS.
+    mOptions: MacOsOptions(accessibility: KeychainAccessibility.unlocked_this_device),
     // `resetOnError: false` **explicitement**, et ce n'est pas une redondance : la
     // version 9 le met à faux par défaut, la version 11 à **vrai**. La montée en 11,
     // faite le 2026-08-31 pour la biométrie, aurait donc retourné ce réglage en

@@ -184,6 +184,8 @@ class SqlSubscriptionRepository(SubscriptionRepository):
                     "end_at": e.end_at,
                     "all_day": e.all_day,
                     "summary": e.summary,
+                    "location": e.location,
+                    "description": e.description,
                 }
                 for e in rows
             ],

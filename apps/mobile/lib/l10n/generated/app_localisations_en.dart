@@ -909,7 +909,7 @@ class LEn extends L {
 
   @override
   String get rappelsExplication =>
-      'A notification before each booked appointment, without the invitee\'s name or any detail. Computed on this phone, with no third-party notification service.';
+      'A notification before each booked appointment, without the invitee\'s name or any detail. Computed on this device, with no third-party notification service.';
 
   @override
   String rappelsAvance(int minutes) {
@@ -934,7 +934,7 @@ class LEn extends L {
 
   @override
   String get rappelsRefuses =>
-      'Notifications are turned off for GhostCal. Allow them in the phone\'s settings.';
+      'Notifications are turned off for GhostCal. Allow them in the system settings.';
 
   @override
   String get rappelsCanal => 'Appointment reminders';
@@ -950,4 +950,22 @@ class LEn extends L {
   String rappelCorps(int minutes) {
     return 'Your appointment starts in $minutes min.';
   }
+
+  @override
+  String get rappelsAuDemarrage => 'Open GhostCal at login';
+
+  @override
+  String get rappelsAuDemarrageExplication =>
+      'GhostCal then starts without showing a window, just long enough to reschedule. Without this, a booking made while the Mac sleeps gets no reminder until you open the app again.';
+
+  @override
+  String get rappelsAuDemarrageRefuse =>
+      'macOS refused to open GhostCal at login. Allow it again in System Settings › General › Login Items.';
+
+  @override
+  String get rappelsBloques =>
+      'macOS is blocking GhostCal\'s notifications and will not ask again: allow them in System Settings.';
+
+  @override
+  String get ouvrirLesReglagesSysteme => 'Open System Settings';
 }

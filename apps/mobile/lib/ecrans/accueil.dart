@@ -96,25 +96,34 @@ class _EcranDAccueilState extends State<EcranDAccueil>
         // `ContenuBorne` ici et pas autour du `Scaffold` : la barre d'onglets, plus bas,
         // doit garder toute la largeur. La borner la centrerait sur 560 points au milieu
         // d'un iPad, ce qui est plus laid que l'étirement qu'on corrige.
-        body: ContenuBorne(
-          child: IndexedStack(
-            index: _onglet,
-            children: [
-              EcranDAgenda(
+        //
+        // Une borne **par onglet** et non une seule autour de la pile, depuis qu'il existe
+        // des fenêtres larges : l'agenda veut de la largeur là où les quatre autres n'en
+        // veulent pas. Une liste de tâches sur 1100 points donne des lignes qu'on lit de
+        // gauche à droite en tournant la tête ; une semaine sur 560 donne sept colonnes de
+        // 72 points. Les deux besoins sont contraires, et une borne unique en trahit un.
+        body: IndexedStack(
+          index: _onglet,
+          children: [
+            ContenuBorne(
+              largeur: Mesures.largeurDeLAgenda,
+              child: EcranDAgenda(
                 session: widget.session,
                 verrouillage: widget.verrouillage,
               ),
-              EcranDeTaches(session: widget.session),
-              EcranDeReunions(session: widget.session),
-              EcranDeTypesDeRendezVous(session: widget.session),
-              EcranDeReglages(
+            ),
+            ContenuBorne(child: EcranDeTaches(session: widget.session)),
+            ContenuBorne(child: EcranDeReunions(session: widget.session)),
+            ContenuBorne(child: EcranDeTypesDeRendezVous(session: widget.session)),
+            ContenuBorne(
+              child: EcranDeReglages(
                 session: widget.session,
                 verrouillage: widget.verrouillage,
                 apparence: widget.apparence,
                 rappels: widget.rappels,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
         bottomNavigationBar: NavigationBar(
           // Transparente pour laisser passer le fond ; sans cela une bande opaque

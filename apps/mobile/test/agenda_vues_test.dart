@@ -93,4 +93,42 @@ void main() {
     await tester.tap(find.byKey(const Key('mois.10.20')));
     expect(choisi, DateTime(2026, 10, 20));
   });
+
+  /// ─── La semaine suit la place qu'elle a, pas le nombre de jours qu'elle montre ───
+  ///
+  /// La règle était « une vue de semaine est étroite », et elle valait tant que la largeur
+  /// du contenu était bornée à 560. Dans une fenêtre de Mac la même semaine a deux fois
+  /// plus de place, et restait pourtant en caractères de 9,5 points sans ligne d'horaire.
+  ///
+  /// Ce qui se mesure ici, c'est la **conséquence visible** : l'horaire sous le titre. Il
+  /// n'apparaît que dans un bloc assez large, et c'est exactement ce que le seuil décide.
+  group('la lisibilité d\'un bloc suit la largeur de son couloir', () {
+    final sept = [for (var i = 0; i < 7; i++) plusJours(DateTime(2026, 10, 12), i)];
+
+    Widget semaine() => appDEpreuve(Scaffold(
+          body: GrilleHoraire(
+            jours: sept,
+            lignes: [ligne('Comité de direction', DateTime(2026, 10, 15, 9), 90)],
+            couleurDe: (_) => Colors.teal,
+            surLigne: (_) {},
+          ),
+        ));
+
+    testWidgets('une fenêtre de téléphone garde les colonnes muettes', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(560, 900));
+      await tester.pumpWidget(semaine());
+      await tester.pump();
+      expect(find.text('Comité de direction'), findsOneWidget);
+      expect(find.textContaining('–'), findsNothing,
+          reason: '72 points par jour : l\'horaire ne tiendrait pas');
+    });
+
+    testWidgets('une fenêtre large rend l\'horaire au bloc', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1100, 900));
+      await tester.pumpWidget(semaine());
+      await tester.pump();
+      expect(find.text('Comité de direction'), findsOneWidget);
+      expect(find.textContaining('–'), findsOneWidget);
+    });
+  });
 }

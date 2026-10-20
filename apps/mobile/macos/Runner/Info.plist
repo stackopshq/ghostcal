@@ -4,6 +4,13 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<!-- Le nom que le système affiche : le menu de l'application, la boîte « À propos »,
+	     l'invite de Touch ID quand le trousseau demande le doigt. `CFBundleName` vaut déjà
+	     `GhostCal` par `PRODUCT_NAME` ; celle-ci le redit là où macOS la préfère, et
+	     surtout elle le **fige** : le nom du paquet peut changer pour une raison de
+	     construction, le nom du produit non. -->
+	<key>CFBundleDisplayName</key>
+	<string>GhostCal</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIconFile</key>

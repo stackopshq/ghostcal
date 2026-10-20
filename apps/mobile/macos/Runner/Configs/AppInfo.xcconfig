@@ -5,7 +5,15 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = ghostcal
+//
+// **GhostCal, avec ses deux majuscules**, et non le `ghostcal` du gabarit. Ce réglage ne
+// nomme pas seulement la fenêtre : il nomme le paquet. L'application se télécharge depuis
+// le site, dans une image disque, et c'est ce nom-là que le Finder affiche — `ghostcal`
+// aurait l'air d'un binaire tombé d'un dépôt plutôt que du produit.
+//
+// iOS garde `ghostcal` comme `CFBundleName` et affiche `Ghostcal` : les deux divergent, et
+// ce n'est pas corrigé ici. Sur iOS, le nom du paquet n'est pas montré.
+PRODUCT_NAME = GhostCal
 
 // The application's bundle identifier
 PRODUCT_BUNDLE_IDENTIFIER = ch.stackops.ghostcal
