@@ -51,6 +51,7 @@ import {
 } from "@/lib/weather";
 import CalendarAgendaList, { type AgendaTask } from "@/components/CalendarAgendaList";
 import CalendarTimeGrid, { type GridItem } from "@/components/CalendarTimeGrid";
+import CalendarMonthCompact from "@/components/CalendarMonthCompact";
 import CalendarYearGrid from "@/components/CalendarYearGrid";
 import EventAttendees from "@/components/EventAttendees";
 import { useI18n, useT } from "@/lib/i18n";
@@ -84,7 +85,10 @@ import {
 import {
   LockIcon,
   MailIcon,
+  MenuIcon,
   PinIcon,
+  PlusIcon,
+  SearchIcon,
   UnlockIcon,
   WarningIcon,
 } from "@/components/icons";
@@ -247,6 +251,22 @@ export default function CalendarPage() {
   // The calendar overlays (toggles, subscriptions, weather) fold behind one button: laid out in
   // full they took a row of their own above every view.
   const [overlaysOpen, setOverlaysOpen] = useState(false);
+  // A phone gets the app's layout: compact month with a day list, the controls in a floating
+  // bar at the bottom. Read from the viewport after mount, so the server render stays the desktop.
+  const [phone, setPhone] = useState(false);
+  const [viewMenuOpen, setViewMenuOpen] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 639px)");
+    const apply = () => setPhone(query.matches);
+    apply();
+    query.addEventListener("change", apply);
+    // Tells the global widgets in the bottom-right corner that the bar is there (globals.css).
+    document.body.dataset.barreMobile = "";
+    return () => {
+      query.removeEventListener("change", apply);
+      delete document.body.dataset.barreMobile;
+    };
+  }, []);
 
   // Restore the last-used view once on mount (client-only; avoids an SSR/hydration mismatch).
   useEffect(() => {
@@ -927,7 +947,7 @@ export default function CalendarPage() {
     // one, in the other direction, because the eye has to travel between a day and its column
     // header. 1760 px is roughly where a week column stops gaining anything. The reading views
     // clamp themselves back down where they are rendered.
-    <main className="mx-auto flex w-full max-w-[110rem] flex-col gap-5 p-6 sm:p-10">
+    <main className="mx-auto flex w-full max-w-[110rem] flex-col gap-5 p-4 pb-28 sm:p-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           {/* `first-letter:` and not `capitalize`: the latter capitalised every word, which
@@ -958,7 +978,29 @@ export default function CalendarPage() {
 
             `w-full sm:w-auto` pour qu'elle prenne sa ligne entière en mobile au
             lieu de rester collée à droite. */}
-        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+        {/* On a phone the controls live in the floating bar at the bottom; the title keeps the
+            arrows, which the thumb reaches from where the eye already is. */}
+        {view !== "list" && (
+          <div className="flex items-center gap-1 sm:hidden">
+            <button
+              type="button"
+              onClick={() => step(-1)}
+              aria-label={t("calendar.previous")}
+              className="rounded-pill px-3 py-1.5 text-lg text-muted hover:text-accent"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              onClick={() => step(1)}
+              aria-label={t("calendar.next")}
+              className="rounded-pill px-3 py-1.5 text-lg text-muted hover:text-accent"
+            >
+              ›
+            </button>
+          </div>
+        )}
+        <div className="hidden w-full flex-wrap items-center gap-2 sm:flex sm:w-auto">
           {/* Sélecteur de vue — il DÉFILE au lieu de se replier. Un contrôle
               segmenté qui passe à la ligne casse sa bordure commune et cesse de
               ressembler à un sélecteur ; le faire défiler garde la forme. */}
@@ -1394,7 +1436,51 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {!locked && view === "month" && (
+      {!locked && view === "month" && phone && (
+        <>
+          <CalendarMonthCompact
+            days={grid}
+            month={month}
+            selected={cursor}
+            items={gridItems}
+            tasks={tasks}
+            weekdays={weekdayNames.map((d) => d.narrow)}
+            locale={locale}
+            onSelect={(day) => setCursor(day)}
+            onOpen={openDay}
+          />
+          {/* The selected day and the ones after it, to the end of what was loaded. */}
+          <CalendarAgendaList
+            items={gridItems.filter(
+              (it) =>
+                new Date(it.end) >
+                new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate()),
+            )}
+            tasks={
+              ymd(cursor) === ymd(new Date())
+                ? tasks
+                : tasks.filter(
+                    (x) =>
+                      new Date(x.due_at) >=
+                      new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate()),
+                  )
+            }
+            locale={locale}
+            onEventClick={onGridEvent}
+            onTaskTick={(task) => void tickTask(task)}
+            labels={{
+              allDay: t("calendar.allDay"),
+              empty: t("calendar.nothingAhead"),
+              sharedReadOnly: t("calendar.sharedReadOnly"),
+              subscriptionReadOnly: t("calendar.subscriptionReadOnly"),
+              today: t("calendar.today"),
+              tomorrow: t("calendar.tomorrow"),
+            }}
+          />
+        </>
+      )}
+
+      {!locked && view === "month" && !phone && (
         <div className="glass overflow-hidden rounded-lg">
           <div className="grid grid-cols-7 border-b border-border text-center text-xs text-muted">
             {weekdayNames.map((d, i) => (
@@ -1598,6 +1684,109 @@ export default function CalendarPage() {
             void load();
           }}
         />
+      )}
+      {/* The phone's bar, as in the app: views and sharing behind a round button, the calendar
+          overlays in the middle, search and "new" on the right. */}
+      {!locked && (
+        <div className="fixed inset-x-4 bottom-4 z-30 flex items-center gap-2 sm:hidden">
+          <div className="relative">
+            {viewMenuOpen && (
+              <div className="glass absolute bottom-14 left-0 flex w-48 flex-col rounded-lg p-1 shadow-xl">
+                {CAL_VIEWS.map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => {
+                      pickView(v);
+                      setViewMenuOpen(false);
+                    }}
+                    className={`flex items-center justify-between rounded-pill px-3 py-2 text-left text-sm ${
+                      view === v ? "text-accent" : "text-foreground"
+                    }`}
+                  >
+                    {t(`calendar.view${v[0].toUpperCase()}${v.slice(1)}`)}
+                    {view === v && <span aria-hidden>✓</span>}
+                  </button>
+                ))}
+                <span className="my-1 border-t border-border" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCursor(new Date());
+                    setViewMenuOpen(false);
+                  }}
+                  className="rounded-pill px-3 py-2 text-left text-sm text-foreground"
+                >
+                  {t("calendar.today")}
+                </button>
+                {ownCalendar && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShareOpen(true);
+                      setViewMenuOpen(false);
+                    }}
+                    className="rounded-pill px-3 py-2 text-left text-sm text-foreground"
+                  >
+                    {t("calendar.share")}
+                  </button>
+                )}
+              </div>
+            )}
+            <button
+              type="button"
+              aria-label={t("calendar.views")}
+              aria-expanded={viewMenuOpen}
+              onClick={() => setViewMenuOpen((o) => !o)}
+              className="glass flex h-12 w-12 items-center justify-center rounded-pill text-foreground shadow-lg"
+            >
+              <MenuIcon className="h-5 w-5" />
+            </button>
+          </div>
+          <button
+            type="button"
+            aria-expanded={overlaysOpen}
+            onClick={() => {
+              setOverlaysOpen((o) => !o);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            className="glass flex h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-pill px-4 text-sm font-medium text-foreground shadow-lg"
+          >
+            <span aria-hidden className="flex -space-x-1">
+              {calendars
+                .filter((c) => !hidden.has(c.id))
+                .slice(0, 4)
+                .map((c) => (
+                  <span
+                    key={c.id}
+                    className="h-2.5 w-2.5 rounded-pill ring-1 ring-base"
+                    style={{ backgroundColor: c.color }}
+                  />
+                ))}
+            </span>
+            <span className="truncate">{t("calendar.calendars")}</span>
+          </button>
+          <div className="glass flex h-12 items-center rounded-pill shadow-lg">
+            <button
+              type="button"
+              aria-label={t("cmd.open")}
+              onClick={() => window.dispatchEvent(new Event("gc:cmdk"))}
+              className="flex h-12 w-12 items-center justify-center rounded-pill text-foreground"
+            >
+              <SearchIcon className="h-5 w-5" />
+            </button>
+            {writableCalendars.length > 0 && (
+              <button
+                type="button"
+                aria-label={t("calendar.newEvent")}
+                onClick={() => openNew(cursor)}
+                className="flex h-12 w-12 items-center justify-center rounded-pill text-foreground"
+              >
+                <PlusIcon className="h-5 w-5" />
+              </button>
+            )}
+          </div>
+        </div>
       )}
     </main>
   );
