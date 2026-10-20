@@ -285,7 +285,18 @@ class Rappels extends ChangeNotifier {
         presentAlert: true,
         presentBadge: false,
         presentSound: true,
-        interruptionLevel: InterruptionLevel.timeSensitive,
+        // `active` et non `timeSensitive`, bien qu'un rendez-vous imminent en relève :
+        // le niveau Time Sensitive **exige** le droit
+        // `com.apple.developer.usernotifications.time-sensitive`, que cette application
+        // ne déclare pas — vérifié sur la build signée, qui ne porte aucun entitlement.
+        //
+        // Sans le droit, iOS rétrograde silencieusement le niveau. Le rappel sonnerait
+        // donc quand même, et c'est ce qui rend la demande trompeuse plutôt qu'inoffensive :
+        // le code promettrait de percer un mode de concentration, ce qu'il ne fait pas.
+        //
+        // Y revenir demande d'activer la capacité dans le compte développeur et de la
+        // déclarer ici : une décision de provisionnement, pas une constante à changer.
+        interruptionLevel: InterruptionLevel.active,
       ),
       android: AndroidNotificationDetails(
         _canal,
