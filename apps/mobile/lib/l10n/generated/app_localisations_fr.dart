@@ -43,9 +43,6 @@ class LFr extends L {
   String get modifierLEvenement => 'Modifier l\'événement';
 
   @override
-  String get rienCeJourLa => 'Rien ce jour-là.';
-
-  @override
   String get journee => 'Journée';
 
   @override
@@ -956,4 +953,10 @@ class LFr extends L {
 
   @override
   String get ouvrirLesReglagesSysteme => 'Ouvrir les Réglages Système';
+
+  @override
+  String get demain => 'Demain';
+
+  @override
+  String get hier => 'Hier';
 }

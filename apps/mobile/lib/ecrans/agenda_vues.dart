@@ -31,26 +31,31 @@ String heureCourte(BuildContext context, DateTime d) {
 /// journée de « RDV en visioconférence » empilés n'apprenait rien, et il fallait ouvrir
 /// chaque fiche. Le type ne disparaît pas pour autant, il passe en sous-titre, à côté de
 /// l'heure.
-(String, TextStyle) titreAffiche(BuildContext context, LigneDAgenda ligne, Gc gc) =>
-    switch (ligne.invite) {
-      final nom? when nom.isNotEmpty => (nom, TextStyle(color: gc.encre)),
-      _ => _titreSansInvite(context, ligne, gc),
-    };
+(String, TextStyle) titreAffiche(
+  BuildContext context,
+  LigneDAgenda ligne,
+  Gc gc,
+) => switch (ligne.invite) {
+  final nom? when nom.isNotEmpty => (nom, TextStyle(color: gc.encre)),
+  _ => _titreSansInvite(context, ligne, gc),
+};
 
-(String, TextStyle) _titreSansInvite(BuildContext context, LigneDAgenda ligne, Gc gc) =>
-    switch (ligne.provenance) {
-      ProvenanceDuTitre.dechiffre ||
-      ProvenanceDuTitre.enClair =>
-        (ligne.titre, TextStyle(color: gc.encre)),
-      ProvenanceDuTitre.illisible => (
-          L.of(context).contenuIllisible,
-          TextStyle(color: gc.danger, fontStyle: FontStyle.italic)
-        ),
-      ProvenanceDuTitre.sansTitre => (
-          L.of(context).sansTitre,
-          TextStyle(color: gc.estompe, fontStyle: FontStyle.italic)
-        ),
-    };
+(String, TextStyle) _titreSansInvite(
+  BuildContext context,
+  LigneDAgenda ligne,
+  Gc gc,
+) => switch (ligne.provenance) {
+  ProvenanceDuTitre.dechiffre ||
+  ProvenanceDuTitre.enClair => (ligne.titre, TextStyle(color: gc.encre)),
+  ProvenanceDuTitre.illisible => (
+    L.of(context).contenuIllisible,
+    TextStyle(color: gc.danger, fontStyle: FontStyle.italic),
+  ),
+  ProvenanceDuTitre.sansTitre => (
+    L.of(context).sansTitre,
+    TextStyle(color: gc.estompe, fontStyle: FontStyle.italic),
+  ),
+};
 
 /// Whether [ligne] covers some of [jour].
 bool couvre(LigneDAgenda ligne, DateTime jour) {
@@ -130,7 +135,8 @@ class _GrilleHoraireState extends State<GrilleHoraire> {
     return Column(
       children: [
         if (semaine) _entete(context, gc),
-        if (journees.any((j) => j.isNotEmpty)) _bandeauDesJournees(context, gc, journees),
+        if (journees.any((j) => j.isNotEmpty))
+          _bandeauDesJournees(context, gc, journees),
         Divider(height: 1, color: gc.bordure),
         Expanded(
           child: SingleChildScrollView(
@@ -163,13 +169,17 @@ class _GrilleHoraireState extends State<GrilleHoraire> {
             Expanded(
               child: InkWell(
                 borderRadius: BorderRadius.circular(10),
-                onTap: widget.surJour == null ? null : () => widget.surJour!(jour),
+                onTap: widget.surJour == null
+                    ? null
+                    : () => widget.surJour!(jour),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Column(
                     children: [
-                      Text(DateFormat.E(langue).format(jour).toUpperCase(),
-                          style: TextStyle(fontSize: 10, color: gc.estompe)),
+                      Text(
+                        DateFormat.E(langue).format(jour).toUpperCase(),
+                        style: TextStyle(fontSize: 10, color: gc.estompe),
+                      ),
                       const SizedBox(height: 2),
                       _numero(gc, jour, aujourdhui: memeJour(jour, maintenant)),
                     ],
@@ -183,7 +193,10 @@ class _GrilleHoraireState extends State<GrilleHoraire> {
   }
 
   Widget _bandeauDesJournees(
-      BuildContext context, Gc gc, List<List<LigneDAgenda>> journees) {
+    BuildContext context,
+    Gc gc,
+    List<List<LigneDAgenda>> journees,
+  ) {
     return Padding(
       padding: const EdgeInsets.only(left: _gouttiere, bottom: 4),
       child: Row(
@@ -195,8 +208,10 @@ class _GrilleHoraireState extends State<GrilleHoraire> {
                 children: [
                   for (final ligne in lignes.take(2)) _puce(context, gc, ligne),
                   if (lignes.length > 2)
-                    Text(L.of(context).autresEvenements(lignes.length - 2),
-                        style: TextStyle(fontSize: 10, color: gc.estompe)),
+                    Text(
+                      L.of(context).autresEvenements(lignes.length - 2),
+                      style: TextStyle(fontSize: 10, color: gc.estompe),
+                    ),
                 ],
               ),
             ),
@@ -218,10 +233,16 @@ class _GrilleHoraireState extends State<GrilleHoraire> {
           color: couleur.withValues(alpha: 0.85),
           borderRadius: BorderRadius.circular(6),
         ),
-        child: Text(titre,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: style.copyWith(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+        child: Text(
+          titre,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: style.copyWith(
+            color: Colors.white,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }
@@ -267,50 +288,75 @@ class _GrilleHoraireState extends State<GrilleHoraire> {
     final maintenant = DateTime.now();
     final h = _hauteurDHeure;
 
-    return LayoutBuilder(builder: (context, contraintes) {
-      final largeur = contraintes.maxWidth;
-      return GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTapUp: widget.surCreneau == null
-            ? null
-            : (details) {
-                final minutes = (details.localPosition.dy / h * 60).floor();
-                final arrondi = minutes - minutes % 30;
-                widget.surCreneau!(debutDuJour.add(Duration(minutes: arrondi)));
-              },
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: CustomPaint(painter: _Lignes(h, gc.bordure, gauche: true)),
-            ),
-            for (var i = 0; i < horaires.length; i++)
-              _bloc(context, gc, horaires[i], boites[i], couloirs[i], debutDuJour, largeur),
-            if (memeJour(jour, maintenant))
-              Positioned(
-                top: maintenant.difference(debutDuJour).inMinutes / 60 * h - 4,
-                left: 0,
-                right: 0,
-                child: IgnorePointer(
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(color: gc.danger, shape: BoxShape.circle),
-                      ),
-                      Expanded(child: Container(height: 2, color: gc.danger)),
-                    ],
-                  ),
+    return LayoutBuilder(
+      builder: (context, contraintes) {
+        final largeur = contraintes.maxWidth;
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapUp: widget.surCreneau == null
+              ? null
+              : (details) {
+                  final minutes = (details.localPosition.dy / h * 60).floor();
+                  final arrondi = minutes - minutes % 30;
+                  widget.surCreneau!(
+                    debutDuJour.add(Duration(minutes: arrondi)),
+                  );
+                },
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _Lignes(h, gc.bordure, gauche: true),
                 ),
               ),
-          ],
-        ),
-      );
-    });
+              for (var i = 0; i < horaires.length; i++)
+                _bloc(
+                  context,
+                  gc,
+                  horaires[i],
+                  boites[i],
+                  couloirs[i],
+                  debutDuJour,
+                  largeur,
+                ),
+              if (memeJour(jour, maintenant))
+                Positioned(
+                  top:
+                      maintenant.difference(debutDuJour).inMinutes / 60 * h - 4,
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: gc.danger,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        Expanded(child: Container(height: 2, color: gc.danger)),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
-  Widget _bloc(BuildContext context, Gc gc, LigneDAgenda ligne,
-      ({DateTime debut, DateTime fin}) boite, Couloir couloir, DateTime debutDuJour, double largeur) {
+  Widget _bloc(
+    BuildContext context,
+    Gc gc,
+    LigneDAgenda ligne,
+    ({DateTime debut, DateTime fin}) boite,
+    Couloir couloir,
+    DateTime debutDuJour,
+    double largeur,
+  ) {
     final h = _hauteurDHeure;
     final haut = boite.debut.difference(debutDuJour).inMinutes / 60 * h;
     final hauteur = boite.fin.difference(boite.debut).inMinutes / 60 * h;
@@ -337,7 +383,9 @@ class _GrilleHoraireState extends State<GrilleHoraire> {
       child: GestureDetector(
         onTap: () => widget.surLigne(ligne),
         child: Container(
-          padding: etroit ? const EdgeInsets.fromLTRB(3, 2, 1, 1) : const EdgeInsets.fromLTRB(5, 3, 3, 2),
+          padding: etroit
+              ? const EdgeInsets.fromLTRB(3, 2, 1, 1)
+              : const EdgeInsets.fromLTRB(5, 3, 3, 2),
           decoration: BoxDecoration(
             color: couleur.withValues(alpha: gc.sombre ? 0.32 : 0.18),
             borderRadius: BorderRadius.circular(6),
@@ -351,12 +399,16 @@ class _GrilleHoraireState extends State<GrilleHoraire> {
                   titre,
                   // As many lines as the block holds: in a week column a one-line title
                   // read "Point …" for a 45-minute meeting.
-                  maxLines: ((hauteur - 4) / (etroit ? 13 : 16)).floor().clamp(1, 6),
+                  maxLines: ((hauteur - 4) / (etroit ? 13 : 16)).floor().clamp(
+                    1,
+                    6,
+                  ),
                   overflow: TextOverflow.ellipsis,
                   style: style.copyWith(
-                      fontSize: etroit ? 9.5 : 12,
-                      height: 1.2,
-                      fontWeight: FontWeight.w600),
+                    fontSize: etroit ? 9.5 : 12,
+                    height: 1.2,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 if (hauteur > 34 && !etroit)
                   Text(
@@ -405,28 +457,38 @@ class _Lignes extends CustomPainter {
       ancien.couleur != couleur || ancien.hauteurDHeure != hauteurDHeure;
 }
 
-/// A day number: filled when selected, accent-coloured when it is today.
-Widget _numero(Gc gc, DateTime jour, {required bool aujourdhui, bool selection = false, bool estompe = false}) {
+/// A day number. Today is a filled disc in the brand blue wherever it appears, so the
+/// eye finds it in a grid of numbers; the selected day, when it is another one, is a
+/// disc in the ink colour.
+Widget _numero(
+  Gc gc,
+  DateTime jour, {
+  required bool aujourdhui,
+  bool selection = false,
+  bool estompe = false,
+  double taille = 30,
+}) {
+  final plein = aujourdhui || selection;
   return Container(
-    width: 30,
-    height: 30,
+    width: taille,
+    height: taille,
     alignment: Alignment.center,
     decoration: BoxDecoration(
       shape: BoxShape.circle,
-      color: selection ? (aujourdhui ? gc.danger : gc.encre) : null,
+      color: aujourdhui ? Gc.neon : (selection ? gc.encre : null),
     ),
     child: Text(
       '${jour.day}',
       style: TextStyle(
-        fontSize: 14,
-        fontWeight: aujourdhui || selection ? FontWeight.w700 : FontWeight.w500,
-        color: selection
+        fontSize: taille * 0.5,
+        fontWeight: plein ? FontWeight.w700 : FontWeight.w500,
+        color: aujourdhui
+            ? Gc.surAccent
+            : selection
             ? gc.base
-            : aujourdhui
-                ? gc.danger
-                : estompe
-                    ? gc.estompe.withValues(alpha: 0.6)
-                    : gc.encre,
+            : estompe
+            ? gc.estompe.withValues(alpha: 0.6)
+            : gc.encre,
       ),
     ),
   );
@@ -434,20 +496,20 @@ Widget _numero(Gc gc, DateTime jour, {required bool aujourdhui, bool selection =
 
 /// Up to three dots in the colours of a day's items.
 Widget _points(List<Color> couleurs) => SizedBox(
-      height: 6,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          for (final c in couleurs.take(3))
-            Container(
-              width: 5,
-              height: 5,
-              margin: const EdgeInsets.symmetric(horizontal: 1),
-              decoration: BoxDecoration(color: c, shape: BoxShape.circle),
-            ),
-        ],
-      ),
-    );
+  height: 6,
+  child: Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      for (final c in couleurs.take(3))
+        Container(
+          width: 5,
+          height: 5,
+          margin: const EdgeInsets.symmetric(horizontal: 1),
+          decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+        ),
+    ],
+  ),
+);
 
 /// The week strip above the day view: tap a day to open it, dots show busy days.
 class BandeauDeSemaine extends StatelessWidget {
@@ -485,15 +547,21 @@ class BandeauDeSemaine extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Column(
                     children: [
-                      Text(DateFormat.E(langue).format(jour).toUpperCase(),
-                          style: TextStyle(fontSize: 10, color: gc.estompe)),
+                      Text(
+                        DateFormat.E(langue).format(jour).toUpperCase(),
+                        style: TextStyle(fontSize: 10, color: gc.estompe),
+                      ),
                       const SizedBox(height: 2),
-                      _numero(gc, jour,
-                          aujourdhui: memeJour(jour, maintenant),
-                          selection: memeJour(jour, selection)),
+                      _numero(
+                        gc,
+                        jour,
+                        aujourdhui: memeJour(jour, maintenant),
+                        selection: memeJour(jour, selection),
+                      ),
                       const SizedBox(height: 3),
                       _points([
-                        for (final l in lignes.where((l) => couvre(l, jour))) couleurDe(l),
+                        for (final l in lignes.where((l) => couvre(l, jour)))
+                          couleurDe(l),
                       ]),
                     ],
                   ),
@@ -579,8 +647,19 @@ class GrilleDuMois extends StatelessWidget {
               for (final j in jours.take(7))
                 Expanded(
                   child: Center(
-                    child: Text(DateFormat.E(langue).format(j).toUpperCase(),
-                        style: TextStyle(fontSize: 10, color: gc.estompe)),
+                    child: Text(
+                      DateFormat.E(langue).format(j).toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 11,
+                        letterSpacing: 0.3,
+                        fontWeight: FontWeight.w500,
+                        // The weekday of today, in its blue: where today falls in the
+                        // week reads before any number does.
+                        color: j.weekday == maintenant.weekday
+                            ? Gc.neon
+                            : gc.estompe,
+                      ),
+                    ),
                   ),
                 ),
             ],
@@ -598,18 +677,31 @@ class GrilleDuMois extends StatelessWidget {
             // étirées sur un téléphone donneraient des cases hautes et vides, ce qui est
             // l'autre façon de mal occuper la place.
             Expanded(
-              child: Row(
-                children: [
-                  for (final jour in jours.skip(semaine * 7).take(7))
-                    Expanded(
-                      child: InkWell(
-                        key: Key('mois.${jour.month}.${jour.day}'),
-                        borderRadius: BorderRadius.circular(_avecTitres ? 6 : 12),
-                        onTap: () => surJour(jour),
-                        child: _case(context, gc, jour, maintenant),
+              child: _rangee(
+                gc,
+                // The selected week is a band, as in Fantastical: the list under the
+                // grid starts in it, and the band says where.
+                bande:
+                    !_avecTitres &&
+                    jours
+                        .skip(semaine * 7)
+                        .take(7)
+                        .any((j) => memeJour(j, selection)),
+                child: Row(
+                  children: [
+                    for (final jour in jours.skip(semaine * 7).take(7))
+                      Expanded(
+                        child: InkWell(
+                          key: Key('mois.${jour.month}.${jour.day}'),
+                          borderRadius: BorderRadius.circular(
+                            _avecTitres ? 6 : 12,
+                          ),
+                          onTap: () => surJour(jour),
+                          child: _case(context, gc, jour, maintenant),
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
         ],
@@ -617,19 +709,39 @@ class GrilleDuMois extends StatelessWidget {
     );
   }
 
-  Widget _case(BuildContext context, Gc gc, DateTime jour, DateTime maintenant) {
-    final numero = _numero(gc, jour,
-        aujourdhui: memeJour(jour, maintenant),
-        selection: memeJour(jour, selection),
-        estompe: jour.month != mois.month);
+  Widget _rangee(Gc gc, {required bool bande, required Widget child}) => bande
+      ? DecoratedBox(
+          decoration: BoxDecoration(
+            color: gc.surface2,
+            borderRadius: BorderRadius.circular(Mesures.rayon),
+          ),
+          child: child,
+        )
+      : child;
+
+  Widget _case(
+    BuildContext context,
+    Gc gc,
+    DateTime jour,
+    DateTime maintenant,
+  ) {
+    final numero = _numero(
+      gc,
+      jour,
+      aujourdhui: memeJour(jour, maintenant),
+      selection: memeJour(jour, selection),
+      estompe: jour.month != mois.month,
+    );
 
     if (!_avecTitres) {
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           numero,
-          const SizedBox(height: 2),
-          _points([for (final l in lignes.where((l) => couvre(l, jour))) couleurDe(l)]),
+          const SizedBox(height: 3),
+          _points([
+            for (final l in lignes.where((l) => couvre(l, jour))) couleurDe(l),
+          ]),
         ],
       );
     }
@@ -723,7 +835,10 @@ class GrilleDuMois extends StatelessWidget {
             width: 5,
             height: 5,
             margin: const EdgeInsets.only(right: 3),
-            decoration: BoxDecoration(color: couleurDe(ligne), shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: couleurDe(ligne),
+              shape: BoxShape.circle,
+            ),
           ),
           Expanded(
             child: Text(

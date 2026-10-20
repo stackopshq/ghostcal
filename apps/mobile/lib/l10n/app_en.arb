@@ -11,7 +11,6 @@
   "allerAUneDate": "Go to a date",
   "nouvelEvenement": "New event",
   "modifierLEvenement": "Edit event",
-  "rienCeJourLa": "Nothing on this day.",
   "journee": "All day",
   "contenuIllisible": "Unreadable content — key missing",
   "sansTitre": "Untitled",
@@ -296,5 +295,7 @@
   "rappelsAuDemarrageExplication": "GhostCal then starts without showing a window, just long enough to reschedule. Without this, a booking made while the Mac sleeps gets no reminder until you open the app again.",
   "rappelsAuDemarrageRefuse": "macOS refused to open GhostCal at login. Allow it again in System Settings › General › Login Items.",
   "rappelsBloques": "macOS is blocking GhostCal's notifications and will not ask again: allow them in System Settings.",
-  "ouvrirLesReglagesSysteme": "Open System Settings"
+  "ouvrirLesReglagesSysteme": "Open System Settings",
+  "demain": "Tomorrow",
+  "hier": "Yesterday"
 }

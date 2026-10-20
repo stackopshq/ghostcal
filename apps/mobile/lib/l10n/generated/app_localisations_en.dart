@@ -43,9 +43,6 @@ class LEn extends L {
   String get modifierLEvenement => 'Edit event';
 
   @override
-  String get rienCeJourLa => 'Nothing on this day.';
-
-  @override
   String get journee => 'All day';
 
   @override
@@ -952,4 +949,10 @@ class LEn extends L {
 
   @override
   String get ouvrirLesReglagesSysteme => 'Open System Settings';
+
+  @override
+  String get demain => 'Tomorrow';
+
+  @override
+  String get hier => 'Yesterday';
 }

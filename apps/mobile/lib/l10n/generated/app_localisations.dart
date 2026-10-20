@@ -163,12 +163,6 @@ abstract class L {
   /// **'Modifier l\'événement'**
   String get modifierLEvenement;
 
-  /// No description provided for @rienCeJourLa.
-  ///
-  /// In fr, this message translates to:
-  /// **'Rien ce jour-là.'**
-  String get rienCeJourLa;
-
   /// No description provided for @journee.
   ///
   /// In fr, this message translates to:
@@ -1746,6 +1740,18 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Ouvrir les Réglages Système'**
   String get ouvrirLesReglagesSysteme;
+
+  /// No description provided for @demain.
+  ///
+  /// In fr, this message translates to:
+  /// **'Demain'**
+  String get demain;
+
+  /// No description provided for @hier.
+  ///
+  /// In fr, this message translates to:
+  /// **'Hier'**
+  String get hier;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {
