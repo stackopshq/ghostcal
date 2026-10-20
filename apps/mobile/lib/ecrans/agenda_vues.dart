@@ -588,9 +588,12 @@ class _GrilleHoraireState extends State<GrilleHoraire> {
                 Flexible(
                   child: Text(
                     titre,
-                    maxLines: ((hauteur - _margesDuBloc) / (etroit ? 13 : 16))
-                        .floor()
-                        .clamp(1, 6),
+                    // Narrow, one line: a column of 45 points broke words letter by
+                    // letter ("Re vu e de s…"), which reads as a fault, not as a cut.
+                    maxLines: etroit
+                        ? 1
+                        : ((hauteur - _margesDuBloc) / 16).floor().clamp(1, 6),
+                    softWrap: !etroit,
                     overflow: TextOverflow.ellipsis,
                     style: style.copyWith(
                       fontSize: etroit ? 9.5 : 12,
