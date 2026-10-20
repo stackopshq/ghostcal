@@ -221,7 +221,11 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
         );
       case VueDAgenda.mois:
       case VueDAgenda.liste:
-        return (DateFormat.MMMM(langue).format(_ancre), annee);
+        // "octobre" heads the screen: a title takes its capital in French too.
+        return (
+          toBeginningOfSentenceCase(DateFormat.MMMM(langue).format(_ancre)),
+          annee,
+        );
     }
   }
 
