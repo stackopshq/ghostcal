@@ -434,7 +434,20 @@ void main() {
         langue: const Locale('en'), theme: Brightness.dark, fenetre: const Size(720, 560));
     await photographier(tester, '04-entree-en-sombre-petite');
     await ouvrirLeCoffre(tester);
-    expect(find.text('Calendar'), findsOneWidget, reason: 'les onglets sont restés en français');
+    // ─── La langue se mesure sur ce qui est à l'écran, pas sur la navigation ───
+    //
+    // C'était `find.text('Calendar')`, le libellé de l'onglet Agenda. La barre d'onglets
+    // a disparu avec la barre flottante, et le témoin a rougi pour un libellé déplacé
+    // dans un menu — en accusant la traduction, qui n'y était pour rien.
+    //
+    // Le sélecteur de vue, lui, est visible dans tous les états de l'écran et ses quatre
+    // libellés viennent des traductions. Il dit la même chose et ne dépend pas de la
+    // forme que prend la navigation.
+    // Le filtre des calendriers est là quelle que soit la vue, et son libellé vient des
+    // traductions. Le sélecteur de vue, lui, a rejoint le menu au lot C : il n'est plus à
+    // l'écran, et s'en servir ici ferait rougir la traduction pour un déplacement.
+    expect(find.text('All calendars'), findsOneWidget,
+        reason: 'l\'interface est restée en français');
     await photographier(tester, '05-agenda-en-sombre-petite');
 
     await allerA(tester, 'Settings');
