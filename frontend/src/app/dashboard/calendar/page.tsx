@@ -49,8 +49,9 @@ import {
   type WeatherLocation,
   weatherGlyph,
 } from "@/lib/weather";
-import CalendarAgendaList from "@/components/CalendarAgendaList";
+import CalendarAgendaList, { type AgendaTask } from "@/components/CalendarAgendaList";
 import CalendarTimeGrid, { type GridItem } from "@/components/CalendarTimeGrid";
+import CalendarMonthCompact from "@/components/CalendarMonthCompact";
 import CalendarYearGrid from "@/components/CalendarYearGrid";
 import EventAttendees from "@/components/EventAttendees";
 import { useI18n, useT } from "@/lib/i18n";
@@ -71,10 +72,12 @@ import { ghostMailUrl, openInGhostMail } from "@/lib/ghostmail";
 import { parseImportUrl, toDraftFields } from "@/lib/importEvent";
 import { drainPushQueue } from "@/lib/push";
 import { parseQuickAdd, type QuickAddResult } from "@/lib/quickAdd";
+import { completeTask, listTasks } from "@/lib/tasks";
 import { listMembers, type Member } from "@/lib/team";
 import {
   getUnlockedKeys,
   openContent,
+  openTaskContent,
   openWithOrgKeys,
   sealContent,
   type EventContent,
@@ -82,7 +85,10 @@ import {
 import {
   LockIcon,
   MailIcon,
+  MenuIcon,
   PinIcon,
+  PlusIcon,
+  SearchIcon,
   UnlockIcon,
   WarningIcon,
 } from "@/components/icons";
@@ -240,6 +246,27 @@ export default function CalendarPage() {
   const [quickText, setQuickText] = useState("");
   const [quickBusy, setQuickBusy] = useState(false);
   const [view, setView] = useState<CalView>("month");
+  // Open tasks with a due date, decrypted here, shown among the days as in the mobile app.
+  const [tasks, setTasks] = useState<AgendaTask[]>([]);
+  // The calendar overlays (toggles, subscriptions, weather) fold behind one button: laid out in
+  // full they took a row of their own above every view.
+  const [overlaysOpen, setOverlaysOpen] = useState(false);
+  // A phone gets the app's layout: compact month with a day list, the controls in a floating
+  // bar at the bottom. Read from the viewport after mount, so the server render stays the desktop.
+  const [phone, setPhone] = useState(false);
+  const [viewMenuOpen, setViewMenuOpen] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 639px)");
+    const apply = () => setPhone(query.matches);
+    apply();
+    query.addEventListener("change", apply);
+    // Tells the global widgets in the bottom-right corner that the bar is there (globals.css).
+    document.body.dataset.barreMobile = "";
+    return () => {
+      query.removeEventListener("change", apply);
+      delete document.body.dataset.barreMobile;
+    };
+  }, []);
 
   // Restore the last-used view once on mount (client-only; avoids an SSR/hydration mismatch).
   useEffect(() => {
@@ -492,6 +519,29 @@ export default function CalendarPage() {
         decorated.push({ ...it, label });
       }
       setItems(decorated);
+      // Tasks never hold the agenda up: a failure here leaves the previous ones.
+      try {
+        const raw = await listTasks();
+        setTasks(
+          await Promise.all(
+            raw
+              .filter((x) => !x.completed && x.due_at)
+              .map(async (x) => {
+                let title = "";
+                if (x.content) {
+                  try {
+                    title = (await openWithOrgKeys(keys, x.content, openTaskContent)).title;
+                  } catch {
+                    title = t("calendar.locked");
+                  }
+                }
+                return { id: x.id, title: title || t("calendar.untitled"), due_at: x.due_at! };
+              }),
+          ),
+        );
+      } catch {
+        // keep what was there
+      }
     } finally {
       setLoading(false);
     }
@@ -777,24 +827,54 @@ export default function CalendarPage() {
     await load();
   }
 
+  /** Ticking a task from the calendar: it leaves at once, and comes back if the server refused. */
+  async function tickTask(task: AgendaTask) {
+    const before = tasks;
+    setTasks((all) => all.filter((x) => x.id !== task.id));
+    try {
+      await completeTask(task.id, true);
+    } catch {
+      setTasks(before);
+    }
+  }
+
+  /** Tasks a day of the grid shows: due that day; today also gathers the overdue ones. */
+  function tasksOn(day: Date): AgendaTask[] {
+    const start = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+    const end = addDays(start, 1);
+    const isToday = ymd(day) === ymd(new Date());
+    return tasks.filter((x) => {
+      const due = new Date(x.due_at);
+      return (due >= start && due < end) || (isToday && due < start);
+    });
+  }
+
   const days = useMemo(() => viewDays(view, cursor), [view, cursor]);
-  const headerLabel =
+  // The title in two parts, as in Fantastical and the mobile app: what the period is, then its
+  // year set apart in the accent.
+  const [headerLabel, headerYear] =
     view === "year"
-      ? String(cursor.getFullYear())
+      ? ["", String(cursor.getFullYear())]
       : view === "list"
-        ? t("calendar.upcoming")
+        ? [t("calendar.upcoming"), ""]
         : view === "month"
-          ? cursor.toLocaleDateString(locale, {
-              month: "long",
-              year: "numeric",
-            })
+          ? [
+              cursor.toLocaleDateString(locale, { month: "long" }),
+              String(cursor.getFullYear()),
+            ]
           : view === "day"
-            ? cursor.toLocaleDateString(locale, {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-              })
-            : `${days[0].toLocaleDateString(locale, { month: "short", day: "numeric" })} – ${days[6].toLocaleDateString(locale, { month: "short", day: "numeric" })}`;
+            ? [
+                cursor.toLocaleDateString(locale, {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                }),
+                String(cursor.getFullYear()),
+              ]
+            : [
+                `${days[0].toLocaleDateString(locale, { month: "short", day: "numeric" })} – ${days[6].toLocaleDateString(locale, { month: "short", day: "numeric" })}`,
+                String(days[6].getFullYear()),
+              ];
 
   function step(dir: -1 | 1) {
     if (view === "list") return; // "what is next?" has no previous page
@@ -867,13 +947,23 @@ export default function CalendarPage() {
     // one, in the other direction, because the eye has to travel between a day and its column
     // header. 1760 px is roughly where a week column stops gaining anything. The reading views
     // clamp themselves back down where they are rendered.
-    <main className="mx-auto flex w-full max-w-[110rem] flex-col gap-5 p-6 sm:p-10">
+    <main className="mx-auto flex w-full max-w-[110rem] flex-col gap-5 p-4 pb-28 sm:p-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold capitalize text-foreground">
+          {/* `first-letter:` and not `capitalize`: the latter capitalised every word, which
+              gave "19 Oct. – 25 Oct.". The sentence-case of the old subtitle went with it. */}
+          <h1
+            className="text-2xl font-extrabold tracking-tight text-foreground first-letter:uppercase"
+            title={t("calendar.sub")}
+          >
             {headerLabel}
+            {headerYear && (
+              <span className="text-accent">
+                {headerLabel ? " " : ""}
+                {headerYear}
+              </span>
+            )}
           </h1>
-          <p className="mt-1 text-sm text-muted">{t("calendar.sub")}</p>
         </div>
         {/* `flex-wrap` ici AUSSI, pas seulement sur le parent. Le parent l'avait
             déjà : il déplaçait donc cette barre sur sa propre ligne — sans la
@@ -888,7 +978,29 @@ export default function CalendarPage() {
 
             `w-full sm:w-auto` pour qu'elle prenne sa ligne entière en mobile au
             lieu de rester collée à droite. */}
-        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+        {/* On a phone the controls live in the floating bar at the bottom; the title keeps the
+            arrows, which the thumb reaches from where the eye already is. */}
+        {view !== "list" && (
+          <div className="flex items-center gap-1 sm:hidden">
+            <button
+              type="button"
+              onClick={() => step(-1)}
+              aria-label={t("calendar.previous")}
+              className="rounded-pill px-3 py-1.5 text-lg text-muted hover:text-accent"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              onClick={() => step(1)}
+              aria-label={t("calendar.next")}
+              className="rounded-pill px-3 py-1.5 text-lg text-muted hover:text-accent"
+            >
+              ›
+            </button>
+          </div>
+        )}
+        <div className="hidden w-full flex-wrap items-center gap-2 sm:flex sm:w-auto">
           {/* Sélecteur de vue — il DÉFILE au lieu de se replier. Un contrôle
               segmenté qui passe à la ligne casse sa bordure commune et cesse de
               ressembler à un sélecteur ; le faire défiler garde la forme. */}
@@ -934,6 +1046,35 @@ export default function CalendarPage() {
                 ›
               </button>
             </>
+          )}
+          {!locked && calendars.length > 0 && (
+            <button
+              type="button"
+              aria-expanded={overlaysOpen}
+              onClick={() => setOverlaysOpen((o) => !o)}
+              className={`flex items-center gap-1.5 rounded-pill border px-3 py-1.5 text-sm transition ${
+                overlaysOpen
+                  ? "border-accent text-accent"
+                  : "border-border-strong text-muted hover:text-accent"
+              }`}
+            >
+              <span aria-hidden className="flex -space-x-1">
+                {calendars
+                  .filter((c) => !hidden.has(c.id))
+                  .slice(0, 4)
+                  .map((c) => (
+                    <span
+                      key={c.id}
+                      className="h-2.5 w-2.5 rounded-pill ring-1 ring-base"
+                      style={{ backgroundColor: c.color }}
+                    />
+                  ))}
+              </span>
+              {t("calendar.calendars")}
+              <span aria-hidden className="text-xs">
+                {overlaysOpen ? "▴" : "▾"}
+              </span>
+            </button>
           )}
           {ownCalendar && (
             <button
@@ -1008,7 +1149,7 @@ export default function CalendarPage() {
       {loading && <p className="text-sm text-muted">{t("common.loading")}</p>}
 
       {/* Calendar overlays: toggle each calendar's visibility; colours flow into every view. */}
-      {!locked && calendars.length > 0 && (
+      {!locked && calendars.length > 0 && overlaysOpen && (
         <div className="flex flex-wrap items-center gap-2">
           {calendars.map((c) => {
             const off = hidden.has(c.id);
@@ -1255,6 +1396,8 @@ export default function CalendarPage() {
             openDay: t("calendar.openDay"),
           }}
           weatherByDay={weatherByDay}
+          tasks={tasks}
+          onTaskTick={(task) => void tickTask(task)}
         />
       )}
 
@@ -1277,23 +1420,78 @@ export default function CalendarPage() {
         <div className="mx-auto w-full max-w-4xl">
           <CalendarAgendaList
             items={gridItems}
+            tasks={tasks}
             locale={locale}
             onEventClick={onGridEvent}
+            onTaskTick={(task) => void tickTask(task)}
             labels={{
               allDay: t("calendar.allDay"),
               empty: t("calendar.nothingAhead"),
               sharedReadOnly: t("calendar.sharedReadOnly"),
               subscriptionReadOnly: t("calendar.subscriptionReadOnly"),
+              today: t("calendar.today"),
+              tomorrow: t("calendar.tomorrow"),
             }}
           />
         </div>
       )}
 
-      {!locked && view === "month" && (
+      {!locked && view === "month" && phone && (
+        <>
+          <CalendarMonthCompact
+            days={grid}
+            month={month}
+            selected={cursor}
+            items={gridItems}
+            tasks={tasks}
+            weekdays={weekdayNames.map((d) => d.narrow)}
+            locale={locale}
+            onSelect={(day) => setCursor(day)}
+            onOpen={openDay}
+          />
+          {/* The selected day and the ones after it, to the end of what was loaded. */}
+          <CalendarAgendaList
+            items={gridItems.filter(
+              (it) =>
+                new Date(it.end) >
+                new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate()),
+            )}
+            tasks={
+              ymd(cursor) === ymd(new Date())
+                ? tasks
+                : tasks.filter(
+                    (x) =>
+                      new Date(x.due_at) >=
+                      new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate()),
+                  )
+            }
+            locale={locale}
+            onEventClick={onGridEvent}
+            onTaskTick={(task) => void tickTask(task)}
+            labels={{
+              allDay: t("calendar.allDay"),
+              empty: t("calendar.nothingAhead"),
+              sharedReadOnly: t("calendar.sharedReadOnly"),
+              subscriptionReadOnly: t("calendar.subscriptionReadOnly"),
+              today: t("calendar.today"),
+              tomorrow: t("calendar.tomorrow"),
+            }}
+          />
+        </>
+      )}
+
+      {!locked && view === "month" && !phone && (
         <div className="glass overflow-hidden rounded-lg">
           <div className="grid grid-cols-7 border-b border-border text-center text-xs text-muted">
-            {weekdayNames.map((d) => (
-              <div key={d.long} className="py-2">
+            {weekdayNames.map((d, i) => (
+              <div
+                key={d.long}
+                // Today's weekday in the accent: where today falls in the week reads before any
+                // number does. The grid starts on Monday (`monthGrid`).
+                className={`py-2 font-medium uppercase tracking-wide ${
+                  i === (new Date().getDay() + 6) % 7 ? "text-accent" : ""
+                }`}
+              >
                 <span className="hidden md:inline">{d.short}</span>
                 <span className="md:hidden">{d.narrow}</span>
               </div>
@@ -1306,7 +1504,12 @@ export default function CalendarPage() {
               const dayItems = visibleItems.filter(
                 (it) => touchesDay(it, day),
               );
+              const dayTasks = tasksOn(day);
               const isToday = key === ymd(new Date());
+              // Three lines a cell, tasks first; "+N" says what is left out.
+              const shownTasks = dayTasks.slice(0, 3);
+              const shownItems = dayItems.slice(0, 3 - shownTasks.length);
+              const more = dayTasks.length + dayItems.length - shownTasks.length - shownItems.length;
               return (
                 // Single click opens the day, double click creates an event
                 // there. The single click is the common intent -- looking at
@@ -1331,15 +1534,19 @@ export default function CalendarPage() {
                     else openDay(day);
                   }}
                   className={[
-                    "flex min-h-24 flex-col gap-1 border-b border-r border-border p-1.5 text-left transition hover:bg-surface-2/40",
+                    "flex min-h-24 flex-col gap-0.5 border-b border-r border-border p-1.5 text-left transition hover:bg-surface-2/40",
                     inMonth ? "" : "opacity-40",
+                    isToday ? "bg-accent/10" : "",
                   ].join(" ")}
                 >
                   <span className="flex flex-wrap items-center justify-between gap-3">
+                    {/* Today is a filled disc, as in Fantastical and the mobile app. */}
                     <span
                       className={[
-                        "text-xs",
-                        isToday ? "font-semibold text-accent" : "text-muted",
+                        "inline-flex h-6 min-w-6 items-center justify-center rounded-pill px-1 text-sm tabular-nums",
+                        isToday
+                          ? "bg-accent font-bold text-accent-ink"
+                          : "font-medium text-foreground",
                       ].join(" ")}
                     >
                       {day.getDate()}
@@ -1354,7 +1561,24 @@ export default function CalendarPage() {
                       </span>
                     )}
                   </span>
-                  {dayItems.slice(0, 3).map((it, i) => {
+                  {shownTasks.map((task) => (
+                    <span
+                      key={`task-${task.id}`}
+                      role="checkbox"
+                      aria-checked={false}
+                      title={task.title}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void tickTask(task);
+                      }}
+                      onDoubleClick={(e) => e.stopPropagation()}
+                      className="flex min-w-0 items-center gap-1 text-2xs text-emerald-500 hover:brightness-125"
+                    >
+                      <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-sm border border-current" />
+                      <span className="truncate">{task.title}</span>
+                    </span>
+                  ))}
+                  {shownItems.map((it, i) => {
                     const c = colorFor(it);
                     const outlined = it.read_only || it.source === "external";
                     return (
@@ -1386,31 +1610,46 @@ export default function CalendarPage() {
                         // chip: they must not also open an empty form behind
                         // it.
                         onDoubleClick={(e) => e.stopPropagation()}
+                        // An all-day item is a band in its colour, a timed one a dot and a title:
+                        // the two read apart at a glance, as in Fantastical. Read-only and
+                        // external items keep their dashed outline.
                         style={
-                          c
+                          it.all_day
                             ? outlined
-                              ? { color: c, border: `1px dashed ${c}80` }
-                              : { backgroundColor: `${c}2b`, color: c }
+                              ? { color: c, border: `1px dashed ${c ?? "currentColor"}80` }
+                              : c
+                                ? { backgroundColor: `${c}2b`, borderLeft: `3px solid ${c}` }
+                                : undefined
                             : undefined
                         }
                         className={[
-                          "truncate rounded px-1.5 py-0.5 text-2xs",
-                          c
-                            ? ""
-                            : it.source !== "event"
-                              ? "bg-surface-2 text-muted"
-                              : "bg-accent/20 text-accent",
+                          "flex min-w-0 items-center gap-1 text-2xs text-foreground",
+                          it.all_day ? "rounded-sm px-1.5 py-0.5" : "",
+                          it.all_day && !c ? "bg-accent/20" : "",
                         ].join(" ")}
                       >
-                        {!it.all_day && `${hm(it.start)} `}
-                        {it.label}
+                        {!it.all_day && (
+                          <span
+                            aria-hidden
+                            className="h-1.5 w-1.5 shrink-0 rounded-pill"
+                            style={
+                              outlined
+                                ? { boxShadow: `inset 0 0 0 1px ${c ?? "var(--color-muted)"}` }
+                                : { backgroundColor: c ?? "var(--color-accent)" }
+                            }
+                          />
+                        )}
+                        <span className="truncate">
+                          {!it.all_day && (
+                            <span className="text-muted">{hm(it.start)} </span>
+                          )}
+                          {it.label}
+                        </span>
                       </span>
                     );
                   })}
-                  {dayItems.length > 3 && (
-                    <span className="text-2xs text-muted">
-                      +{dayItems.length - 3}
-                    </span>
+                  {more > 0 && (
+                    <span className="pl-1 text-2xs text-muted">+{more}</span>
                   )}
                 </button>
               );
@@ -1445,6 +1684,109 @@ export default function CalendarPage() {
             void load();
           }}
         />
+      )}
+      {/* The phone's bar, as in the app: views and sharing behind a round button, the calendar
+          overlays in the middle, search and "new" on the right. */}
+      {!locked && (
+        <div className="fixed inset-x-4 bottom-4 z-30 flex items-center gap-2 sm:hidden">
+          <div className="relative">
+            {viewMenuOpen && (
+              <div className="glass absolute bottom-14 left-0 flex w-48 flex-col rounded-lg p-1 shadow-xl">
+                {CAL_VIEWS.map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => {
+                      pickView(v);
+                      setViewMenuOpen(false);
+                    }}
+                    className={`flex items-center justify-between rounded-pill px-3 py-2 text-left text-sm ${
+                      view === v ? "text-accent" : "text-foreground"
+                    }`}
+                  >
+                    {t(`calendar.view${v[0].toUpperCase()}${v.slice(1)}`)}
+                    {view === v && <span aria-hidden>✓</span>}
+                  </button>
+                ))}
+                <span className="my-1 border-t border-border" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCursor(new Date());
+                    setViewMenuOpen(false);
+                  }}
+                  className="rounded-pill px-3 py-2 text-left text-sm text-foreground"
+                >
+                  {t("calendar.today")}
+                </button>
+                {ownCalendar && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShareOpen(true);
+                      setViewMenuOpen(false);
+                    }}
+                    className="rounded-pill px-3 py-2 text-left text-sm text-foreground"
+                  >
+                    {t("calendar.share")}
+                  </button>
+                )}
+              </div>
+            )}
+            <button
+              type="button"
+              aria-label={t("calendar.views")}
+              aria-expanded={viewMenuOpen}
+              onClick={() => setViewMenuOpen((o) => !o)}
+              className="glass flex h-12 w-12 items-center justify-center rounded-pill text-foreground shadow-lg"
+            >
+              <MenuIcon className="h-5 w-5" />
+            </button>
+          </div>
+          <button
+            type="button"
+            aria-expanded={overlaysOpen}
+            onClick={() => {
+              setOverlaysOpen((o) => !o);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            className="glass flex h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-pill px-4 text-sm font-medium text-foreground shadow-lg"
+          >
+            <span aria-hidden className="flex -space-x-1">
+              {calendars
+                .filter((c) => !hidden.has(c.id))
+                .slice(0, 4)
+                .map((c) => (
+                  <span
+                    key={c.id}
+                    className="h-2.5 w-2.5 rounded-pill ring-1 ring-base"
+                    style={{ backgroundColor: c.color }}
+                  />
+                ))}
+            </span>
+            <span className="truncate">{t("calendar.calendars")}</span>
+          </button>
+          <div className="glass flex h-12 items-center rounded-pill shadow-lg">
+            <button
+              type="button"
+              aria-label={t("cmd.open")}
+              onClick={() => window.dispatchEvent(new Event("gc:cmdk"))}
+              className="flex h-12 w-12 items-center justify-center rounded-pill text-foreground"
+            >
+              <SearchIcon className="h-5 w-5" />
+            </button>
+            {writableCalendars.length > 0 && (
+              <button
+                type="button"
+                aria-label={t("calendar.newEvent")}
+                onClick={() => openNew(cursor)}
+                className="flex h-12 w-12 items-center justify-center rounded-pill text-foreground"
+              >
+                <PlusIcon className="h-5 w-5" />
+              </button>
+            )}
+          </div>
+        </div>
       )}
     </main>
   );
