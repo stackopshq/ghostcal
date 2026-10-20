@@ -250,6 +250,8 @@ const en: Dict = {
   "calendar.sub":
     "Your private calendar: the server knows when you're busy, never what about.",
   "calendar.today": "Today",
+  "calendar.tomorrow": "Tomorrow",
+  "calendar.calendars": "Calendars",
   "calendar.viewMonth": "Month",
   "calendar.openDay": "Open this day",
   "calendar.newOnDoubleClick": "double-click for a new event",
@@ -962,6 +964,8 @@ const fr: Dict = {
   "calendar.sub":
     "Votre calendrier privé : le serveur sait quand vous êtes occupé, jamais pourquoi.",
   "calendar.today": "Aujourd'hui",
+  "calendar.tomorrow": "Demain",
+  "calendar.calendars": "Calendriers",
   "calendar.viewMonth": "Mois",
   "calendar.openDay": "Ouvrir cette journée",
   "calendar.newOnDoubleClick": "double-clic pour un nouvel événement",
