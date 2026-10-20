@@ -20,6 +20,52 @@ import UIKit
   }
 }
 
+/// Le contrôleur racine, qui **possède** le style de la barre d'état.
+///
+/// ─── Pourquoi il faut en passer par là ───
+///
+/// En thème clair, l'heure et la batterie sortaient blanches sur un fond à 236 : 1,18:1
+/// de contraste, illisibles, là où le thème sombre donne 18,73:1. Constaté sur l'iPhone
+/// autant que sur le simulateur, et distinct d'un artefact de capture — les Réglages
+/// d'iOS, photographiés au même endroit par la même commande, rendent une horloge noire.
+///
+/// Quatre tentatives par le chemin Flutter ont échoué, et la dernière a été instrumentée
+/// plutôt que supposée. La sonde a montré que Dart fait son travail :
+///
+///     SONDE: theme=Brightness.light plateforme=Brightness.light
+///     SONDE: pose statusBarBrightness=Brightness.light
+///
+/// La valeur demandée était donc juste — encre sombre — et la dalle restait blanche. Ni
+/// `AnnotatedRegion<SystemUiOverlayStyle>`, ni `SystemChrome.setSystemUIOverlayStyle`, ni
+/// l'ajout de `UIViewControllerBasedStatusBarAppearance = false` n'ont déplacé la mesure
+/// d'un centième. Le `SystemChrome` d'iOS ne tient pas sur cette version.
+///
+/// `preferredStatusBarStyle` sur le contrôleur racine, lui, est le mécanisme d'UIKit, et
+/// il ne dépend d'aucun greffon. Il **exige** que `UIViewControllerBasedStatusBarAppearance`
+/// reste absente ou vraie : la poser à `false` rendrait la main à l'API d'application,
+/// dépréciée, et annulerait précisément cet override.
+class ControleurGhostcal: FlutterViewController {
+  /// Statique : le canal répond avant que quiconque tienne une référence sur l'instance,
+  /// et il n'y a qu'un contrôleur racine.
+  static var style: UIStatusBarStyle = .default
+
+  override var preferredStatusBarStyle: UIStatusBarStyle { Self.style }
+
+  /// Applique un style et redemande à UIKit de relire `preferredStatusBarStyle`.
+  ///
+  /// Sans `setNeedsStatusBarAppearanceUpdate`, UIKit garde ce qu'il avait lu au premier
+  /// affichage : le changement de thème ne se verrait qu'au prochain lancement.
+  static func poser(sombre: Bool) {
+    style = sombre ? .lightContent : .darkContent
+    for scene in UIApplication.shared.connectedScenes {
+      guard let scene = scene as? UIWindowScene else { continue }
+      for fenetre in scene.windows {
+        fenetre.rootViewController?.setNeedsStatusBarAppearanceUpdate()
+      }
+    }
+  }
+}
+
 /// Rend un SF Symbol en PNG, pour que Flutter l'affiche.
 ///
 /// ─── Pourquoi un pont plutôt qu'une icône de plus ───
@@ -49,6 +95,14 @@ enum SymbolesSysteme {
   static func enregistrer(_ messenger: FlutterBinaryMessenger) {
     let canal = FlutterMethodChannel(name: Self.canal, binaryMessenger: messenger)
     canal.setMethodCallHandler { appel, repondre in
+      // Le style de la barre d'état passe par le même canal : un seul pont natif, et la
+      // raison de son existence est la même — ce qu'iOS veut, Flutter ne le dit pas.
+      if appel.method == "barreDEtat" {
+        let sombre = ((appel.arguments as? [String: Any])?["sombre"] as? Bool) ?? false
+        ControleurGhostcal.poser(sombre: sombre)
+        repondre(nil)
+        return
+      }
       guard appel.method == "rendre",
             let a = appel.arguments as? [String: Any],
             let nom = a["nom"] as? String,
