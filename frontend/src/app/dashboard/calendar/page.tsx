@@ -1354,6 +1354,8 @@ export default function CalendarPage() {
             openDay: t("calendar.openDay"),
           }}
           weatherByDay={weatherByDay}
+          tasks={tasks}
+          onTaskTick={(task) => void tickTask(task)}
         />
       )}
 
