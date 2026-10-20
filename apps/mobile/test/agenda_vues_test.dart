@@ -198,6 +198,41 @@ void main() {
           reason: 'la liste du jour, sous la grille, le dit à sa place');
     });
 
+    /// ─── Le témoin qui manquait ───
+    ///
+    /// La première version comptait les titres sur une estimation faite pour la grille
+    /// entière, et cette estimation **ignorait la ligne « +N »**. Une case assez remplie
+    /// débordait alors de six pixels, c'est-à-dire peignait les barres jaunes et noires
+    /// de Flutter en travers du mois. Rien ne le disait tant qu'un jour n'avait pas assez
+    /// d'événements pour remplir sa case ; découvert sur le banc après réamorçage.
+    ///
+    /// `tester.takeException()` est la seule façon de le voir : un débordement est une
+    /// erreur de rendu, pas une assertion, et le témoin passait au vert à côté.
+    testWidgets('une case trop pleine ne déborde pas', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1100, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(appDEpreuve(Scaffold(
+        body: GrilleDuMois(
+          mois: jour,
+          jours: joursDeLaGrilleDuMois(jour, 1),
+          selection: jour,
+          // Douze sur le même jour : bien plus que ce qu'une case peut porter.
+          lignes: [
+            for (var i = 0; i < 12; i++)
+              ligne('Rendez-vous $i', DateTime(2026, 10, 15, 8 + i), 30),
+          ],
+          couleurDe: (_) => Colors.teal,
+          surJour: (_) {},
+          titresParCase: titresParCaseDuMois(const Size(1100, 800)),
+        ),
+      )));
+      await tester.pump();
+      expect(tester.takeException(), isNull,
+          reason: 'la case a débordé : les barres jaunes et noires en travers du mois');
+      expect(find.textContaining('+'), findsWidgets,
+          reason: 'ce qui ne tient pas doit se dire, pas disparaître');
+    });
+
     /// Ce qui ne s'ouvre pas doit se voir **ici aussi** : la grille du mois est souvent le
     /// premier écran qu'on regarde, et y masquer le cas le ferait découvrir ailleurs.
     testWidgets('un contenu illisible garde son mot dans la case', (tester) async {

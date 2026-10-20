@@ -529,8 +529,10 @@ int titresParCaseDuMois(Size grille) {
   if (largeurDeCase < 90) return 0;
   // 18 pour l'en-tête des jours de la semaine et son écart, puis six rangées.
   final hauteurDeCase = (grille.height - 18) / 6;
-  // 34 : le numéro du jour (30) et l'écart qui le suit. 14 : une ligne de titre.
-  final tiennent = ((hauteurDeCase - 34) / 14).floor();
+  // Les mêmes mesures que la case applique — voir `GrilleDuMois._hauteurDuNumero` et
+  // `_hauteurDUneLigne`. Ici elles ne servent qu'à trancher « pastilles ou titres » : le
+  // **nombre** se recalcule dans la case, sur sa hauteur réelle, ligne « +N » comprise.
+  final tiennent = ((hauteurDeCase - 32) / 14).floor();
   return tiennent.clamp(0, 5);
 }
 
@@ -634,9 +636,39 @@ class GrilleDuMois extends StatelessWidget {
 
     final duJour = lignes.where((l) => couvre(l, jour)).toList()
       ..sort(Agenda.comparerLesLignes);
-    final montres = duJour.take(titresParCase).toList();
-    final reste = duJour.length - montres.length;
 
+    // ─── Le compte se refait **ici**, sur la hauteur réelle de la case ───
+    //
+    // `titresParCase` vient d'une estimation faite sur la grille entière, et elle décide
+    // du mode — pastilles ou titres. Elle ne peut pas décider du **nombre** : elle
+    // ignorait la ligne « +N », et une case pleine débordait de six pixels, c'est-à-dire
+    // peignait les barres jaunes et noires de Flutter en travers du mois. Vu seulement
+    // quand un jour portait assez d'événements pour remplir sa case.
+    //
+    // `LayoutBuilder` donne la hauteur que la case a vraiment, et le compte en découle —
+    // y compris la ligne de débordement, qui prend la place d'un titre quand elle paraît.
+    // Plus d'arithmétique à tenir en double.
+    return LayoutBuilder(builder: (context, contraintes) {
+      final place = contraintes.maxHeight - _hauteurDuNumero;
+      final tiennent = (place / _hauteurDUneLigne).floor().clamp(0, 8);
+      var montres = duJour.take(tiennent).toList();
+      var reste = duJour.length - montres.length;
+      if (reste > 0) {
+        // « +N » occupe une ligne : elle se prend sur les titres, pas sur le vide.
+        montres = duJour.take((tiennent - 1).clamp(0, tiennent)).toList();
+        reste = duJour.length - montres.length;
+      }
+      return _contenuDeCase(context, gc, numero, montres, reste);
+    });
+  }
+
+  /// Hauteurs réelles, nommées une fois : [titresParCaseDuMois] les estime pour choisir le
+  /// mode, la case les applique pour choisir le nombre. Deux usages, une seule source.
+  static const _hauteurDuNumero = 32.0;
+  static const _hauteurDUneLigne = 14.0;
+
+  Widget _contenuDeCase(BuildContext context, Gc gc, Widget numero,
+      List<LigneDAgenda> montres, int reste) {
     return Container(
       // Un filet en haut de chaque case : sans lui, des titres alignés sur sept colonnes
       // se lisent comme une seule liste en désordre. C'est ce que dessine tout agenda qui
@@ -645,24 +677,32 @@ class GrilleDuMois extends StatelessWidget {
         border: Border(top: BorderSide(color: gc.bordure)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Le numéro n'est plus centré : il tient le coin, et les titres commencent sous
-          // lui. Centré, il laisserait une colonne de vide à sa gauche et à sa droite.
-          numero,
-          for (final ligne in montres) _titreDeCase(context, gc, ligne),
-          // `+N`, et non les N titres suivants écrasés : une case qui déborde doit le
-          // dire, pas le cacher derrière trois ellipses.
-          if (reste > 0)
-            Padding(
-              padding: const EdgeInsets.only(left: 2),
-              child: Text(
-                L.of(context).autresEvenements(reste),
-                style: TextStyle(fontSize: 10, color: gc.estompe),
+      // La ceinture, après les bretelles : si une mesure dérive d'un demi-pixel — une
+      // police système qui change, une densité différente —, la case rogne au lieu de
+      // peindre un avertissement de débordement en travers de l'agenda.
+      child: ClipRect(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Le numéro n'est plus centré : il tient le coin, et les titres commencent
+            // sous lui. Centré, il laisserait une colonne de vide de part et d'autre.
+            numero,
+            for (final ligne in montres) _titreDeCase(context, gc, ligne),
+            // `+N`, et non les N titres suivants écrasés : une case qui déborde doit le
+            // dire, pas le cacher derrière trois ellipses.
+            if (reste > 0)
+              SizedBox(
+                height: _hauteurDUneLigne,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 2),
+                  child: Text(
+                    L.of(context).autresEvenements(reste),
+                    style: TextStyle(fontSize: 10, color: gc.estompe),
+                  ),
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
