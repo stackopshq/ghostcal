@@ -1,8 +1,11 @@
-// Booking reminders: which ones get scheduled, and the token race with the background
-// refresh.
+// Booking reminders: which ones get scheduled, the token race with the background
+// refresh, and the one thing macOS needs that Android does not.
 
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ghostcal/l10n/generated/app_localisations.dart';
 import 'package:ghostcal/services/api.dart';
@@ -12,6 +15,7 @@ import 'package:http/testing.dart';
 import 'package:flutter/widgets.dart' show Locale;
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   final maintenant = DateTime.utc(2026, 10, 15, 9);
   const dix = Duration(minutes: 10);
 
@@ -109,6 +113,83 @@ void main() {
       }
       expect(l.rappelCorps(10), contains('10'));
     }
+  });
+
+  /// ─── Ce que macOS demande en plus, et ce qu'il ne doit pas demander ───
+  ///
+  /// Android réveille une application fermée ; `NSBackgroundActivityScheduler` non. Le
+  /// rafraîchissement n'a donc lieu sur un Mac que tant que l'application tourne, d'où
+  /// l'inscription aux ouvertures de session. Elle n'existe que là : posée partout, elle
+  /// ferait lever une `MissingPluginException` sur Android — au démarrage, dans `amorcer`,
+  /// donc avant le premier écran.
+  group('l\'ouverture de session', () {
+    const canal = MethodChannel(Rappels.canalMacos);
+    late List<MethodCall> appels;
+    var inscrit = false;
+
+    setUp(() {
+      FlutterSecureStorage.setMockInitialValues({});
+      appels = [];
+      inscrit = false;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(canal, (appel) async {
+        appels.add(appel);
+        if (appel.method == 'lancerALOuvertureDeSession') {
+          inscrit = (appel.arguments as Map)['valeur'] == true;
+        }
+        return inscrit;
+      });
+    });
+
+    tearDown(() {
+      debugDefaultTargetPlatformOverride = null;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(canal, null);
+    });
+
+    test('sur macOS, l\'état est demandé au système et non relu d\'un réglage', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      final rappels = Rappels();
+      await rappels.amorcer();
+      expect(appels.single.method, 'lanceALOuvertureDeSession');
+      expect(rappels.aLOuvertureDeSession, isFalse);
+
+      expect(await rappels.lancerALOuvertureDeSession(true), isTrue);
+      expect(rappels.aLOuvertureDeSession, isTrue);
+    });
+
+    /// Le système peut refuser : l'utilisateur a pu interdire le lancement automatique
+    /// depuis les Réglages Système. L'interrupteur doit alors retomber **et le dire**,
+    /// pas afficher un réglage actif devant un système qui a dit non.
+    test('un refus du système ne laisse pas l\'interrupteur allumé', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(canal, (_) async => false);
+      final rappels = Rappels();
+      expect(await rappels.lancerALOuvertureDeSession(true), isFalse);
+      expect(rappels.aLOuvertureDeSession, isFalse);
+    });
+
+    test('sur Android, le canal n\'est jamais sollicité', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      final rappels = Rappels();
+      await rappels.amorcer();
+      expect(await rappels.lancerALOuvertureDeSession(true), isFalse);
+      expect(appels, isEmpty,
+          reason: 'le canal n\'existe pas là-bas : amorcer lèverait au démarrage');
+    });
+
+    test('les rappels existent sur les deux plateformes, et nulle part ailleurs', () {
+      for (final plateforme in [TargetPlatform.android, TargetPlatform.macOS]) {
+        debugDefaultTargetPlatformOverride = plateforme;
+        expect(Rappels.disponible, isTrue, reason: '$plateforme');
+      }
+      for (final plateforme in [TargetPlatform.iOS, TargetPlatform.linux]) {
+        debugDefaultTargetPlatformOverride = plateforme;
+        expect(Rappels.disponible, isFalse, reason: '$plateforme');
+        expect(Rappels.surMacos, isFalse);
+      }
+    });
   });
 
   group('refresh token used up elsewhere', () {

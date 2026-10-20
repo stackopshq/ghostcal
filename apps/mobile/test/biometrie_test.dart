@@ -76,6 +76,43 @@ void main() {
     test('a dead sealed store is reset so the phrase can be sealed again', () {
       expect(android['resetOnError'], 'true');
     });
+
+    /// **Le témoin qui existe parce que l'oubli ne casse rien.**
+    ///
+    /// Le paquet choisit ses options par plateforme : iOS lit `iOptions`, macOS lit
+    /// `mOptions`, et le défaut de `mOptions` est `MacOsOptions()` — accessibilité
+    /// `unlocked`, aucun contrôle d'accès, nom de service générique. Une application
+    /// macOS qui ne déclare que `iOptions` compile, s'ouvre, affiche son bouton Touch ID,
+    /// et range la phrase **en clair**, dans le cloisonnement des jetons.
+    ///
+    /// Rien ne le dirait : ni l'analyseur, ni l'exécution, ni l'écran. On compare donc
+    /// les deux dictionnaires, muet et non muet, plutôt que de relire les deux listes.
+    test('macOS déclare exactement les contraintes d\'iOS', () {
+      for (final muet in [false, true]) {
+        final mac = Map.of(Biometrie.magasin(null, muet).mOptions.params);
+        // La seule clé qui n'existe que là : `kSecUseDataProtectionKeychain`, le
+        // trousseau cloisonné par groupe d'accès. Elle est **vraie**, et c'est elle qui
+        // rend `keychain-access-groups` indispensable dans les entitlements — sans le
+        // droit, `SecItemAdd` rend errSecMissingEntitlement et rien ne s'écrit.
+        expect(mac.remove('usesDataProtectionKeychain'), 'true');
+        expect(
+          mac,
+          Biometrie.magasin(null, muet).iOptions.params,
+          reason: 'macOS ignore iOptions : ce qui n\'est pas dans mOptions n\'existe pas',
+        );
+      }
+    });
+
+    /// Et le pendant côté jetons : la même option tue y ferait voyager les jetons de
+    /// session, `unlocked` survivant à une sauvegarde là où `unlocked_this_device` non.
+    test('les jetons sont liés à la machine sur macOS aussi', () {
+      final jetons = Trousseau.magasin.mOptions.params;
+      expect(jetons['accessibility'], 'unlocked_this_device');
+      expect(jetons['accessControlFlags'], isNull,
+          reason: 'les jetons ne doivent jamais exiger le doigt');
+      expect(jetons['accountName'], isNot(apple['accountName']),
+          reason: 'les deux magasins partageraient leurs contraintes');
+    });
   });
 
   /// **L'interrogation de présence doit être muette, et rien d'autre ne le dit.**

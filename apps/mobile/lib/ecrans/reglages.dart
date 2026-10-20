@@ -157,8 +157,11 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
             )),
           ),
           ListTile(
+            key: const Key('reglages.serveur'),
             title: Text(L.of(context).serveur),
             subtitle: Text(session.serveur, style: TextStyle(color: gc.estompe)),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _changerDeServeur,
           ),
           if (widget.apparence case final apparence?) ..._sectionApparence(gc, apparence),
           if (widget.rappels case final rappels?) ..._sectionRappels(gc, rappels),
@@ -377,6 +380,31 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
         value: rappels.actif,
         onChanged: (valeur) => _basculerLesRappels(rappels, valeur),
       ),
+      // macOS seulement : sur Android, WorkManager réveille l'application fermée et il
+      // n'y a rien à inscrire. `aLOuvertureDeSession` y vaut donc toujours faux — mais on
+      // n'affiche pas l'interrupteur sur ce seul critère, qui serait aussi celui d'un Mac
+      // où le réglage est simplement éteint.
+      if (rappels.actif && Rappels.surMacos)
+        SwitchListTile(
+          key: const Key('reglage.rappels.session'),
+          secondary: const Icon(Icons.restart_alt),
+          title: Text(l.rappelsAuDemarrage),
+          subtitle: Text(l.rappelsAuDemarrageExplication,
+              style: TextStyle(color: gc.estompe, fontSize: 12)),
+          value: rappels.aLOuvertureDeSession,
+          onChanged: (valeur) async {
+            // L'état vient du système, pas du geste : `register()` peut échouer, et un
+            // interrupteur qui retombe sans un mot ressemble à un défaut de
+            // l'application.
+            final pose = await rappels.lancerALOuvertureDeSession(valeur);
+            if (!mounted) return;
+            setState(() {});
+            if (valeur && !pose) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(L.of(context).rappelsAuDemarrageRefuse)));
+            }
+          },
+        ),
       if (rappels.actif)
         RadioGroup<AvanceDuRappel>(
           groupValue: rappels.avance,
@@ -409,12 +437,37 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
     final accorde = await rappels.activer();
     if (!mounted) return;
     setState(() {});
-    if (!accorde) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(L.of(context).rappelsRefuses)));
+    if (accorde) {
+      await _replanifier(rappels);
       return;
     }
-    await _replanifier(rappels);
+
+    // ─── Un refus n'est pas l'autre ───
+    //
+    // `activer` rend `false` dans deux cas qui ne se corrigent pas de la même façon : on
+    // vient d'écarter l'alerte, ou macOS ne l'a **jamais présentée** parce qu'un refus est
+    // déjà enregistré. Dans le second, attendre l'alerte au prochain essai est attendre
+    // pour rien — le système n'en présente qu'une par application.
+    //
+    // Mesuré le 2026-10-20 : `authorizationStatus` à `.denied` sans qu'aucune alerte
+    // n'ait jamais paru, et l'application absente de la liste des Réglages Système. Le
+    // message précédent disait « autorisez-les dans les réglages » et n'offrait rien à
+    // cliquer : un cul-de-sac exactement là où quelqu'un vient de demander la fonction.
+    final l = L.of(context);
+    final etat = await rappels.etatDesNotifications();
+    if (!mounted) return;
+    final bloque = etat == EtatDesNotifications.refuse;
+    final messager = ScaffoldMessenger.of(context);
+    messager.showSnackBar(SnackBar(
+      content: Text(bloque ? l.rappelsBloques : l.rappelsRefuses),
+      duration: Duration(seconds: bloque ? 10 : 4),
+      action: bloque
+          ? SnackBarAction(
+              label: l.ouvrirLesReglagesSysteme,
+              onPressed: () => rappels.ouvrirLesReglagesDesNotifications(),
+            )
+          : null,
+    ));
   }
 
   Future<void> _replanifier(Rappels rappels) async {
@@ -466,6 +519,39 @@ class _EcranDeReglagesState extends State<EcranDeReglages> {
           ),
         ),
       ];
+
+  /// Changer de serveur, depuis l'endroit qui en affiche un.
+  ///
+  /// Cette ligne montrait l'adresse sans se toucher. Le chemin existait pourtant — se
+  /// déconnecter, puis « Utiliser un autre compte » sur l'écran de connexion, qui rouvre
+  /// le champ — mais rien ne le désignait : aucun des deux libellés ne parle de serveur.
+  /// Relevé sur un vrai cas, l'API ayant déménagé sous `/api` : il a fallu lire le code
+  /// pour trouver la sortie.
+  ///
+  /// On demande avant d'agir parce que le prix est réel : changer de serveur déconnecte,
+  /// et la phrase sera redemandée. L'écran de connexion repart ensuite avec l'adresse
+  /// courante déjà inscrite — `EcranDeConnexion` amorce son champ sur `session.serveur`,
+  /// que la déconnexion conserve — donc on la corrige au lieu de la retaper.
+  Future<void> _changerDeServeur() async {
+    final l = L.of(context);
+    final confirme = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(l.changerDeServeur),
+        content: Text(l.changerDeServeurDeconnecte),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(l.annuler)),
+          TextButton(
+            key: const Key('reglages.serveur.confirmer'),
+            onPressed: () => Navigator.pop(c, true),
+            child: Text(l.seDeconnecter),
+          ),
+        ],
+      ),
+    );
+    if (confirme != true) return;
+    await widget.session.seDeconnecter();
+  }
 
   Widget _titre(Gc gc, String texte) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),

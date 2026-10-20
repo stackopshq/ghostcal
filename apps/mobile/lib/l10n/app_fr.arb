@@ -80,6 +80,8 @@
   },
   "phraseNOuvrePasLeCoffre": "cette phrase n'ouvre pas le coffre",
   "serveur": "Serveur",
+  "changerDeServeur": "Changer de serveur",
+  "changerDeServeurDeconnecte": "Vous serez déconnecté, et votre phrase secrète vous sera redemandée. L’adresse actuelle vous sera proposée à la correction.",
   "adresseElectronique": "Adresse e-mail",
   "exempleAdresse": "vous@exemple.ch",
   "retenirCetAppareil": "Retenir cet appareil",
@@ -447,7 +449,7 @@
   "choixUnParLigne": "Choix proposés, un par ligne",
   "rappels": "Rappels",
   "rappelsDeRendezVous": "Rappeler mes rendez-vous",
-  "rappelsExplication": "Une notification avant chaque rendez-vous réservé, sans le nom de l'invité ni aucun détail. Calculée sur ce téléphone, sans service de notification tiers.",
+  "rappelsExplication": "Une notification avant chaque rendez-vous réservé, sans le nom de l'invité ni aucun détail. Calculée sur cet appareil, sans service de notification tiers.",
   "rappelsAvance": "{minutes} min avant",
   "@rappelsAvance": {
     "placeholders": {
@@ -456,7 +458,7 @@
       }
     }
   },
-  "rappelsRefuses": "Les notifications sont refusées pour GhostCal. Autorisez-les dans les réglages du téléphone.",
+  "rappelsRefuses": "Les notifications sont refusées pour GhostCal. Autorisez-les dans les réglages du système.",
   "rappelsCanal": "Rappels de rendez-vous",
   "rappelsCanalDescription": "Une notification neutre avant chaque rendez-vous réservé.",
   "rappelTitre": "Rendez-vous",
@@ -467,5 +469,16 @@
         "type": "int"
       }
     }
-  }
+  },
+  "rappelsAuDemarrage": "Lancer GhostCal à l'ouverture de session",
+  "@rappelsAuDemarrage": {
+    "description": "macOS seulement. NSBackgroundActivityScheduler ne réveille pas une application fermée : sans ce réglage, les rappels ne sont replanifiés qu'à l'ouverture de l'application."
+  },
+  "rappelsAuDemarrageExplication": "GhostCal démarre alors sans ouvrir de fenêtre, le temps de replanifier. Sans cela, une réservation prise pendant que le Mac dort n'aura pas de rappel avant que vous rouvriez l'application.",
+  "rappelsAuDemarrageRefuse": "macOS a refusé le lancement automatique. Il se réautorise dans Réglages Système › Général › Ouverture.",
+  "rappelsBloques": "macOS bloque les notifications de GhostCal et ne reposera pas la question : l'autorisation se redonne dans les Réglages Système.",
+  "@rappelsBloques": {
+    "description": "Distinct de rappelsRefuses : ici l'alerte n'a pas été présentée du tout, parce qu'un refus est déjà enregistré. Dire « autorisez-les dans les réglages » sans le préciser laisse attendre une alerte qui ne viendra jamais."
+  },
+  "ouvrirLesReglagesSysteme": "Ouvrir les Réglages Système"
 }

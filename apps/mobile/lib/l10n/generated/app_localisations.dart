@@ -295,6 +295,18 @@ abstract class L {
   /// **'Serveur'**
   String get serveur;
 
+  /// No description provided for @changerDeServeur.
+  ///
+  /// In fr, this message translates to:
+  /// **'Changer de serveur'**
+  String get changerDeServeur;
+
+  /// No description provided for @changerDeServeurDeconnecte.
+  ///
+  /// In fr, this message translates to:
+  /// **'Vous serez déconnecté, et votre phrase secrète vous sera redemandée. L’adresse actuelle vous sera proposée à la correction.'**
+  String get changerDeServeurDeconnecte;
+
   /// No description provided for @adresseElectronique.
   ///
   /// In fr, this message translates to:
@@ -1666,7 +1678,7 @@ abstract class L {
   /// No description provided for @rappelsExplication.
   ///
   /// In fr, this message translates to:
-  /// **'Une notification avant chaque rendez-vous réservé, sans le nom de l\'invité ni aucun détail. Calculée sur ce téléphone, sans service de notification tiers.'**
+  /// **'Une notification avant chaque rendez-vous réservé, sans le nom de l\'invité ni aucun détail. Calculée sur cet appareil, sans service de notification tiers.'**
   String get rappelsExplication;
 
   /// No description provided for @rappelsAvance.
@@ -1678,7 +1690,7 @@ abstract class L {
   /// No description provided for @rappelsRefuses.
   ///
   /// In fr, this message translates to:
-  /// **'Les notifications sont refusées pour GhostCal. Autorisez-les dans les réglages du téléphone.'**
+  /// **'Les notifications sont refusées pour GhostCal. Autorisez-les dans les réglages du système.'**
   String get rappelsRefuses;
 
   /// No description provided for @rappelsCanal.
@@ -1704,6 +1716,36 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Votre rendez-vous commence dans {minutes} min.'**
   String rappelCorps(int minutes);
+
+  /// macOS seulement. NSBackgroundActivityScheduler ne réveille pas une application fermée : sans ce réglage, les rappels ne sont replanifiés qu'à l'ouverture de l'application.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lancer GhostCal à l\'ouverture de session'**
+  String get rappelsAuDemarrage;
+
+  /// No description provided for @rappelsAuDemarrageExplication.
+  ///
+  /// In fr, this message translates to:
+  /// **'GhostCal démarre alors sans ouvrir de fenêtre, le temps de replanifier. Sans cela, une réservation prise pendant que le Mac dort n\'aura pas de rappel avant que vous rouvriez l\'application.'**
+  String get rappelsAuDemarrageExplication;
+
+  /// No description provided for @rappelsAuDemarrageRefuse.
+  ///
+  /// In fr, this message translates to:
+  /// **'macOS a refusé le lancement automatique. Il se réautorise dans Réglages Système › Général › Ouverture.'**
+  String get rappelsAuDemarrageRefuse;
+
+  /// Distinct de rappelsRefuses : ici l'alerte n'a pas été présentée du tout, parce qu'un refus est déjà enregistré. Dire « autorisez-les dans les réglages » sans le préciser laisse attendre une alerte qui ne viendra jamais.
+  ///
+  /// In fr, this message translates to:
+  /// **'macOS bloque les notifications de GhostCal et ne reposera pas la question : l\'autorisation se redonne dans les Réglages Système.'**
+  String get rappelsBloques;
+
+  /// No description provided for @ouvrirLesReglagesSysteme.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ouvrir les Réglages Système'**
+  String get ouvrirLesReglagesSysteme;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {
