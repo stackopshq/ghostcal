@@ -188,6 +188,25 @@ testWidgets('une fenêtre large rend l\'horaire au bloc', (tester) async {
       expect(titresParCaseDuMois(const Size(560, 900)), 0);
     });
 
+    /// ─── Le seuil, et pourquoi il vaut 135 et non 90 ───
+    ///
+    /// 720 est la **largeur minimale de la fenêtre macOS**, donc une taille que des gens
+    /// auront réellement. Elle donne 101 points par case, soit douze caractères de titre
+    /// — « Point hebdom… », « Comité de dire… ». Le premier seuil valait 90 et laissait
+    /// passer ça ; mesuré sur le banc, c'était de l'ellipse et pas des titres.
+    ///
+    /// La bascule tombe donc vers 960 de large, ce qui met le plancher de fenêtre en mode
+    /// pastilles — où la grille et la liste du jour se lisent — et garde les titres pour
+    /// l'ouverture par défaut, 1100.
+    test('le plancher de fenêtre du Mac lit mieux en pastilles', () {
+      expect(titresParCaseDuMois(const Size(720, 560)), 0,
+          reason: '101 points par case : douze caractères, donc de l\'ellipse');
+      expect(titresParCaseDuMois(const Size(950, 800)), 0);
+      expect(titresParCaseDuMois(const Size(1000, 800)), greaterThan(0));
+      expect(titresParCaseDuMois(const Size(1100, 760)), greaterThan(0),
+          reason: 'l\'ouverture par défaut doit garder les titres');
+    });
+
     test('une fenêtre de Mac porte des titres, et plus elle est haute plus il y en a', () {
       final courte = titresParCaseDuMois(const Size(1100, 500));
       final haute = titresParCaseDuMois(const Size(1100, 900));
