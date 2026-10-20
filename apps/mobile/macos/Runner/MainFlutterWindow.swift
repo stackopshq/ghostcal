@@ -94,7 +94,7 @@ class MainFlutterWindow: NSWindow {
     // Un passage par la file principale suffit : le chargement du nib est terminé quand
     // ce bloc s'exécute.
     DispatchQueue.main.async {
-      MenuDeLApplication.partage.brancherLesReglages()
+      MenuDeLApplication.partage.monter()
     }
   }
 }

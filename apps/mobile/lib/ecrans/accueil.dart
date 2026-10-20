@@ -45,18 +45,20 @@ class _EcranDAccueilState extends State<EcranDAccueil>
   DateTime? _partiEnArrierePlan;
   final _agenda = GlobalKey<EcranDAgendaState>();
 
-  /// The macOS menu bar's "Settings…" (⌘,) arrives here; the native side sends
-  /// `reglages`. Nothing sends it elsewhere.
+  /// The macOS menu bar. The native side names the methods; see
+  /// `macos/Runner/MenuDeLApplication.swift`.
   static const _canalDuMenu = MethodChannel('ch.stackops.ghostcal/menu');
+
+  /// The search screen covers the agenda, so the menu stops reaching it — see
+  /// [_recevoirDuMenu].
+  bool _rechercheOuverte = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _replanifierLesRappels();
-    _canalDuMenu.setMethodCallHandler((appel) async {
-      if (appel.method == 'reglages' && mounted) setState(() => _onglet = 4);
-    });
+    _canalDuMenu.setMethodCallHandler(_recevoirDuMenu);
   }
 
   /// A booking taken while the app was away gets its reminder as soon as it is back,
@@ -72,6 +74,77 @@ class _EcranDAccueilState extends State<EcranDAccueil>
             (Object e) => debugPrint('ghostcal.rappels: refresh failed: $e'),
           ),
     );
+  }
+
+  /// Ce qu'un raccourci de la barre de menus déclenche.
+  ///
+  /// Les noms de méthode viennent du natif : `macos/Runner/MenuDeLApplication.swift`.
+  /// Les deux listes doivent coïncider, et `test/menu_macos_test.dart` échoue si
+  /// l'une des deux prend de l'avance — un item de menu dont la méthode n'arrive
+  /// nulle part est un raccourci qui ne fait rien, en silence.
+  ///
+  /// Hormis « Réglages… » et « Verrouiller », ces commandes pilotent l'agenda et le
+  /// ramènent donc d'abord devant : choisir « Mois » alors que les réglages occupent
+  /// l'écran changerait une vue que personne ne regarde. La feuille de menu du bas
+  /// fait déjà exactement cela.
+  ///
+  /// Et tant que l'écran de recherche est au premier plan, il couvre l'agenda :
+  /// seul « Verrouiller » passe encore. ⌘F en particulier doit laisser une requête à
+  /// moitié tapée tranquille plutôt que d'empiler une seconde recherche par-dessus.
+  Future<void> _recevoirDuMenu(MethodCall appel) async {
+    if (!mounted) return;
+
+    // Avant la garde, et avant tout le reste : verrouiller est une commande de
+    // sécurité. Elle doit aboutir quel que soit l'écran au premier plan — refuser de
+    // fermer le coffre parce qu'une recherche est ouverte serait le mauvais arbitrage.
+    if (appel.method == 'verrouiller') {
+      widget.session.verrouiller();
+      return;
+    }
+    if (_rechercheOuverte) return;
+    final agenda = _agenda.currentState;
+
+    void surLAgenda(void Function(EcranDAgendaState agenda) faire) {
+      if (agenda == null) return;
+      setState(() => _onglet = 0);
+      faire(agenda);
+    }
+
+    switch (appel.method) {
+      case 'reglages':
+        setState(() => _onglet = 4);
+      case 'vue':
+        final vue = switch (appel.arguments) {
+          'jour' => VueDAgenda.jour,
+          'semaine' => VueDAgenda.semaine,
+          'mois' => VueDAgenda.mois,
+          'liste' => VueDAgenda.liste,
+          _ => null,
+        };
+        if (vue != null) surLAgenda((a) => a.choisirLaVue(vue));
+      case 'aujourdhui':
+        surLAgenda((a) => a.allerAujourdhui());
+      case 'precedent':
+        surLAgenda((a) => a.deplacer(-1));
+      case 'suivant':
+        surLAgenda((a) => a.deplacer(1));
+      case 'nouveau':
+        // Le bouton de la barre disparaît sans calendrier inscriptible ; le
+        // raccourci suit la même règle, plutôt que d'ouvrir un formulaire qui ne
+        // pourra pas être enregistré.
+        if (agenda != null && agenda.peutCreer) {
+          surLAgenda((a) => a.nouvelEvenement());
+        }
+      case 'rechercher':
+        if (agenda == null) return;
+        setState(() => _onglet = 0);
+        _rechercheOuverte = true;
+        try {
+          await agenda.rechercher();
+        } finally {
+          _rechercheOuverte = false;
+        }
+    }
   }
 
   @override
