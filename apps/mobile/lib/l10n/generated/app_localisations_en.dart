@@ -971,4 +971,33 @@ class LEn extends L {
 
   @override
   String get hier => 'Yesterday';
+
+  @override
+  String get menu => 'Menu';
+
+  @override
+  String get rechercher => 'Search';
+
+  @override
+  String get rechercherDansLAgenda => 'Search the calendar';
+
+  @override
+  String get aucunResultat => 'No results.';
+
+  @override
+  String get tousLesCalendriers => 'All calendars';
+
+  @override
+  String calendriersAffiches(int nombre) {
+    return '$nombre calendars';
+  }
+
+  @override
+  String get calendriersAAfficher => 'Calendars shown';
+
+  @override
+  String get developperLeMois => 'Expand the month';
+
+  @override
+  String get reduireLeMois => 'Collapse the month';
 }

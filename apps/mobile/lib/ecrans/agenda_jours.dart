@@ -167,7 +167,7 @@ class _Section extends StatelessWidget {
               maintenant: maintenant,
             ),
           for (final e in evenements)
-            _LigneDEvenement(
+            LigneDEvenement(
               ligne: e,
               jour: jour,
               couleur: couleurDe(e),
@@ -319,8 +319,9 @@ class _LigneDeTache extends StatelessWidget {
 
 /// An event: its time on the left, a bar in its calendar's colour, the title and what
 /// else is known — type of booking, place — beneath.
-class _LigneDEvenement extends StatelessWidget {
-  const _LigneDEvenement({
+class LigneDEvenement extends StatelessWidget {
+  const LigneDEvenement({
+    super.key,
     required this.ligne,
     required this.jour,
     required this.couleur,

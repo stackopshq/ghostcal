@@ -490,5 +490,21 @@
   },
   "ouvrirLesReglagesSysteme": "Ouvrir les Réglages Système",
   "demain": "Demain",
-  "hier": "Hier"
+  "hier": "Hier",
+  "menu": "Menu",
+  "rechercher": "Rechercher",
+  "rechercherDansLAgenda": "Rechercher dans l'agenda",
+  "aucunResultat": "Aucun résultat.",
+  "tousLesCalendriers": "Tous les calendriers",
+  "calendriersAffiches": "{nombre} calendriers",
+  "calendriersAAfficher": "Calendriers affichés",
+  "developperLeMois": "Développer le mois",
+  "reduireLeMois": "Réduire le mois",
+  "@calendriersAffiches": {
+    "placeholders": {
+      "nombre": {
+        "type": "int"
+      }
+    }
+  }
 }

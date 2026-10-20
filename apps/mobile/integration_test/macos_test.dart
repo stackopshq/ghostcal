@@ -43,6 +43,16 @@ import 'package:ghostcal/src/rust/frb_generated.dart';
 /// capteur : que l'écriture sous contrainte matérielle réussisse (donc que le groupe
 /// d'accès au trousseau soit accordé), et que l'interrogation de présence réponde sans
 /// rien présenter. L'invite elle-même reste à constater à la main.
+
+/// The bottom bar's menu holds the agenda's views and the other sections, since the
+/// floating bar replaced the tab bar.
+Future<void> allerA(WidgetTester tester, String entree) async {
+  await tester.tap(find.byKey(const Key('accueil.menu')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(entree).last);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -179,7 +189,7 @@ void main() {
     await soumettre();
 
     final limite = DateTime.now().add(const Duration(seconds: 60));
-    while (find.byType(NavigationBar).evaluate().isEmpty) {
+    while (find.byKey(const Key('accueil.pret')).evaluate().isEmpty) {
       if (DateTime.now().isAfter(limite)) {
         fail('Le coffre ne s\'est pas ouvert en 60 s sur $serveur. Le banc tourne-t-il ?');
       }
@@ -239,8 +249,7 @@ void main() {
     // Elle doit s'**ouvrir**. Si le cœur ne la lisait pas, la ligne ne disparaîtrait pas
     // pour autant : elle s'afficherait « Contenu illisible », ce qui se distingue mal
     // d'un succès quand on ne regarde que le nombre de lignes.
-    await tester.tap(find.text('Liste'));
-    await tester.pumpAndSettle();
+    await allerA(tester, 'Liste');
     // ─── Quand ce témoin rougit, il doit dire laquelle des deux choses a manqué ───
     //
     // L'enveloppe héritée est **déposée à la main** : le cœur ne sait plus en écrire, il
@@ -293,8 +302,7 @@ void main() {
 
     // Et il se relit par l'application elle-même, au bon titre : une enveloppe bien
     // formée que le cœur n'ouvrirait pas passerait le contrôle ci-dessus.
-    await tester.tap(find.text('Jour'));
-    await tester.pumpAndSettle();
+    await allerA(tester, 'Jour');
     final lignes = await agenda.lignes(
       de: DateTime.now().subtract(const Duration(hours: 1)),
       a: DateTime.now().add(const Duration(hours: 48)),
@@ -332,8 +340,7 @@ void main() {
     expect(question['required'], isTrue, reason: 'le caractère obligatoire s\'est perdu');
     expect(question['options'], ['Devis', 'Support', 'Autre']);
 
-    await tester.tap(find.text('RDV'));
-    await tester.pumpAndSettle();
+    await allerA(tester, 'RDV');
     await photographier(tester, '03-rdv-fr-clair');
   }, timeout: const Timeout(Duration(minutes: 3)));
 
@@ -430,20 +437,17 @@ void main() {
     expect(find.text('Calendar'), findsOneWidget, reason: 'les onglets sont restés en français');
     await photographier(tester, '05-agenda-en-sombre-petite');
 
-    await tester.tap(find.text('Settings'));
-    await tester.pumpAndSettle();
+    await allerA(tester, 'Settings');
     await photographier(tester, '06-reglages-en-sombre-petite');
   }, timeout: const Timeout(Duration(minutes: 3)));
 
   testWidgets('la semaine, en grand et en clair', (tester) async {
     await monter(tester, langue: const Locale('fr'), fenetre: const Size(1440, 900));
     await ouvrirLeCoffre(tester);
-    await tester.tap(find.text('Semaine'));
-    await tester.pumpAndSettle();
+    await allerA(tester, 'Semaine');
     await photographier(tester, '07-semaine-fr-clair-tres-large');
 
-    await tester.tap(find.text('Mois'));
-    await tester.pumpAndSettle();
+    await allerA(tester, 'Mois');
     await photographier(tester, '08-mois-fr-clair-tres-large');
   }, timeout: const Timeout(Duration(minutes: 3)));
 }

@@ -8,12 +8,14 @@ import '../services/agenda.dart';
 import '../services/erreurs.dart';
 import '../services/session.dart';
 import '../services/taches.dart';
+import '../services/trousseau.dart';
 import '../services/verrouillage.dart';
 import '../services/vue_agenda.dart';
 import '../theme.dart';
 import 'agenda_jours.dart';
 import 'agenda_vues.dart';
 import 'nouvel_evenement.dart';
+import 'recherche.dart';
 
 /// The agenda, as a day, a week, a month or a list — the user's choice, remembered.
 ///
@@ -25,16 +27,31 @@ class EcranDAgenda extends StatefulWidget {
     super.key,
     required this.session,
     required this.verrouillage,
+    this.surChangement,
   });
 
   final Session session;
   final Verrouillage verrouillage;
 
+  /// Called when what the bottom bar shows of the agenda changes: the view, the
+  /// calendars shown, whether an event can be created.
+  final VoidCallback? surChangement;
+
   @override
-  State<EcranDAgenda> createState() => _EcranDAgendaState();
+  State<EcranDAgenda> createState() => EcranDAgendaState();
 }
 
-class _EcranDAgendaState extends State<EcranDAgenda> {
+/// How the month is drawn. `automatique` lets the space decide
+/// ([titresParCaseDuMois]); the two others are the user's override, set with the
+/// handle under the grid, and each points away from what the space would give.
+enum ModeDuMois { automatique, compact, titres }
+
+/// Public so that the home screen's bottom bar can drive the agenda: pick the view,
+/// filter the calendars, search, create.
+class EcranDAgendaState extends State<EcranDAgenda> {
+  static const _cleDesMasques = 'ghostcal.agenda.calendriers-masques';
+  static const _cleDuMois = 'ghostcal.agenda.mois';
+
   /// Days shown by the list view, from the selected day.
   static const _joursDeLaListe = 30;
 
@@ -57,6 +74,11 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
   bool _charge = false;
   int _premierJour = 1;
 
+  /// Calendars the user chose not to see. Bookings and external busy slots have no
+  /// calendar and always show: hiding them would hide a commitment.
+  Set<String> _masques = const {};
+  ModeDuMois _modeDuMois = ModeDuMois.automatique;
+
   @override
   void initState() {
     super.initState();
@@ -64,7 +86,79 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
       if (!mounted) return;
       setState(() => _vue = vue);
       _recharger();
+      widget.surChangement?.call();
     });
+    _lireLesPreferences();
+  }
+
+  Future<void> _lireLesPreferences() async {
+    try {
+      final masques = await Trousseau.lire(_cleDesMasques);
+      final mois = await Trousseau.lire(_cleDuMois);
+      if (!mounted) return;
+      setState(() {
+        _masques = {...?masques?.split(',').where((x) => x.isNotEmpty)};
+        _modeDuMois = ModeDuMois.values.firstWhere(
+          (m) => m.name == mois,
+          orElse: () => ModeDuMois.automatique,
+        );
+      });
+      widget.surChangement?.call();
+    } on Object catch (e) {
+      debugPrint('ghostcal.agenda: preferences not read: $e');
+    }
+  }
+
+  Future<void> _retenir(String valeur, String cle) async {
+    try {
+      await Trousseau.poser(valeur, cle);
+    } on Object catch (e) {
+      debugPrint('ghostcal.agenda: preference not saved: $e');
+    }
+  }
+
+  // ─── What the bottom bar reads and drives ───
+
+  VueDAgenda get vue => _vue;
+  bool get peutCreer => _inscriptibles.isNotEmpty;
+  List<Calendrier> get calendriers => _calendriers;
+  Set<String> get masques => _masques;
+
+  void choisirLaVue(VueDAgenda vue) => _allerA(_ancre, vue: vue);
+  Future<void> nouvelEvenement() => _nouvelEvenement();
+
+  Future<void> masquer(Set<String> masques) async {
+    setState(() => _masques = masques);
+    widget.surChangement?.call();
+    await _retenir(masques.join(','), _cleDesMasques);
+  }
+
+  Future<void> rechercher() async {
+    final agenda = _agenda;
+    final organisation = widget.session.organisation;
+    if (agenda == null || organisation == null) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => EcranDeRecherche(
+          agenda: agenda,
+          organisation: organisation,
+          couleurDe: _couleurDe,
+          surLigne: _ouvrir,
+          visible: _visible,
+        ),
+      ),
+    );
+  }
+
+  bool _visible(LigneDAgenda ligne) =>
+      ligne.calendrier == null || !_masques.contains(ligne.calendrier);
+
+  /// The month's mode flipped from what is on screen: the handle always shows the
+  /// other way of reading the month.
+  void _basculerLeMois(bool titresAffiches) {
+    final mode = titresAffiches ? ModeDuMois.compact : ModeDuMois.titres;
+    setState(() => _modeDuMois = mode);
+    _retenir(mode.name, _cleDuMois);
   }
 
   @override
@@ -116,7 +210,10 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
       );
       final lesTaches = await taches;
       // Calendars do not change from one period to the next: asked for once.
-      if (_calendriers.isEmpty) _calendriers = await agenda.calendriers();
+      if (_calendriers.isEmpty) {
+        _calendriers = await agenda.calendriers();
+        widget.surChangement?.call();
+      }
       // A slow answer for a window the user has already left must not overwrite the
       // current one.
       if (mounted && fenetre == _fenetre) {
@@ -178,7 +275,10 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
       _ancre = minuit(jour);
       if (vue != null) _vue = vue;
     });
-    if (vue != null) vue.retenir();
+    if (vue != null) {
+      vue.retenir();
+      widget.surChangement?.call();
+    }
     _recharger(siBesoin: true);
   }
 
@@ -383,41 +483,8 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
           ),
         ],
       ),
-      // Only with a calendar to write to: a shared calendar may be read-only, and
-      // offering to write there would fail after everything was typed.
-      floatingActionButton: _inscriptibles.isEmpty
-          ? null
-          : FloatingActionButton(
-              // All tabs live in an IndexedStack: every floating button needs its own
-              // hero tag, or Flutter throws "multiple heroes share the same tag".
-              heroTag: 'agenda',
-              tooltip: L.of(context).nouvelEvenement,
-              onPressed: () => _nouvelEvenement(),
-              child: const Icon(Icons.add),
-            ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
-            child: SizedBox(
-              width: double.infinity,
-              child: SegmentedButton<VueDAgenda>(
-                key: const Key('agenda.vues'),
-                showSelectedIcon: false,
-                style: const ButtonStyle(visualDensity: VisualDensity.compact),
-                segments: [
-                  for (final vue in VueDAgenda.values)
-                    ButtonSegment(
-                      value: vue,
-                      label: Text(vue.libelle(L.of(context))),
-                    ),
-                ],
-                selected: {_vue},
-                onSelectionChanged: (choix) =>
-                    _allerA(_ancre, vue: choix.first),
-              ),
-            ),
-          ),
           if (_charge)
             const LinearProgressIndicator(minHeight: 2)
           else
@@ -447,7 +514,7 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
   }
 
   Widget _corps(BuildContext context) {
-    final lignes = _lignes;
+    final lignes = _lignes?.where(_visible).toList();
     if (lignes == null) {
       return _erreur == null
           ? const Center(child: CircularProgressIndicator())
@@ -512,7 +579,16 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
             // décisions viennent du **même** appel : séparées, elles finiraient par se
             // contredire, et on aurait soit les titres deux fois, soit un mois muet
             // au-dessus d'une liste.
-            final titres = titresParCaseDuMois(contraintes.biggest);
+            final selonLaPlace = titresParCaseDuMois(contraintes.biggest);
+            // The handle overrides the space, at this one place: compact always gives
+            // dots and the day list, titles always give titles — on a phone they are
+            // cut short, as in Fantastical's expanded month, and still say which day is
+            // busy with what.
+            final titres = switch (_modeDuMois) {
+              ModeDuMois.automatique => selonLaPlace,
+              ModeDuMois.compact => 0,
+              ModeDuMois.titres => selonLaPlace > 0 ? selonLaPlace : 1,
+            };
             final grille = GrilleDuMois(
               mois: _ancre,
               jours: joursDeLaGrilleDuMois(_ancre, _premierJour),
@@ -522,7 +598,21 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
               titresParCase: titres,
               surJour: surJour,
             );
-            if (titres > 0) return grille;
+            if (titres > 0) {
+              return Column(
+                children: [
+                  Expanded(child: grille),
+                  _Poignee(
+                    ouverte: true,
+                    surBascule: () => _basculerLeMois(true),
+                  ),
+                ],
+              );
+            }
+            final poignee = _Poignee(
+              ouverte: false,
+              surBascule: () => _basculerLeMois(false),
+            );
             // Sans titres, la grille garde la hauteur d'un téléphone et cède le reste à la
             // liste : étirée, elle donnerait six rangées hautes et vides.
             // The list runs from the selected day to the end of the loaded grid: past it
@@ -549,7 +639,15 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
             if (contraintes.maxHeight < _hauteurDeLaGrilleEnPastilles + 160) {
               return Row(
                 children: [
-                  Expanded(flex: 3, child: grille),
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      children: [
+                        Expanded(child: grille),
+                        poignee,
+                      ],
+                    ),
+                  ),
                   VerticalDivider(width: 1, color: bordure),
                   Expanded(flex: 2, child: liste),
                 ],
@@ -558,6 +656,7 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
             return Column(
               children: [
                 SizedBox(height: _hauteurDeLaGrilleEnPastilles, child: grille),
+                poignee,
                 Divider(height: 1, color: bordure),
                 Expanded(child: liste),
               ],
@@ -578,5 +677,48 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
           ),
         );
     }
+  }
+}
+
+/// The bar under the month that flips it between dots-and-list and titles in the cells:
+/// tap it, or drag it down to open the month and up to close it.
+class _Poignee extends StatelessWidget {
+  const _Poignee({required this.ouverte, required this.surBascule});
+
+  /// Whether the month shows titles now.
+  final bool ouverte;
+  final VoidCallback surBascule;
+
+  @override
+  Widget build(BuildContext context) {
+    final gc = Gc.of(context);
+    final l = L.of(context);
+    return Semantics(
+      button: true,
+      label: ouverte ? l.reduireLeMois : l.developperLeMois,
+      child: GestureDetector(
+        key: const Key('agenda.poignee'),
+        behavior: HitTestBehavior.opaque,
+        onTap: surBascule,
+        onVerticalDragEnd: (details) {
+          final vitesse = details.primaryVelocity ?? 0;
+          if (ouverte ? vitesse < -150 : vitesse > 150) surBascule();
+        },
+        child: SizedBox(
+          height: 20,
+          width: double.infinity,
+          child: Center(
+            child: Container(
+              width: 40,
+              height: 5,
+              decoration: BoxDecoration(
+                color: gc.estompe.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -1764,6 +1764,60 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Hier'**
   String get hier;
+
+  /// No description provided for @menu.
+  ///
+  /// In fr, this message translates to:
+  /// **'Menu'**
+  String get menu;
+
+  /// No description provided for @rechercher.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rechercher'**
+  String get rechercher;
+
+  /// No description provided for @rechercherDansLAgenda.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rechercher dans l\'agenda'**
+  String get rechercherDansLAgenda;
+
+  /// No description provided for @aucunResultat.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun résultat.'**
+  String get aucunResultat;
+
+  /// No description provided for @tousLesCalendriers.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tous les calendriers'**
+  String get tousLesCalendriers;
+
+  /// No description provided for @calendriersAffiches.
+  ///
+  /// In fr, this message translates to:
+  /// **'{nombre} calendriers'**
+  String calendriersAffiches(int nombre);
+
+  /// No description provided for @calendriersAAfficher.
+  ///
+  /// In fr, this message translates to:
+  /// **'Calendriers affichés'**
+  String get calendriersAAfficher;
+
+  /// No description provided for @developperLeMois.
+  ///
+  /// In fr, this message translates to:
+  /// **'Développer le mois'**
+  String get developperLeMois;
+
+  /// No description provided for @reduireLeMois.
+  ///
+  /// In fr, this message translates to:
+  /// **'Réduire le mois'**
+  String get reduireLeMois;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

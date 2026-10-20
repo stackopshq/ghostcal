@@ -306,5 +306,14 @@
   "rappelsBloques": "macOS is blocking GhostCal's notifications and will not ask again: allow them in System Settings.",
   "ouvrirLesReglagesSysteme": "Open System Settings",
   "demain": "Tomorrow",
-  "hier": "Yesterday"
+  "hier": "Yesterday",
+  "menu": "Menu",
+  "rechercher": "Search",
+  "rechercherDansLAgenda": "Search the calendar",
+  "aucunResultat": "No results.",
+  "tousLesCalendriers": "All calendars",
+  "calendriersAffiches": "{nombre} calendars",
+  "calendriersAAfficher": "Calendars shown",
+  "developperLeMois": "Expand the month",
+  "reduireLeMois": "Collapse the month"
 }

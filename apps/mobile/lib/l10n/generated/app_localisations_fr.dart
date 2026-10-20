@@ -975,4 +975,33 @@ class LFr extends L {
 
   @override
   String get hier => 'Hier';
+
+  @override
+  String get menu => 'Menu';
+
+  @override
+  String get rechercher => 'Rechercher';
+
+  @override
+  String get rechercherDansLAgenda => 'Rechercher dans l\'agenda';
+
+  @override
+  String get aucunResultat => 'Aucun résultat.';
+
+  @override
+  String get tousLesCalendriers => 'Tous les calendriers';
+
+  @override
+  String calendriersAffiches(int nombre) {
+    return '$nombre calendriers';
+  }
+
+  @override
+  String get calendriersAAfficher => 'Calendriers affichés';
+
+  @override
+  String get developperLeMois => 'Développer le mois';
+
+  @override
+  String get reduireLeMois => 'Réduire le mois';
 }
