@@ -231,12 +231,13 @@ Campagne du 2026-10-15, `flutter test integration_test/macos_test.dart -d macos`
 | Ce qui est mesuré | Comment |
 |---|---|
 | Le coffre s'ouvre à la phrase | L'écran d'accueil paraît ; sinon le témoin échoue au lieu de continuer |
-| Une enveloppe du web d'avant la migration se lit | Déposée au format hérité (AES-256-GCM, nonce de 12 octets, pas de `v`), elle s'affiche à son titre et non « Contenu illisible » |
+| Une enveloppe du web d'avant la migration se lit | Déposée par `tools/enveloppe-heritee.py` au format hérité (AES-256-GCM, nonce de 12 octets, pas de `v`), elle s'affiche à son titre et non « Contenu illisible ». Le script réimplémente l'ancien format — le cœur ne sait plus l'écrire — et se **vérifie d'abord** contre le vecteur WebCrypto de `legacy_web.rs`. À relancer après chaque `banc-local.sh` |
 | Ce que le Mac écrit porte `v: 1` | Relu dans les octets rendus par le serveur, puis rouvert par l'application elle-même |
 | Une question à choix obligatoire survit à l'aller-retour | `type`, `required` et `options` relus un à un |
 | Une photo HEIC devient un JPEG d'au plus 1024 points | Passée par le canal natif, décodée pour en mesurer les côtés, téléversée, relue depuis le serveur, retirée |
 | Le trousseau accepte une phrase sous contrainte matérielle | `retenir` rend `true` — donc le groupe d'accès est accordé —, et l'interrogation de présence répond en moins de trois secondes, donc sans invite |
 | Les écrans en clair et en sombre, en français et en anglais, en petite et en grande fenêtre | Huit captures, extraites par `tools/macos/extraire-captures.py` |
+| Une bannière de rappel paraît | **À la main**, par Clara, le 2026-10-20 : réglage allumé, autorisation accordée, réservation prise depuis la page publique, bannière reçue à l'heure dite. L'alerte d'autorisation et la bannière attendent l'une un clic, l'autre son heure — aucun témoin ne les atteint |
 | L'ouverture du coffre par Touch ID | **À la main**, par Clara, le 2026-10-20 sur l'application installée dans `/Applications` : cocher « Ouvrir avec Touch ID », verrouiller, rouvrir, poser le doigt. Aucun témoin ne peut le faire — c'est le propre d'une biométrie |
 | L'inscription aux ouvertures de session | Posée, relue **auprès du système**, puis remise comme elle était — un témoin n'a pas à laisser une entrée dans les Réglages Système de qui l'exécute |
 
@@ -281,17 +282,22 @@ autour de l'invite, eux, sont bien dans les deux langues (capture
 depuis un témoin. Ce qui est éprouvé, c'est tout ce qui suit le choix — y compris le
 ré-encodage, qui est la partie que macOS cassait.
 
-**L'alerte d'autorisation des notifications, et la bannière de rappel.** La première
-attend un clic, la seconde attend son heure ; et accorder à GhostCal un droit de notifier
-durable sur la machine de quelqu'un n'est pas une décision d'un témoin. Reste donc à faire
-une fois à la main : allumer « Rappeler mes rendez-vous », accepter l'alerte, réserver un
-créneau à vingt minutes depuis la page publique, et attendre. L'inscription aux ouvertures
-de session, elle, est éprouvée.
-
 **La notarisation**, évidemment : elle demande le certificat qui manque, et elle envoie
 chez Apple.
 
 ## Les rappels, et ce que macOS ne permet pas
+
+**Un piège rencontré, et qui se reproduira.** Si l'autorisation de notifier est refusée au
+moment où l'on allume le réglage, `activer()` rend `false` et le réglage **reste éteint**.
+La redonner ensuite dans les Réglages Système ne le rallume pas : il faut rebasculer
+l'interrupteur. L'application devrait relire l'état du droit en revenant au premier plan ;
+elle ne le fait pas encore.
+
+Second piège, de la même famille : un rappel dont l'échéance est déjà passée n'est pas
+programmé — c'est voulu, sans quoi tous les rendez-vous écoulés de la journée sonneraient
+d'un coup au lancement. Allumer le réglage cinq minutes après l'heure du rappel ne produit
+donc rien, et rien ne le dit.
+
 
 Les rappels de rendez-vous sont **ceux d'Android**, `lib/services/rappels.dart`, arrivés
 avec la 1.3.0. Ce portage ne les réécrit pas : il les étend. Les bannières passent des deux

@@ -148,29 +148,65 @@ void main() {
     return session;
   }
 
-  /// Remplit l'écran d'entrée et attend l'agenda. **Échoue** s'il ne vient pas : continuer
-  /// photographierait un écran de connexion en croyant tenir le produit.
+  /// Remplit l'écran d'entrée et attend l'agenda. **Échoue** s'il ne vient pas :
+  /// continuer photographierait un écran de connexion en croyant tenir le produit.
+  ///
+  /// ─── Pourquoi ça s'y reprend à deux fois ───
+  ///
+  /// Le trousseau survit au banc. Après un `banc-local.sh`, les jetons gardés désignent
+  /// un compte qui n'existe plus : l'écran montre son visage « reprise » — la phrase
+  /// seule —, la reprise échoue sur une session expirée, et l'écran bascule alors sur ses
+  /// trois champs. Un témoin qui ne remplit qu'une fois attend là quarante secondes et
+  /// accuse le banc.
+  ///
+  /// On resoumet donc quand l'adresse du serveur **apparaît** : c'est le signal que la
+  /// reprise a échoué et que l'écran demande tout.
   Future<void> ouvrirLeCoffre(WidgetTester tester) async {
-    // Les trois champs ne sont pas toujours là. Une fois le premier témoin passé, les
-    // jetons vivent dans le trousseau et l'écran ne demande plus que la phrase — c'est le
-    // visage « reprise », celui du lancement ordinaire. Exiger les trois ferait échouer
-    // tous les témoins suivants sur « No element », ce qui se lit comme un écran cassé.
-    for (final (cle, valeur) in [
-      ('champ.serveur', serveur),
-      ('champ.email', email),
-      ('champ.phrase', phrase),
-    ]) {
-      final champ = find.byKey(Key(cle));
-      if (champ.evaluate().isNotEmpty) await tester.enterText(champ, valeur);
+    Future<void> soumettre() async {
+      for (final (cle, valeur) in [
+        ('champ.serveur', serveur),
+        ('champ.email', email),
+        ('champ.phrase', phrase),
+      ]) {
+        final champ = find.byKey(Key(cle));
+        if (champ.evaluate().isNotEmpty) await tester.enterText(champ, valeur);
+      }
+      await tester.pumpAndSettle();
+      await tester.testTextInput.receiveAction(TextInputAction.done);
     }
-    await tester.pumpAndSettle();
-    await tester.testTextInput.receiveAction(TextInputAction.done);
 
-    final limite = DateTime.now().add(const Duration(seconds: 40));
+    var toutDemande = find.byKey(const Key('champ.serveur')).evaluate().isNotEmpty;
+    await soumettre();
+
+    final limite = DateTime.now().add(const Duration(seconds: 60));
     while (find.byType(NavigationBar).evaluate().isEmpty) {
       if (DateTime.now().isAfter(limite)) {
-        fail('Le coffre ne s\'est pas ouvert en 40 s sur $serveur. Le banc tourne-t-il ?');
+        fail('Le coffre ne s\'est pas ouvert en 60 s sur $serveur. Le banc tourne-t-il ?');
       }
+      final maintenantTout =
+          find.byKey(const Key('champ.serveur')).evaluate().isNotEmpty;
+      if (maintenantTout && !toutDemande) {
+        // La session enregistrée vient d'être refusée : l'écran demande tout, on redonne
+        // tout. Une seule fois — la bascule ne se produit qu'une fois.
+        toutDemande = true;
+        await soumettre();
+      }
+      await tester.pump(const Duration(milliseconds: 250));
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    }
+    await tester.pumpAndSettle();
+  }
+
+  /// Attend qu'un libellé paraisse, puis rend la main.
+  ///
+  /// `pumpAndSettle` ne suffit pas : il rend la main dès que l'arbre est stable, et
+  /// l'agenda, lui, attend encore le serveur. Affirmer à cet instant mesure la vitesse du
+  /// réseau, pas l'application — et le témoin rougit un jour sur deux, en accusant la
+  /// chose qu'il prétend garder.
+  Future<void> attendre(WidgetTester tester, Finder quoi, String raison) async {
+    final limite = DateTime.now().add(const Duration(seconds: 20));
+    while (quoi.evaluate().isEmpty) {
+      if (DateTime.now().isAfter(limite)) fail(raison);
       await tester.pump(const Duration(milliseconds: 250));
       await Future<void>.delayed(const Duration(milliseconds: 250));
     }
@@ -205,8 +241,20 @@ void main() {
     // d'un succès quand on ne regarde que le nombre de lignes.
     await tester.tap(find.text('Liste'));
     await tester.pumpAndSettle();
-    expect(find.text('Web avant migration'), findsOneWidget,
-        reason: 'une enveloppe sans marqueur de version ne s\'ouvre plus');
+    // ─── Quand ce témoin rougit, il doit dire laquelle des deux choses a manqué ───
+    //
+    // L'enveloppe héritée est **déposée à la main** : le cœur ne sait plus en écrire, il
+    // ne sait que les lire. Tout `banc-local.sh` repart d'une base vide et l'emporte, et
+    // le témoin échouait alors sur « Found 0 widgets » — un message qui accuse
+    // l'application pour un banc qu'on vient de reconstruire. Vu une fois, cherché
+    // longtemps.
+    await attendre(
+      tester,
+      find.text('Web avant migration'),
+      'soit une enveloppe sans marqueur de version ne s\'ouvre plus — le vrai défaut —, '
+          'soit le banc a été réamorcé depuis et ne la porte plus : '
+          '`uv run python tools/enveloppe-heritee.py` la redépose',
+    );
     // Et l'inverse se dit par le titre lui-même : une enveloppe que le cœur n'ouvre pas
     // ne disparaît pas de la liste, elle s'affiche « Contenu illisible — clé manquante ».
     // Trouver le titre, c'est donc avoir mesuré les deux.
@@ -252,7 +300,8 @@ void main() {
       a: DateTime.now().add(const Duration(hours: 48)),
       organisation: session.organisation!,
     );
-    expect(lignes.where((l) => l.titre == titre), hasLength(1));
+    expect(lignes.where((l) => l.titre == titre), hasLength(1),
+        reason: 'l\'application ne relit pas ce qu\'elle vient d\'écrire');
   }, timeout: const Timeout(Duration(minutes: 3)));
 
   testWidgets('une question à choix obligatoire s\'enregistre et se relit', (tester) async {
