@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
 import type { GridItem } from "@/components/CalendarTimeGrid";
-import {
-  LockIcon,
-} from "@/components/icons";
+import { LockIcon } from "@/components/icons";
+
+/** A task as the calendar shows it: decrypted title, cleartext due date. */
+export type AgendaTask = { id: string; title: string; due_at: string };
 
 /**
  * What is coming up, as a list.
@@ -13,42 +13,69 @@ import {
  * question people actually open a calendar to ask, and the one a grid is worst at when the day is
  * mostly empty.
  *
+ * Laid out like the mobile app and Fantastical: one section per day, named "Today", "Tomorrow" or
+ * the weekday, the day's tasks first with a box to tick, then the events with their time on the
+ * left and a bar in their calendar's colour. Today also gathers the overdue tasks, so a late one
+ * stays in sight instead of sinking into the past.
+ *
  * Titles here are already decrypted: the page unseals them in the browser before handing them over,
  * exactly as the grid views get them. Nothing new is exposed by listing them.
  */
 export default function CalendarAgendaList({
   items,
+  tasks = [],
   locale,
   onEventClick,
+  onTaskTick,
   labels,
 }: {
   items: GridItem[];
+  tasks?: AgendaTask[];
   locale: string;
   onEventClick: (item: GridItem) => void;
+  onTaskTick?: (task: AgendaTask) => void;
   labels: {
     allDay: string;
     empty: string;
     sharedReadOnly: string;
     subscriptionReadOnly: string;
+    today: string;
+    tomorrow: string;
   };
 }) {
-  const days = useMemo(() => {
-    const byDay = new Map<string, { date: Date; items: GridItem[] }>();
+  const today = startOfDay(new Date());
+  // Not memoised: a few hundred rows at most, and the React compiler already caches what it can.
+  const days = (() => {
+    const byDay = new Map<
+      number,
+      { date: Date; items: GridItem[]; tasks: AgendaTask[] }
+    >();
+    const bucket = (d: Date) => {
+      const date = startOfDay(d);
+      const key = date.getTime();
+      let b = byDay.get(key);
+      if (!b) {
+        b = { date, items: [], tasks: [] };
+        byDay.set(key, b);
+      }
+      return b;
+    };
     for (const item of [...items].sort((a, b) =>
       a.start.localeCompare(b.start),
     )) {
-      const d = new Date(item.start);
-      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-      const bucket = byDay.get(key);
-      if (bucket) bucket.items.push(item);
-      else
-        byDay.set(key, {
-          date: new Date(d.getFullYear(), d.getMonth(), d.getDate()),
-          items: [item],
-        });
+      bucket(new Date(item.start)).items.push(item);
     }
-    return [...byDay.values()];
-  }, [items]);
+    for (const task of [...tasks].sort((a, b) =>
+      a.due_at.localeCompare(b.due_at),
+    )) {
+      const due = new Date(task.due_at);
+      // Overdue: under today, not on a day the list never shows.
+      bucket(due < today ? today : due).tasks.push(task);
+    }
+    return [...byDay.values()].sort(
+      (a, b) => a.date.getTime() - b.date.getTime(),
+    );
+  })();
 
   if (days.length === 0) {
     return (
@@ -58,95 +85,130 @@ export default function CalendarAgendaList({
     );
   }
 
-  const today = new Date();
-  const isToday = (d: Date) =>
-    d.getFullYear() === today.getFullYear() &&
-    d.getMonth() === today.getMonth() &&
-    d.getDate() === today.getDate();
+  const dayName = (d: Date) => {
+    const gap = Math.round((d.getTime() - today.getTime()) / 86_400_000);
+    if (gap === 0) return labels.today;
+    if (gap === 1) return labels.tomorrow;
+    return d.toLocaleDateString(locale, { weekday: "long" });
+  };
+  const time = (iso: string) =>
+    new Date(iso).toLocaleTimeString(locale, {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
   return (
-    <div className="glass flex flex-col divide-y divide-border rounded-lg">
-      {days.map(({ date, items: dayItems }) => (
-        <div
-          key={date.toISOString()}
-          className="flex gap-4 p-4 sm:gap-6 sm:p-5"
-        >
-          <div className="w-20 shrink-0 sm:w-28">
-            <p
-              className={`text-sm font-medium ${isToday(date) ? "text-accent" : "text-foreground"}`}
+    <div className="glass flex flex-col divide-y divide-border-strong rounded-lg">
+      {days.map(({ date, items: dayItems, tasks: dayTasks }) => {
+        const isToday = date.getTime() === today.getTime();
+        return (
+          <section key={date.getTime()} className="px-4 py-4 sm:px-6">
+            <h2
+              className={`mb-2 text-sm tracking-wide ${isToday ? "text-accent" : "text-foreground"}`}
             >
-              {date.toLocaleDateString(locale, {
-                weekday: "short",
-                day: "numeric",
-              })}
-            </p>
-            <p className="text-xs text-muted">
-              {date.toLocaleDateString(locale, { month: "short" })}
-            </p>
-          </div>
+              <span className="font-extrabold uppercase">{dayName(date)}</span>
+              <span
+                className={`ml-2 font-medium tabular-nums ${isToday ? "" : "text-muted"}`}
+              >
+                {date.toLocaleDateString(locale)}
+              </span>
+            </h2>
 
-          <ul className="flex flex-1 flex-col gap-2">
-            {dayItems.map((item) => (
-              <li key={`${item.source}-${item.event_id ?? item.start}`}>
-                <button
-                  type="button"
-                  onClick={() => onEventClick(item)}
-                  className="flex w-full items-center gap-3 rounded-pill px-2 py-1.5 text-left transition hover:bg-surface-2/60"
-                >
-                  <span
-                    aria-hidden
-                    className="h-8 w-1 shrink-0 rounded-pill"
-                    style={{ backgroundColor: item.color ?? "var(--accent)" }}
-                  />
-                  {/* `w-16 sm:w-24` : « 13:40 » n'a jamais eu besoin de 96 px.
-                      Sur un écran de 390 px, ces 96 px se prenaient sur le
-                      titre, qui est la seule chose qu'on cherche dans une
-                      liste. */}
-                  <span className="w-16 shrink-0 text-xs tabular-nums text-muted sm:w-24">
-                    {item.all_day
-                      ? labels.allDay
-                      : new Date(item.start).toLocaleTimeString(locale, {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                  </span>
-                  {/* `min-w-0` n'est pas cosmétique : un enfant flex refuse par
-                      défaut de descendre sous la largeur de son contenu, donc
-                      `truncate` ne s'applique JAMAIS sans lui. C'est pour ça
-                      que la carte débordait de l'écran au lieu de couper. */}
-                  <span className="min-w-0 flex-1 truncate text-sm text-foreground">
-                    {item.label}
-                  </span>
-                  {item.read_only && (
-                    // Était `shrink-0` : ~200 px que rien ne pouvait reprendre,
-                    // sur les 390 px d'un téléphone. Il ne restait plus de place
-                    // pour le titre, réduit à « R… ». Sous `sm` un cadenas dit la
-                    // même chose en 12 px, et la phrase reste accessible au
-                    // lecteur d'écran comme au survol.
-                    <span
-                      title={
-                        item.source === "subscription"
-                          ? labels.subscriptionReadOnly
-                          : labels.sharedReadOnly
-                      }
-                      className="shrink-0 text-xs text-muted"
+            <ul className="flex flex-col">
+              {dayTasks.map((task) => {
+                const due = new Date(task.due_at);
+                const late = startOfDay(due).getTime() < date.getTime();
+                return (
+                  <li key={`task-${task.id}`}>
+                    <button
+                      type="button"
+                      onClick={() => onTaskTick?.(task)}
+                      className="flex w-full items-start gap-3 rounded-pill px-2 py-1.5 text-left transition hover:bg-surface-2/60"
                     >
-                      <span aria-hidden className="sm:hidden">
-                        <LockIcon />
+                      <span
+                        aria-hidden
+                        className="mt-0.5 h-5 w-5 shrink-0 rounded-sm border-2 border-emerald-500"
+                      />
+                      <span className="min-w-0 flex-1">
+                        {late && (
+                          <span className="block text-sm font-semibold text-rose-500">
+                            {due.toLocaleDateString(locale, {
+                              day: "numeric",
+                              month: "short",
+                            })}
+                          </span>
+                        )}
+                        <span className="block truncate text-base text-foreground">
+                          {task.title}
+                        </span>
                       </span>
-                      <span className="sr-only sm:not-sr-only">
-                        {item.source === "subscription"
-                          ? labels.subscriptionReadOnly
-                          : labels.sharedReadOnly}
-                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+
+              {dayItems.map((item) => (
+                <li key={`${item.source}-${item.event_id ?? item.start}`}>
+                  <button
+                    type="button"
+                    onClick={() => onEventClick(item)}
+                    className="flex w-full items-stretch gap-3 rounded-pill px-2 py-1.5 text-left transition hover:bg-surface-2/60"
+                  >
+                    {/* `min-w-0` n'est pas cosmétique : un enfant flex refuse par
+                        défaut de descendre sous la largeur de son contenu, donc
+                        `truncate` ne s'applique JAMAIS sans lui. */}
+                    <span className="w-14 shrink-0 tabular-nums">
+                      {item.all_day ? (
+                        <span className="text-xs text-muted">{labels.allDay}</span>
+                      ) : (
+                        <>
+                          <span className="block text-sm font-semibold text-foreground">
+                            {time(item.start)}
+                          </span>
+                          {item.end && (
+                            <span className="block text-xs text-muted">
+                              {time(item.end)}
+                            </span>
+                          )}
+                        </>
+                      )}
                     </span>
-                  )}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+                    <span
+                      aria-hidden
+                      className="w-1 shrink-0 rounded-pill"
+                      style={{ backgroundColor: item.color ?? "var(--accent)" }}
+                    />
+                    <span className="min-w-0 flex-1 self-center truncate text-base font-medium text-foreground">
+                      {item.label}
+                    </span>
+                    {item.read_only && (
+                      <span
+                        title={
+                          item.source === "subscription"
+                            ? labels.subscriptionReadOnly
+                            : labels.sharedReadOnly
+                        }
+                        className="shrink-0 self-center text-xs text-muted"
+                      >
+                        <LockIcon />
+                        <span className="sr-only">
+                          {item.source === "subscription"
+                            ? labels.subscriptionReadOnly
+                            : labels.sharedReadOnly}
+                        </span>
+                      </span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })}
     </div>
   );
+}
+
+function startOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
