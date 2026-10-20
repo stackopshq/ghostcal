@@ -510,7 +510,7 @@ class _EcranDeConnexionState extends State<EcranDeConnexion>
     return [
       _champ(
         gc,
-        'Serveur',
+        L.of(context).serveur,
         controleur: _serveur,
         cle: const Key('champ.serveur'),
         // Le domaine est celui que la RFC 2606 réserve aux exemples — il ne résout
