@@ -17,6 +17,20 @@
 // `integration_test/macos_test.dart`, et ne tourne donc que sur macOS. Une régression
 // introduite sur iOS passerait au vert partout où on la cherche.
 //
+// ─── Le lancer seul ───
+//
+// Deux exécutions enchaînées sur le même simulateur échouent, la seconde à **ouvrir le
+// coffre** — pas à mesurer le garde. Mesuré : seul, vert en huit à onze secondes ; en
+// boucle, rouge systématiquement. `flutter test` désinstalle l'application en fin de
+// course et la suivante la réinstalle aussitôt ; sur iOS le trousseau, lui, survit à la
+// désinstallation, si bien que l'écran de connexion propose une reprise de session dont
+// l'application n'existe plus.
+//
+// Ce n'est pas le produit. Laisser le simulateur respirer entre deux passages suffit, et
+// c'est pourquoi la sonde ci-dessous nomme ce qu'elle a sous les yeux plutôt que
+// d'accuser le banc : la première version disait « le banc est-il allumé ? » alors qu'il
+// répondait 200 et que `coeur_test` passait sur le même simulateur à la même minute.
+//
 // ─── Pourquoi un témoin d'intégration et non un `flutter test` ───
 //
 // Le garde ne se déclenche qu'au **passage** de `Etat.ouvert` à autre chose, et seule une
@@ -61,6 +75,20 @@ void main() {
     await tester.pumpAndSettle();
 
     // ── Ouvrir le coffre ──
+    //
+    // Toujours une connexion **complète**, jamais une reprise. Une session laissée par
+    // une exécution précédente ne redemande que la phrase, et si ses jetons ont expiré
+    // la reprise échoue sans que rien ne retente : le témoin attendait alors ses 40
+    // secondes et accusait le banc, qui répondait parfaitement. Le lien « utiliser un
+    // autre compte » ramène le formulaire entier.
+    for (final libelle in ['Utiliser un autre compte', 'Use a different account']) {
+      final lien = find.text(libelle);
+      if (lien.evaluate().isNotEmpty) {
+        await tester.tap(lien.first);
+        await tester.pumpAndSettle();
+        break;
+      }
+    }
     if (find.byKey(const Key('champ.serveur')).evaluate().isNotEmpty) {
       await tester.enterText(find.byKey(const Key('champ.serveur')), serveur);
       await tester.enterText(find.byKey(const Key('champ.email')), email);
@@ -72,8 +100,22 @@ void main() {
     final limite = DateTime.now().add(const Duration(seconds: 40));
     while (find.byKey(const Key('accueil.pret')).evaluate().isEmpty) {
       if (DateTime.now().isAfter(limite)) {
-        fail('Le coffre ne s\'est pas ouvert sur $serveur en 40 s. '
-            'Le banc est-il allumé (tools/banc-local.sh) ?');
+        // Dire ce qu'on a sous les yeux plutôt que d'accuser le banc : un échec qui
+        // nomme la mauvaise cause coûte plus cher qu'un échec sec.
+        final vus = <String>[];
+        for (final c in ['champ.serveur', 'champ.email', 'champ.phrase', 'accueil.pret']) {
+          if (find.byKey(Key(c)).evaluate().isNotEmpty) vus.add(c);
+        }
+        final textes = find
+            .byType(Text)
+            .evaluate()
+            .map((e) => (e.widget as Text).data ?? '')
+            .where((t) => t.isNotEmpty)
+            .take(12)
+            .toList();
+        fail('Le coffre ne s\'est pas ouvert sur $serveur en 40 s.\n'
+            'SONDE clés présentes : $vus\n'
+            'SONDE textes à l\'écran : $textes');
       }
       await tester.pump(const Duration(milliseconds: 250));
       await Future<void>.delayed(const Duration(milliseconds: 250));
