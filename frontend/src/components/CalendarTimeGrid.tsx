@@ -1,6 +1,7 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import type { AgendaTask } from "@/components/CalendarAgendaList";
 import type { AgendaItem } from "@/lib/agenda";
 import { layoutLanes } from "@/lib/eventLayout";
 
@@ -22,20 +23,32 @@ function hm(iso: string): string {
 }
 
 function eventClasses(it: GridItem): string {
-  if (it.color) return ""; // colored inline via eventStyle()
+  if (it.color) return "text-foreground"; // colored inline via eventStyle()
   if (it.source !== "event") return "bg-surface-2 text-muted";
   if (it.read_only) return "border border-dashed border-accent/40 text-accent/70";
-  return "bg-accent/20 text-accent";
+  return "bg-accent/20 text-foreground";
 }
 
-// A calendar colour applied inline (Tailwind can't take dynamic colours). Non-editable items —
-// shared read-only calendars and external (CalDAV) events — get a dashed border to signal it.
+// A calendar colour applied inline (Tailwind can't take dynamic colours): a tint and a bar on the
+// left in the calendar's colour, the title in the ink colour — Fantastical's block, and the mobile
+// app's. Non-editable items — shared read-only calendars and external (CalDAV) events — keep a
+// dashed border to signal it.
 function eventStyle(it: GridItem): CSSProperties | undefined {
   if (!it.color) return undefined;
   const outlined = it.read_only || it.source === "external";
   return outlined
     ? { color: it.color, border: `1px dashed ${it.color}80` }
-    : { backgroundColor: `${it.color}2b`, color: it.color };
+    : { backgroundColor: `${it.color}2b`, borderLeft: `3px solid ${it.color}` };
+}
+
+/** The current time, refreshed every minute: the "now" line moves. */
+function useNow(): Date {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  return now;
 }
 
 export default function CalendarTimeGrid({
@@ -47,9 +60,14 @@ export default function CalendarTimeGrid({
   onDayClick,
   labels,
   weatherByDay,
+  tasks = [],
+  onTaskTick,
 }: {
   days: Date[];
   items: GridItem[];
+  /** Tasks shown in the top strip on the day they are due; today also gathers the overdue ones. */
+  tasks?: AgendaTask[];
+  onTaskTick?: (task: AgendaTask) => void;
   locale: string;
   onNewAt: (date: Date, hour: number) => void;
   onEventClick: (it: GridItem) => void;
@@ -65,7 +83,33 @@ export default function CalendarTimeGrid({
   };
   weatherByDay?: Map<string, { glyph: string; tmax: number; tmin: number }>;
 }) {
-  const todayKey = ymd(new Date());
+  const now = useNow();
+  const todayKey = ymd(now);
+  const todayIndex = days.findIndex((d) => ymd(d) === todayKey);
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  // Open on the current hour today, on the working morning otherwise — not on midnight, which put
+  // the first event of the day below the fold.
+  const scroller = useRef<HTMLDivElement>(null);
+  const firstDay = days[0] ? ymd(days[0]) : "";
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const hour = todayIndex >= 0 ? Math.max(0, new Date().getHours() - 1) : 7.5;
+    el.scrollTop = hour * HOUR_PX;
+    // Once per period shown, not on every minute tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firstDay, days.length]);
+
+  function tasksForDay(day: Date): AgendaTask[] {
+    const start = new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime();
+    const end = start + 86_400_000;
+    const isToday = ymd(day) === todayKey;
+    return tasks.filter((x) => {
+      const due = new Date(x.due_at).getTime();
+      return (due >= start && due < end) || (isToday && due < start);
+    });
+  }
 
   function timedForDay(day: Date): GridItem[] {
     const key = ymd(day);
@@ -107,7 +151,10 @@ export default function CalendarTimeGrid({
   }
 
   const cols = `4rem repeat(${days.length}, minmax(0, 1fr))`;
-  const hasAllDay = days.some((d) => allDayForDay(d).length > 0);
+  const hasAllDay = days.some(
+    (d) => allDayForDay(d).length > 0 || tasksForDay(d).length > 0,
+  );
+  const todayTint = (day: Date) => (days.length > 1 && ymd(day) === todayKey ? "bg-accent/5" : "");
 
   return (
     <div className="glass overflow-hidden rounded-lg">
@@ -118,8 +165,8 @@ export default function CalendarTimeGrid({
           const isToday = ymd(day) === todayKey;
           const wx = weatherByDay?.get(ymd(day));
           return (
-            <div key={ymd(day)} className="border-l border-border py-2 text-center">
-              <div className="text-2xs uppercase text-muted">
+            <div key={ymd(day)} className={`border-l border-border py-2 text-center ${todayTint(day)}`}>
+              <div className={`text-2xs font-medium uppercase ${isToday ? "text-accent" : "text-muted"}`}>
                 {day.toLocaleDateString(locale, { weekday: "short" })}
               </div>
               {onDayClick ? (
@@ -128,15 +175,19 @@ export default function CalendarTimeGrid({
                   onClick={() => onDayClick(day)}
                   title={labels.openDay}
                   aria-label={`${labels.openDay}, ${day.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}`}
-                  className={`rounded-pill px-1.5 text-sm hover:bg-surface-2 hover:text-accent ${
-                    isToday ? "font-semibold text-accent" : "text-foreground"
+                  className={`inline-flex h-7 min-w-7 items-center justify-center rounded-pill px-1.5 text-base tabular-nums ${
+                    isToday
+                      ? "bg-accent font-bold text-accent-ink"
+                      : "text-foreground hover:bg-surface-2 hover:text-accent"
                   }`}
                 >
                   {day.getDate()}
                 </button>
               ) : (
                 <div
-                  className={`text-sm ${isToday ? "font-semibold text-accent" : "text-foreground"}`}
+                  className={`mx-auto inline-flex h-7 min-w-7 items-center justify-center rounded-pill px-1.5 text-base tabular-nums ${
+                    isToday ? "bg-accent font-bold text-accent-ink" : "text-foreground"
+                  }`}
                 >
                   {day.getDate()}
                 </div>
@@ -162,7 +213,21 @@ export default function CalendarTimeGrid({
         >
           <div className="py-1 pr-1 text-right text-2xs text-muted">{labels.allDay}</div>
           {days.map((day) => (
-            <div key={ymd(day)} className="flex flex-col gap-0.5 border-l border-border p-1">
+            <div key={ymd(day)} className={`flex min-w-0 flex-col gap-0.5 border-l border-border p-1 ${todayTint(day)}`}>
+              {tasksForDay(day).map((task) => (
+                <button
+                  key={`task-${task.id}`}
+                  type="button"
+                  role="checkbox"
+                  aria-checked={false}
+                  title={task.title}
+                  onClick={() => onTaskTick?.(task)}
+                  className="flex min-w-0 items-center gap-1 rounded-pill bg-emerald-500/15 px-1.5 py-0.5 text-left text-2xs font-medium text-emerald-500 hover:bg-emerald-500/25"
+                >
+                  <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-sm border border-current" />
+                  <span className="truncate">{task.title}</span>
+                </button>
+              ))}
               {allDayForDay(day).map((it, i) => (
                 <button
                   key={i}
@@ -187,8 +252,8 @@ export default function CalendarTimeGrid({
       )}
 
       {/* Scrollable hour grid */}
-      <div className="max-h-[64vh] overflow-y-auto">
-        <div className="grid" style={{ gridTemplateColumns: cols }}>
+      <div ref={scroller} className="max-h-[64vh] overflow-y-auto">
+        <div className="relative grid" style={{ gridTemplateColumns: cols }}>
           {/* Hour gutter */}
           <div className="relative">
             {HOURS.map((h) => (
@@ -197,7 +262,13 @@ export default function CalendarTimeGrid({
                 style={{ height: HOUR_PX }}
                 className="pr-1 text-right text-2xs text-muted"
               >
-                <span className="relative -top-1.5">{h > 0 ? `${String(h).padStart(2, "0")}:00` : ""}</span>
+                {/* The hour the red time sits on is left out: two labels on one line read as
+                    neither. */}
+                <span className="relative -top-1.5">
+                  {h > 0 && (todayIndex < 0 || Math.abs(nowMinutes - h * 60) > 15)
+                    ? `${String(h).padStart(2, "0")}:00`
+                    : ""}
+                </span>
               </div>
             ))}
           </div>
@@ -206,7 +277,7 @@ export default function CalendarTimeGrid({
           {days.map((day) => (
             <div
               key={ymd(day)}
-              className="relative border-l border-border"
+              className={`relative border-l border-border ${todayTint(day)}`}
               style={{ height: 24 * HOUR_PX }}
             >
               {HOURS.map((h) => (
@@ -233,14 +304,33 @@ export default function CalendarTimeGrid({
                   }
                   onClick={() => onEventClick(it)}
                   style={{ top, height, left, width, ...eventStyle(it) }}
-                  className={`absolute overflow-hidden rounded px-1.5 py-0.5 text-left text-2xs leading-tight ${eventClasses(it)}`}
+                  className={`absolute overflow-hidden rounded-sm px-1.5 py-0.5 text-left text-2xs leading-tight ${eventClasses(it)}`}
                 >
-                  <span className="font-medium">{it.label}</span>
+                  <span className="font-semibold">{it.label}</span>
                   <span className="block text-2xs opacity-70">{hm(it.start)}</span>
                 </button>
               ))}
             </div>
           ))}
+
+          {/* The "now" line: the time in red in the gutter, a line across every day and a dot
+              where it crosses today — Fantastical's reading of the hour. */}
+          {todayIndex >= 0 && (
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0"
+              style={{ top: (nowMinutes / 60) * HOUR_PX - 7, height: 14 }}
+            >
+              <span className="absolute left-0 flex h-full w-16 items-center justify-end pr-1 text-2xs font-bold tabular-nums text-rose-500">
+                {now.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
+              </span>
+              <span className="absolute right-0 left-16 top-1/2 h-0.5 -translate-y-1/2 bg-rose-500" />
+              <span
+                className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-pill bg-rose-500"
+                style={{ left: `calc(4rem + (100% - 4rem) * ${todayIndex / days.length})` }}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>
