@@ -58,6 +58,8 @@ class MainFlutterWindow: NSWindow {
     Vignette.enregistrer(flutterViewController.registrar(forPlugin: "Vignette"))
     OuvertureDeSession.enregistrer(
       flutterViewController.registrar(forPlugin: "OuvertureDeSession"))
+    MenuDeLApplication.partage.brancher(
+      flutterViewController.registrar(forPlugin: "MenuDeLApplication"))
 
     super.awakeFromNib()
 
@@ -79,6 +81,20 @@ class MainFlutterWindow: NSWindow {
     // fenêtre au premier plan juste derrière.
     if (NSApp.delegate as? AppDelegate)?.lanceeParLOuvertureDeSession == true {
       self.orderOut(nil)
+    }
+
+    // ─── Le menu, au tour de boucle suivant ───
+    //
+    // La fenêtre et la barre de menus sortent du **même** nib, et rien ne garantit que
+    // `NSApp.mainMenu` soit déjà posé quand cette fenêtre s'éveille : l'ordre d'éveil des
+    // objets de premier niveau n'est pas spécifié. Brancher ici tout de suite marcherait
+    // la plupart du temps, ce qui est la pire des propriétés — ⌘, serait inerte une fois
+    // sur dix, chez quelqu'un d'autre.
+    //
+    // Un passage par la file principale suffit : le chargement du nib est terminé quand
+    // ce bloc s'exécute.
+    DispatchQueue.main.async {
+      MenuDeLApplication.partage.brancherLesReglages()
     }
   }
 }
