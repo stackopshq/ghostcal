@@ -6,52 +6,6 @@
 # décision.
 
 [[IgnoredVulns]]
-id = "GHSA-82fw-gwwq-j7x9"
-ignoreUntil = 2026-12-31
-reason = """
-Vitest — lecture de fichier arbitraire via une redirection du serveur de
-développement de @vitest/mocker. CVSS 5.9.
-
-Pourquoi écarté : c'est une dépendance de DÉVELOPPEMENT, absente de tout
-artefact livré, et l'attaque suppose qu'un navigateur visite le serveur de
-développement de Vitest — lequel ne tourne ni en CI ni en production.
-
-Pourquoi pas corrigé : le correctif est vitest 4.1.11, une version MAJEURE.
-Essayée et mesurée le 2026-09-25 : elle casse 12 tests supplémentaires, parce
-que vitest 4 ne fournit plus l'environnement `jsdom` de la même façon et que
-`localStorage` devient indéfini. Ajouter `jsdom` en dépendance ne suffit pas :
-il est déjà déclaré en ^25.0.1.
-
-Une migration majeure de framework de test n'a pas sa place dans une montée de
-sécurité : elle change ce qu'on mesure en même temps qu'on répare, et on ne
-sait plus lequel des deux a cassé quoi. Elle mérite son propre travail, avec
-les 11 tests déjà rouges sur `main` traités au passage.
-
-Réexamen fin 2026 : si la migration n'a pas eu lieu d'ici là, cet avis doit
-revenir poser la question plutôt que de rester poli.
-"""
-
-[[IgnoredVulns]]
-id = "GHSA-5gmw-xhrv-c9v3"
-ignoreUntil = 2026-12-31
-reason = """
-tinypool 1.1.1, tiré par vitest 3.2.7. Dépendance de DÉVELOPPEMENT : le pool
-de workers des tests, absent de tout artefact livré.
-
-Pourquoi pas corrigé : le correctif est tinypool 2.1.1, que seul vitest 4
-tire. C'est la même migration majeure que GHSA-82fw-gwwq-j7x9 ci-dessus, avec
-la même échéance.
-"""
-
-[[IgnoredVulns]]
-id = "GHSA-85c8-ppgw-ccpr"
-ignoreUntil = 2026-12-31
-reason = """
-tinypool 1.1.1, même chemin et même raison que GHSA-5gmw-xhrv-c9v3 : corrigé
-en 2.1.2, qui demande vitest 4.
-"""
-
-[[IgnoredVulns]]
 id = "GHSA-vfj7-8cjw-p6xm"
 ignoreUntil = 2026-12-31
 reason = """
@@ -61,23 +15,4 @@ linter sur les sources du dépôt, jamais sur une entrée utilisateur.
 
 Pourquoi pas corrigé : aucune version corrigée n'est publiée au 2026-10-14.
 Réexamen à l'échéance, ou dès qu'une version corrigée existe.
-"""
-
-[[IgnoredVulns]]
-id = "GHSA-qxg6-89mg-rqv8"
-ignoreUntil = 2026-12-31
-reason = """
-@vitest/mocker 3.2.7 — injection de code via l'enregistrement d'un mock manuel
-sans authentification sur le WebSocket du serveur de développement de Vite.
-CVSS 4.7. Publié le 2026-10-21, entre la passe de la PR #214 et celle de
-`main` : même gestionnaire et même appelant que GHSA-82fw-gwwq-j7x9, dont le
-correctif n'avait durci que la branche `redirect`.
-
-Pourquoi écarté : dépendance de DÉVELOPPEMENT, absente de tout artefact
-livré ; l'attaque suppose un navigateur qui visite le serveur de développement
-de Vitest, lequel ne tourne ni en CI ni en production.
-
-Pourquoi pas corrigé : le correctif est @vitest/mocker 5.0.3, soit vitest
-4.1.12 — la même migration MAJEURE que GHSA-82fw-gwwq-j7x9 ci-dessus, avec la
-même échéance et la même raison de ne pas la mêler à une montée de sécurité.
 """

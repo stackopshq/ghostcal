@@ -20,6 +20,8 @@ function withGhostMail(url: string | null) {
 }
 
 beforeEach(() => {
+  // Vitest 4: restoreAllMocks only restores spies, so the module mock's call count must be cleared here.
+  vi.clearAllMocks();
   resetGhostMailUrlCache();
   withGhostMail(MAIL);
 });
