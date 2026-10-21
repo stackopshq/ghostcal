@@ -12,11 +12,23 @@ import {
   KeyIcon,
 } from "@/components/icons";
 
+// Where sign-in / sign-up must bring the invitee back: this very page, hash included. The #k=
+// grant key never reaches the server, so it has to travel inside the ?next= destination or the
+// invitee lands on the dashboard with the invitation untouched — which is exactly what happened:
+// "Sign in" was a bare /login link, login defaulted to /dashboard, and the acceptance call never
+// fired. Exported for unit testing.
+export function invitationReturnPath(token: string, hash: string): string {
+  return `/invitations/${encodeURIComponent(token)}${hash}`;
+}
+
 export default function InvitationPage() {
   const t = useT();
   const params = useParams<{ token: string }>();
   const token = params.token;
   const router = useRouter();
+  const [returnTo] = useState<string>(() =>
+    invitationReturnPath(token, typeof window === "undefined" ? "" : window.location.hash),
+  );
   const [preview, setPreview] = useState<InvitationPreview | null>(null);
   const [loading, setLoading] = useState(true);
   const [authed, setAuthed] = useState(false);
@@ -124,13 +136,13 @@ export default function InvitationPage() {
                 </p>
                 <div className="flex gap-3">
                   <Link
-                    href="/login"
+                    href={`/login?next=${encodeURIComponent(returnTo)}`}
                     className="flex-1 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink transition hover:brightness-110"
                   >
                     {t("common.signIn")}
                   </Link>
                   <Link
-                    href="/register"
+                    href={`/register?next=${encodeURIComponent(returnTo)}`}
                     className="flex-1 rounded-lg border border-border-strong px-4 py-2.5 text-sm text-foreground transition hover:border-accent hover:text-accent"
                   >
                     {t("inv.signUp")}
