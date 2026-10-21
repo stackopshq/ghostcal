@@ -212,14 +212,26 @@ l'image ne voyage pas avec l'application qu'on en glisse vers *Applications* : u
 sortie, elle n'a plus rien de local, et son premier lancement redemande le réseau — ce
 qu'on ne voit jamais ici, puisque la machine qui notarise a toujours du réseau.
 
-L'ordre coûte un envoi de plus, et il n'y a pas moyen de l'éviter : l'image change quand
-on y remplace l'application, donc elle doit être resignée et renotariée.
+Il faut deux envois, mais **l'ordre décide de leur nature** : notariser l'application
+d'abord, ou refaire l'image. Le second est celui qu'on trouve en tâtonnant, et c'est le
+plus coûteux.
 
-1. notariser l'image (l'application qu'elle contient reçoit son billet au passage) ;
-2. `stapler staple` sur **l'application** — le billet est déjà émis pour son empreinte,
-   donc l'agrafe se pose sans réenvoi ;
-3. refabriquer l'image autour de l'application agrafée ;
-4. resigner l'image, la renotariser, l'agrafer.
+Le bon ordre — l'application part seule, dans une archive :
+
+1. `ditto -c -k --keepParent build/export/GhostCal.app build/GhostCal-app.zip` ;
+2. notariser ce `.zip` — le billet est émis pour l'empreinte de l'application ;
+3. `stapler staple` sur l'application ;
+4. fabriquer l'image **autour de l'application déjà agrafée** ;
+5. signer l'image, la notariser, l'agrafer.
+
+Chaque objet est notarié une fois, et rien n'est refait. L'archive ne sert qu'au transport :
+on ne la distribue pas, et on ne l'agrafe pas — c'est l'application qu'elle contient qui
+reçoit l'agrafe.
+
+L'ordre inverse — notariser l'image, puis découvrir que l'application n'a pas d'agrafe —
+oblige à refabriquer l'image autour de l'application agrafée, donc à la resigner et à la
+renotarier, puisqu'elle a changé. C'est ce qui a été fait pour la 1.4.0, avant de
+comprendre. Même nombre d'envois, mais une image construite deux fois.
 
 Le contrôle final porte sur les deux, et sur l'application montée depuis l'image :
 
@@ -260,6 +272,22 @@ macOS écrit ses enveloppes en `v:1` — vérifié sur les octets rendus par le 
 ci-dessous. Le web actuellement déployé ne les lit pas : un événement créé depuis le Mac
 s'afficherait illisible dans le navigateur. La version du web qui corrige cela est la
 #176 ; tant qu'elle n'est pas déployée, l'image disque ne se met pas en ligne.
+
+## Les versions notariées
+
+| Version | Source | Envois acceptés | SHA-256 de l'image |
+|---|---|---|---|
+| 1.4.1 (6) | `0c1f6b6` | `81a324cf…` (application), `21e30a07…` (image) | `428b85efa09ab83bdf2b34222b1ae1f57609efb32e1e31139a71c900b752c255` |
+| 1.4.0 (5) | `b5e2846` | `f49a440d…`, `3a96acfd…` (image construite deux fois) | `a6c372fdf463ad928686d52402c4759742a225ac01f8dfeb6be317a5ad248b80` |
+
+Pour les deux : universelle `x86_64 arm64`, runtime durci, autorité Developer ID,
+horodatage sécurisé, `get-task-allow` absent, droits limités à `app-sandbox`,
+`network.client`, `files.user-selected.read-only` et `keychain-access-groups`. Les deux
+agrafes valides, `spctl` accepte l'image et l'application montée depuis l'image, et
+l'application s'ouvre avec sa barre de menus complète.
+
+Les images ne vivent plus dans le dépôt : elles sont jointes aux publications de la forge,
+sur l'étiquette `mobile-vX.Y.Z`.
 
 ## La notarisation du 2026-10-20
 
@@ -305,6 +333,7 @@ Campagne du 2026-10-15, `flutter test integration_test/macos_test.dart -d macos`
 | L'ouverture du coffre par Touch ID | **À la main**, par Clara, le 2026-10-20 sur l'application installée dans `/Applications` : cocher « Ouvrir avec Touch ID », verrouiller, rouvrir, poser le doigt. Aucun témoin ne peut le faire — c'est le propre d'une biométrie |
 | L'inscription aux ouvertures de session | Posée, relue **auprès du système**, puis remise comme elle était — un témoin n'a pas à laisser une entrée dans les Réglages Système de qui l'exécute |
 | Les dix raccourcis de la barre de menus | Deux moitiés, mesurées séparément. La frappe → l'envoi natif : l'envoi instrumenté, les dix équivalents déclenchés par `System Events`, **y compris sur ABC-AZERTY** — voir ci-dessous. L'envoi → l'écran : `integration_test/macos_test.dart`, qui pousse chaque commande sur le canal et relit la vue, l'ancre, l'écran de recherche et l'état du coffre |
+| Une série récurrente survit à une modification depuis le Mac | `tools/semer-une-serie.py` dépose une série dont le rappel est posé **par le serveur**, comme le web le fait. Le témoin modifie la série depuis l'application, retire une occurrence, puis supprime tout — et relit `rrule`, `exdates` et `reminder_minutes` **sur le serveur** à chaque étape. Un titre correct à l'écran ne dit rien de ce qui a été écrit, et c'est là que la perte se produisait : la route `PUT` remplace l'enregistrement entier |
 | Les deux côtés parlent la même langue | `test/menu_macos_test.dart` compare les noms de méthode émis par le Swift à ceux traités par `accueil.dart`, dans les deux sens. Sans témoin, un item renommé d'un seul côté donne un raccourci qui ne fait rien, en silence |
 
 ### Les chiffres, sur un clavier qui n'en porte pas à cet endroit
