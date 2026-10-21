@@ -107,7 +107,9 @@ export default function CalendarTimeGrid({
     const isToday = ymd(day) === todayKey;
     return tasks.filter((x) => {
       const due = new Date(x.due_at).getTime();
-      return (due >= start && due < end) || (isToday && due < start);
+      const todayStart = new Date(new Date().setHours(0, 0, 0, 0)).getTime();
+      // An overdue task shows on today only: on its own past day as well, it read as two tasks.
+      return (due >= start && due < end && due >= todayStart) || (isToday && due < start);
     });
   }
 
