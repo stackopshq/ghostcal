@@ -506,5 +506,9 @@
         "type": "int"
       }
     }
-  }
+  },
+  "evenementQuiSeRepete": "Cet événement se répète. Supprimer seulement celui-ci, ou toute la série ?",
+  "cetteOccurrence": "Celui-ci",
+  "touteLaSerie": "Toute la série",
+  "modifierLaSerie": "Cet événement se répète : vos modifications s'appliquent à toute la série. Pour n'en changer qu'un, passez par le web."
 }

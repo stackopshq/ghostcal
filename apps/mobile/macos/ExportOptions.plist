@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Comment l'archive devient un paquet distribuable hors App Store.
+
+  C'est **l'exportation qui re-signe**, et c'est elle qui retire
+  `com.apple.security.get-task-allow`. `flutter build macos --release` produit un paquet
+  signé en développement, qui porte ce droit : la notarisation le refuse, et elle le
+  refuse après l'envoi, dans un rapport JSON. Un binaire qui se construit, se signe, se
+  vérifie, et ne se notarise pas.
+
+  ─── `destination` : la clé qui empêche un envoi qu'on n'a pas demandé ───
+
+  Sans elle, `xcodebuild -exportArchive` en `developer-id` **peut notariser de lui-même**
+  selon la version de Xcode. Une commande qui dit « exporter » enverrait alors le paquet
+  chez Apple sans que personne l'ait décidé. L'envoi est une étape à part, délibérée, et
+  elle a son propre moment dans `docs/macos.md`.
+
+  ─── `teamID` : écrite, et non découverte ───
+
+  Même motif que dans `docs/appstore.md` : un certificat d'équipe personnelle cohabite
+  dans le trousseau de la machine de construction, et la signature automatique peut le
+  choisir sans rien dire. Le paquet serait signé, valide, et par la mauvaise équipe.
+-->
+<plist version="1.0">
+<dict>
+	<key>method</key>
+	<string>developer-id</string>
+	<key>teamID</key>
+	<string>9WHCJ5W7S6</string>
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<key>destination</key>
+	<string>export</string>
+</dict>
+</plist>

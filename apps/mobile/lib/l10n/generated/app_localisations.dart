@@ -1818,6 +1818,30 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Réduire le mois'**
   String get reduireLeMois;
+
+  /// No description provided for @evenementQuiSeRepete.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cet événement se répète. Supprimer seulement celui-ci, ou toute la série ?'**
+  String get evenementQuiSeRepete;
+
+  /// No description provided for @cetteOccurrence.
+  ///
+  /// In fr, this message translates to:
+  /// **'Celui-ci'**
+  String get cetteOccurrence;
+
+  /// No description provided for @touteLaSerie.
+  ///
+  /// In fr, this message translates to:
+  /// **'Toute la série'**
+  String get touteLaSerie;
+
+  /// No description provided for @modifierLaSerie.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cet événement se répète : vos modifications s\'appliquent à toute la série. Pour n\'en changer qu\'un, passez par le web.'**
+  String get modifierLaSerie;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

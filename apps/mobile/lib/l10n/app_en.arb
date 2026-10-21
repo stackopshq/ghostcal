@@ -315,5 +315,9 @@
   "calendriersAffiches": "{nombre} calendars",
   "calendriersAAfficher": "Calendars shown",
   "developperLeMois": "Expand the month",
-  "reduireLeMois": "Collapse the month"
+  "reduireLeMois": "Collapse the month",
+  "evenementQuiSeRepete": "This event repeats. Delete only this one, or the whole series?",
+  "cetteOccurrence": "This one",
+  "touteLaSerie": "Whole series",
+  "modifierLaSerie": "This event repeats: your changes apply to the whole series. To change only one, use the web."
 }

@@ -1000,4 +1000,18 @@ class LEn extends L {
 
   @override
   String get reduireLeMois => 'Collapse the month';
+
+  @override
+  String get evenementQuiSeRepete =>
+      'This event repeats. Delete only this one, or the whole series?';
+
+  @override
+  String get cetteOccurrence => 'This one';
+
+  @override
+  String get touteLaSerie => 'Whole series';
+
+  @override
+  String get modifierLaSerie =>
+      'This event repeats: your changes apply to the whole series. To change only one, use the web.';
 }

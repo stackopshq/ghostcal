@@ -845,7 +845,9 @@ export default function CalendarPage() {
     const isToday = ymd(day) === ymd(new Date());
     return tasks.filter((x) => {
       const due = new Date(x.due_at);
-      return (due >= start && due < end) || (isToday && due < start);
+      const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
+      // An overdue task shows on today only: on its own past day as well, it read as two tasks.
+      return (due >= start && due < end && due >= todayStart) || (isToday && due < start);
     });
   }
 

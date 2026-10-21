@@ -1004,4 +1004,18 @@ class LFr extends L {
 
   @override
   String get reduireLeMois => 'Réduire le mois';
+
+  @override
+  String get evenementQuiSeRepete =>
+      'Cet événement se répète. Supprimer seulement celui-ci, ou toute la série ?';
+
+  @override
+  String get cetteOccurrence => 'Celui-ci';
+
+  @override
+  String get touteLaSerie => 'Toute la série';
+
+  @override
+  String get modifierLaSerie =>
+      'Cet événement se répète : vos modifications s\'appliquent à toute la série. Pour n\'en changer qu\'un, passez par le web.';
 }

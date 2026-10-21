@@ -21,7 +21,12 @@ class EcranDeNouvelEvenement extends StatefulWidget {
     required this.jour,
     this.evenement,
     this.debut,
+    this.occurrence,
   });
+
+  /// The start of the occurrence tapped in the agenda, for a series: the one "delete
+  /// this occurrence" removes.
+  final DateTime? occurrence;
 
   /// The start picked by tapping an empty slot in the day or week grid; 09:00 on
   /// [jour] otherwise.
@@ -51,6 +56,10 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
   bool _occupe = false;
   bool _chargement = false;
   String? _erreur;
+
+  /// The event as loaded, kept for what the form does not show (recurrence, exceptions,
+  /// reminder) and sent back with it.
+  DetailDEvenement? _detail;
 
   bool get _modification => widget.evenement != null;
 
@@ -100,6 +109,7 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
       );
       if (!mounted) return;
       setState(() {
+        _detail = detail;
         _debut = detail.debut;
         // The form shows the last day included; the server stores an exclusive end.
         _fin = detail.journeeEntiere
@@ -170,6 +180,9 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
           fuseau: _fuseau ?? await Agenda.fuseauCourant(),
           calendrier: calendrier,
           organisation: organisation,
+          rrule: _detail?.rrule,
+          exdates: _detail?.exdates ?? const [],
+          rappelMinutes: _detail?.rappelMinutes,
         );
       } else {
         await agenda.creerUnEvenement(
@@ -194,27 +207,42 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
   Future<void> _supprimer() async {
     final agenda = _agenda;
     if (agenda == null) return;
-    final confirme = await showDialog<bool>(
+    final detail = _detail;
+    final l = L.of(context);
+    // A series offers both: the occurrence tapped in the agenda, or all of it.
+    final serie = detail != null && detail.repete;
+    final choix = await showDialog<_Suppression>(
       context: context,
       builder: (c) => AlertDialog(
-        title: Text(L.of(context).supprimerCetEvenement),
-        content: Text(L.of(context).disparaitraPourTous),
+        title: Text(l.supprimerCetEvenement),
+        content: Text(serie ? l.evenementQuiSeRepete : l.disparaitraPourTous),
         actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: Text(l.annuler)),
+          if (serie)
+            TextButton(
+              key: const Key('evenement.supprimer.occurrence'),
+              onPressed: () => Navigator.pop(c, _Suppression.occurrence),
+              child: Text(l.cetteOccurrence),
+            ),
           TextButton(
-            onPressed: () => Navigator.pop(c, false),
-            child: Text(L.of(context).annuler),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(c, true),
-            child: Text(L.of(context).supprimer),
+            key: const Key('evenement.supprimer.tout'),
+            onPressed: () => Navigator.pop(c, _Suppression.tout),
+            child: Text(serie ? l.touteLaSerie : l.supprimer),
           ),
         ],
       ),
     );
-    if (confirme != true) return;
+    if (choix == null) return;
     setState(() => _occupe = true);
     try {
-      await agenda.supprimerUnEvenement(widget.evenement!);
+      if (choix == _Suppression.occurrence) {
+        await agenda.supprimerUneOccurrence(
+          detail!,
+          widget.occurrence ?? widget.jour,
+        );
+      } else {
+        await agenda.supprimerUnEvenement(widget.evenement!);
+      }
       if (mounted) Navigator.of(context).pop(true);
     } on Object catch (e) {
       if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
@@ -270,6 +298,14 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
                       Text(
                         _erreur!,
                         style: TextStyle(color: gc.danger, fontSize: 13),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+                    if (_detail?.repete ?? false) ...[
+                      Text(
+                        L.of(context).modifierLaSerie,
+                        key: const Key('evenement.serie'),
+                        style: TextStyle(color: gc.estompe, fontSize: 13),
                       ),
                       const SizedBox(height: 14),
                     ],
@@ -399,3 +435,5 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
     },
   );
 }
+
+enum _Suppression { occurrence, tout }
