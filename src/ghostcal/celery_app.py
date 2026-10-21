@@ -30,6 +30,36 @@ def create_celery() -> Celery:
         # A worker that starts before Redis is up should wait for it rather than exit — the
         # ordinary case on a cold `compose up`.
         broker_connection_retry_on_startup=True,
+        # ATTENDRE EST BON POUR UN OUVRIER, RUINEUX DANS UNE REQUÊTE. Le même objet Celery
+        # sert aux deux : l'ouvrier le consomme, et le processus web y PUBLIE, au milieu d'une
+        # requête HTTP qu'un humain attend.
+        #
+        # Mesuré le 2026-09-27 avec Redis arrêté : une inscription mettait **19,7 s** puis
+        # rendait 201. Le compte était bien créé et le courriel correctement abandonné — la
+        # conception tient, `hand_off` n'a jamais levé. Mais aucun client ne patiente 20 s :
+        # le navigateur coupait, l'utilisateur croyait à un échec, réessayait, recevait
+        # « adresse déjà prise », et se retrouvait avec un compte qu'il ne savait pas avoir.
+        # Une panne de file de messages se présentait comme une inscription cassée.
+        #
+        # On borne donc la PUBLICATION, pas la consommation. Deux essais, une seconde de
+        # délai de garde sur la prise : Redis absent coûte désormais ~1 s et un courriel, ce
+        # qui est le prix juste.
+        broker_transport_options={
+            "socket_connect_timeout": 1,
+            "socket_timeout": 1,
+            "max_retries": 1,
+        },
+        result_backend_transport_options={
+            "socket_connect_timeout": 1,
+            "socket_timeout": 1,
+            "max_retries": 1,
+        },
+        task_publish_retry_policy={
+            "max_retries": 1,
+            "interval_start": 0,
+            "interval_step": 0.2,
+            "interval_max": 0.4,
+        },
         # Cap what one worker takes at a time. With acks_late, a crash re-delivers everything
         # prefetched, and a long queue behind a dead worker is worse than a slightly idle one.
         worker_prefetch_multiplier=1,

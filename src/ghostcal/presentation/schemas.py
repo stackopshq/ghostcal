@@ -161,6 +161,13 @@ class ForgotPasswordIn(BaseModel):
     email: EmailStr
 
 
+class ResendVerificationIn(BaseModel):
+    """Même forme que `ForgotPasswordIn`, et pourtant un type à part : une route que
+    l'OpenAPI décrit doit se lire sans avoir à deviner laquelle des deux on appelle."""
+
+    email: EmailStr
+
+
 class ResetPasswordIn(BaseModel):
     """A new password and the key envelopes that go with it, in one request.
 
