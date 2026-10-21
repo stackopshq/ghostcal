@@ -35,18 +35,19 @@ quand même, pour les raisons données dans son propre en-tête.
 machine, contre un vrai serveur, et mesure ce qu'aucun témoin hors matériel ne peut dire.
 Voir « Ce qui a été vérifié ».
 
-## Ce qui manque, et c'est une seule chose
+## Pourquoi `flutter build` ne suffit pas
 
-**Il n'y a pas de certificat « Developer ID Application » sur cette machine.**
+Le certificat « Developer ID Application » est là depuis le 2026-10-20 :
 
 ```
 $ security find-identity -v -p codesigning
   1) … "Apple Development: clara@stackops.ch (RJ29WBG4US)"
   2) … "Apple Development: Clara Vanacker (W2P4BU4H3S)"
-     2 valid identities found
+  3) … "Developer ID Application: Clara Vanacker (9WHCJ5W7S6)"
+     3 valid identities found
 ```
 
-Conséquence directe, et elle n'est pas cosmétique : `flutter build macos --release`
+Mais l'avoir ne suffit pas, et c'est ce que cette section garde : `flutter build macos --release`
 produit un paquet signé **en développement**, qui porte
 `com.apple.security.get-task-allow`. Relevé sur le paquet construit le 2026-10-15 :
 
@@ -74,17 +75,28 @@ C'est le comportement attendu d'un paquet de développement, pas un défaut du p
 signature Developer ID ne se pose **pas** par `flutter build` : elle se pose à
 l'exportation d'une archive, qui re-signe tout et laisse `get-task-allow` derrière.
 
-## La marche à suivre, pour Kevin
+## La marche à suivre
 
-Rien de ce qui suit n'a été exécuté. Chaque étape dit ce qu'elle produit et comment on
-voit qu'elle a marché.
+Exécutée en entier le 2026-10-20, pour la 1.4.0 puis la 1.4.1 — voir « Les versions
+notariées » plus bas. Chaque étape dit ce qu'elle produit et comment on voit qu'elle a
+marché, parce que c'est ce qui manquait le plus la première fois.
 
 ### 1 · Le certificat
 
 Dans Xcode, **Settings › Accounts › Manage Certificates › + › Developer ID Application**,
-avec un compte ayant le rôle *Account Holder* ou *Admin* sur l'équipe 9WHCJ5W7S6. Un rôle
-*Developer* ne peut pas en créer, et l'interface ne le dit pas : le bouton est simplement
+avec le compte **Account Holder** de l'équipe 9WHCJ5W7S6 — et lui seul. Ni *Admin* ni
+*Developer* ne peuvent en créer, et l'interface ne le dit pas : le bouton est simplement
 absent.
+
+L'API App Store Connect ne peut pas davantage le faire, et elle le dit en clair, ce qui
+est la seule fois de cette page où Apple est explicite :
+
+```
+HTTP 403 — This operation can only be performed by the Account Holder
+```
+
+Inutile donc de chercher à automatiser cette étape : il n'y a pas de chemin sans
+l'interface d'Xcode et le bon compte.
 
 À vérifier avant de continuer :
 
@@ -92,11 +104,58 @@ absent.
 security find-identity -v -p codesigning | grep "Developer ID Application"
 ```
 
-### 2 · Le mot de passe d'application, pour notarytool
+#### Celui qu'on a est un G1, et il expire le 2027-02-01
 
-`notarytool` n'accepte pas le mot de passe du compte Apple. Il faut un **mot de passe pour
-application**, créé sur <https://account.apple.com> › Connexion et sécurité. Rangé une
-fois dans le trousseau, il n'est plus jamais retapé :
+Xcode délivre un certificat signé par l'autorité **G1**, et la validité d'un certificat ne
+dépasse jamais celle de son émetteur — ici à la seconde près. Relu sur la machine le
+2026-10-21 :
+
+```
+$ security find-certificate -c "Developer ID Application: Clara Vanacker" -p \
+    | openssl x509 -noout -issuer -enddate
+issuer=CN=Developer ID Certification Authority, …, O=Apple Inc.
+notAfter=Feb  1 22:12:15 2027 GMT
+```
+
+```
+notre certificat   notBefore=Oct 20 09:09:52 2026   notAfter=Feb  1 22:12:15 2027
+autorité G1        notBefore=Feb  1 22:12:15 2012   notAfter=Feb  1 22:12:15 2027
+autorité G2        OU=G2                            notAfter=Sep 17 00:00:00 2031
+```
+
+Trois mois et demi, là où un Developer ID dure normalement cinq ans. C'est pour cela
+qu'Apple a fait la G2.
+
+Trois conséquences, et la deuxième est celle qui se paie chez les autres :
+
+1. **On peut signer et distribuer aujourd'hui.** C'est fait : la 1.4.0 et la 1.4.1 sont
+   notariées et en ligne.
+2. **Il faut signer avec un horodatage sécurisé** — `--timestamp`, voir l'étape 3. Avec
+   lui, ce qui est distribué continue de s'ouvrir après le 1er février 2027 : l'horodatage
+   prouve que la signature était valide au moment où elle a été faite. Sans lui, **tout ce
+   qui a été distribué cesse de se vérifier à cette date**, et le défaut ne se voit jamais
+   sur la machine qui a signé — comme l'agrafage de l'application dans l'image.
+3. **Après le 1er février 2027, plus aucune build nouvelle** ne pourra être signée avec
+   celui-ci. Il faudra un G2, créé depuis `developer.apple.com` plutôt que depuis Xcode.
+
+Rien n'oblige à le faire maintenant. Mais le jour où ce certificat expire est connu, et
+c'est le genre d'échéance qu'on découvre autrement un vendredi soir.
+
+### 2 · De quoi s'authentifier auprès de notarytool
+
+Deux voies, et **c'est la seconde qui a servi** : elle évite de créer un second secret sur
+une machine qui en porte déjà un pour l'envoi iOS.
+
+**La clé API App Store Connect.** Si la machine en a déjà une — `~/.appstoreconnect/
+private_keys/AuthKey_<ID>.p8` —, `notarytool` l'accepte directement, avec l'identifiant de
+clé et celui d'émetteur. L'identifiant d'émetteur ne se déduit pas de la clé : c'est la
+revendication `iss` du jeton qu'il faut justement signer, et il s'affiche en clair dans
+App Store Connect, au-dessus du tableau des clés. Voir l'étape 5 pour l'invocation.
+
+**Le mot de passe pour application.** `notarytool` n'accepte pas le mot de passe du compte
+Apple. Il faut un **mot de passe pour application**, créé sur
+<https://account.apple.com> › Connexion et sécurité. Rangé une fois dans le trousseau, il
+n'est plus jamais retapé :
 
 ```sh
 xcrun notarytool store-credentials "ghostcal-notarisation" \
@@ -267,11 +326,14 @@ franchit Gatekeeper sans être examiné.
 - le numéro de version, lisible sans télécharger ;
 - la somme SHA-256, pour qui veut vérifier. `shasum -a 256 build/GhostCal-1.2.0.dmg`.
 
-**Et rien avant que le web qui lit le format `v:1` soit en production.** L'application
-macOS écrit ses enveloppes en `v:1` — vérifié sur les octets rendus par le serveur, voir
-ci-dessous. Le web actuellement déployé ne les lit pas : un événement créé depuis le Mac
-s'afficherait illisible dans le navigateur. La version du web qui corrige cela est la
-#176 ; tant qu'elle n'est pas déployée, l'image disque ne se met pas en ligne.
+**La condition qui bloquait la mise en ligne est levée.** L'application macOS écrit ses
+enveloppes en `v:1`, et le web qui les lit (#176) est en production depuis le 2026-10-15 ;
+un événement créé depuis le Mac s'ouvre donc dans le navigateur. Ce qui précède est resté
+vrai plusieurs jours et ne l'est plus : avant la #176, un tel événement s'affichait
+illisible dans le web.
+
+L'image est jointe à la publication de la forge, sur l'étiquette `mobile-vX.Y.Z`, à côté
+de l'AAB et de l'APK. Elle ne vit plus dans le dépôt.
 
 ## Les versions notariées
 
