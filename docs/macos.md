@@ -89,14 +89,19 @@ avec le compte **Account Holder** de l'équipe 9WHCJ5W7S6 — et lui seul. Ni *A
 absent.
 
 L'API App Store Connect ne peut pas davantage le faire, et elle le dit en clair, ce qui
-est la seule fois de cette page où Apple est explicite :
+est la seule fois de cette page où Apple est explicite. **Les deux types ont été
+essayés**, le 2026-10-20, pour qu'on n'ait pas à se demander si l'autre aurait marché :
 
 ```
-HTTP 403 — This operation can only be performed by the Account Holder
+POST /v1/certificates   DEVELOPER_ID_APPLICATION_G2   → 403
+POST /v1/certificates   DEVELOPER_ID_APPLICATION      → 403
+« This operation can only be performed by the Account Holder »
 ```
 
-Inutile donc de chercher à automatiser cette étape : il n'y a pas de chemin sans
-l'interface d'Xcode et le bon compte.
+Et ce n'est pas une question de droits de la clé : « titulaire du compte » est une
+**personne**, pas un rôle qu'on attribue à une clé d'API. Une clé mieux dotée ne changerait
+rien. Inutile donc de chercher à automatiser cette étape, ni une variante d'appel : il n'y
+en a pas. Le certificat se crée à la main, dans Xcode, par cette personne-là.
 
 À vérifier avant de continuer :
 
