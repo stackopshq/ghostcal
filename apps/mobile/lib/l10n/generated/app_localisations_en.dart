@@ -43,9 +43,6 @@ class LEn extends L {
   String get modifierLEvenement => 'Edit event';
 
   @override
-  String get rienCeJourLa => 'Nothing on this day.';
-
-  @override
   String get journee => 'All day';
 
   @override
@@ -968,4 +965,53 @@ class LEn extends L {
 
   @override
   String get ouvrirLesReglagesSysteme => 'Open System Settings';
+
+  @override
+  String get demain => 'Tomorrow';
+
+  @override
+  String get hier => 'Yesterday';
+
+  @override
+  String get menu => 'Menu';
+
+  @override
+  String get rechercher => 'Search';
+
+  @override
+  String get rechercherDansLAgenda => 'Search the calendar';
+
+  @override
+  String get aucunResultat => 'No results.';
+
+  @override
+  String get tousLesCalendriers => 'All calendars';
+
+  @override
+  String calendriersAffiches(int nombre) {
+    return '$nombre calendars';
+  }
+
+  @override
+  String get calendriersAAfficher => 'Calendars shown';
+
+  @override
+  String get developperLeMois => 'Expand the month';
+
+  @override
+  String get reduireLeMois => 'Collapse the month';
+
+  @override
+  String get evenementQuiSeRepete =>
+      'This event repeats. Delete only this one, or the whole series?';
+
+  @override
+  String get cetteOccurrence => 'This one';
+
+  @override
+  String get touteLaSerie => 'Whole series';
+
+  @override
+  String get modifierLaSerie =>
+      'This event repeats: your changes apply to the whole series. To change only one, use the web.';
 }

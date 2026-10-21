@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../modeles/contenus.dart';
+
 import 'package:flutter_timezone/flutter_timezone.dart';
 
 import 'api.dart';
@@ -16,11 +17,11 @@ class Organisation {
   });
 
   factory Organisation.depuisJson(Map<String, dynamic> j) => Organisation(
-        id: '${j['id']}',
-        nom: '${j['name']}',
-        slug: '${j['slug']}',
-        role: '${j['role']}',
-      );
+    id: '${j['id']}',
+    nom: '${j['name']}',
+    slug: '${j['slug']}',
+    role: '${j['role']}',
+  );
 
   final String id;
   final String nom;
@@ -41,14 +42,14 @@ class Calendrier {
   });
 
   factory Calendrier.depuisJson(Map<String, dynamic> j) => Calendrier(
-        id: '${j['id']}',
-        nom: '${j['name']}',
-        couleur: '${j['color']}',
-        parDefaut: j['is_default'] == true,
-        partage: j['is_shared'] == true,
-        proprietaire: j['owner_name'] as String?,
-        peutEcrireBrut: j['can_write'] as bool?,
-      );
+    id: '${j['id']}',
+    nom: '${j['name']}',
+    couleur: '${j['color']}',
+    parDefaut: j['is_default'] == true,
+    partage: j['is_shared'] == true,
+    proprietaire: j['owner_name'] as String?,
+    peutEcrireBrut: j['can_write'] as bool?,
+  );
 
   final String id;
   final String nom;
@@ -144,6 +145,10 @@ class DetailDEvenement {
     required this.fuseau,
     required this.journeeEntiere,
     this.contenu,
+    this.scelle,
+    this.rrule,
+    this.exdates = const [],
+    this.rappelMinutes,
   });
 
   final String id;
@@ -153,6 +158,19 @@ class DetailDEvenement {
   final String fuseau;
   final bool journeeEntiere;
   final ContenuDEvenement? contenu;
+
+  /// The sealed content as the server holds it, sent back untouched when only the
+  /// series' exceptions change.
+  final String? scelle;
+
+  /// What the app does not edit, but must send back: the event PUT replaces the whole
+  /// record, and leaving these out erased a series' recurrence and the reminder set on
+  /// the web.
+  final String? rrule;
+  final List<String> exdates;
+  final int? rappelMinutes;
+
+  bool get repete => rrule != null && rrule!.isNotEmpty;
 }
 
 /// Lit l'agenda et ouvre ce qui peut l'être.
@@ -172,7 +190,10 @@ class Agenda {
 
   Future<List<Calendrier>> calendriers() async {
     final brutes = await api.obtenir<List<dynamic>>('v1/me/calendars');
-    return brutes.whereType<Map<String, dynamic>>().map(Calendrier.depuisJson).toList();
+    return brutes
+        .whereType<Map<String, dynamic>>()
+        .map(Calendrier.depuisJson)
+        .toList();
   }
 
   /// L'agenda entre deux dates.
@@ -199,8 +220,9 @@ class Agenda {
       final scelle = brute['content'];
       if (scelle is String && scelle.isNotEmpty) {
         final clair = await auth.ouvrir(scelle, organisation: organisation);
-        final contenu =
-            clair == null ? null : ContenuDEvenement.depuisJson(utf8.decode(clair));
+        final contenu = clair == null
+            ? null
+            : ContenuDEvenement.depuisJson(utf8.decode(clair));
         if (contenu == null) {
           provenance = ProvenanceDuTitre.illisible;
         } else {
@@ -228,32 +250,38 @@ class Agenda {
       if (nomEnClair is String && nomEnClair.isNotEmpty) invite = nomEnClair;
       final sceauDeLInvite = brute['invitee_private'];
       if (sceauDeLInvite is String && sceauDeLInvite.isNotEmpty) {
-        final clair = await auth.ouvrir(sceauDeLInvite, organisation: organisation);
-        final contenu =
-            clair == null ? null : ContenuDInvite.depuisJson(utf8.decode(clair));
+        final clair = await auth.ouvrir(
+          sceauDeLInvite,
+          organisation: organisation,
+        );
+        final contenu = clair == null
+            ? null
+            : ContenuDInvite.depuisJson(utf8.decode(clair));
         if (contenu != null && contenu.name.isNotEmpty) invite = contenu.name;
       }
 
       final debut = DateTime.parse('${brute['start']}').toLocal();
       final lectureSeule = brute['read_only'] == true;
       final evenement = brute['event_id'] as String?;
-      resultat.add(LigneDAgenda(
-        // Une ligne d'agenda n'a pas toujours d'identifiant d'événement : une occurrence
-        // de série ou un créneau externe n'en portent pas. La date de début complète la
-        // clé, sinon deux lignes distinctes se confondraient dans la liste.
-        id: '${evenement ?? brute['source']}-${debut.millisecondsSinceEpoch}',
-        evenement: lectureSeule ? null : evenement,
-        debut: debut,
-        fin: DateTime.parse('${brute['end']}').toLocal(),
-        journeeEntiere: brute['all_day'] == true,
-        lectureSeule: lectureSeule,
-        provenance: provenance,
-        titre: titre,
-        lieu: lieu,
-        source: '${brute['source']}',
-        calendrier: brute['calendar_id'] as String?,
-        invite: invite,
-      ));
+      resultat.add(
+        LigneDAgenda(
+          // Une ligne d'agenda n'a pas toujours d'identifiant d'événement : une occurrence
+          // de série ou un créneau externe n'en portent pas. La date de début complète la
+          // clé, sinon deux lignes distinctes se confondraient dans la liste.
+          id: '${evenement ?? brute['source']}-${debut.millisecondsSinceEpoch}',
+          evenement: lectureSeule ? null : evenement,
+          debut: debut,
+          fin: DateTime.parse('${brute['end']}').toLocal(),
+          journeeEntiere: brute['all_day'] == true,
+          lectureSeule: lectureSeule,
+          provenance: provenance,
+          titre: titre,
+          lieu: lieu,
+          source: '${brute['source']}',
+          calendrier: brute['calendar_id'] as String?,
+          invite: invite,
+        ),
+      );
     }
     resultat.sort(comparerLesLignes);
     return resultat;
@@ -272,18 +300,25 @@ class Agenda {
   /// The app used to send the hours still in the form (e.g. 15:00 to 16:00) with
   /// `all_day: true`, so the same event meant different things on web and mobile.
   /// [fin] is the last day **included**, as the form shows it.
-  static ({DateTime debut, DateTime fin}) bornesDeJournee(DateTime debut, DateTime fin) {
+  static ({DateTime debut, DateTime fin}) bornesDeJournee(
+    DateTime debut,
+    DateTime fin,
+  ) {
     final premier = DateTime(debut.year, debut.month, debut.day);
     var dernier = DateTime(fin.year, fin.month, fin.day);
     if (dernier.isBefore(premier)) dernier = premier;
-    return (debut: premier, fin: DateTime(dernier.year, dernier.month, dernier.day + 1));
+    return (
+      debut: premier,
+      fin: DateTime(dernier.year, dernier.month, dernier.day + 1),
+    );
   }
 
   /// The last day included, from a stored all-day end (exclusive midnight).
   static DateTime dernierJourInclus(DateTime debut, DateTime fin) {
     final veille = DateTime(fin.year, fin.month, fin.day - 1);
     final minuit = fin.hour == 0 && fin.minute == 0 && fin.second == 0;
-    return minuit && !veille.isBefore(DateTime(debut.year, debut.month, debut.day))
+    return minuit &&
+            !veille.isBefore(DateTime(debut.year, debut.month, debut.day))
         ? veille
         : fin;
   }
@@ -328,13 +363,20 @@ class Agenda {
   /// L'agenda n'en donne que ce qu'il faut pour l'afficher ; modifier demande le reste —
   /// le calendrier auquel il appartient, la description, le fuseau dans lequel il a été
   /// posé.
-  Future<DetailDEvenement> evenement(String id, {required String organisation}) async {
-    final j = await api.obtenir<Map<String, dynamic>>('v1/me/calendar/events/$id');
+  Future<DetailDEvenement> evenement(
+    String id, {
+    required String organisation,
+  }) async {
+    final j = await api.obtenir<Map<String, dynamic>>(
+      'v1/me/calendar/events/$id',
+    );
     ContenuDEvenement? contenu;
     final scelle = j['content'];
     if (scelle is String && scelle.isNotEmpty) {
       final clair = await auth.ouvrir(scelle, organisation: organisation);
-      if (clair != null) contenu = ContenuDEvenement.depuisJson(utf8.decode(clair));
+      if (clair != null) {
+        contenu = ContenuDEvenement.depuisJson(utf8.decode(clair));
+      }
     }
     return DetailDEvenement(
       id: '${j['id']}',
@@ -344,6 +386,10 @@ class Agenda {
       fuseau: '${j['timezone']}',
       journeeEntiere: j['all_day'] == true,
       contenu: contenu,
+      scelle: scelle is String ? scelle : null,
+      rrule: j['rrule'] as String?,
+      exdates: [for (final x in (j['exdates'] as List? ?? const [])) '$x'],
+      rappelMinutes: j['reminder_minutes'] as int?,
     );
   }
 
@@ -365,6 +411,9 @@ class Agenda {
     required String fuseau,
     required String calendrier,
     required String organisation,
+    String? rrule,
+    List<String> exdates = const [],
+    int? rappelMinutes,
   }) async {
     if (journeeEntiere) (:debut, :fin) = bornesDeJournee(debut, fin);
     final scelle = await _sceller(titre, description, lieu, organisation);
@@ -374,9 +423,29 @@ class Agenda {
       'end_at': isoPourLeServeur(fin),
       'timezone': fuseau,
       'all_day': journeeEntiere,
+      'rrule': rrule,
+      'exdates': exdates,
       'content': scelle,
+      'reminder_minutes': rappelMinutes,
     });
   }
+
+  /// Removes one occurrence of a series: its start joins the series' exceptions, the
+  /// rest of the event is sent back as the server holds it — the web does the same.
+  Future<void> supprimerUneOccurrence(
+    DetailDEvenement serie,
+    DateTime occurrence,
+  ) => api.envoyerSansReponse('PUT', 'v1/me/calendar/events/${serie.id}', {
+    'calendar_id': serie.calendrier,
+    'start_at': isoPourLeServeur(serie.debut),
+    'end_at': isoPourLeServeur(serie.fin),
+    'timezone': serie.fuseau,
+    'all_day': serie.journeeEntiere,
+    'rrule': serie.rrule,
+    'exdates': [...serie.exdates, isoPourLeServeur(occurrence)],
+    'content': serie.scelle,
+    'reminder_minutes': serie.rappelMinutes,
+  });
 
   Future<void> supprimerUnEvenement(String id) =>
       api.envoyerSansReponse('DELETE', 'v1/me/calendar/events/$id');
@@ -387,9 +456,15 @@ class Agenda {
     String lieu,
     String organisation,
   ) async {
-    final clair = utf8.encode(jsonEncode(
-      ContenuDEvenement(title: titre, description: description, location: lieu).versJson(),
-    ));
+    final clair = utf8.encode(
+      jsonEncode(
+        ContenuDEvenement(
+          title: titre,
+          description: description,
+          location: lieu,
+        ).versJson(),
+      ),
+    );
     return auth.sceller(clair, organisation: organisation);
   }
 

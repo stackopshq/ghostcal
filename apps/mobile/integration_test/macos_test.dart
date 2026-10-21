@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -9,6 +10,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'package:ghostcal/main.dart';
+import 'package:ghostcal/ecrans/agenda.dart';
+import 'package:ghostcal/outils/calendrier.dart';
+import 'package:ghostcal/ecrans/recherche.dart';
 import 'package:ghostcal/services/agenda.dart';
 import 'package:ghostcal/services/biometrie.dart';
 import 'package:ghostcal/services/rappels.dart';
@@ -16,6 +20,7 @@ import 'package:ghostcal/services/reglages.dart';
 import 'package:ghostcal/services/session.dart';
 import 'package:ghostcal/services/types_de_rendez_vous.dart';
 import 'package:ghostcal/services/verrouillage.dart';
+import 'package:ghostcal/services/vue_agenda.dart';
 import 'package:ghostcal/services/vignette.dart';
 import 'package:ghostcal/src/rust/frb_generated.dart';
 
@@ -43,6 +48,16 @@ import 'package:ghostcal/src/rust/frb_generated.dart';
 /// capteur : que l'écriture sous contrainte matérielle réussisse (donc que le groupe
 /// d'accès au trousseau soit accordé), et que l'interrogation de présence réponde sans
 /// rien présenter. L'invite elle-même reste à constater à la main.
+
+/// The bottom bar's menu holds the agenda's views and the other sections, since the
+/// floating bar replaced the tab bar.
+Future<void> allerA(WidgetTester tester, String entree) async {
+  await tester.tap(find.byKey(const Key('accueil.menu')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(entree).last);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -84,7 +99,8 @@ void main() {
     // toujours demandée, donc rien n'est jamais « stabilisé ». Le test expire au bout de
     // trois minutes sur une assertion qui parle d'images en attente et pas de curseur.
     await tester.pump();
-    final boite = cle.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+    final boite =
+        cle.currentContext!.findRenderObject()! as RenderRepaintBoundary;
     // ─── `toImageSync`, et c'est tout le sujet de cette fonction ───
     //
     // `toImage` rend un `Future` que le moteur complète à l'image suivante. Dans un test
@@ -98,8 +114,11 @@ void main() {
     // Seule la conversion en PNG reste asynchrone, et elle, c'est du décodage : elle se
     // termine sous `runAsync`.
     final image = boite.toImageSync(pixelRatio: 2);
-    final octets = await tester.runAsync(() async =>
-        (await image.toByteData(format: ui.ImageByteFormat.png))!.buffer.asUint8List());
+    final octets = await tester.runAsync(
+      () async =>
+          (await image.toByteData(format: ui.ImageByteFormat.png))!.buffer
+              .asUint8List(),
+    );
     sorties.createSync(recursive: true);
     File('${sorties.path}/$nom.png').writeAsBytesSync(octets!);
     if (parStdout) {
@@ -110,7 +129,9 @@ void main() {
       final texte = base64Encode(octets);
       print('<<<CAPTURE $nom ${texte.length}');
       for (var i = 0; i < texte.length; i += 720) {
-        print(texte.substring(i, i + 720 > texte.length ? texte.length : i + 720));
+        print(
+          texte.substring(i, i + 720 > texte.length ? texte.length : i + 720),
+        );
       }
       print('CAPTURE>>>');
     }
@@ -135,42 +156,87 @@ void main() {
     await verrouillage.amorcer();
     final rappels = Rappels();
     await rappels.amorcer();
-    await tester.pumpWidget(RepaintBoundary(
-      key: cle,
-      child: GhostcalApp(
-        session: session,
-        verrouillage: verrouillage,
-        locale: langue,
-        rappels: rappels,
+    await tester.pumpWidget(
+      RepaintBoundary(
+        key: cle,
+        child: GhostcalApp(
+          session: session,
+          verrouillage: verrouillage,
+          locale: langue,
+          rappels: rappels,
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     return session;
   }
 
-  /// Remplit l'écran d'entrée et attend l'agenda. **Échoue** s'il ne vient pas : continuer
-  /// photographierait un écran de connexion en croyant tenir le produit.
+  /// Remplit l'écran d'entrée et attend l'agenda. **Échoue** s'il ne vient pas :
+  /// continuer photographierait un écran de connexion en croyant tenir le produit.
+  ///
+  /// ─── Pourquoi ça s'y reprend à deux fois ───
+  ///
+  /// Le trousseau survit au banc. Après un `banc-local.sh`, les jetons gardés désignent
+  /// un compte qui n'existe plus : l'écran montre son visage « reprise » — la phrase
+  /// seule —, la reprise échoue sur une session expirée, et l'écran bascule alors sur ses
+  /// trois champs. Un témoin qui ne remplit qu'une fois attend là quarante secondes et
+  /// accuse le banc.
+  ///
+  /// On resoumet donc quand l'adresse du serveur **apparaît** : c'est le signal que la
+  /// reprise a échoué et que l'écran demande tout.
   Future<void> ouvrirLeCoffre(WidgetTester tester) async {
-    // Les trois champs ne sont pas toujours là. Une fois le premier témoin passé, les
-    // jetons vivent dans le trousseau et l'écran ne demande plus que la phrase — c'est le
-    // visage « reprise », celui du lancement ordinaire. Exiger les trois ferait échouer
-    // tous les témoins suivants sur « No element », ce qui se lit comme un écran cassé.
-    for (final (cle, valeur) in [
-      ('champ.serveur', serveur),
-      ('champ.email', email),
-      ('champ.phrase', phrase),
-    ]) {
-      final champ = find.byKey(Key(cle));
-      if (champ.evaluate().isNotEmpty) await tester.enterText(champ, valeur);
+    Future<void> soumettre() async {
+      for (final (cle, valeur) in [
+        ('champ.serveur', serveur),
+        ('champ.email', email),
+        ('champ.phrase', phrase),
+      ]) {
+        final champ = find.byKey(Key(cle));
+        if (champ.evaluate().isNotEmpty) await tester.enterText(champ, valeur);
+      }
+      await tester.pumpAndSettle();
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+    }
+
+    var toutDemande = find
+        .byKey(const Key('champ.serveur'))
+        .evaluate()
+        .isNotEmpty;
+    await soumettre();
+
+    final limite = DateTime.now().add(const Duration(seconds: 60));
+    while (find.byKey(const Key('accueil.pret')).evaluate().isEmpty) {
+      if (DateTime.now().isAfter(limite)) {
+        fail(
+          'Le coffre ne s\'est pas ouvert en 60 s sur $serveur. Le banc tourne-t-il ?',
+        );
+      }
+      final maintenantTout = find
+          .byKey(const Key('champ.serveur'))
+          .evaluate()
+          .isNotEmpty;
+      if (maintenantTout && !toutDemande) {
+        // La session enregistrée vient d'être refusée : l'écran demande tout, on redonne
+        // tout. Une seule fois — la bascule ne se produit qu'une fois.
+        toutDemande = true;
+        await soumettre();
+      }
+      await tester.pump(const Duration(milliseconds: 250));
+      await Future<void>.delayed(const Duration(milliseconds: 250));
     }
     await tester.pumpAndSettle();
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+  }
 
-    final limite = DateTime.now().add(const Duration(seconds: 40));
-    while (find.byType(NavigationBar).evaluate().isEmpty) {
-      if (DateTime.now().isAfter(limite)) {
-        fail('Le coffre ne s\'est pas ouvert en 40 s sur $serveur. Le banc tourne-t-il ?');
-      }
+  /// Attend qu'un libellé paraisse, puis rend la main.
+  ///
+  /// `pumpAndSettle` ne suffit pas : il rend la main dès que l'arbre est stable, et
+  /// l'agenda, lui, attend encore le serveur. Affirmer à cet instant mesure la vitesse du
+  /// réseau, pas l'application — et le témoin rougit un jour sur deux, en accusant la
+  /// chose qu'il prétend garder.
+  Future<void> attendre(WidgetTester tester, Finder quoi, String raison) async {
+    final limite = DateTime.now().add(const Duration(seconds: 20));
+    while (quoi.evaluate().isEmpty) {
+      if (DateTime.now().isAfter(limite)) fail(raison);
       await tester.pump(const Duration(milliseconds: 250));
       await Future<void>.delayed(const Duration(milliseconds: 250));
     }
@@ -190,72 +256,100 @@ void main() {
     if (sorties.existsSync()) sorties.deleteSync(recursive: true);
   });
 
-  testWidgets('le coffre s\'ouvre à la phrase, et l\'agenda lit les deux formats',
-      (tester) async {
-    final session = await monter(tester, langue: const Locale('fr'));
-    await photographier(tester, '01-entree-fr-clair');
-    await ouvrirLeCoffre(tester);
-    await photographier(tester, '02-agenda-fr-clair-large');
+  testWidgets(
+    'le coffre s\'ouvre à la phrase, et l\'agenda lit les deux formats',
+    (tester) async {
+      final session = await monter(tester, langue: const Locale('fr'));
+      await photographier(tester, '01-entree-fr-clair');
+      await ouvrirLeCoffre(tester);
+      await photographier(tester, '02-agenda-fr-clair-large');
 
-    // ─── L'enveloppe d'avant la migration ───
-    //
-    // Déposée par `enveloppe-heritee.py` : AES-256-GCM, nonce de 12 octets, pas de `v`.
-    // Elle doit s'**ouvrir**. Si le cœur ne la lisait pas, la ligne ne disparaîtrait pas
-    // pour autant : elle s'afficherait « Contenu illisible », ce qui se distingue mal
-    // d'un succès quand on ne regarde que le nombre de lignes.
-    await tester.tap(find.text('Liste'));
-    await tester.pumpAndSettle();
-    expect(find.text('Web avant migration'), findsOneWidget,
-        reason: 'une enveloppe sans marqueur de version ne s\'ouvre plus');
-    // Et l'inverse se dit par le titre lui-même : une enveloppe que le cœur n'ouvre pas
-    // ne disparaît pas de la liste, elle s'affiche « Contenu illisible — clé manquante ».
-    // Trouver le titre, c'est donc avoir mesuré les deux.
-    //
-    // On ne compte **pas** les lignes illisibles. Le banc en dépose une exprès, mais elle
-    // vieillit comme toute donnée amorcée : hier elle était dans la fenêtre, aujourd'hui
-    // non, et le témoin rougissait pour l'âge du banc plutôt que pour l'application.
+      // ─── L'enveloppe d'avant la migration ───
+      //
+      // Déposée par `enveloppe-heritee.py` : AES-256-GCM, nonce de 12 octets, pas de `v`.
+      // Elle doit s'**ouvrir**. Si le cœur ne la lisait pas, la ligne ne disparaîtrait pas
+      // pour autant : elle s'afficherait « Contenu illisible », ce qui se distingue mal
+      // d'un succès quand on ne regarde que le nombre de lignes.
+      await allerA(tester, 'Liste');
+      // ─── Quand ce témoin rougit, il doit dire laquelle des deux choses a manqué ───
+      //
+      // L'enveloppe héritée est **déposée à la main** : le cœur ne sait plus en écrire, il
+      // ne sait que les lire. Tout `banc-local.sh` repart d'une base vide et l'emporte, et
+      // le témoin échouait alors sur « Found 0 widgets » — un message qui accuse
+      // l'application pour un banc qu'on vient de reconstruire. Vu une fois, cherché
+      // longtemps.
+      await attendre(
+        tester,
+        find.text('Web avant migration'),
+        'soit une enveloppe sans marqueur de version ne s\'ouvre plus — le vrai défaut —, '
+        'soit le banc a été réamorcé depuis et ne la porte plus : '
+        '`uv run python tools/enveloppe-heritee.py` la redépose',
+      );
+      // Et l'inverse se dit par le titre lui-même : une enveloppe que le cœur n'ouvre pas
+      // ne disparaît pas de la liste, elle s'affiche « Contenu illisible — clé manquante ».
+      // Trouver le titre, c'est donc avoir mesuré les deux.
+      //
+      // On ne compte **pas** les lignes illisibles. Le banc en dépose une exprès, mais elle
+      // vieillit comme toute donnée amorcée : hier elle était dans la fenêtre, aujourd'hui
+      // non, et le témoin rougissait pour l'âge du banc plutôt que pour l'application.
 
-    // ─── Ce que l'application écrit, elle, porte le marqueur ───
-    //
-    // Mesuré sur les octets rendus par le serveur, et non sur ce qu'on croit avoir
-    // envoyé : c'est la seule forme qui compte, celle que le web devra relire.
-    final api = session.api!;
-    final agenda = Agenda(api: api, auth: session.auth!);
-    // L'identifiant rendu à la création, et non une différence entre deux listes : les
-    // lignes d'agenda développent les récurrences et ne portent pas toutes l'identifiant
-    // d'un événement. Les comparer donnait « Bad state: No element », ce qui ne dit rien
-    // de ce qu'on cherchait à mesurer.
-    // Le titre porte l'heure : le témoin se rejoue, et deux exécutions laisseraient deux
-    // lignes du même nom — `hasLength(1)` échouerait pour une raison qui n'a rien à voir
-    // avec ce qu'il mesure.
-    final titre = 'Écrit par le Mac ${DateTime.now().millisecondsSinceEpoch}';
-    final id = await agenda.creerUnEvenement(
-      calendrier: (await agenda.calendriers()).firstWhere((c) => c.inscriptible).id,
-      debut: DateTime.now().add(const Duration(hours: 6)),
-      fin: DateTime.now().add(const Duration(hours: 7)),
-      titre: titre,
-      description: '',
-      lieu: 'Genève',
-      journeeEntiere: false,
-      organisation: session.organisation!,
-    );
-    final brut = await api.obtenir<Map<String, dynamic>>('v1/me/calendar/events/$id');
-    final enveloppe = jsonDecode('${brut['content']}') as Map<String, dynamic>;
-    expect(enveloppe['v'], 1, reason: 'le web ne relira pas une enveloppe sans version');
+      // ─── Ce que l'application écrit, elle, porte le marqueur ───
+      //
+      // Mesuré sur les octets rendus par le serveur, et non sur ce qu'on croit avoir
+      // envoyé : c'est la seule forme qui compte, celle que le web devra relire.
+      final api = session.api!;
+      final agenda = Agenda(api: api, auth: session.auth!);
+      // L'identifiant rendu à la création, et non une différence entre deux listes : les
+      // lignes d'agenda développent les récurrences et ne portent pas toutes l'identifiant
+      // d'un événement. Les comparer donnait « Bad state: No element », ce qui ne dit rien
+      // de ce qu'on cherchait à mesurer.
+      // Le titre porte l'heure : le témoin se rejoue, et deux exécutions laisseraient deux
+      // lignes du même nom — `hasLength(1)` échouerait pour une raison qui n'a rien à voir
+      // avec ce qu'il mesure.
+      final titre = 'Écrit par le Mac ${DateTime.now().millisecondsSinceEpoch}';
+      final id = await agenda.creerUnEvenement(
+        calendrier: (await agenda.calendriers())
+            .firstWhere((c) => c.inscriptible)
+            .id,
+        debut: DateTime.now().add(const Duration(hours: 6)),
+        fin: DateTime.now().add(const Duration(hours: 7)),
+        titre: titre,
+        description: '',
+        lieu: 'Genève',
+        journeeEntiere: false,
+        organisation: session.organisation!,
+      );
+      final brut = await api.obtenir<Map<String, dynamic>>(
+        'v1/me/calendar/events/$id',
+      );
+      final enveloppe =
+          jsonDecode('${brut['content']}') as Map<String, dynamic>;
+      expect(
+        enveloppe['v'],
+        1,
+        reason: 'le web ne relira pas une enveloppe sans version',
+      );
 
-    // Et il se relit par l'application elle-même, au bon titre : une enveloppe bien
-    // formée que le cœur n'ouvrirait pas passerait le contrôle ci-dessus.
-    await tester.tap(find.text('Jour'));
-    await tester.pumpAndSettle();
-    final lignes = await agenda.lignes(
-      de: DateTime.now().subtract(const Duration(hours: 1)),
-      a: DateTime.now().add(const Duration(hours: 48)),
-      organisation: session.organisation!,
-    );
-    expect(lignes.where((l) => l.titre == titre), hasLength(1));
-  }, timeout: const Timeout(Duration(minutes: 3)));
+      // Et il se relit par l'application elle-même, au bon titre : une enveloppe bien
+      // formée que le cœur n'ouvrirait pas passerait le contrôle ci-dessus.
+      await allerA(tester, 'Jour');
+      final lignes = await agenda.lignes(
+        de: DateTime.now().subtract(const Duration(hours: 1)),
+        a: DateTime.now().add(const Duration(hours: 48)),
+        organisation: session.organisation!,
+      );
+      expect(
+        lignes.where((l) => l.titre == titre),
+        hasLength(1),
+        reason: 'l\'application ne relit pas ce qu\'elle vient d\'écrire',
+      );
+    },
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
 
-  testWidgets('une question à choix obligatoire s\'enregistre et se relit', (tester) async {
+  testWidgets('une question à choix obligatoire s\'enregistre et se relit', (
+    tester,
+  ) async {
     final session = await monter(tester, langue: const Locale('fr'));
     await ouvrirLeCoffre(tester);
 
@@ -272,23 +366,29 @@ void main() {
           'type': 'select',
           'required': true,
           'options': ['Devis', 'Support', 'Autre'],
-        }
+        },
       ],
     });
 
     final relu = await types.detail(
-        (await types.lister()).firstWhere((t) => t.titre == titre).id);
+      (await types.lister()).firstWhere((t) => t.titre == titre).id,
+    );
     final question = (relu['questions'] as List).single as Map<String, dynamic>;
     expect(question['type'], 'select');
-    expect(question['required'], isTrue, reason: 'le caractère obligatoire s\'est perdu');
+    expect(
+      question['required'],
+      isTrue,
+      reason: 'le caractère obligatoire s\'est perdu',
+    );
     expect(question['options'], ['Devis', 'Support', 'Autre']);
 
-    await tester.tap(find.text('RDV'));
-    await tester.pumpAndSettle();
+    await allerA(tester, 'RDV');
     await photographier(tester, '03-rdv-fr-clair');
   }, timeout: const Timeout(Duration(minutes: 3)));
 
-  testWidgets('une photo HEIC devient un JPEG que le serveur accepte', (tester) async {
+  testWidgets('une photo HEIC devient un JPEG que le serveur accepte', (
+    tester,
+  ) async {
     final session = await monter(tester, langue: const Locale('fr'));
     await ouvrirLeCoffre(tester);
 
@@ -296,13 +396,20 @@ void main() {
     // lecture, et l'échec ressemblerait à un défaut du décodage.
     final source = File('${Directory.systemTemp.path}/portrait.heic')
       ..writeAsBytesSync(base64Decode(heic));
-    expect(source.readAsBytesSync().sublist(4, 8), utf8.encode('ftyp'),
-        reason: 'la source doit bien être un HEIC');
+    expect(
+      source.readAsBytesSync().sublist(4, 8),
+      utf8.encode('ftyp'),
+      reason: 'la source doit bien être un HEIC',
+    );
 
     const vignette = Vignette();
     final jpeg = await vignette.reduire(source.path);
     expect(jpeg, isNotNull, reason: 'le canal natif n\'a pas répondu');
-    expect(jpeg!.sublist(0, 3), [0xFF, 0xD8, 0xFF], reason: 'ce n\'est pas du JPEG');
+    expect(jpeg!.sublist(0, 3), [
+      0xFF,
+      0xD8,
+      0xFF,
+    ], reason: 'ce n\'est pas du JPEG');
 
     final decodee = await ui.instantiateImageCodec(jpeg);
     final image = (await decodee.getNextFrame()).image;
@@ -320,7 +427,9 @@ void main() {
     expect((await reglages.profil()).aUnePhoto, isFalse);
   }, timeout: const Timeout(Duration(minutes: 3)));
 
-  testWidgets('le trousseau accepte une phrase sous contrainte matérielle', (tester) async {
+  testWidgets('le trousseau accepte une phrase sous contrainte matérielle', (
+    tester,
+  ) async {
     await monter(tester, langue: const Locale('fr'));
     final biometrie = Biometrie();
 
@@ -328,16 +437,22 @@ void main() {
     // de protection des données, sous contrôle d'accès biométrique. Sans
     // `keychain-access-groups` dans les droits, elle rendrait errSecMissingEntitlement et
     // `retenir` répondrait `false` — en silence, puisqu'il ne jette pas.
-    expect(await biometrie.retenir('phrase d\'épreuve'), isTrue,
-        reason: 'le groupe d\'accès au trousseau n\'est pas accordé');
+    expect(
+      await biometrie.retenir('phrase d\'épreuve'),
+      isTrue,
+      reason: 'le groupe d\'accès au trousseau n\'est pas accordé',
+    );
 
     // Et l'interrogation de présence répond **sans présenter Touch ID** : sous
     // `kSecUseAuthenticationUIFail`, le trousseau refuse de demander plutôt que de
     // demander. Un test qui prendrait plus de quelques secondes ici serait le symptôme.
     final depart = DateTime.now();
     expect(await biometrie.sceau(), Issue.ouverte);
-    expect(DateTime.now().difference(depart).inSeconds, lessThan(3),
-        reason: 'une invite s\'est présentée : le drapeau muet n\'a pas pris');
+    expect(
+      DateTime.now().difference(depart).inSeconds,
+      lessThan(3),
+      reason: 'une invite s\'est présentée : le drapeau muet n\'a pas pris',
+    );
 
     await biometrie.oublier();
     expect(await biometrie.sceau(), Issue.absente);
@@ -357,45 +472,191 @@ void main() {
     await monter(tester, langue: const Locale('fr'));
     const canal = MethodChannel(Rappels.canalMacos);
 
-    final depart = await canal.invokeMethod<bool>('lanceALOuvertureDeSession') ?? false;
+    final depart =
+        await canal.invokeMethod<bool>('lanceALOuvertureDeSession') ?? false;
     try {
       expect(
-        await canal.invokeMethod<bool>('lancerALOuvertureDeSession', {'valeur': true}),
+        await canal.invokeMethod<bool>('lancerALOuvertureDeSession', {
+          'valeur': true,
+        }),
         isTrue,
         reason: 'macOS a refusé : le réglage serait un interrupteur mort',
       );
-      expect(await canal.invokeMethod<bool>('lanceALOuvertureDeSession'), isTrue,
-          reason: 'l\'état n\'est pas relu auprès du système');
+      expect(
+        await canal.invokeMethod<bool>('lanceALOuvertureDeSession'),
+        isTrue,
+        reason: 'l\'état n\'est pas relu auprès du système',
+      );
     } finally {
-      await canal.invokeMethod<bool>('lancerALOuvertureDeSession', {'valeur': depart});
+      await canal.invokeMethod<bool>('lancerALOuvertureDeSession', {
+        'valeur': depart,
+      });
     }
-    expect(await canal.invokeMethod<bool>('lanceALOuvertureDeSession'), depart,
-        reason: 'le témoin a laissé la machine autrement qu\'il l\'a trouvée');
+    expect(
+      await canal.invokeMethod<bool>('lanceALOuvertureDeSession'),
+      depart,
+      reason: 'le témoin a laissé la machine autrement qu\'il l\'a trouvée',
+    );
   }, timeout: const Timeout(Duration(minutes: 2)));
 
   testWidgets('sombre, anglais, et une petite fenêtre', (tester) async {
-    await monter(tester,
-        langue: const Locale('en'), theme: Brightness.dark, fenetre: const Size(720, 560));
+    await monter(
+      tester,
+      langue: const Locale('en'),
+      theme: Brightness.dark,
+      fenetre: const Size(720, 560),
+    );
     await photographier(tester, '04-entree-en-sombre-petite');
     await ouvrirLeCoffre(tester);
-    expect(find.text('Calendar'), findsOneWidget, reason: 'les onglets sont restés en français');
+    // ─── La langue se mesure sur ce qui est à l'écran, pas sur la navigation ───
+    //
+    // C'était `find.text('Calendar')`, le libellé de l'onglet Agenda. La barre d'onglets
+    // a disparu avec la barre flottante, et le témoin a rougi pour un libellé déplacé
+    // dans un menu — en accusant la traduction, qui n'y était pour rien.
+    //
+    // Le sélecteur de vue, lui, est visible dans tous les états de l'écran et ses quatre
+    // libellés viennent des traductions. Il dit la même chose et ne dépend pas de la
+    // forme que prend la navigation.
+    // Le filtre des calendriers est là quelle que soit la vue, et son libellé vient des
+    // traductions. Le sélecteur de vue, lui, a rejoint le menu au lot C : il n'est plus à
+    // l'écran, et s'en servir ici ferait rougir la traduction pour un déplacement.
+    expect(
+      find.text('All calendars'),
+      findsOneWidget,
+      reason: 'l\'interface est restée en français',
+    );
     await photographier(tester, '05-agenda-en-sombre-petite');
 
-    await tester.tap(find.text('Settings'));
-    await tester.pumpAndSettle();
+    await allerA(tester, 'Settings');
     await photographier(tester, '06-reglages-en-sombre-petite');
   }, timeout: const Timeout(Duration(minutes: 3)));
 
   testWidgets('la semaine, en grand et en clair', (tester) async {
-    await monter(tester, langue: const Locale('fr'), fenetre: const Size(1440, 900));
+    await monter(
+      tester,
+      langue: const Locale('fr'),
+      fenetre: const Size(1440, 900),
+    );
     await ouvrirLeCoffre(tester);
-    await tester.tap(find.text('Semaine'));
-    await tester.pumpAndSettle();
+    await allerA(tester, 'Semaine');
     await photographier(tester, '07-semaine-fr-clair-tres-large');
 
-    await tester.tap(find.text('Mois'));
-    await tester.pumpAndSettle();
+    await allerA(tester, 'Mois');
     await photographier(tester, '08-mois-fr-clair-tres-large');
   }, timeout: const Timeout(Duration(minutes: 3)));
-}
 
+  /// Les raccourcis de la barre de menus arrivent-ils quelque part ?
+  ///
+  /// Le natif est vérifié ailleurs : l'instrumentation du 2026-10-20 a montré que les
+  /// dix équivalents clavier déclenchent bien l'envoi, AZERTY comprise. Ce témoin garde
+  /// l'autre moitié du chemin — ce que l'écran **fait** de ce qui arrive — et les trois
+  /// arbitrages qui ne se devinent pas en relisant le routeur.
+  testWidgets('les commandes du menu de macOS atteignent l\'agenda', (
+    tester,
+  ) async {
+    await monter(tester, langue: const Locale('fr'));
+    await ouvrirLeCoffre(tester);
+
+    /// `skipOffstage: false` : dès que la recherche est poussée, la route en dessous
+    /// passe hors scène, et `find.byType` l'ignore par défaut. Sans cela, interroger
+    /// l'agenda *pendant* la recherche échoue sur un `Iterable.single` d'ensemble vide
+    /// — ce qui se lit comme une panne de l'application, alors que c'est le témoin qui
+    /// regarde au mauvais endroit.
+    EcranDAgendaState agenda() =>
+        tester.state(find.byType(EcranDAgenda, skipOffstage: false));
+
+    /// Comme `attendre`, mais sans `pumpAndSettle` : les deux écrans visés ici ont un
+    /// champ de saisie au focus, et un curseur qui clignote n'est jamais « stable ».
+    /// `attendre` s'y bloque jusqu'au délai du témoin — mesuré, deux fois — et sans
+    /// dire où.
+    Future<void> paraitre(Finder quoi, String raison) async {
+      final limite = DateTime.now().add(const Duration(seconds: 20));
+      while (quoi.evaluate().isEmpty) {
+        if (DateTime.now().isAfter(limite)) fail(raison);
+        await tester.pump(const Duration(milliseconds: 200));
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      }
+    }
+
+    /// Ce que le natif envoie, envoyé par le même chemin : le canal, pas la méthode.
+    /// Appeler le gestionnaire directement sauterait précisément l'encodage.
+    Future<void> commande(String methode, [String? argument]) async {
+      // L'acheminement n'est **pas** attendu, et c'est tout l'enjeu : pour
+      // « rechercher », le routeur attend lui-même que l'écran poussé se referme, donc
+      // le message ne s'achève qu'au retour. L'attendre ici bloquait le témoin jusqu'à
+      // son délai de trois minutes, sans rien dire — mesuré trois fois avant de
+      // comprendre que la cause était dans le témoin et non dans l'application.
+      unawaited(
+        tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+          'ch.stackops.ghostcal/menu',
+          const StandardMethodCodec().encodeMethodCall(
+            MethodCall(methode, argument),
+          ),
+          (_) {},
+        ),
+      );
+      // Pas de `pumpAndSettle` non plus : l'agenda recharge à chaque changement de vue,
+      // et un indicateur de chargement tourne sans fin. Le routeur pose son état de
+      // façon synchrone ; quelques images suffisent à l'atteindre.
+      await tester.pump();
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      await tester.pump();
+    }
+
+    // ─── Les quatre vues ───
+    for (final vue in VueDAgenda.values) {
+      await commande('vue', vue.name);
+      expect(
+        agenda().vue,
+        vue,
+        reason: '⌘ pour ${vue.name} n\'a pas changé la vue',
+      );
+    }
+
+    // ─── Les trois déplacements ───
+    await commande('vue', 'jour');
+    final depart = agenda().ancre;
+    await commande('suivant');
+    expect(agenda().ancre.isAfter(depart), isTrue, reason: '⌘→ n\'avance pas');
+    await commande('precedent');
+    expect(agenda().ancre, depart, reason: '⌘← ne revient pas sur ses pas');
+    await commande('suivant');
+    await commande('aujourdhui');
+    expect(
+      agenda().ancre,
+      minuit(DateTime.now()),
+      reason: '⌘T ne ramène pas à ce jour',
+    );
+
+    // ─── La recherche, et ce qu'un second ⌘F ne doit pas faire ───
+    //
+    // Le danger n'est pas qu'elle ne s'ouvre pas, c'est qu'elle s'ouvre deux fois :
+    // ⌘F pendant qu'on tape empilerait un second écran par-dessus la requête en cours,
+    // et le retour ramènerait sur une recherche vide qu'on croirait être la sienne.
+    await commande('rechercher');
+    await paraitre(
+      find.byType(EcranDeRecherche),
+      'La recherche ne s\'ouvre pas',
+    );
+    await commande('rechercher');
+    expect(find.byType(EcranDeRecherche), findsOneWidget);
+
+    // ─── Ce que la recherche met en attente, et ce qu'elle n'arrête pas ───
+    //
+    // Elle couvre l'agenda : changer une vue derrière elle serait invisible.
+    await commande('vue', 'mois');
+    expect(
+      agenda().vue,
+      VueDAgenda.jour,
+      reason: 'la vue a bougé sous la recherche',
+    );
+
+    // Verrouiller, lui, passe outre : c'est une commande de sécurité, et refuser de
+    // fermer le coffre parce qu'un écran est ouvert serait le mauvais arbitrage.
+    await commande('verrouiller');
+    await paraitre(
+      find.byKey(const Key('champ.phrase')),
+      'Le coffre ne s\'est pas refermé sur ⌘L',
+    );
+  }, timeout: const Timeout(Duration(minutes: 3)));
+}

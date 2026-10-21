@@ -1,0 +1,15 @@
+/* See fr.lproj/Localizable.strings for why these live here and not in MainMenu.strings.
+
+   The wording follows Apple's own menus: "New Event" like Calendar's, "Today" like
+   Calendar's toolbar, and title case throughout — a menu that almost matches the system's
+   costs a moment's reading on every line. */
+"menu.fichier" = "File";
+"menu.nouvelEvenement" = "New Event";
+"menu.jour" = "Day";
+"menu.semaine" = "Week";
+"menu.mois" = "Month";
+"menu.liste" = "List";
+"menu.aujourdhui" = "Today";
+"menu.periodePrecedente" = "Previous Period";
+"menu.periodeSuivante" = "Next Period";
+"menu.verrouiller" = "Lock the Vault";

@@ -43,9 +43,6 @@ class LFr extends L {
   String get modifierLEvenement => 'Modifier l\'événement';
 
   @override
-  String get rienCeJourLa => 'Rien ce jour-là.';
-
-  @override
   String get journee => 'Journée';
 
   @override
@@ -972,4 +969,53 @@ class LFr extends L {
 
   @override
   String get ouvrirLesReglagesSysteme => 'Ouvrir les Réglages Système';
+
+  @override
+  String get demain => 'Demain';
+
+  @override
+  String get hier => 'Hier';
+
+  @override
+  String get menu => 'Menu';
+
+  @override
+  String get rechercher => 'Rechercher';
+
+  @override
+  String get rechercherDansLAgenda => 'Rechercher dans l\'agenda';
+
+  @override
+  String get aucunResultat => 'Aucun résultat.';
+
+  @override
+  String get tousLesCalendriers => 'Tous les calendriers';
+
+  @override
+  String calendriersAffiches(int nombre) {
+    return '$nombre calendriers';
+  }
+
+  @override
+  String get calendriersAAfficher => 'Calendriers affichés';
+
+  @override
+  String get developperLeMois => 'Développer le mois';
+
+  @override
+  String get reduireLeMois => 'Réduire le mois';
+
+  @override
+  String get evenementQuiSeRepete =>
+      'Cet événement se répète. Supprimer seulement celui-ci, ou toute la série ?';
+
+  @override
+  String get cetteOccurrence => 'Celui-ci';
+
+  @override
+  String get touteLaSerie => 'Toute la série';
+
+  @override
+  String get modifierLaSerie =>
+      'Cet événement se répète : vos modifications s\'appliquent à toute la série. Pour n\'en changer qu\'un, passez par le web.';
 }

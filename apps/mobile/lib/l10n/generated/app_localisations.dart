@@ -163,12 +163,6 @@ abstract class L {
   /// **'Modifier l\'événement'**
   String get modifierLEvenement;
 
-  /// No description provided for @rienCeJourLa.
-  ///
-  /// In fr, this message translates to:
-  /// **'Rien ce jour-là.'**
-  String get rienCeJourLa;
-
   /// No description provided for @journee.
   ///
   /// In fr, this message translates to:
@@ -1758,6 +1752,96 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Ouvrir les Réglages Système'**
   String get ouvrirLesReglagesSysteme;
+
+  /// No description provided for @demain.
+  ///
+  /// In fr, this message translates to:
+  /// **'Demain'**
+  String get demain;
+
+  /// No description provided for @hier.
+  ///
+  /// In fr, this message translates to:
+  /// **'Hier'**
+  String get hier;
+
+  /// No description provided for @menu.
+  ///
+  /// In fr, this message translates to:
+  /// **'Menu'**
+  String get menu;
+
+  /// No description provided for @rechercher.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rechercher'**
+  String get rechercher;
+
+  /// No description provided for @rechercherDansLAgenda.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rechercher dans l\'agenda'**
+  String get rechercherDansLAgenda;
+
+  /// No description provided for @aucunResultat.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun résultat.'**
+  String get aucunResultat;
+
+  /// No description provided for @tousLesCalendriers.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tous les calendriers'**
+  String get tousLesCalendriers;
+
+  /// No description provided for @calendriersAffiches.
+  ///
+  /// In fr, this message translates to:
+  /// **'{nombre} calendriers'**
+  String calendriersAffiches(int nombre);
+
+  /// No description provided for @calendriersAAfficher.
+  ///
+  /// In fr, this message translates to:
+  /// **'Calendriers affichés'**
+  String get calendriersAAfficher;
+
+  /// No description provided for @developperLeMois.
+  ///
+  /// In fr, this message translates to:
+  /// **'Développer le mois'**
+  String get developperLeMois;
+
+  /// No description provided for @reduireLeMois.
+  ///
+  /// In fr, this message translates to:
+  /// **'Réduire le mois'**
+  String get reduireLeMois;
+
+  /// No description provided for @evenementQuiSeRepete.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cet événement se répète. Supprimer seulement celui-ci, ou toute la série ?'**
+  String get evenementQuiSeRepete;
+
+  /// No description provided for @cetteOccurrence.
+  ///
+  /// In fr, this message translates to:
+  /// **'Celui-ci'**
+  String get cetteOccurrence;
+
+  /// No description provided for @touteLaSerie.
+  ///
+  /// In fr, this message translates to:
+  /// **'Toute la série'**
+  String get touteLaSerie;
+
+  /// No description provided for @modifierLaSerie.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cet événement se répète : vos modifications s\'appliquent à toute la série. Pour n\'en changer qu\'un, passez par le web.'**
+  String get modifierLaSerie;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

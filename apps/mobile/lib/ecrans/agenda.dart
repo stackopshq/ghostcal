@@ -7,11 +7,15 @@ import '../outils/dates.dart';
 import '../services/agenda.dart';
 import '../services/erreurs.dart';
 import '../services/session.dart';
+import '../services/taches.dart';
+import '../services/trousseau.dart';
 import '../services/verrouillage.dart';
 import '../services/vue_agenda.dart';
 import '../theme.dart';
+import 'agenda_jours.dart';
 import 'agenda_vues.dart';
 import 'nouvel_evenement.dart';
+import 'recherche.dart';
 
 /// The agenda, as a day, a week, a month or a list — the user's choice, remembered.
 ///
@@ -23,27 +27,57 @@ class EcranDAgenda extends StatefulWidget {
     super.key,
     required this.session,
     required this.verrouillage,
+    this.surChangement,
   });
 
   final Session session;
   final Verrouillage verrouillage;
 
+  /// Called when what the bottom bar shows of the agenda changes: the view, the
+  /// calendars shown, whether an event can be created.
+  final VoidCallback? surChangement;
+
   @override
-  State<EcranDAgenda> createState() => _EcranDAgendaState();
+  State<EcranDAgenda> createState() => EcranDAgendaState();
 }
 
-class _EcranDAgendaState extends State<EcranDAgenda> {
+/// How the month is drawn. `automatique` lets the space decide
+/// ([titresParCaseDuMois]); the two others are the user's override, set with the
+/// handle under the grid, and each points away from what the space would give.
+enum ModeDuMois { automatique, compact, titres }
+
+/// Public so that the home screen's bottom bar can drive the agenda: pick the view,
+/// filter the calendars, search, create.
+class EcranDAgendaState extends State<EcranDAgenda> {
+  static const _cleDesMasques = 'ghostcal.agenda.calendriers-masques';
+  static const _cleDuMois = 'ghostcal.agenda.mois';
+
   /// Days shown by the list view, from the selected day.
   static const _joursDeLaListe = 30;
+
+  /// La hauteur que la grille prend quand elle n'affiche que des pastilles.
+  ///
+  /// L'en-tête des jours et son écart, puis six rangées de 50 — les mesures d'avant,
+  /// gardées telles quelles : c'est la mise en page du téléphone, et elle était juste.
+  static const _hauteurDeLaGrilleEnPastilles = 18.0 + 6 * 46;
+
+  /// Days listed under the compact month, from the selected one.
+  static const _joursSousLeMois = 14;
 
   VueDAgenda _vue = VueDAgenda.jour;
   DateTime _ancre = minuit(DateTime.now());
   ({DateTime de, DateTime a})? _fenetreChargee;
   List<LigneDAgenda>? _lignes;
   List<Calendrier> _calendriers = const [];
+  List<Tache> _taches = const [];
   String? _erreur;
   bool _charge = false;
   int _premierJour = 1;
+
+  /// Calendars the user chose not to see. Bookings and external busy slots have no
+  /// calendar and always show: hiding them would hide a commitment.
+  Set<String> _masques = const {};
+  ModeDuMois _modeDuMois = ModeDuMois.automatique;
 
   @override
   void initState() {
@@ -52,7 +86,89 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
       if (!mounted) return;
       setState(() => _vue = vue);
       _recharger();
+      widget.surChangement?.call();
     });
+    _lireLesPreferences();
+  }
+
+  Future<void> _lireLesPreferences() async {
+    try {
+      final masques = await Trousseau.lire(_cleDesMasques);
+      final mois = await Trousseau.lire(_cleDuMois);
+      if (!mounted) return;
+      setState(() {
+        _masques = {...?masques?.split(',').where((x) => x.isNotEmpty)};
+        _modeDuMois = ModeDuMois.values.firstWhere(
+          (m) => m.name == mois,
+          orElse: () => ModeDuMois.automatique,
+        );
+      });
+      widget.surChangement?.call();
+    } on Object catch (e) {
+      debugPrint('ghostcal.agenda: preferences not read: $e');
+    }
+  }
+
+  Future<void> _retenir(String valeur, String cle) async {
+    try {
+      await Trousseau.poser(valeur, cle);
+    } on Object catch (e) {
+      debugPrint('ghostcal.agenda: preference not saved: $e');
+    }
+  }
+
+  // ─── What the bottom bar reads and drives ───
+
+  VueDAgenda get vue => _vue;
+
+  /// Le jour autour duquel la vue est construite. Lu par les témoins : « Aujourd'hui »
+  /// et les deux flèches ne changent **que** cela, et ne se constatent donc nulle part
+  /// ailleurs sans relire un titre mis en forme.
+  DateTime get ancre => _ancre;
+  bool get peutCreer => _inscriptibles.isNotEmpty;
+  List<Calendrier> get calendriers => _calendriers;
+  Set<String> get masques => _masques;
+
+  void choisirLaVue(VueDAgenda vue) => _allerA(_ancre, vue: vue);
+  Future<void> nouvelEvenement() => _nouvelEvenement();
+
+  /// The macOS menu bar drives these two. `_allerA` and `_deplacer` stay private:
+  /// they take an anchor and a sign that only this screen knows how to form.
+  void allerAujourdhui() => _allerA(DateTime.now());
+  void deplacer(int sens) => _deplacer(sens);
+
+  Future<void> masquer(Set<String> masques) async {
+    setState(() => _masques = masques);
+    widget.surChangement?.call();
+    await _retenir(masques.join(','), _cleDesMasques);
+  }
+
+  Future<void> rechercher() async {
+    final agenda = _agenda;
+    final organisation = widget.session.organisation;
+    if (agenda == null || organisation == null) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => EcranDeRecherche(
+          agenda: agenda,
+          organisation: organisation,
+          couleurDe: _couleurDe,
+          surLigne: _ouvrir,
+          visible: _visible,
+        ),
+      ),
+    );
+  }
+
+  bool _visible(LigneDAgenda ligne) =>
+      ligne.calendrier == null || !_masques.contains(ligne.calendrier);
+
+  /// The month's mode flipped from what is on screen: the handle always shows the
+  /// other way of reading the month.
+  void _basculerLeMois(bool titresAffiches) {
+    final mode = titresAffiches ? ModeDuMois.compact : ModeDuMois.titres;
+    setState(() => _modeDuMois = mode);
+    _retenir(mode.name, _cleDuMois);
   }
 
   @override
@@ -96,15 +212,24 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
       _erreur = null;
     });
     try {
-      final lignes =
-          await agenda.lignes(de: fenetre.de, a: fenetre.a, organisation: organisation);
+      final taches = _chargerLesTaches(organisation);
+      final lignes = await agenda.lignes(
+        de: fenetre.de,
+        a: fenetre.a,
+        organisation: organisation,
+      );
+      final lesTaches = await taches;
       // Calendars do not change from one period to the next: asked for once.
-      if (_calendriers.isEmpty) _calendriers = await agenda.calendriers();
+      if (_calendriers.isEmpty) {
+        _calendriers = await agenda.calendriers();
+        widget.surChangement?.call();
+      }
       // A slow answer for a window the user has already left must not overwrite the
       // current one.
       if (mounted && fenetre == _fenetre) {
         setState(() {
           _lignes = lignes;
+          if (lesTaches != null) _taches = lesTaches;
           _fenetreChargee = fenetre;
         });
       }
@@ -115,12 +240,55 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
     }
   }
 
+  /// The tasks shown among the days. A failure here leaves the previous ones: the
+  /// agenda is what this screen is for, and it must not fail because tasks did.
+  Future<List<Tache>?> _chargerLesTaches(String organisation) async {
+    final api = widget.session.api;
+    final auth = widget.session.auth;
+    if (api == null || auth == null) return null;
+    try {
+      return await Taches(
+        api: api,
+        auth: auth,
+      ).lister(organisation: organisation);
+    } on Object catch (e) {
+      debugPrint('ghostcal.agenda: tasks not loaded: $e');
+      return null;
+    }
+  }
+
+  /// Ticking a task from the agenda: it leaves the list at once, and comes back with
+  /// the error if the server refused.
+  Future<void> _cocher(Tache tache) async {
+    final api = widget.session.api;
+    final auth = widget.session.auth;
+    if (api == null || auth == null) return;
+    final avant = _taches;
+    setState(
+      () => _taches = [
+        for (final t in _taches)
+          if (t.id != tache.id) t,
+      ],
+    );
+    try {
+      await Taches(api: api, auth: auth).marquer(tache.id, faite: true);
+    } on Object catch (e) {
+      if (!mounted) return;
+      setState(() => _taches = avant);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(lisible(e, L.of(context)))));
+    }
+  }
+
   void _allerA(DateTime jour, {VueDAgenda? vue}) {
     setState(() {
       _ancre = minuit(jour);
       if (vue != null) _vue = vue;
     });
-    if (vue != null) vue.retenir();
+    if (vue != null) {
+      vue.retenir();
+      widget.surChangement?.call();
+    }
     _recharger(siBesoin: true);
   }
 
@@ -146,22 +314,59 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
     return valeur == null ? gc.accent : Color(0xFF000000 | valeur);
   }
 
-  String _titreDeLaPeriode(BuildContext context) {
+  /// The period as two parts: what it is ("October", "20 October", "19 – 25 Oct") and
+  /// its year, which the title sets apart in the accent colour.
+  (String, String) _titreDeLaPeriode(BuildContext context) {
     final langue = langueDesDates(context);
+    final annee = DateFormat.y(langue).format(_ancre);
     switch (_vue) {
       case VueDAgenda.jour:
-        return DateFormat.yMMMMEEEEd(langue).format(_ancre);
+        return (DateFormat.MMMMd(langue).format(_ancre), annee);
       case VueDAgenda.semaine:
         final debut = debutDeSemaine(_ancre, _premierJour);
         final fin = plusJours(debut, 6);
-        return '${DateFormat.MMMd(langue).format(debut)} – ${DateFormat.yMMMd(langue).format(fin)}';
+        return (
+          '${DateFormat.MMMd(langue).format(debut)} – ${DateFormat.MMMd(langue).format(fin)}',
+          DateFormat.y(langue).format(fin),
+        );
       case VueDAgenda.mois:
       case VueDAgenda.liste:
-        return toBeginningOfSentenceCase(DateFormat.yMMMM(langue).format(_ancre));
+        // "octobre" heads the screen: a title takes its capital in French too.
+        return (
+          toBeginningOfSentenceCase(DateFormat.MMMM(langue).format(_ancre)),
+          annee,
+        );
     }
   }
 
-  List<Calendrier> get _inscriptibles => _calendriers.where((c) => c.inscriptible).toList();
+  Widget _titre(BuildContext context) {
+    final gc = Gc.of(context);
+    final (periode, annee) = _titreDeLaPeriode(context);
+    return Text.rich(
+      key: const Key('agenda.titre'),
+      TextSpan(
+        children: [
+          TextSpan(
+            text: periode,
+            style: TextStyle(color: gc.encre),
+          ),
+          TextSpan(
+            text: ' $annee',
+            style: TextStyle(color: gc.accentTexte),
+          ),
+        ],
+      ),
+      maxLines: 1,
+      style: const TextStyle(
+        fontSize: 30,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.5,
+      ),
+    );
+  }
+
+  List<Calendrier> get _inscriptibles =>
+      _calendriers.where((c) => c.inscriptible).toList();
 
   Future<void> _nouvelEvenement({DateTime? debut}) async {
     final cree = await Navigator.of(context).push<bool>(
@@ -192,20 +397,33 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(titre, style: style.copyWith(fontSize: 18, fontWeight: FontWeight.w600)),
+                Text(
+                  titre,
+                  style: style.copyWith(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                Text(_horaire(context, ligne), style: TextStyle(color: gc.estompe)),
+                Text(
+                  _horaire(context, ligne),
+                  style: TextStyle(color: gc.estompe),
+                ),
                 if (ligne.lieu != null)
                   Text(ligne.lieu!, style: TextStyle(color: gc.estompe)),
                 const SizedBox(height: 12),
-                Row(children: [
-                  Icon(Icons.lock_outline, size: 16, color: gc.estompe),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(L.of(context).lectureSeule,
-                        style: TextStyle(color: gc.estompe, fontSize: 12)),
-                  ),
-                ]),
+                Row(
+                  children: [
+                    Icon(Icons.lock_outline, size: 16, color: gc.estompe),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        L.of(context).lectureSeule,
+                        style: TextStyle(color: gc.estompe, fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -220,13 +438,15 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
           calendriers: _inscriptibles,
           jour: ligne.debut,
           evenement: ligne.evenement,
+          occurrence: ligne.debut,
         ),
       ),
     );
     if (modifie == true) await _recharger();
   }
 
-  String _horaire(BuildContext context, LigneDAgenda ligne) => ligne.journeeEntiere
+  String _horaire(BuildContext context, LigneDAgenda ligne) =>
+      ligne.journeeEntiere
       ? L.of(context).journee
       : '${heureCourte(context, ligne.debut)} – ${heureCourte(context, ligne.fin)}';
 
@@ -234,12 +454,15 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 68,
+        centerTitle: false,
+        titleSpacing: Mesures.marge,
         // Scaled down rather than cut: a truncated year is wrong information, not a
         // cosmetic issue (seen on the first App Store capture).
         title: FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
-          child: Text(_titreDeLaPeriode(context)),
+          child: _titre(context),
         ),
         actions: [
           // Only when auto-lock waits: with "immediately", leaving the app already locks.
@@ -271,42 +494,19 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
           ),
         ],
       ),
-      // Only with a calendar to write to: a shared calendar may be read-only, and
-      // offering to write there would fail after everything was typed.
-      floatingActionButton: _inscriptibles.isEmpty
-          ? null
-          : FloatingActionButton(
-              // All tabs live in an IndexedStack: every floating button needs its own
-              // hero tag, or Flutter throws "multiple heroes share the same tag".
-              heroTag: 'agenda',
-              tooltip: L.of(context).nouvelEvenement,
-              onPressed: () => _nouvelEvenement(),
-              child: const Icon(Icons.add),
-            ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
-            child: SizedBox(
-              width: double.infinity,
-              child: SegmentedButton<VueDAgenda>(
-                key: const Key('agenda.vues'),
-                showSelectedIcon: false,
-                style: const ButtonStyle(visualDensity: VisualDensity.compact),
-                segments: [
-                  for (final vue in VueDAgenda.values)
-                    ButtonSegment(value: vue, label: Text(vue.libelle(L.of(context)))),
-                ],
-                selected: {_vue},
-                onSelectionChanged: (choix) => _allerA(_ancre, vue: choix.first),
-              ),
-            ),
-          ),
-          if (_charge) const LinearProgressIndicator(minHeight: 2) else const SizedBox(height: 2),
+          if (_charge)
+            const LinearProgressIndicator(minHeight: 2)
+          else
+            const SizedBox(height: 2),
           if (_erreur != null)
             Padding(
               padding: const EdgeInsets.all(12),
-              child: Text(_erreur!, style: TextStyle(color: Gc.of(context).danger)),
+              child: Text(
+                _erreur!,
+                style: TextStyle(color: Gc.of(context).danger),
+              ),
             ),
           Expanded(
             // Swipe left or right to move by one period, like every calendar app.
@@ -325,9 +525,11 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
   }
 
   Widget _corps(BuildContext context) {
-    final lignes = _lignes;
+    final lignes = _lignes?.where(_visible).toList();
     if (lignes == null) {
-      return _erreur == null ? const Center(child: CircularProgressIndicator()) : const SizedBox();
+      return _erreur == null
+          ? const Center(child: CircularProgressIndicator())
+          : const SizedBox();
     }
     switch (_vue) {
       case VueDAgenda.jour:
@@ -348,7 +550,11 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
                 lignes: lignes,
                 couleurDe: _couleurDe,
                 surLigne: _ouvrir,
-                surCreneau: _inscriptibles.isEmpty ? null : (d) => _nouvelEvenement(debut: d),
+                surCreneau: _inscriptibles.isEmpty
+                    ? null
+                    : (d) => _nouvelEvenement(debut: d),
+                taches: _taches,
+                surTache: _cocher,
               ),
             ),
           ],
@@ -361,110 +567,169 @@ class _EcranDAgendaState extends State<EcranDAgenda> {
           lignes: lignes,
           couleurDe: _couleurDe,
           surLigne: _ouvrir,
-          surCreneau: _inscriptibles.isEmpty ? null : (d) => _nouvelEvenement(debut: d),
+          surCreneau: _inscriptibles.isEmpty
+              ? null
+              : (d) => _nouvelEvenement(debut: d),
           surJour: (jour) => _allerA(jour, vue: VueDAgenda.jour),
+          taches: _taches,
+          surTache: _cocher,
         );
       case VueDAgenda.mois:
-        final du = lignes.where((l) => couvre(l, _ancre)).toList()
-          ..sort(Agenda.comparerLesLignes);
-        return Column(
-          children: [
-            GrilleDuMois(
+        // Tapping the selected day again opens it, as in Fantastical.
+        void surJour(DateTime jour) => memeJour(jour, _ancre)
+            ? _allerA(jour, vue: VueDAgenda.jour)
+            : (jour.month == _ancre.month
+                  ? setState(() => _ancre = minuit(jour))
+                  : _allerA(jour));
+        return LayoutBuilder(
+          builder: (context, contraintes) {
+            // ─── Une seule mesure, deux décisions ───
+            //
+            // Les cases assez grandes portent les titres ; la liste du jour, en dessous,
+            // ne dit alors plus rien que la grille ne dise déjà — on la retire. Les deux
+            // décisions viennent du **même** appel : séparées, elles finiraient par se
+            // contredire, et on aurait soit les titres deux fois, soit un mois muet
+            // au-dessus d'une liste.
+            final selonLaPlace = titresParCaseDuMois(contraintes.biggest);
+            // The handle overrides the space, at this one place: compact always gives
+            // dots and the day list, titles always give titles — on a phone they are
+            // cut short, as in Fantastical's expanded month, and still say which day is
+            // busy with what.
+            final titres = switch (_modeDuMois) {
+              ModeDuMois.automatique => selonLaPlace,
+              ModeDuMois.compact => 0,
+              ModeDuMois.titres => selonLaPlace > 0 ? selonLaPlace : 1,
+            };
+            final grille = GrilleDuMois(
               mois: _ancre,
               jours: joursDeLaGrilleDuMois(_ancre, _premierJour),
               selection: _ancre,
               lignes: lignes,
               couleurDe: _couleurDe,
-              // Tapping the selected day again opens it, as in Fantastical.
-              surJour: (jour) => memeJour(jour, _ancre)
-                  ? _allerA(jour, vue: VueDAgenda.jour)
-                  : (jour.month == _ancre.month
-                      ? setState(() => _ancre = minuit(jour))
-                      : _allerA(jour)),
-            ),
-            Divider(height: 12, color: Gc.of(context).bordure),
-            Expanded(child: _listeDuJour(context, du)),
-          ],
+              titresParCase: titres,
+              surJour: surJour,
+            );
+            if (titres > 0) {
+              return Column(
+                children: [
+                  Expanded(child: grille),
+                  _Poignee(
+                    ouverte: true,
+                    surBascule: () => _basculerLeMois(true),
+                  ),
+                ],
+              );
+            }
+            final poignee = _Poignee(
+              ouverte: false,
+              surBascule: () => _basculerLeMois(false),
+            );
+            // Sans titres, la grille garde la hauteur d'un téléphone et cède le reste à la
+            // liste : étirée, elle donnerait six rangées hautes et vides.
+            // The list runs from the selected day to the end of the loaded grid: past it
+            // nothing was fetched, and an empty day there would be a lie.
+            final finDeLaGrille = joursDeLaGrilleDuMois(
+              _ancre,
+              _premierJour,
+            ).last;
+            final restants = finDeLaGrille.difference(_ancre).inDays + 1;
+            final liste = ListeParJour(
+              key: ValueKey(('month-list', _ancre)),
+              debut: _ancre,
+              jours: restants.clamp(1, _joursSousLeMois),
+              lignes: lignes,
+              taches: _taches,
+              couleurDe: _couleurDe,
+              surLigne: _ouvrir,
+              surTache: _cocher,
+            );
+            final bordure = Gc.of(context).bordureFranche;
+            // Too short for the grid above a list — a phone held sideways: the grid takes
+            // the left and the list the right, as on a tablet, rather than the grid
+            // running under the tab bar.
+            if (contraintes.maxHeight < _hauteurDeLaGrilleEnPastilles + 160) {
+              return Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      children: [
+                        Expanded(child: grille),
+                        poignee,
+                      ],
+                    ),
+                  ),
+                  VerticalDivider(width: 1, color: bordure),
+                  Expanded(flex: 2, child: liste),
+                ],
+              );
+            }
+            return Column(
+              children: [
+                SizedBox(height: _hauteurDeLaGrilleEnPastilles, child: grille),
+                poignee,
+                Divider(height: 1, color: bordure),
+                Expanded(child: liste),
+              ],
+            );
+          },
         );
       case VueDAgenda.liste:
-        return RefreshIndicator(onRefresh: _recharger, child: _listeContinue(context, lignes));
+        return RefreshIndicator(
+          onRefresh: _recharger,
+          child: ListeParJour(
+            debut: _ancre,
+            jours: _joursDeLaListe,
+            lignes: lignes,
+            taches: _taches,
+            couleurDe: _couleurDe,
+            surLigne: _ouvrir,
+            surTache: _cocher,
+          ),
+        );
     }
   }
+}
 
-  Widget _listeDuJour(BuildContext context, List<LigneDAgenda> lignes) {
-    final gc = Gc.of(context);
-    if (lignes.isEmpty) {
-      return ListView(padding: const EdgeInsets.all(20), children: [
-        Text(L.of(context).rienCeJourLa, style: TextStyle(color: gc.estompe)),
-      ]);
-    }
-    return ListView(children: [for (final l in lignes) _ligne(context, l)]);
-  }
+/// The bar under the month that flips it between dots-and-list and titles in the cells:
+/// tap it, or drag it down to open the month and up to close it.
+class _Poignee extends StatelessWidget {
+  const _Poignee({required this.ouverte, required this.surBascule});
 
-  Widget _listeContinue(BuildContext context, List<LigneDAgenda> lignes) {
+  /// Whether the month shows titles now.
+  final bool ouverte;
+  final VoidCallback surBascule;
+
+  @override
+  Widget build(BuildContext context) {
     final gc = Gc.of(context);
-    final langue = langueDesDates(context);
-    final maintenant = DateTime.now();
-    final enfants = <Widget>[];
-    for (var i = 0; i < _joursDeLaListe; i++) {
-      final jour = plusJours(_ancre, i);
-      final du = lignes.where((l) => couvre(l, jour)).toList()..sort(Agenda.comparerLesLignes);
-      if (du.isEmpty) continue;
-      final aujourdhui = memeJour(jour, maintenant);
-      enfants.add(Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-        child: Text(
-          '${aujourdhui ? '${L.of(context).aujourdHui} · ' : ''}'
-          '${DateFormat.MMMMEEEEd(langue).format(jour)}'.toUpperCase(),
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.6,
-            color: aujourdhui ? gc.danger : gc.estompe,
+    final l = L.of(context);
+    return Semantics(
+      button: true,
+      label: ouverte ? l.reduireLeMois : l.developperLeMois,
+      child: GestureDetector(
+        key: const Key('agenda.poignee'),
+        behavior: HitTestBehavior.opaque,
+        onTap: surBascule,
+        onVerticalDragEnd: (details) {
+          final vitesse = details.primaryVelocity ?? 0;
+          if (ouverte ? vitesse < -150 : vitesse > 150) surBascule();
+        },
+        child: SizedBox(
+          height: 20,
+          width: double.infinity,
+          child: Center(
+            child: Container(
+              width: 40,
+              height: 5,
+              decoration: BoxDecoration(
+                color: gc.estompe.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
           ),
         ),
-      ));
-      enfants.addAll(du.map((l) => _ligne(context, l)));
-    }
-    if (enfants.isEmpty) {
-      enfants.add(Padding(
-        padding: const EdgeInsets.all(20),
-        child: Text(L.of(context).rienSurLaPeriode, style: TextStyle(color: gc.estompe)),
-      ));
-    }
-    return ListView(padding: const EdgeInsets.only(bottom: 88), children: enfants);
-  }
-
-  Widget _ligne(BuildContext context, LigneDAgenda ligne) {
-    final gc = Gc.of(context);
-    final (titre, style) = titreAffiche(context, ligne, gc);
-    return ListTile(
-      dense: true,
-      visualDensity: VisualDensity.compact,
-      leading: Container(
-        width: 4,
-        height: 36,
-        decoration: BoxDecoration(
-          color: _couleurDe(ligne),
-          borderRadius: BorderRadius.circular(2),
-        ),
       ),
-      minLeadingWidth: 4,
-      title: Text(titre, style: style.copyWith(fontSize: 15, fontWeight: FontWeight.w500)),
-      subtitle: Text(
-        [
-          _horaire(context, ligne),
-          // Le type de rendez-vous, quand le titre a cédé la place au nom de l'invité :
-          // « 14:00–14:30 · RDV en visioconférence » dit les deux sans rien perdre.
-          if (ligne.invite != null && ligne.titre.isNotEmpty) ligne.titre,
-          if (ligne.lieu != null) ligne.lieu!,
-        ].join(' · '),
-        style: TextStyle(color: gc.estompe, fontSize: 12),
-      ),
-      trailing: ligne.evenement == null
-          ? Icon(Icons.lock_outline, size: 16, color: gc.estompe)
-          : const Icon(Icons.chevron_right),
-      onTap: () => _ouvrir(ligne),
     );
   }
 }

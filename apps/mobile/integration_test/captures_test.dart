@@ -36,6 +36,16 @@ import 'package:ghostcal/src/rust/frb_generated.dart';
 /// Le jeu de vitrine amorce en plus un horaire de disponibilité, une réunion réellement
 /// réservée depuis la page publique et un sondage voté — sans quoi « Réunions » et
 /// « Sondages » seraient des écrans vides.
+
+/// The bottom bar's menu holds the agenda's views and the other sections, since the
+/// floating bar replaced the tab bar.
+Future<void> allerA(WidgetTester tester, String entree) async {
+  await tester.tap(find.byKey(const Key('accueil.menu')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(entree).last);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -183,8 +193,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // ── 03 · Tâches ──
-    await tester.tap(find.text('Tâches'));
-    await tester.pumpAndSettle();
+    await allerA(tester, 'Tâches');
     await photographier(tester, '03-taches');
 
     // ── 04 · Réunions réservées ──
@@ -192,21 +201,18 @@ void main() {
     // L'écran que le jeu d'épreuve ne pouvait pas montrer : il faut une réservation prise
     // depuis la page publique, donc un horaire de disponibilité, que le banc d'épreuve ne
     // posait pas.
-    await tester.tap(find.text('Réunions'));
-    await tester.pumpAndSettle();
+    await allerA(tester, 'Réunions');
     await photographier(tester, '04-reunions');
 
     // ── 05 · Liens de réservation ──
-    await tester.tap(find.text('RDV'));
-    await tester.pumpAndSettle();
+    await allerA(tester, 'RDV');
     await photographier(tester, '05-rendez-vous');
 
     // ── 06 · Réglages ──
     //
     // La sixième est **facultative** : Apple en accepte dix, et celle-ci montre le compte,
     // les disponibilités et la sécurité. À garder ou à écarter au montage de la fiche.
-    await tester.tap(find.text('Réglages'));
-    await tester.pumpAndSettle();
+    await allerA(tester, 'Réglages');
     await photographier(tester, '06-reglages');
   }, timeout: const Timeout(Duration(minutes: 5)));
 }

@@ -133,7 +133,7 @@ void main() {
         await tester.pumpAndSettle();
 
         final attendu = theme == ChoixDeTheme.clair ? Brightness.light : Brightness.dark;
-        final contexte = tester.element(find.byType(NavigationBar));
+        final contexte = tester.element(find.byKey(const Key('accueil.pret')));
         expect(
           Theme.of(contexte).brightness,
           attendu,
@@ -142,14 +142,22 @@ void main() {
 
         // Chaque onglet est **touché**, donc construit : une exception dans un écran
         // sombre ne se manifeste qu'à la construction de cet écran-là.
-        for (final onglet in onglets[langue]!) {
+        for (final (i, onglet) in onglets[langue]!.indexed) {
+          // The agenda is reached from the pill of the bottom bar, the other sections
+          // from its menu. On the agenda already, its pill shows the calendar filter
+          // instead: nothing to tap.
+          if (i == 0 && find.text(onglet).evaluate().isEmpty) continue;
+          if (i > 0) {
+            await tester.tap(find.byKey(const Key('accueil.menu')));
+            await tester.pumpAndSettle();
+          }
           expect(
             find.text(onglet),
             findsWidgets,
             reason: 'L\'onglet « $onglet » manque en ${langue.name} : un libellé est '
                 'resté en dur, ou la traduction n\'existe pas.',
           );
-          await tester.tap(find.text(onglet).first);
+          await tester.tap(find.text(onglet).last);
           await tester.pumpAndSettle();
         }
 

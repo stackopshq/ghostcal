@@ -11,7 +11,6 @@
   "allerAUneDate": "Aller à une date",
   "nouvelEvenement": "Nouvel événement",
   "modifierLEvenement": "Modifier l'événement",
-  "rienCeJourLa": "Rien ce jour-là.",
   "journee": "Journée",
   "contenuIllisible": "Contenu illisible — clé manquante",
   "@contenuIllisible": {
@@ -489,5 +488,27 @@
   "@rappelsBloques": {
     "description": "Distinct de rappelsRefuses : ici l'alerte n'a pas été présentée du tout, parce qu'un refus est déjà enregistré. Dire « autorisez-les dans les réglages » sans le préciser laisse attendre une alerte qui ne viendra jamais."
   },
-  "ouvrirLesReglagesSysteme": "Ouvrir les Réglages Système"
+  "ouvrirLesReglagesSysteme": "Ouvrir les Réglages Système",
+  "demain": "Demain",
+  "hier": "Hier",
+  "menu": "Menu",
+  "rechercher": "Rechercher",
+  "rechercherDansLAgenda": "Rechercher dans l'agenda",
+  "aucunResultat": "Aucun résultat.",
+  "tousLesCalendriers": "Tous les calendriers",
+  "calendriersAffiches": "{nombre} calendriers",
+  "calendriersAAfficher": "Calendriers affichés",
+  "developperLeMois": "Développer le mois",
+  "reduireLeMois": "Réduire le mois",
+  "@calendriersAffiches": {
+    "placeholders": {
+      "nombre": {
+        "type": "int"
+      }
+    }
+  },
+  "evenementQuiSeRepete": "Cet événement se répète. Supprimer seulement celui-ci, ou toute la série ?",
+  "cetteOccurrence": "Celui-ci",
+  "touteLaSerie": "Toute la série",
+  "modifierLaSerie": "Cet événement se répète : vos modifications s'appliquent à toute la série. Pour n'en changer qu'un, passez par le web."
 }
