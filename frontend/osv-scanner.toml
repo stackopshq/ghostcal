@@ -62,3 +62,22 @@ linter sur les sources du dépôt, jamais sur une entrée utilisateur.
 Pourquoi pas corrigé : aucune version corrigée n'est publiée au 2026-10-14.
 Réexamen à l'échéance, ou dès qu'une version corrigée existe.
 """
+
+[[IgnoredVulns]]
+id = "GHSA-qxg6-89mg-rqv8"
+ignoreUntil = 2026-12-31
+reason = """
+@vitest/mocker 3.2.7 — injection de code via l'enregistrement d'un mock manuel
+sans authentification sur le WebSocket du serveur de développement de Vite.
+CVSS 4.7. Publié le 2026-10-21, entre la passe de la PR #214 et celle de
+`main` : même gestionnaire et même appelant que GHSA-82fw-gwwq-j7x9, dont le
+correctif n'avait durci que la branche `redirect`.
+
+Pourquoi écarté : dépendance de DÉVELOPPEMENT, absente de tout artefact
+livré ; l'attaque suppose un navigateur qui visite le serveur de développement
+de Vitest, lequel ne tourne ni en CI ni en production.
+
+Pourquoi pas corrigé : le correctif est @vitest/mocker 5.0.3, soit vitest
+4.1.12 — la même migration MAJEURE que GHSA-82fw-gwwq-j7x9 ci-dessus, avec la
+même échéance et la même raison de ne pas la mêler à une montée de sécurité.
+"""
