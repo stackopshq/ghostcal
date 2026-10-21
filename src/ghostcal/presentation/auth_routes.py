@@ -58,6 +58,7 @@ from ghostcal.presentation.schemas import (
     RefreshIn,
     RegisteredOut,
     RegisterIn,
+    ResendVerificationIn,
     ResetPasswordIn,
     TokenOut,
     TwoFactorCodeIn,
@@ -253,6 +254,25 @@ async def setup_zk_keys(payload: ZkKeyMaterialIn, user: CurrentUser) -> None:
             await _service(session).setup_zk_keys(user.id, material)
         except ZkKeysAlreadySet as exc:
             raise HTTPException(status_code=409, detail="keys already set") from exc
+
+
+@router.post("/resend-verification", status_code=202, dependencies=_AUTH_RL)
+async def resend_verification(payload: ResendVerificationIn) -> None:
+    """Renvoie le courriel de vérification. Toujours 202, adresse connue ou non.
+
+    C'est la SORTIE d'un cul-de-sac : un compte dont le courriel de vérification s'est perdu
+    ne pouvait plus ni se connecter (403), ni se réinscrire (409), ni demander un nouveau mot
+    de passe — cette dernière route ne s'adresse volontairement pas aux adresses non vérifiées.
+    Trois portes fermées, aucune réparable sans accès à la base.
+
+    Le 202 est inconditionnel pour la même raison que sur `forgot-password` : répondre
+    différemment pour une adresse connue et une inconnue en ferait un oracle d'énumération, et
+    l'appelant n'est pas authentifié. Voir `AuthService.resend_verification`.
+    """
+    outbox = DeferredEmailSender(enqueue_email)
+    async with db_session() as session:
+        await _service(session, outbox).resend_verification(email=payload.email)
+    outbox.hand_off()
 
 
 @router.post("/forgot-password", status_code=202, dependencies=_AUTH_RL)
