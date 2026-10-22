@@ -143,10 +143,16 @@ class CalendarRepository:
     ) -> CalendarRecord:
         raise NotImplementedError
 
-    async def set_calendar_color(
-        self, owner_id: uuid.UUID, calendar_id: uuid.UUID, color: str
+    async def update_calendar(
+        self,
+        owner_id: uuid.UUID,
+        calendar_id: uuid.UUID,
+        *,
+        name: str | None = None,
+        color: str | None = None,
     ) -> bool:
-        """Recolour a calendar the owner owns. False if it is not theirs, or does not exist."""
+        """Rename and/or recolour a calendar the owner owns. False if it is not theirs, or does not
+        exist."""
         raise NotImplementedError
 
     async def share_calendar(
@@ -211,20 +217,24 @@ async def list_calendars(repo: CalendarRepository, owner_id: uuid.UUID) -> list[
     return calendars
 
 
-async def set_calendar_color(
-    repo: CalendarRepository, owner_id: uuid.UUID, calendar_id: uuid.UUID, color: str
+async def update_calendar(
+    repo: CalendarRepository,
+    owner_id: uuid.UUID,
+    calendar_id: uuid.UUID,
+    *,
+    name: str | None = None,
+    color: str | None = None,
 ) -> None:
-    """Change a calendar's colour after it exists.
+    """Rename and/or recolour a calendar after it exists. A field left as None is not touched.
 
-    It could only be chosen at creation, so the sole way to recolour a calendar was to delete it —
-    which takes its events with it. The colour carries no meaning to the server; it is how its owner
-    tells two overlays apart at a glance, and that is exactly the kind of thing people get wrong the
-    first time and want to fix later.
+    Both could only be chosen at creation, so the sole fix was to delete the calendar — which takes
+    its events with it. The colour is how its owner tells two overlays apart at a glance; the name
+    is what they read, and the default calendar's name is chosen by the server, in French.
 
     Ownership is enforced in the repository's WHERE clause rather than by reading the row first: a
     check followed by a write is two statements another request can slip between.
     """
-    if not await repo.set_calendar_color(owner_id, calendar_id, color):
+    if not await repo.update_calendar(owner_id, calendar_id, name=name, color=color):
         raise CalendarNotFound(str(calendar_id))
 
 

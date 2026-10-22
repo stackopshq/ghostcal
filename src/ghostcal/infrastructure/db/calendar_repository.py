@@ -169,9 +169,9 @@ class SqlCalendarRepository(CalendarRepository):
                     # la capture App Store de l'écran de création d'événement, le sélecteur
                     # affichait « My calendar » au milieu d'une interface française.
                     #
-                    # Aucune route ne renomme un calendrier ; le nom posé ici est celui que
-                    # l'utilisateur gardera. Les comptes déjà créés conservent l'ancien :
-                    # cette valeur n'est lue qu'à la création du calendrier par défaut.
+                    # Le nom posé ici n'est qu'un point de départ : PATCH /v1/calendars/{id}
+                    # le renomme. Les comptes déjà créés conservent l'ancien : cette valeur
+                    # n'est lue qu'à la création du calendrier par défaut.
                     name="Mon agenda",
                     color="#00f0ff",
                     is_default=True,
@@ -193,12 +193,25 @@ class SqlCalendarRepository(CalendarRepository):
         ).scalar_one()
         return _calendar(row)
 
-    async def set_calendar_color(
-        self, owner_id: uuid.UUID, calendar_id: uuid.UUID, color: str
+    async def update_calendar(
+        self,
+        owner_id: uuid.UUID,
+        calendar_id: uuid.UUID,
+        *,
+        name: str | None = None,
+        color: str | None = None,
     ) -> bool:
         # `owner_id` in the WHERE clause, not in a prior SELECT: it is what stops one member
-        # recolouring another's calendar, and it has to be part of the same statement to do so.
-        # A shared calendar is deliberately not covered — the viewer sees the owner's colour.
+        # renaming or recolouring another's calendar, and it has to be part of the same statement
+        # to do so. A shared calendar is deliberately not covered — the viewer sees the owner's
+        # name and colour.
+        values: dict[str, str] = {}
+        if name is not None:
+            values["name"] = name
+        if color is not None:
+            values["color"] = color
+        if not values:
+            raise ValueError("nothing to update")
         row = (
             await self._session.execute(
                 update(models.Calendar)
@@ -207,7 +220,7 @@ class SqlCalendarRepository(CalendarRepository):
                     models.Calendar.owner_id == owner_id,
                     models.Calendar.organization_id == self._org_id,
                 )
-                .values(color=color)
+                .values(**values)
                 .returning(models.Calendar.id)
             )
         ).scalar_one_or_none()
