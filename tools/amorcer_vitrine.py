@@ -349,11 +349,7 @@ demain = a(1, 14, 0)
 # position dans la liste : l'ordre n'est garanti nulle part.
 types = lire("/v1/me/event-types") or []
 slug_entretien = next(
-    (
-        t["slug"]
-        for t in types
-        if isinstance(t, dict) and t.get("title") == TITRE_RESERVABLE
-    ),
+    (t["slug"] for t in types if isinstance(t, dict) and t.get("title") == TITRE_RESERVABLE),
     None,
 )
 if slug_entretien is None:
