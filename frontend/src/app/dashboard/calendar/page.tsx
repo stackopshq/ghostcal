@@ -28,6 +28,7 @@ import {
   unshareCalendar,
   updateEvent,
   setCalendarColor,
+  renameCalendar,
 } from "@/lib/agenda";
 import {
   addSubscription,
@@ -86,6 +87,7 @@ import {
   LockIcon,
   MailIcon,
   MenuIcon,
+  PencilIcon,
   PinIcon,
   PlusIcon,
   SearchIcon,
@@ -319,6 +321,12 @@ export default function CalendarPage() {
   // Calendars toggled off in the overlay (hidden from the views), persisted per device.
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [newCalOpen, setNewCalOpen] = useState(false);
+  // The calendar whose name is being edited in place, with the text typed so far.
+  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
+  const [renameError, setRenameError] = useState<string | null>(null);
+  // Blur is the single place a rename ends, so Enter and Escape both go through it and the PATCH
+  // cannot be sent twice; this flag tells it which of the two it was.
+  const renameCancelled = useRef(false);
   const quickRef = useRef<HTMLInputElement>(null);
   // A member may have several external calendars connected. Each is its own overlay, with its own
   // colour — external events carry their connection id in `calendar_id`, the same convention
@@ -430,6 +438,19 @@ export default function CalendarPage() {
   async function recolorCalendar(id: string, color: string) {
     await setCalendarColor(id, color);
     await load();
+  }
+
+  async function commitRename(id: string, current: string, typed: string) {
+    const name = typed.trim();
+    setRenaming(null);
+    if (!name || name === current) return;
+    setRenameError(null);
+    try {
+      await renameCalendar(id, name);
+      await load();
+    } catch {
+      setRenameError(t("calendar.renameFailed"));
+    }
   }
 
   async function recolorSubscription(id: string, color: string) {
@@ -1150,6 +1171,7 @@ export default function CalendarPage() {
       {locked && <UnlockBanner />}
       {loading && <p className="text-sm text-muted">{t("common.loading")}</p>}
 
+      {renameError && <p className="text-xs text-danger">{renameError}</p>}
       {/* Calendar overlays: toggle each calendar's visibility; colours flow into every view. */}
       {!locked && calendars.length > 0 && overlaysOpen && (
         <div className="flex flex-wrap items-center gap-2">
@@ -1183,13 +1205,48 @@ export default function CalendarPage() {
                     onPick={(col) => void recolorCalendar(c.id, col)}
                   />
                 )}
-                <button
-                  type="button"
-                  onClick={() => toggleCalendar(c.id)}
-                  className="text-foreground hover:text-accent"
-                >
-                  {c.name}
-                </button>
+                {renaming?.id === c.id ? (
+                  <input
+                    autoFocus
+                    value={renaming.name}
+                    maxLength={200}
+                    aria-label={t("calendar.rename")}
+                    onChange={(e) => setRenaming({ id: c.id, name: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") renameCancelled.current = true;
+                      if (e.key === "Enter" || e.key === "Escape") e.currentTarget.blur();
+                    }}
+                    onBlur={() => {
+                      if (renameCancelled.current) {
+                        renameCancelled.current = false;
+                        setRenaming(null);
+                        return;
+                      }
+                      void commitRename(c.id, c.name, renaming.name);
+                    }}
+                    className="w-36 rounded border border-border bg-base px-1 text-xs text-foreground outline-none focus:border-accent"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => toggleCalendar(c.id)}
+                    className="text-foreground hover:text-accent"
+                  >
+                    {c.name}
+                  </button>
+                )}
+                {/* Only the owner may rename: a shared calendar carries its owner's name for it. */}
+                {!c.is_shared && renaming?.id !== c.id && (
+                  <button
+                    type="button"
+                    onClick={() => setRenaming({ id: c.id, name: c.name })}
+                    aria-label={t("calendar.rename")}
+                    title={t("calendar.rename")}
+                    className="text-muted hover:text-accent"
+                  >
+                    <PencilIcon className="inline-block h-3 w-3 shrink-0" />
+                  </button>
+                )}
                 {/* A bare dot said nothing. Two people's default calendars are both "My calendar",
                     so a shared one has to name its owner to be tellable apart at a glance. */}
                 {c.is_shared && (

@@ -292,6 +292,8 @@ const en: Dict = {
   "reset.partialWarning":
     "{n} key generation(s) will stay locked: they were granted after your account was set up, and the recovery phrase has no copy of them. Everything else reopens. An administrator can grant the rest back.",
   "calendar.recolor": "Change this calendar's colour",
+  "calendar.rename": "Rename this calendar",
+  "calendar.renameFailed": "The calendar could not be renamed. Try again.",
   "calendar.untitled": "(untitled)",
   "calendar.newEvent": "New event",
   "calendar.newCalendar": "New calendar",
@@ -1012,6 +1014,8 @@ const fr: Dict = {
   "reset.partialWarning":
     "{n} génération(s) de clé resteront verrouillées : elles ont été octroyées après la création de votre compte, et la phrase de récupération n'en a pas de copie. Tout le reste se rouvre. Un administrateur peut vous rendre le reste.",
   "calendar.recolor": "Changer la couleur de ce calendrier",
+  "calendar.rename": "Renommer ce calendrier",
+  "calendar.renameFailed": "Le calendrier n'a pas pu être renommé. Réessayez.",
   "calendar.untitled": "(sans titre)",
   "calendar.newEvent": "Nouvel événement",
   "calendar.newCalendar": "Nouveau calendrier",
