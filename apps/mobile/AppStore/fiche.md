@@ -16,15 +16,27 @@ pas chez Apple.
 
 Relevé le 25 septembre 2026.
 
+**La 1.5.0 (build 7) est en revue chez Apple depuis le 22 octobre 2026**, état
+`WAITING_FOR_REVIEW`, publication réglée sur **manuelle** — rien ne sortira sans un geste,
+même après acceptation, ce qui permet de faire coïncider la sortie avec le dépôt Play.
+
 | Ce qu'il reste | Pourquoi ça ne peut pas se faire ici |
 |---|---|
 | Trancher la **note 3 du §740.17(b)** et mener les démarches BIS et ANSSI | Questions de droit ; GhostPass a le même arbitrage en cours |
-| Téléverser les **quatre jeux de captures** | FR et EN, iPhone et iPad ; produits, à déposer |
+| Déposer l'**AAB sur le Play Store** | Aucun accès Play Console ni compte de service, de ce Mac ni de dev-loutre. L'AAB 1.5.0 (7) est construit et signé, empreinte de certificat identique à celle de la 1.4.1 |
 
-Fait depuis : les captures (FR et EN, iPhone et iPad) ; la **page d'assistance**, en ligne
-et vérifiée au contenu ; le questionnaire de confidentialité et la classification d'âge,
-renseignés ; la conformité à l'export, cochée sur le build ; le build **(6)** monté et
-distribué en TestFlight interne.
+Fait : les quatre jeux de captures, déposés et acceptés sans erreur ; la **page
+d'assistance**, en ligne et vérifiée au contenu ; la classification d'âge ; la déclaration
+des **droits sur le contenu** ; le **texte promotionnel** dans les deux langues ; la
+conformité à l'export, cochée **sur le build 7** ; le build monté, distribué en TestFlight
+interne, et soumis.
+
+**Le questionnaire App Privacy ne se remplit pas par l'API.** Sept chemins sondés, tous en
+404, y compris ceux qu'une application déjà en revue utiliserait : ces réponses ne
+s'écrivent que dans l'interface web, sous *Général → Confidentialité de l'app*, et il faut
+les **publier** — Apple refuse la soumission avec « you must have published answers », pas
+« answers missing ». Des réponses saisies et laissées en brouillon donnent le même refus,
+sans le dire.
 
 Ce qui est prêt : `ExportOptions.plist` ; le manifeste de confidentialité, câblé dans la
 cible et **mesuré dans le paquet construit** ; l'outillage d'archive et ses contrôles ; le
@@ -168,33 +180,70 @@ sept jours de l'horizon de programmation. Un rappel qui ne sonne pas faute de re
 est indiscernable d'un rappel cassé, et c'est exactement le doute qu'un utilisateur ne
 peut pas lever seul.
 
+## À ajouter à la description, à la prochaine version
+
+La description déposée est **en revue** et ne peut plus bouger avant le verdict. Elle est
+juste — elle ne promet rien que l'app ne tienne — mais elle est devenue **incomplète**, et
+ce qui manque sont des arguments de vente :
+
+- les **cinq vues** d'agenda : jour, semaine, mois, liste, année ;
+- la **mise en page de tablette** : colonne latérale, mini-mois, événement ouvert à côté
+  de la grille ;
+- le **renommage d'un calendrier**, et le fait que le calendrier par défaut porte
+  désormais le nom de la langue du compte ;
+- la **création** de sondages, de types de rendez-vous et d'horaires, et l'**invitation**
+  d'un membre dans l'équipe — trois choses que l'ancienne description renvoyait au web ;
+- la **photo de profil**, qu'on peut ajouter et plus seulement retirer.
+
+Le texte promotionnel, lui, se change **sans soumettre de version** : c'est le seul levier
+disponible d'ici au verdict.
+
 ## Ce que la description ne dit pas, délibérément
 
 Cette liste est la contrepartie de la précédente. Chaque ligne est une fonctionnalité que
 les concurrents annoncent, que GhostCal **n'a pas** dans son application iOS, et qu'il
 serait tentant d'écrire.
 
+**Relue ligne à ligne contre le code le 22 octobre 2026, et cinq lignes sont tombées.**
+C'est la dérive attendue d'une liste de ce genre : elle a été écrite le 25 septembre, le
+produit a avancé, et une absence cesse d'être vraie sans que personne pense à rouvrir le
+document. Le danger n'est pas qu'elle sous-vende — c'est qu'on la croie. Les lignes
+retirées sont consignées plus bas plutôt qu'effacées, pour qu'on puisse vérifier qu'elles
+l'ont été à bon droit.
+
 | Absent | Vérifié |
 |---|---|
 | **Tout est chiffré** | Faux. Horaires, fuseaux, adresses e-mail, noms de calendriers, titres de réunions et lieux partent en clair. Seuls le titre/lieu/description d'un événement et le titre/notes d'une tâche sont scellés. L'application le dit elle-même à l'écran de création |
 | **Accès hors ligne** | Aucun cache, aucune base locale, aucune file de synchronisation. Sans réseau, rien ne s'affiche |
 | **Invitation de participants à un événement** | L'écran de création n'a pas ce champ |
-| **Événements récurrents** | Non créables ; les occurrences d'une série existante sont affichées mais **non modifiables** |
-| **Vue semaine ou mois** | L'agenda est en **jour unique** |
-| **Création de sondages, de types de rendez-vous, d'horaires** | Consultation et bascule seulement. L'app écrit elle-même « Ils se créent depuis le web » |
-| **Invitation d'un membre dans l'équipe** | Aucun bouton d'invitation |
-| **Changement de mot de passe ou de phrase** | La fonction Rust qui le ferait (`chiffrerSymetrique`) n'est appelée nulle part dans `lib/` |
-| **Photo de profil** | On peut la retirer, jamais l'ajouter. Aucun sélecteur d'image |
+| **Création d'un événement récurrent** | Aucun champ de répétition à la création. Une série **existante** se modifie, mais d'un bloc : l'écran dit « vos modifications s'appliquent à toute la série ; pour n'en changer qu'un, passez par le web » |
+| **Changement de mot de passe ou de phrase** | Aucun écran ne l'offre — vérifié par recherche sur `lib/`. La justification d'origine disait que `chiffrerSymetrique` n'était appelée nulle part ; **c'est faux depuis** qu'elle sert à sceller la clé d'organisation d'une invitation d'équipe. La conclusion tient, son motif non : la bonne preuve est l'absence d'écran, pas l'absence d'appel |
 | **Import / export** | Aucun |
 | **Autres langues que FR et EN** | L'application parle français et anglais. Une langue inconnue retombe sur le **français**, délibérément |
 
-**Un point à assumer plutôt qu'à découvrir en revue :** plusieurs fonctions renvoient
-explicitement au web. C'est cohérent et l'application le dit poliment, mais un examinateur
-peut y voir une app « incomplète » au titre de la règle 4.2 sur le contenu minimal. Les
-notes d'examen doivent donc mettre en avant ce que l'app fait **seule** : créer et
-modifier des événements, gérer des tâches, annuler des réunions, basculer des liens de
-réservation, arbitrer des sondages, administrer les rôles d'équipe. C'est un usage entier,
-pas une télécommande.
+### Les cinq absences qui n'en sont plus
+
+Retirées du tableau le 22 octobre, chacune après avoir retrouvé dans le code ce qui la
+dément. Elles sont listées ici pour que la correction se vérifie, et parce qu'une ligne
+qui disparaît sans trace laisse penser qu'elle n'a jamais existé.
+
+| Ce que la fiche affirmait | Ce que le code dit |
+|---|---|
+| « L'agenda est en **jour unique** » | `VueDAgenda` compte cinq valeurs — jour, semaine, mois, liste, année — et le sélecteur paraît sur les captures iPad. **C'est la seule des cinq qui contredisait une image livrée** |
+| « Création de sondages, de types de rendez-vous, d'horaires : consultation seulement » | `EcranDeNouveauSondage` depuis `sondages.dart`, `nouveauType` depuis `types_de_rendez_vous.dart`, et `_ouvrirLHoraire(null)` depuis les réglages — les trois se créent |
+| « Aucun bouton d'invitation » dans l'équipe | `equipe.dart` appelle `Reglages.inviter`, qui scelle la clé d'organisation sous une clé de lien que le serveur ne voit pas (ADR-0003) |
+| « Photo de profil : on peut la retirer, jamais l'ajouter » | `profil.dart` appelle `televerserLaPhoto` |
+| « Les occurrences d'une série sont **non modifiables** » | Elles le sont, d'un bloc. Seule la modification d'une occurrence isolée renvoie au web |
+
+**Un point à assumer plutôt qu'à découvrir en revue, et il s'est beaucoup allégé.**
+Quelques fonctions renvoient encore au web — la création d'un compte, celle d'une série
+récurrente, la modification d'une occurrence isolée. Un examinateur peut y voir une app
+« incomplète » au titre de la règle 4.2 sur le contenu minimal. Les notes d'examen mettent
+donc en avant ce que l'app fait **seule**, et la liste a grandi : créer et modifier des
+événements, gérer des tâches, annuler des réunions, créer et basculer des liens de
+réservation, créer et arbitrer des sondages, poser ses horaires de disponibilité,
+renommer ses calendriers, inviter un membre et administrer les rôles. C'est un usage
+entier, pas une télécommande.
 
 ## Mots-clés (100 caractères, virgules comprises)
 
@@ -585,26 +634,29 @@ l'œuvre plutôt qu'en promesse.
 Apple en accepte dix et n'en exige pas six. Cinq racontent le produit ; celle-là n'ajoute
 qu'une liste de réglages, et au prix d'un texte tronqué.
 
-### Le jeu iPad existe, et il pose une question de produit
+### Le jeu iPad, et la question de produit qu'il posait
 
     GHOSTCAL_APPAREIL='iPad Pro 13-inch (M4)' ./tools/ios/captures-appstore.sh
 
-Six images en 2064 × 2752, **rien de tronqué** — mais c'est une mise en page de téléphone
-étirée sur une tablette : des champs de saisie de deux mille pixels de large pour y écrire
-un titre, des listes perdues dans une page aux deux tiers vide, et la barre d'état blanche
-sur fond clair.
+Six images en 2064 × 2752. **La question est tranchée, et elle l'a été par le travail
+macOS, pas par un arbitrage de vitrine.**
 
-L'application se déclare universelle (`TARGETED_DEVICE_FAMILY = "1,2"`), et App Store
-Connect réclame alors les deux jeux. **Deux voies, et c'est un arbitrage, pas un défaut à
-corriger au passage :**
+Au 25 septembre, c'était une mise en page de téléphone étirée sur une tablette : des
+champs de saisie de deux mille pixels de large pour y écrire un titre, des listes perdues
+dans une page aux deux tiers vide. Cette fiche posait deux voies — retirer `"2"` de
+`TARGETED_DEVICE_FAMILY` pour cesser de promettre, ou adapter la mise en page, « un vrai
+chantier ».
 
-1. **Ne pas se déclarer universelle** — `"1"` au lieu de `"1,2"`. Plus de jeu iPad à
-   fournir, et plus de promesse qu'on ne tient pas. Immédiat.
-2. **Adapter la mise en page** — largeur maximale sur les formulaires, colonnes sur les
-   listes. Un vrai chantier.
+Le chantier a été fait ailleurs. La refonte de bureau vit dans du code Flutter **partagé**,
+et l'iPad en hérite : une colonne latérale avec les sections, les calendriers et un
+mini-mois, un sélecteur de vues, et un événement qui s'ouvre à côté de la grille au lieu
+de la recouvrir. Au-dessus de 900 points de large, l'application change de forme ; un iPad
+Pro 13 pouces en fait 1032.
 
-Déclarer un support qu'on n'a pas conçu se paie en avis d'utilisateurs, pas en refus
-d'Apple.
+Déclarer `"1,2"` n'est donc plus une promesse qu'on ne tient pas. **Le seuil est aussi ce
+qui rend les captures iPad fragiles** : elles photographient une disposition que seule la
+largeur déclenche, et un scénario écrit pour le téléphone s'y casse sans le dire. Les deux
+passes du 22 octobre ont échoué pour cette raison exacte — voir plus haut.
 
 ### Pourquoi les images du dépôt sont celles-ci et pas d'autres
 
