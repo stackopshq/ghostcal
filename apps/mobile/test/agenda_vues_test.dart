@@ -378,6 +378,196 @@ void main() {
       );
     });
 
+    /// ─── Le multi-jours, écrit une fois et non quatre ───
+    ///
+    /// Un séjour du mercredi au samedi s'écrivait dans quatre cases, et rien ne disait
+    /// que c'était le même événement. Une barre continue le dit d'un seul trait.
+    ///
+    /// Ces témoins mesurent les trois choses qui peuvent casser : le titre ne paraît
+    /// **qu'une** fois, la barre couvre bien le nombre de colonnes attendu, et la
+    /// réserve qu'elle prend en haut des cases ne fait pas déborder ce qu'il y a en
+    /// dessous.
+    testWidgets('un séjour de quatre jours s\'écrit une seule fois', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(1100, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        appDEpreuve(
+          Scaffold(
+            body: GrilleDuMois(
+              mois: jour,
+              jours: joursDeLaGrilleDuMois(jour, 1),
+              selection: jour,
+              // Du mardi 13 au vendredi 16 octobre 2026 : quatre jours de la même semaine.
+              lignes: [
+                ligne(
+                  'Séjour',
+                  DateTime(2026, 10, 13),
+                  4 * 24 * 60,
+                  journee: true,
+                ),
+              ],
+              couleurDe: (_) => Colors.teal,
+              surJour: (_) {},
+              titresParCase: titresParCaseDuMois(const Size(1100, 800)),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(
+        find.text('Séjour'),
+        findsOneWidget,
+        reason: 'quatre cases le répétaient : c\'est tout l\'objet de la barre',
+      );
+    });
+
+    testWidgets('et la barre couvre bien ses quatre colonnes', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1100, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        appDEpreuve(
+          Scaffold(
+            body: GrilleDuMois(
+              mois: jour,
+              jours: joursDeLaGrilleDuMois(jour, 1),
+              selection: jour,
+              lignes: [
+                ligne(
+                  'Séjour',
+                  DateTime(2026, 10, 13),
+                  4 * 24 * 60,
+                  journee: true,
+                ),
+              ],
+              couleurDe: (_) => Colors.teal,
+              surJour: (_) {},
+              titresParCase: titresParCaseDuMois(const Size(1100, 800)),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Quatre colonnes sur sept de la grille, à quelques points de marge près. Une
+      // barre d'une seule colonne, ou de toute la semaine, passerait un témoin qui se
+      // contenterait de la compter.
+      final largeurDeGrille = tester.getSize(find.byType(GrilleDuMois)).width;
+      // Le conteneur de la barre, pas son texte : `getSize` sur le `Text` rend la
+      // largeur du mot — 67 points —, ce qui ne dit rien de ce que la barre couvre.
+      final largeurDeBarre = tester
+          .getSize(
+            find
+                .ancestor(
+                  of: find.text('Séjour'),
+                  matching: find.byType(Container),
+                )
+                .first,
+          )
+          .width;
+      final attendue = largeurDeGrille * 4 / 7;
+      expect(
+        largeurDeBarre,
+        greaterThan(attendue * 0.75),
+        reason: 'la barre couvre quatre colonnes, pas une',
+      );
+      expect(
+        largeurDeBarre,
+        lessThan(attendue * 1.15),
+        reason: 'la barre déborde de ce qu\'elle couvre',
+      );
+    });
+
+    testWidgets('un séjour à cheval sur deux semaines donne deux barres', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(1100, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        appDEpreuve(
+          Scaffold(
+            body: GrilleDuMois(
+              mois: jour,
+              jours: joursDeLaGrilleDuMois(jour, 1),
+              selection: jour,
+              // Du samedi 17 au mardi 20 : la semaine se termine le dimanche 18.
+              lignes: [
+                ligne(
+                  'Congé',
+                  DateTime(2026, 10, 17),
+                  4 * 24 * 60,
+                  journee: true,
+                ),
+              ],
+              couleurDe: (_) => Colors.teal,
+              surJour: (_) {},
+              titresParCase: titresParCaseDuMois(const Size(1100, 800)),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(
+        find.text('Congé'),
+        findsNWidgets(2),
+        reason: 'une barre par semaine traversée, et le titre sur chacune',
+      );
+    });
+
+    testWidgets('une barre et des rendez-vous en dessous ne débordent pas', (
+      tester,
+    ) async {
+      for (final taille in [
+        const Size(1000, 700),
+        const Size(1100, 800),
+        const Size(1440, 900),
+      ]) {
+        await tester.binding.setSurfaceSize(taille);
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.pumpWidget(
+          appDEpreuve(
+            Scaffold(
+              body: GrilleDuMois(
+                mois: jour,
+                jours: joursDeLaGrilleDuMois(jour, 1),
+                selection: jour,
+                lignes: [
+                  ligne(
+                    'Séjour',
+                    DateTime(2026, 10, 13),
+                    4 * 24 * 60,
+                    journee: true,
+                  ),
+                  ligne(
+                    'Autre séjour',
+                    DateTime(2026, 10, 14),
+                    3 * 24 * 60,
+                    journee: true,
+                  ),
+                  for (var i = 0; i < 8; i++)
+                    ligne('Rendez-vous $i', DateTime(2026, 10, 15, 8 + i), 30),
+                ],
+                couleurDe: (_) => Colors.teal,
+                surJour: (_) {},
+                titresParCase: titresParCaseDuMois(taille),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        expect(
+          tester.takeException(),
+          isNull,
+          reason:
+              'déborde en ${taille.width} × ${taille.height} : '
+              'la réserve des barres est mal comptée',
+        );
+      }
+    });
+
     /// ─── L'heure, et le seuil où elle cesse d'aider ───
     ///
     /// Fantastical met l'heure à droite du titre dans ses cases, et c'est ce qui permet
