@@ -18,11 +18,13 @@ Relevé le 25 septembre 2026.
 
 | Ce qu'il reste | Pourquoi ça ne peut pas se faire ici |
 |---|---|
-| **Refaire les captures** | Deux commandes ; l'outillage est éprouvé, c'est le `CoreSimulator` de la machine qui a lâché. Voir « Captures d'écran » |
-| **Mettre la page d'assistance en ligne** | `https://ghostsuite.cloud/ghostcal/` rend 404 ; elle s'écrit ailleurs |
 | Trancher la **note 3 du §740.17(b)** et mener les démarches BIS et ANSSI | Questions de droit ; GhostPass a le même arbitrage en cours |
-| Coller la fiche et répondre au questionnaire de confidentialité | Les réponses exactes sont plus bas, mot pour mot |
-| Envoyer l'archive | `tools/ios/archiver-appstore.sh` la construit et la mesure ; l'envoi reste une décision |
+| Téléverser les **quatre jeux de captures** | FR et EN, iPhone et iPad ; produits, à déposer |
+
+Fait depuis : les captures (FR et EN, iPhone et iPad) ; la **page d'assistance**, en ligne
+et vérifiée au contenu ; le questionnaire de confidentialité et la classification d'âge,
+renseignés ; la conformité à l'export, cochée sur le build ; le build **(6)** monté et
+distribué en TestFlight interne.
 
 Ce qui est prêt : `ExportOptions.plist` ; le manifeste de confidentialité, câblé dans la
 cible et **mesuré dans le paquet construit** ; l'outillage d'archive et ses contrôles ; le
@@ -95,6 +97,11 @@ Voyez qui a voté pour quoi, et retenez le créneau qui l'emporte.
 VOTRE ÉQUIPE
 Les membres de votre organisation, leurs rôles, et de quoi les changer.
 
+RAPPELS SUR L'APPAREIL
+Une notification avant chaque rendez-vous réservé : 5, 10, 15 ou 30 minutes d'avance, à
+votre choix. Elle est programmée par l'appareil et non envoyée par le serveur, et elle ne
+porte ni le nom de l'invité ni le motif du rendez-vous — seulement l'heure.
+
 FACE ID
 Face ID ou Touch ID rouvrent votre agenda sans ressaisir la phrase. Elle est scellée par
 le matériel de l'appareil : ajouter un visage ou une empreinte invalide le sceau, et
@@ -136,6 +143,11 @@ See who voted for what, and pick the slot that wins.
 YOUR TEAM
 The members of your organisation, their roles, and what it takes to change them.
 
+ON-DEVICE REMINDERS
+A notification before each booked meeting: 5, 10, 15 or 30 minutes ahead, as you prefer.
+It is scheduled by the device rather than sent by the server, and it carries neither the
+invitee's name nor what the meeting is about — only the time.
+
 FACE ID
 Face ID or Touch ID reopen your calendar without retyping the passphrase. It is sealed by
 the device's hardware: adding a face or a fingerprint invalidates the seal, and GhostCal
@@ -158,7 +170,6 @@ serait tentant d'écrire.
 |---|---|
 | **Tout est chiffré** | Faux. Horaires, fuseaux, adresses e-mail, noms de calendriers, titres de réunions et lieux partent en clair. Seuls le titre/lieu/description d'un événement et le titre/notes d'une tâche sont scellés. L'application le dit elle-même à l'écran de création |
 | **Accès hors ligne** | Aucun cache, aucune base locale, aucune file de synchronisation. Sans réseau, rien ne s'affiche |
-| **Rappels, notifications** | Aucune dépendance de notification, aucun code. Les rappels partent **du serveur, par courriel** |
 | **Invitation de participants à un événement** | L'écran de création n'a pas ce champ |
 | **Événements récurrents** | Non créables ; les occurrences d'une série existante sont affichées mais **non modifiables** |
 | **Vue semaine ou mois** | L'agenda est en **jour unique** |
@@ -180,15 +191,17 @@ pas une télécommande.
 ## Mots-clés (100 caractères, virgules comprises)
 
 ```
-agenda,rendez-vous,chiffré,calendrier,réservation,planning,vie privée,équipe,réunion
+agenda,rendez-vous,chiffré,calendrier,réservation,planning,vie privée,rappels,réunion
 ```
 
-83 caractères. Le nom de l'app et les catégories sont déjà indexés : les répéter ici
+85 caractères. « équipe » a cédé sa place à « rappels » : les rappels sont désormais
+programmés par l'appareil, et c'est une fonction qu'on cherche ; la gestion d'équipe se
+réduit, dans l'app, à consulter des rôles. Le nom de l'app et les catégories sont déjà indexés : les répéter ici
 gaspillerait la limite. Les marques concurrentes n'y figurent pas — Apple les refuse.
 
 **Ce qui a été retiré, et pourquoi.** « hors ligne » : l'application n'a aucun mode hors
-ligne. « notifications » et « rappels » : ils viennent du serveur par courriel, pas de
-l'app. « synchronisation » : il n'y a ni cache ni fusion, seulement des appels réseau.
+ligne. « notifications » : le pluriel promettrait plus que l'unique
+notification de rendez-vous qui existe. « synchronisation » : il n'y a ni cache ni fusion, seulement des appels réseau.
 Un mot-clé qui promet une fonctionnalité absente se paie à la revue, et déçoit celui qui
 installe pour ça.
 
@@ -200,10 +213,10 @@ Première version.
 
 ## URL
 
-| Champ | Valeur | État au 25/09/2026 |
+| Champ | Valeur | État au 21/10/2026 |
 |---|---|---|
 | Politique de confidentialité | `https://ghostsuite.cloud/confidentialite/` | **en ligne — à inscrire** |
-| Assistance | `https://ghostsuite.cloud/ghostcal/` | **404 — ne pas inscrire encore** |
+| Assistance | `https://ghostsuite.cloud/ghostcal/` | **en ligne — à inscrire** |
 | Marketing | `https://ghostsuite.cloud/` | en ligne, facultatif |
 
 Les deux premières sont **obligatoires** chez Apple.
@@ -214,17 +227,12 @@ la phrase « GhostCal ne peut pas être aveugle, et le dire est plus honnête qu
 croire le contraire ». C'est exactement ce que dit le schéma de la base — le serveur lit les
 horaires, et il doit les lire. Rien à écrire : on lie cette page telle quelle.
 
-**L'assistance rend un vrai 404**, et c'est vérifié comme tel plutôt que supposé : la page
-d'erreur fait 4 382 octets et porte le titre « 404 Page not found · Ghost Suite » —
-**exactement** ce que rend un chemin inventé de toutes pièces
-(`/ce-chemin-nexiste-pas-xyzzy/`). Sur ces domaines, une redirection peut rendre 200 pour
-n'importe quel chemin ; comparer à un témoin absurde est le seul moyen de distinguer une
-vraie page d'un attrape-tout. Ici, le 404 est sincère.
-
-La page est en cours d'écriture ailleurs (`suite/site/content/ghostcal.md`). **Ne
-l'inscrivez pas avant qu'elle réponde, et vérifiez alors son contenu, pas son code.** Une
-URL d'assistance morte est un motif de refus, et une vitrine qui contredirait la liste des
-fonctions absentes de cette fiche en est un autre.
+**L'assistance est en ligne depuis**, et vérifiée de la même façon : la page rend 200,
+fait 18 202 octets et porte le titre « GhostCal, agenda et prise de rendez-vous · Ghost
+Suite ». Le contrôle qui rend la mesure concluante est le témoin : `/ce-chemin-nexiste-pas-xyzzy/`
+rend toujours **404**, donc ce domaine ne sert pas un attrape-tout qui rendrait 200 pour
+n'importe quoi. Au 25 septembre, cette même page rendait un 404 sincère ; c'est la seule
+ligne de cette fiche qui est passée du rouge au vert sans qu'on touche au dépôt.
 
 ## Notes pour l'examen (App Review)
 
@@ -238,18 +246,24 @@ l'application**. Sans compte fourni, le refus est certain.
 
 | Champ | Valeur |
 |---|---|
-| Serveur à saisir au premier écran | `https://cal.ghostsuite.cloud` |
-| Compte de démonstration | `contact@stackops.ch` — **créé, vérifié et amorcé** |
+| Serveur à saisir au premier écran | `cal.ghostsuite.cloud` — **sans suffixe** |
+| Compte de démonstration | `dev.web@stackops.ch` — **créé, vérifié et amorcé** ; c'est celui qui sert déjà à la revue Google Play |
 | Mot de passe / phrase | **pas écrit ici** — voir ci-dessous |
 
-**L'instance publique est `cal.ghostsuite.cloud`.** Mesurée : `/api/health` rend
-`{"status":"ok","version":"0.1.0"}` et la racine sert bien GhostCal.
+**L'instance publique est `cal.ghostsuite.cloud`, sans suffixe.** Mesurée le
+2026-10-21, méthode par méthode plutôt que sur la seule racine : `POST /v1/auth/login`
+rend **422** — la route existe et valide son corps —, `GET /v1/me/organizations` rend
+**401**, et les mêmes chemins sous `/api` rendent **404**. Le préfixe `/api` ne sert plus
+que le `health` du site web (`{"status":"ok","version":"0.1.0"}`). **C'est l'inverse de ce
+que disait cette fiche au 25 septembre**, et l'inversion compte : un examinateur qui
+saisirait `https://cal.ghostsuite.cloud/api` tomberait sur « cette adresse ne sert pas
+l'API » dès la connexion. L'adresse à inscrire ne porte donc **aucun** suffixe.
 `ghostcal.stackops.ch`, qui figure encore dans les tests d'adresse du dépôt, **ne résout
 pas**. C'est l'analogue de la bascule de GhostPass vers `pass.ghostsuite.cloud`.
 
 ### Le compte de démonstration, et les trois murs franchis pour l'obtenir
 
-Créé le 2026-09-25 sur `contact@stackops.ch`, vérifié, et amorcé sans un refus : huit
+Créé sur `dev.web@stackops.ch`, vérifié, et amorcé sans un refus : huit
 événements, cinq tâches, trois types de rendez-vous, un horaire, trois réunions réservées
 et un sondage voté — le serveur confirme ses propres comptes. C'est le jeu que
 photographient les captures.
@@ -270,7 +284,7 @@ réussissait, le courriel partait, et **seul le destinataire voyait la panne**. 
 n'enregistrait rien. Corrigé côté exploitation, et un validateur refuse désormais de
 démarrer sur une adresse locale hors développement.
 
-**3. L'API vit sous `/api`.** `$API/v1/me/organizations` ne rend pas une erreur : il rend
+**3. L'API vivait alors sous `/api` — elle est passée à `/v1` depuis.** `$API/v1/me/organizations` ne rend pas une erreur : il rend
 **la page HTML du client, avec un code 200**. Le script concluait « le compte n'est pas
 exploitable » — en accusant le compte. Deux chemins masquaient le défaut, `register` et
 `login` fonctionnant nus car relayés par le client. La spécification servie à
@@ -295,6 +309,18 @@ n'existe pas ; une première inscription y a été lancée sans le vérifier, et
 est parti dans le vide. Le compte résiduel, non vérifié et vide, est à supprimer côté
 serveur.
 
+**Ce que les notes de revue disaient encore le 22 octobre, et qui aurait coûté un refus
+certain.** Elles donnaient à l'examinateur `cal.ghostsuite.cloud/api` comme adresse et
+`contact@stackops.ch` comme identifiant. Les deux étaient faux : l'API a déménagé sous
+`/v1` à la racine, et le compte de démonstration est `dev.web@stackops.ch` — ce que le
+champ « compte de démonstration » d'App Store Connect disait déjà, en contredisant les
+notes placées juste à côté. Un examinateur qui suit les notes ne se connecte pas, ne voit
+que l'écran de connexion, et refuse.
+
+Corrigé, et **vérifié plutôt que supposé** : `POST https://cal.ghostsuite.cloud/v1/auth/login`
+avec les identifiants de revue rend **200** et quatre jetons. Les mêmes chemins sous `/api`
+rendent 404.
+
 **La phrase ne figure pas dans le dépôt.** Un secret en clair dans un dépôt reste dans son
 historique même retiré, et le balayage de secrets le refuserait à juste titre. Elle est à
 coller directement dans App Store Connect.
@@ -309,8 +335,15 @@ Texte proposé pour la zone « Notes » :
 > passe. Utilisez le compte fourni ci-dessus — l'application ne propose pas d'inscription,
 > les comptes se créent depuis le web.
 >
-> Une fois connecté, cinq onglets : Agenda, Tâches, Réunions, RDV, Réglages. Le compte
-> contient déjà des événements, des tâches, une réunion réservée et un sondage.
+> Une fois connecté, l'application ouvre sur la journée. La barre du bas porte, de gauche
+> à droite : un bouton de menu, la vue courante, la recherche, et un bouton « + » qui crée
+> un événement. Le menu donne les autres sections — Tâches, Réunions, RDV, Réglages — et
+> les autres vues de l'agenda. Le compte contient déjà des événements, des tâches, trois
+> réunions réservées et un sondage.
+>
+> **La mention « cinq onglets » a été retirée le 22 octobre** : la refonte de l'agenda a
+> remplacé la barre d'onglets par une barre flottante et un menu. Un examinateur qui
+> cherche des onglets ne les trouve pas, et conclut que l'application est incomplète.
 >
 > Pour éprouver Face ID : Réglages > Sécurité > Verrouiller le coffre, puis rouvrir.
 >
@@ -423,7 +456,7 @@ réservé par la RFC 2606 qui sert de texte indicatif au champ.
 
 ## Captures d'écran
 
-**Faites le 2026-09-25, sur le jeu de vitrine, et regardées une par une.** Cette dernière
+**Refaites le 2026-10-21, sur le jeu de vitrine, et regardées une par une.** Cette dernière
 phrase est le contrôle qui compte : l'outil mesure les dimensions et compte les teintes,
 ce qui distingue une image vide d'une image pleine — et rien d'autre. Il ne sait pas dire
 qu'un texte est coupé. Une section tronquée à mi-ligne a autant de couleurs qu'une section
@@ -431,6 +464,63 @@ entière.
 
     ./tools/banc-local.sh --vitrine    # PostgreSQL jetable + jeu de vitrine
     ./tools/ios/captures-appstore.sh   # iPhone 17 Pro Max, 1320 × 2868
+
+**Quatre jeux, pas un.** La fiche est déclarée bilingue et l'application universelle :
+App Store Connect réclame alors un jeu **par langue et par famille d'appareils**, et
+refuse la soumission s'il en manque un. Les quatre commandes, à lancer **l'une après
+l'autre** — deux passes simultanées se disputent le port 3122 du pilote, et la seconde
+échoue sur un message qui ne parle pas de port :
+
+    ./tools/ios/captures-appstore.sh
+    GHOSTCAL_LANGUE=en ./tools/ios/captures-appstore.sh
+    GHOSTCAL_APPAREIL='iPad Pro 13-inch (M4)' ./tools/ios/captures-appstore.sh
+    GHOSTCAL_LANGUE=en GHOSTCAL_APPAREIL='iPad Pro 13-inch (M4)' ./tools/ios/captures-appstore.sh
+
+Elles atterrissent dans `captures/`, `captures-en/`, `captures-ipad/` et
+`captures-ipad-en/` — un répertoire par jeu, pour que la seconde passe n'écrase pas la
+première. Découvrir l'écrasement devant App Store Connect coûte une soumission.
+
+### Trois défauts que seuls des yeux ont vus, le 21 octobre
+
+Les jeux produits ce matin passaient tous les contrôles — bonnes dimensions, des centaines
+de teintes, aucune image vide. Les ouvrir a montré trois choses, et elles valent d'être
+écrites parce qu'aucune n'était détectable autrement.
+
+**1. L'agenda s'ouvrait sur une soirée vide.** La refonte de l'agenda ouvre la grille à
+l'heure courante, ce qui est juste pour un utilisateur. Les prises se faisant vers 20 h 45,
+la capture montrait 15 h–23 h : **un rendez-vous et demi dans les deux tiers d'un écran
+vide**, le premier amputé de son titre, le dernier coupé par la barre. Le scénario recadre
+désormais sur 8 h avant de déclencher. La journée montre ses cinq entrées.
+
+**2. Le clavier mangeait l'argument du produit.** Le champ de saisie rapide est en
+`autofocus`, et le clavier logiciel recouvrait tout ce qui suit « Début » — donc la phrase
+« le titre, le lieu et la description sont chiffrés sur cet appareil », seule raison de
+montrer cet écran. En anglais, le simulateur y ajoutait son didacticiel de frappe glissée,
+bouton « Continue » compris. Le scénario rend le focus avant de photographier.
+
+**3. Une capsule noire à la place de l'Îlot dynamique, sur cette seule vue.** Mesuré plutôt
+que supposé : 88,6 % de pixels noirs dans la bande centrale du haut de `02`, **0,0 % sur
+les onze autres images**, dans les deux langues, et rien sur iPad. L'écran de création
+change le style de la barre d'état par le canal natif ; iOS redessine la vraie barre et
+l'habillage de `simctl` est perdu là. L'heure figée à 9 h 41 survivait, ce qui rendait la
+perte invisible à un contrôle qui aurait regardé l'horloge. L'habillage est maintenant
+reposé avant **chaque** déclenchement.
+
+### Ce que les captures anglaises ont révélé du produit
+
+**Les données suivaient le français alors que l'interface suivait l'anglais.** L'amorçage
+de vitrine est désormais bilingue (`GHOSTCAL_LANGUE`), et `captures-appstore.sh` refuse de
+démarrer si le banc n'est pas amorcé dans la langue de la prise de vue — il compare le
+titre du premier type de rendez-vous. Photographier des libellés d'une langue au-dessus
+des données de l'autre ne se voit sur aucune mesure.
+
+**Reste un défaut qui n'est pas le mien : le calendrier par défaut s'appelle « Mon
+agenda » pour tout le monde.** Le nom est écrit en dur dans
+`src/ghostcal/infrastructure/db/calendar_repository.py`, et `PATCH /v1/calendars/{id}` ne
+change que la **couleur** : un utilisateur anglophone ne peut pas le renommer. Il paraît
+tel quel sur la capture anglaise `02`, et il y reste — maquiller l'image donnerait une
+vitrine que le produit ne tient pas. **C'est un correctif serveur à faire**, pas un
+réglage de prise de vue.
 
 ### Les cinq à livrer
 
@@ -495,9 +585,9 @@ les croire.
 
 ## Ce qui reste à trancher
 
-Rien de ce qui suit n'est technique — tout engage l'entreprise ou le produit :
+Rien de ce qui suit n'est technique — tout engage l'entreprise ou le produit. Trois
+points de la liste du 25 septembre en sont sortis depuis : l'adresse d'assistance répond,
+le jeu iPad est produit dans les deux langues, et la sixième capture est **écartée** —
+voir plus bas pourquoi.
 
-- l'**adresse d'assistance**, dès que la page répond ;
-- le **jeu iPad** : l'application se déclare universelle, Apple réclame donc deux jeux, et seul celui de l'iPhone est produit. Une commande : `GHOSTCAL_APPAREIL='iPad Pro 13-inch (M4)' ./tools/ios/captures-appstore.sh` — mais **chaque image est à ouvrir** : l'iPad est plus large et plus court, et c'est là que GhostPass a livré une feuille coupée à mi-ligne ;
-- garder ou écarter la **sixième capture** (Réglages), Apple en acceptant dix ;
 - les déclarations **BIS** et **ANSSI**, et le dossier technique qui les accompagne.
