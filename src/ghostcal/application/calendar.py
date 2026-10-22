@@ -9,6 +9,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Literal
 
 from ghostcal.domain.calendar import RecurringEvent, expand
 
@@ -134,8 +135,8 @@ class CalendarRepository:
     async def list_calendars(self, owner_id: uuid.UUID) -> list[CalendarRecord]:
         raise NotImplementedError
 
-    async def ensure_default_calendar(self, owner_id: uuid.UUID) -> CalendarRecord:
-        """Return the owner's default calendar, creating it on first use."""
+    async def ensure_default_calendar(self, owner_id: uuid.UUID, *, name: str) -> CalendarRecord:
+        """Return the owner's default calendar, creating it on first use under `name`."""
         raise NotImplementedError
 
     async def create_calendar(
@@ -143,10 +144,16 @@ class CalendarRepository:
     ) -> CalendarRecord:
         raise NotImplementedError
 
-    async def set_calendar_color(
-        self, owner_id: uuid.UUID, calendar_id: uuid.UUID, color: str
+    async def update_calendar(
+        self,
+        owner_id: uuid.UUID,
+        calendar_id: uuid.UUID,
+        *,
+        name: str | None = None,
+        color: str | None = None,
     ) -> bool:
-        """Recolour a calendar the owner owns. False if it is not theirs, or does not exist."""
+        """Rename and/or recolour a calendar the owner owns. False if it is not theirs, or does not
+        exist."""
         raise NotImplementedError
 
     async def share_calendar(
@@ -203,28 +210,47 @@ class CalendarRepository:
         raise NotImplementedError
 
 
-async def list_calendars(repo: CalendarRepository, owner_id: uuid.UUID) -> list[CalendarRecord]:
+Language = Literal["fr", "en"]
+
+# The name the server gives the default calendar, in the language of the request that creates it.
+# French stays the fallback: it is what every account created so far received.
+DEFAULT_CALENDAR_NAMES: dict[Language, str] = {"fr": "Mon agenda", "en": "My calendar"}
+
+
+async def list_calendars(
+    repo: CalendarRepository, owner_id: uuid.UUID, language: Language = "fr"
+) -> list[CalendarRecord]:
     calendars = await repo.list_calendars(owner_id)
-    # Ensure the user has at least one calendar of their own (shared ones don't count).
+    # Ensure the user has at least one calendar of their own (shared ones don't count). This is
+    # where the default calendar is born — lazily, on the first authenticated listing, never at
+    # sign-up — so the language of this request is the one it is named in. Nothing is stored:
+    # only the name is, and it can be changed afterwards.
     if not any(not c.is_shared for c in calendars):
-        return [await repo.ensure_default_calendar(owner_id), *calendars]
+        default = await repo.ensure_default_calendar(
+            owner_id, name=DEFAULT_CALENDAR_NAMES[language]
+        )
+        return [default, *calendars]
     return calendars
 
 
-async def set_calendar_color(
-    repo: CalendarRepository, owner_id: uuid.UUID, calendar_id: uuid.UUID, color: str
+async def update_calendar(
+    repo: CalendarRepository,
+    owner_id: uuid.UUID,
+    calendar_id: uuid.UUID,
+    *,
+    name: str | None = None,
+    color: str | None = None,
 ) -> None:
-    """Change a calendar's colour after it exists.
+    """Rename and/or recolour a calendar after it exists. A field left as None is not touched.
 
-    It could only be chosen at creation, so the sole way to recolour a calendar was to delete it —
-    which takes its events with it. The colour carries no meaning to the server; it is how its owner
-    tells two overlays apart at a glance, and that is exactly the kind of thing people get wrong the
-    first time and want to fix later.
+    Both could only be chosen at creation, so the sole fix was to delete the calendar — which takes
+    its events with it. The colour is how its owner tells two overlays apart at a glance; the name
+    is what they read, and the default calendar's name is chosen by the server, in French.
 
     Ownership is enforced in the repository's WHERE clause rather than by reading the row first: a
     check followed by a write is two statements another request can slip between.
     """
-    if not await repo.set_calendar_color(owner_id, calendar_id, color):
+    if not await repo.update_calendar(owner_id, calendar_id, name=name, color=color):
         raise CalendarNotFound(str(calendar_id))
 
 

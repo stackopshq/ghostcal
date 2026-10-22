@@ -637,6 +637,9 @@ class LEn extends L {
   String get vueListe => 'List';
 
   @override
+  String get vueAnnee => 'Year';
+
+  @override
   String get periodePrecedente => 'Previous';
 
   @override
@@ -991,6 +994,9 @@ class LEn extends L {
   String calendriersAffiches(int nombre) {
     return '$nombre calendars';
   }
+
+  @override
+  String get renommerLeCalendrier => 'Rename calendar';
 
   @override
   String get calendriersAAfficher => 'Calendars shown';

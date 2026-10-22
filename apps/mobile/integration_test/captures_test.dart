@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
+import 'package:ghostcal/ecrans/agenda_vues.dart';
 import 'package:ghostcal/main.dart';
 import 'package:ghostcal/services/session.dart';
 import 'package:ghostcal/services/verrouillage.dart';
@@ -39,10 +40,20 @@ import 'package:ghostcal/src/rust/frb_generated.dart';
 
 /// The bottom bar's menu holds the agenda's views and the other sections, since the
 /// floating bar replaced the tab bar.
-Future<void> allerA(WidgetTester tester, String entree) async {
+/// Les deux langues, et pas seulement le français.
+///
+/// App Store Connect réclame un jeu de captures **par langue déclarée** : une fiche
+/// bilingue dont l'anglais n'a pas d'images ne se soumet pas. Ce scénario doit donc
+/// tourner dans les deux, et naviguer par un libellé d'une seule langue l'en empêchait.
+Future<void> allerA(WidgetTester tester, List<String> entrees) async {
   await tester.tap(find.byKey(const Key('accueil.menu')));
   await tester.pumpAndSettle();
-  await tester.tap(find.text(entree).last);
+  final entree = entrees
+      .map(find.text)
+      .firstWhere((f) => f.evaluate().isNotEmpty,
+          orElse: () => fail('Aucune de $entrees dans le menu — '
+              'la navigation a-t-elle changé, ou la langue ?'));
+  await tester.tap(entree.last);
   await tester.pumpAndSettle();
 }
 
@@ -152,7 +163,7 @@ void main() {
     // réponse. On attend que l'écran d'accueil paraisse, et on **échoue** s'il ne paraît
     // pas — plutôt que de photographier un écran de connexion en croyant tenir l'agenda.
     final limite = DateTime.now().add(const Duration(seconds: 40));
-    while (find.text('Agenda').evaluate().isEmpty) {
+    while (find.byKey(const Key('accueil.pret')).evaluate().isEmpty) {
       if (DateTime.now().isAfter(limite)) {
         fail(
           'La connexion à $serveur n\'a pas abouti en 40 s. Le banc est-il allumé '
@@ -165,6 +176,38 @@ void main() {
     await tester.pumpAndSettle();
 
     // ── 01 · Agenda ──
+    //
+    // On recadre la grille sur la matinée de travail avant de déclencher, et c'est une
+    // correction de **prise de vue**, pas de produit : `_GrilleHoraireState` ouvre
+    // délibérément à l'heure courante, ce qui est le bon geste pour quelqu'un qui lance
+    // l'application à 14 h.
+    //
+    // En devanture, ce même geste est ruineux. Mesuré sur le jeu livré le 21 octobre :
+    // les prises se faisaient vers 20 h 48, la grille s'ouvrait donc sur 15 h–23 h, et
+    // l'image montrait **un rendez-vous et demi dans les deux tiers d'un écran vide** —
+    // celui du haut amputé de son titre, celui du bas coupé par la barre. Une application
+    // d'agenda qui se présente sur une journée vide se vend mal, et les contrôles
+    // automatiques voyaient là une image pleine : 460 teintes, les bonnes dimensions.
+    //
+    // La barre d'état est par ailleurs figée à 9 h 41, l'usage d'Apple. Une ligne rouge
+    // « maintenant » à 20 h 48 sous une horloge affichant 9 h 41 est une incohérence que
+    // personne ne remarque consciemment et que tout le monde ressent.
+    //
+    // On passe par la position plutôt que par un `drag` : un glissement dépend de la
+    // hauteur de la dalle et du point de départ, donc ne cadre pas pareil sur iPhone et
+    // sur iPad. La hauteur d'une heure se déduit de ce que la grille mesure — elle vaut
+    // 64 sur une journée et 52 sur trois — ce qui évite de la recopier ici et de la voir
+    // diverger en silence.
+    final grille = tester.state<ScrollableState>(
+      find
+          .descendant(of: find.byType(GrilleHoraire), matching: find.byType(Scrollable))
+          .first,
+    );
+    final position = grille.position;
+    final hauteurDHeure = (position.maxScrollExtent + position.viewportDimension) / 24;
+    position.jumpTo((8 * hauteurDHeure).clamp(0.0, position.maxScrollExtent));
+    await tester.pumpAndSettle();
+
     await photographier(tester, '01-agenda');
 
     // ── 02 · Nouvel événement ──
@@ -172,7 +215,10 @@ void main() {
     // La capture la plus importante du jeu : c'est l'écran qui porte la phrase expliquant
     // ce qui est chiffré et ce qui ne l'est pas — l'argument du produit. Le bouton flottant
     // n'existe que s'il y a un calendrier inscriptible ; s'il manque, on le dit.
-    final ajouter = find.byType(FloatingActionButton);
+    // `Key('accueil.nouveau')` et non un `FloatingActionButton` : le lot C a remplacé le
+    // bouton flottant par une barre, et il n'y a plus un seul FAB dans l'agenda. Le
+    // témoin cherchait donc un widget qui n'existe plus.
+    final ajouter = find.byKey(const Key('accueil.nouveau'));
     expect(
       ajouter,
       findsOneWidget,
@@ -180,6 +226,25 @@ void main() {
           'inscriptible, et la capture 02 serait impossible.',
     );
     await tester.tap(ajouter);
+    await tester.pumpAndSettle();
+
+    // Le clavier, qui mangeait la moitié de l'image — et précisément la moitié qui porte
+    // l'argument.
+    //
+    // `saisie.rapide` est en `autofocus: true`, ce qui est juste dans le produit : on
+    // ouvre cet écran pour écrire. Le clavier logiciel qui monte avec lui recouvrait
+    // tout ce qui suit « Début », donc la phrase `ceQuiEstChiffre` — « le titre, le lieu
+    // et la description sont chiffrés sur cet appareil ; les heures partent en clair » —
+    // qui est la seule raison de montrer cet écran à un acheteur.
+    //
+    // Pire en anglais : le simulateur y superpose son didacticiel de frappe glissée
+    // (« Speed up your typing by sliding your finger… » et un bouton « Continue »), qui
+    // transforme la capture en message système. Les contrôles automatiques n'y voyaient
+    // rien : l'image est pleine, colorée, aux bonnes dimensions.
+    //
+    // On rend donc le focus avant de déclencher. Le champ reste là, vide et actif ; c'est
+    // l'écran tel qu'il paraît une seconde avant qu'on écrive.
+    FocusManager.instance.primaryFocus?.unfocus();
     await tester.pumpAndSettle();
     await photographier(tester, '02-nouvel-evenement');
 
@@ -193,7 +258,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // ── 03 · Tâches ──
-    await allerA(tester, 'Tâches');
+    await allerA(tester, const ['Tâches', 'Tasks']);
     await photographier(tester, '03-taches');
 
     // ── 04 · Réunions réservées ──
@@ -201,18 +266,18 @@ void main() {
     // L'écran que le jeu d'épreuve ne pouvait pas montrer : il faut une réservation prise
     // depuis la page publique, donc un horaire de disponibilité, que le banc d'épreuve ne
     // posait pas.
-    await allerA(tester, 'Réunions');
+    await allerA(tester, const ['Réunions', 'Meetings']);
     await photographier(tester, '04-reunions');
 
     // ── 05 · Liens de réservation ──
-    await allerA(tester, 'RDV');
+    await allerA(tester, const ['RDV', 'Links']);
     await photographier(tester, '05-rendez-vous');
 
     // ── 06 · Réglages ──
     //
     // La sixième est **facultative** : Apple en accepte dix, et celle-ci montre le compte,
     // les disponibilités et la sécurité. À garder ou à écarter au montage de la fiche.
-    await allerA(tester, 'Réglages');
+    await allerA(tester, const ['Réglages', 'Settings']);
     await photographier(tester, '06-reglages');
   }, timeout: const Timeout(Duration(minutes: 5)));
 }

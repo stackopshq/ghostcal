@@ -1201,6 +1201,12 @@ abstract class L {
   /// **'Liste'**
   String get vueListe;
 
+  /// No description provided for @vueAnnee.
+  ///
+  /// In fr, this message translates to:
+  /// **'Année'**
+  String get vueAnnee;
+
   /// No description provided for @periodePrecedente.
   ///
   /// In fr, this message translates to:
@@ -1800,6 +1806,12 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'{nombre} calendriers'**
   String calendriersAffiches(int nombre);
+
+  /// Le crayon de la feuille des calendriers, et le titre de la boîte qu'il ouvre. Seuls les calendriers qu'on possède en portent un : le serveur refuserait les autres, sa clause WHERE portant le propriétaire.
+  ///
+  /// In fr, this message translates to:
+  /// **'Renommer le calendrier'**
+  String get renommerLeCalendrier;
 
   /// No description provided for @calendriersAAfficher.
   ///

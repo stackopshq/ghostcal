@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AuthCard, { Champ, inputClass, lienDePied, primaryButtonClass } from "@/components/AuthCard";
 import { ApiError } from "@/lib/api";
 import { register } from "@/lib/auth";
@@ -20,6 +20,15 @@ export default function RegisterPage() {
   const [recoveryPhrase, setRecoveryPhrase] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // An invitee who already has an account arrives here with ?next= (the invitation page). Hand it
+  // on to the sign-in link so the detour does not drop them on the dashboard. Read after mount:
+  // the server has no URL to read, and a different href on first paint is a hydration mismatch.
+  const [loginHref, setLoginHref] = useState("/login");
+  useEffect(() => {
+    const next = new URLSearchParams(window.location.search).get("next");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (next) setLoginHref(`/login?next=${encodeURIComponent(next)}`);
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -50,7 +59,7 @@ export default function RegisterPage() {
         title={t("register.checkInbox")}
         subtitle={t("register.checkInboxSub", { email })}
         footer={
-          <Link href="/login" className={lienDePied}>
+          <Link href={loginHref} className={lienDePied}>
             {t("register.backToSignIn")}
           </Link>
         }
@@ -84,7 +93,7 @@ export default function RegisterPage() {
       footer={
         <>
           {t("register.haveAccount")}{" "}
-          <Link href="/login" className={lienDePied}>
+          <Link href={loginHref} className={lienDePied}>
             {t("common.signIn")}
           </Link>
         </>

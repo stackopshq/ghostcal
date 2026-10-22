@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 import subprocess
 import sys
 import urllib.error
@@ -42,6 +43,23 @@ api, jeton, organisation, publique, calendrier, amorcer, slug_org = sys.argv[1:8
 
 FUSEAU = "Europe/Zurich"
 fautes = 0
+
+# ─── La langue de la vitrine ──────────────────────────────────────────────────
+#
+# L'interface se traduit toute seule : elle suit la langue du simulateur. Les **données**,
+# non — ce sont celles que ce script dépose, et elles restaient françaises.
+#
+# Mesuré sur le jeu anglais du 21 octobre : des libellés anglais (« October 21 », « All
+# calendars », « New event ») au-dessus d'un agenda rempli de « Renouveler le passeport »
+# et « Appel client · Helvetia ». Apple ne refuse pas pour ça, et un acheteur anglophone
+# n'y voit pas un produit traduit non plus.
+#
+# D'où cette table. Elle ne traduit que ce qui **paraît à l'écran** : les adresses e-mail
+# et les noms de personnes restent tels quels, parce qu'un nom ne se traduit pas et que
+# `example.com` est réservé par la RFC 2606 dans toutes les langues.
+LANGUE = os.environ.get("GHOSTCAL_LANGUE", "fr")
+if LANGUE not in ("fr", "en"):
+    sys.exit(f"GHOSTCAL_LANGUE doit valoir fr ou en, pas « {LANGUE} »")
 
 
 def sceller(charge: dict) -> str:
@@ -125,24 +143,52 @@ def iso(moment: dt.datetime) -> str:
 # Cinq entrées sur la journée courante, et trois sur les suivantes pour que les flèches de
 # navigation mènent quelque part. Des titres qui décrivent un vrai métier : un agenda de
 # démonstration rempli de « Test 1 », « Test 2 » se voit immédiatement.
-EVENEMENTS = [
-    (0, 9, 0, 45, "Point hebdomadaire", "Tour de table de l'équipe produit", "Genève"),
-    (
-        0,
-        10,
-        30,
-        60,
-        "Entretien · développeuse back-end",
-        "Deuxième tour, technique",
-        "Visioconférence",
-    ),
-    (0, 12, 30, 60, "Déjeuner avec Camille", "", "Café du Marché"),
-    (0, 14, 0, 90, "Revue de sprint", "Démonstration puis rétrospective", "Salle Jura"),
-    (0, 16, 30, 30, "Appel client · Helvetia", "Point d'avancement mensuel", "Visioconférence"),
-    (1, 9, 0, 60, "Atelier charte graphique", "Choix de la palette", "Salle Jura"),
-    (1, 11, 0, 45, "Entretien · designer produit", "Premier tour", "Visioconférence"),
-    (3, 8, 30, 120, "Comité de direction", "Budget du quatrième trimestre", "Genève"),
-]
+EVENEMENTS = {
+    "fr": [
+        (0, 9, 0, 45, "Point hebdomadaire", "Tour de table de l'équipe produit", "Genève"),
+        (
+            0,
+            10,
+            30,
+            60,
+            "Entretien · développeuse back-end",
+            "Deuxième tour, technique",
+            "Visioconférence",
+        ),
+        (0, 12, 30, 60, "Déjeuner avec Camille", "", "Café du Marché"),
+        (0, 14, 0, 90, "Revue de sprint", "Démonstration puis rétrospective", "Salle Jura"),
+        (
+            0,
+            16,
+            30,
+            30,
+            "Appel client · Helvetia",
+            "Point d'avancement mensuel",
+            "Visioconférence",
+        ),
+        (1, 9, 0, 60, "Atelier charte graphique", "Choix de la palette", "Salle Jura"),
+        (1, 11, 0, 45, "Entretien · designer produit", "Premier tour", "Visioconférence"),
+        (3, 8, 30, 120, "Comité de direction", "Budget du quatrième trimestre", "Genève"),
+    ],
+    "en": [
+        (0, 9, 0, 45, "Weekly check-in", "Product team round table", "Geneva"),
+        (
+            0,
+            10,
+            30,
+            60,
+            "Interview · back-end developer",
+            "Second round, technical",
+            "Video call",
+        ),
+        (0, 12, 30, 60, "Lunch with Camille", "", "Café du Marché"),
+        (0, 14, 0, 90, "Sprint review", "Demo, then retrospective", "Jura room"),
+        (0, 16, 30, 30, "Client call · Helvetia", "Monthly progress update", "Video call"),
+        (1, 9, 0, 60, "Brand guidelines workshop", "Choosing the palette", "Jura room"),
+        (1, 11, 0, 45, "Interview · product designer", "First round", "Video call"),
+        (3, 8, 30, 120, "Board meeting", "Fourth-quarter budget", "Geneva"),
+    ],
+}[LANGUE]
 
 print("Agenda", file=sys.stderr)
 for jour, heure, minute, duree, titre, description, lieu in EVENEMENTS:
@@ -164,13 +210,22 @@ for jour, heure, minute, duree, titre, description, lieu in EVENEMENTS:
 # Une en retard : c'est un **état normal** d'une liste de tâches, pas une panne, et l'écran
 # le montre bien. À ne pas confondre avec l'événement illisible du banc d'épreuve, qui est
 # une panne montrée exprès et n'a rien à faire en vitrine.
-TACHES = [
-    ("Relire le devis Helvetia", "Retour attendu avant vendredi", 20),
-    ("Préparer la revue de sprint", "Trois démonstrations à enchaîner", 4),
-    ("Renouveler le passeport", "", -36),
-    ("Réserver la salle pour l'atelier", "", 30),
-    ("Idée : refondre le planning des astreintes", "Sans urgence", None),
-]
+TACHES = {
+    "fr": [
+        ("Relire le devis Helvetia", "Retour attendu avant vendredi", 20),
+        ("Préparer la revue de sprint", "Trois démonstrations à enchaîner", 4),
+        ("Renouveler le passeport", "", -36),
+        ("Réserver la salle pour l'atelier", "", 30),
+        ("Idée : refondre le planning des astreintes", "Sans urgence", None),
+    ],
+    "en": [
+        ("Review the Helvetia quote", "Answer due before Friday", 20),
+        ("Prepare the sprint review", "Three demos back to back", 4),
+        ("Renew my passport", "", -36),
+        ("Book the room for the workshop", "", 30),
+        ("Idea: rework the on-call rota", "No rush", None),
+    ],
+}[LANGUE]
 
 print("Tâches", file=sys.stderr)
 for titre, notes, heures in TACHES:
@@ -188,7 +243,7 @@ print("Disponibilités", file=sys.stderr)
 poster(
     "/v1/me/schedules",
     {
-        "name": "Heures de bureau",
+        "name": {"fr": "Heures de bureau", "en": "Office hours"}[LANGUE],
         "timezone": FUSEAU,
         # 0 = lundi, la convention du serveur. Celle de Dart est 1 = lundi et celle de Java
         # 1 = dimanche : confondre les trois décalerait tout l'horaire d'un jour, en silence.
@@ -210,25 +265,58 @@ print("Types de rendez-vous", file=sys.stderr)
 # délibérément inutilisé — c'est le slug attribué par le serveur qu'on relit
 # plus bas, pas celui qu'on propose. Le souligné dit au linter que l'oubli est
 # voulu, sans retirer l'information de la table.
-for titre, _slug, duree, actif, questions in [
-    (
-        "Entretien de 30 minutes",
-        "entretien",
-        30,
-        True,
-        [
-            {
-                "id": "sujet",
-                "label": "Sujet de l'entretien",
-                "type": "text",
-                "required": True,
-                "options": [],
-            }
-        ],
-    ),
-    ("Découverte de 15 minutes", "decouverte", 15, True, []),
-    ("Atelier d'une demi-journée", "atelier", 240, False, []),
-]:
+# L'identifiant d'une question (`sujet`) ne se traduit pas : c'est la clé sous laquelle
+# les réponses sont scellées, et la changer selon la langue les rendrait illisibles. Seul
+# le libellé, qui paraît à l'écran, suit la langue.
+TYPES = {
+    "fr": [
+        (
+            "Entretien de 30 minutes",
+            "entretien",
+            30,
+            True,
+            [
+                {
+                    "id": "sujet",
+                    "label": "Sujet de l'entretien",
+                    "type": "text",
+                    "required": True,
+                    "options": [],
+                }
+            ],
+        ),
+        ("Découverte de 15 minutes", "decouverte", 15, True, []),
+        ("Atelier d'une demi-journée", "atelier", 240, False, []),
+    ],
+    "en": [
+        (
+            "30-minute interview",
+            "entretien",
+            30,
+            True,
+            [
+                {
+                    "id": "sujet",
+                    "label": "What would you like to discuss?",
+                    "type": "text",
+                    "required": True,
+                    "options": [],
+                }
+            ],
+        ),
+        ("15-minute intro call", "decouverte", 15, True, []),
+        ("Half-day workshop", "atelier", 240, False, []),
+    ],
+}[LANGUE]
+
+# Le titre du type sur lequel la réservation portera, retenu ici plutôt que redeviné plus
+# bas. La recherche se faisait par `startswith("Entretien")`, ce qui liait silencieusement
+# l'amorçage à la langue française : en anglais, le type s'appelle « 30-minute interview »,
+# la recherche ne trouvait rien, et les trois réunions de la capture 04 disparaissaient —
+# celle qui montre le déchiffrement de bout en bout, la plus précieuse du jeu.
+TITRE_RESERVABLE = TYPES[0][0]
+
+for titre, _slug, duree, actif, questions in TYPES:
     poster(
         "/v1/me/event-types",
         {
@@ -261,15 +349,14 @@ demain = a(1, 14, 0)
 # position dans la liste : l'ordre n'est garanti nulle part.
 types = lire("/v1/me/event-types") or []
 slug_entretien = next(
-    (
-        t["slug"]
-        for t in types
-        if isinstance(t, dict) and t.get("title", "").startswith("Entretien")
-    ),
+    (t["slug"] for t in types if isinstance(t, dict) and t.get("title") == TITRE_RESERVABLE),
     None,
 )
 if slug_entretien is None:
-    print("  ✗ le type « Entretien » est introuvable après création", file=sys.stderr)
+    print(
+        f"  ✗ le type « {TITRE_RESERVABLE} » est introuvable après création",
+        file=sys.stderr,
+    )
     fautes += 1
 # Les paramètres s'appellent `from` et `to`, **pas** `date_from`/`date_to` : ce sont des
 # alias déclarés côté serveur (`Query(alias="from")`, `from` étant un mot réservé en
@@ -306,21 +393,48 @@ else:
     # On prend des créneaux espacés dans la liste plutôt que les trois premiers, pour que
     # les rendez-vous tombent des jours différents — trois réunions collées dans la même
     # heure se liraient comme un jeu d'essai.
-    invites = [
-        (
-            "Camille Rossier",
-            "camille.rossier@example.com",
-            "Reprise du projet de refonte",
-            "Disponible aussi le lendemain matin si besoin.",
-        ),
-        ("Antoine Béguin", "antoine.beguin@example.com", "Migration de l'infrastructure", ""),
-        (
-            "Salomé Vuillemin",
-            "salome.vuillemin@example.com",
-            "Point budget du quatrième trimestre",
-            "Merci de prévoir trente minutes de marge.",
-        ),
-    ]
+    invites = {
+        "fr": [
+            (
+                "Camille Rossier",
+                "camille.rossier@example.com",
+                "Reprise du projet de refonte",
+                "Disponible aussi le lendemain matin si besoin.",
+            ),
+            (
+                "Antoine Béguin",
+                "antoine.beguin@example.com",
+                "Migration de l'infrastructure",
+                "",
+            ),
+            (
+                "Salomé Vuillemin",
+                "salome.vuillemin@example.com",
+                "Point budget du quatrième trimestre",
+                "Merci de prévoir trente minutes de marge.",
+            ),
+        ],
+        "en": [
+            (
+                "Camille Rossier",
+                "camille.rossier@example.com",
+                "Restarting the redesign project",
+                "I am also free the next morning if that helps.",
+            ),
+            (
+                "Antoine Béguin",
+                "antoine.beguin@example.com",
+                "Infrastructure migration",
+                "",
+            ),
+            (
+                "Salomé Vuillemin",
+                "salome.vuillemin@example.com",
+                "Fourth-quarter budget review",
+                "Please allow thirty minutes of slack.",
+            ),
+        ],
+    }[LANGUE]
     pas = max(1, len(plats) // (len(invites) + 1))
     for rang, (nom, adresse, sujet, notes) in enumerate(invites):
         indice = min(rang * pas, len(plats) - 1)
@@ -353,7 +467,10 @@ sondages = 0
 sondage = poster(
     "/v1/me/polls",
     {
-        "title": "Atelier charte graphique",
+        "title": {
+            "fr": "Atelier charte graphique",
+            "en": "Brand guidelines workshop",
+        }[LANGUE],
         "duration_min": 90,
         "location_type": "google_meet",
         "option_starts": [iso(a(2, 9)), iso(a(2, 14)), iso(a(3, 10, 30))],

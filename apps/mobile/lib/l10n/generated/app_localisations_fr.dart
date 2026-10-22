@@ -640,6 +640,9 @@ class LFr extends L {
   String get vueListe => 'Liste';
 
   @override
+  String get vueAnnee => 'Année';
+
+  @override
   String get periodePrecedente => 'Précédent';
 
   @override
@@ -995,6 +998,9 @@ class LFr extends L {
   String calendriersAffiches(int nombre) {
     return '$nombre calendriers';
   }
+
+  @override
+  String get renommerLeCalendrier => 'Renommer le calendrier';
 
   @override
   String get calendriersAAfficher => 'Calendriers affichés';
