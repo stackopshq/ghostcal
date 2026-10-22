@@ -160,6 +160,14 @@ and imposes none.
 
 No trackers. No ads. No behavioural analytics.
 
+**Pourquoi les rappels sont annoncés.** Pas parce que le code existe et que les témoins
+passent — c'est vrai des deux et ce n'aurait pas suffi. Parce qu'un rappel a **sonné sur
+un vrai téléphone**, constaté le 22 octobre. Une première tentative n'avait rien produit,
+et la cause était le jeu de données, non le produit : aucun rendez-vous réservé dans les
+sept jours de l'horizon de programmation. Un rappel qui ne sonne pas faute de rendez-vous
+est indiscernable d'un rappel cassé, et c'est exactement le doute qu'un utilisateur ne
+peut pas lever seul.
+
 ## Ce que la description ne dit pas, délibérément
 
 Cette liste est la contrepartie de la précédente. Chaque ligne est une fonctionnalité que
@@ -193,6 +201,9 @@ pas une télécommande.
 ```
 agenda,rendez-vous,chiffré,calendrier,réservation,planning,vie privée,rappels,réunion
 ```
+
+**L'anglais aussi** : `calendar,scheduling,encrypted,booking,privacy,self-hosted,reminders,meeting`
+(75 caractères), où « reminders » a pris la place de « team », pour la même raison.
 
 85 caractères. « équipe » a cédé sa place à « rappels » : les rappels sont désormais
 programmés par l'appareil, et c'est une fonction qu'on cherche ; la gestion d'équipe se
@@ -521,6 +532,16 @@ change que la **couleur** : un utilisateur anglophone ne peut pas le renommer. I
 tel quel sur la capture anglaise `02`, et il y reste — maquiller l'image donnerait une
 vitrine que le produit ne tient pas. **C'est un correctif serveur à faire**, pas un
 réglage de prise de vue.
+
+**Le correctif est pris en charge ailleurs** (22 octobre). Quand il sera livré, la capture
+anglaise `02` sera **périmée** : elle montrera un nom que le produit n'affiche plus. Une
+seule passe suffit à la refaire, et il faut la refaire plutôt que de la croire —
+
+    GHOSTCAL_LANGUE=en ./tools/banc-local.sh --vitrine
+    GHOSTCAL_LANGUE=en ./tools/ios/captures-appstore.sh
+
+puis redéposer le jeu `APP_IPHONE_67` de `en-US`. Le jeu iPad anglais porte le même champ
+et demande la même reprise.
 
 ### Les cinq à livrer
 
