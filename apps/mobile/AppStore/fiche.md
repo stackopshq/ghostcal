@@ -533,15 +533,30 @@ tel quel sur la capture anglaise `02`, et il y reste — maquiller l'image donne
 vitrine que le produit ne tient pas. **C'est un correctif serveur à faire**, pas un
 réglage de prise de vue.
 
-**Le correctif est pris en charge ailleurs** (22 octobre). Quand il sera livré, la capture
-anglaise `02` sera **périmée** : elle montrera un nom que le produit n'affiche plus. Une
-seule passe suffit à la refaire, et il faut la refaire plutôt que de la croire —
+**Le correctif est en cours ailleurs** (`fix/rename-calendars`, 22 octobre), et il ne fait
+que **la moitié** du chemin — la moitié qui manquait, mais la moitié seulement.
 
-    GHOSTCAL_LANGUE=en ./tools/banc-local.sh --vitrine
-    GHOSTCAL_LANGUE=en ./tools/ios/captures-appstore.sh
+`PATCH /v1/me/calendars/{id}` accepte désormais un `name`, donc un anglophone peut
+renommer son calendrier. En revanche `name="Mon agenda"` reste écrit en dur dans
+`calendar_repository.py` : **tout nouveau compte, quelle que soit la langue, part encore
+d'un nom français**. Une première version de cette note annonçait que la capture anglaise
+`02` deviendrait périmée ; c'est faux, et l'erreur venait de moi. Elle reste exacte, parce
+que c'est exactement ce qu'un anglophone voit en arrivant.
 
-puis redéposer le jeu `APP_IPHONE_67` de `en-US`. Le jeu iPad anglais porte le même champ
-et demande la même reprise.
+Reste donc un choix, et il est de produit, pas de prise de vue :
+
+1. **Laisser le défaut par défaut** et photographier ce qui est. Honnête, et un peu rude.
+2. **Renommer le calendrier dans l'amorçage anglais** — ce que le produit permet
+   maintenant, donc une vitrine qu'il tient. Deux passes à refaire et deux jeux à
+   redéposer :
+
+        GHOSTCAL_LANGUE=en ./tools/banc-local.sh --vitrine
+        GHOSTCAL_LANGUE=en ./tools/ios/captures-appstore.sh
+        GHOSTCAL_LANGUE=en GHOSTCAL_APPAREIL='iPad Pro 13-inch (M4)' ./tools/ios/captures-appstore.sh
+
+3. **Nommer le calendrier par défaut selon la langue du compte**, côté serveur. Le vrai
+   correctif, et le seul qui épargne la question au prochain utilisateur plutôt qu'au
+   prochain photographe.
 
 ### Les cinq à livrer
 
