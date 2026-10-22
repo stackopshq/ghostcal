@@ -213,7 +213,49 @@ fi
 # Le remède n'est pas un délai, c'est l'ordre : on ne parle à un simulateur qu'une fois
 # qu'il a dit être prêt.
 xcrun simctl spawn "$APPAREIL_ID" defaults write .GlobalPreferences AppleLanguages -array "$LANGUE" || true
+# La **région**, et pas seulement la langue.
+#
+# `AppleLanguages` gouverne l'interface ; c'est `AppleLocale` qui date la barre d'état.
+# Sur iPad — le seul appareil dont la barre porte une date — le jeu anglais du 22 octobre
+# affichait « Jeudi 22 octobre » au-dessus d'une application entièrement anglaise. Ni le
+# compte de teintes ni les dimensions ne voient ça, et l'application n'y est pour rien :
+# c'est iOS qui écrit cette ligne, d'après une région restée française.
+case "$LANGUE" in
+  en) REGION="en_US" ;;
+  *) REGION="fr_CH" ;;
+esac
+xcrun simctl spawn "$APPAREIL_ID" defaults write .GlobalPreferences AppleLocale -string "$REGION" || true
 
+# Et on relance SpringBoard, sans quoi la barre d'état garde la langue d'avant.
+#
+# L'ordre impose cette gymnastique : on ne peut parler à un simulateur qu'une fois
+# démarré — `simctl spawn` sur un appareil qui démarre encore **attend indéfiniment** —
+# mais à ce moment-là SpringBoard a déjà dessiné sa barre. L'application, elle, lit ses
+# préférences à son propre lancement et suit donc la nouvelle langue : d'où un écran
+# entièrement anglais surmonté de « Jeudi 22 octobre ».
+#
+# Seul l'iPad porte une date dans sa barre, donc seul lui montrait le défaut. Le relancer
+# coûte quelques secondes et vaut pour les deux appareils.
+xcrun simctl spawn "$APPAREIL_ID" launchctl stop com.apple.SpringBoard >/dev/null 2>&1 || true
+sleep 8
+
+
+# ── Laisser passer les notifications de premier démarrage ────────────────────
+#
+# Un simulateur **neuf** — et ce script en crée un à chaque passe — reçoit ses
+# notifications système d'accueil dans la minute qui suit son démarrage. Mesuré le
+# 22 octobre : « Prêt pour Apple Intelligence » est tombé en plein sur la capture
+# « 02-nouvel-evenement », barrant le tiers supérieur de l'écran et emportant avec lui
+# l'habillage de la barre d'état.
+#
+# Aucun contrôle automatique ne voit un bandeau : l'image a les bonnes dimensions et des
+# centaines de teintes. Seule l'ouvrir l'a montré, et il a fallu refaire les quatre jeux.
+#
+# Quatre-vingt-dix secondes coûtent six minutes sur l'ensemble et valent mieux qu'une
+# reprise complète. Ce n'est pas un délai de confort : c'est le temps que met le système
+# à dire ce qu'il a à dire.
+dire "On laisse le système finir de se présenter (90 s)"
+sleep 90
 
 # Barre d'état figée : c'est l'usage pour une fiche App Store, et cela évite qu'une heure
 # ou un niveau de batterie différents à chaque prise fassent croire à des captures
@@ -364,7 +406,41 @@ for f in (mini, bmp):
     try: os.remove(f)
     except OSError: pass
 
-print(f"{largeur} {hauteur} {couleurs}")
+# La bande centrale du haut : là où l'Îlot dynamique se dessine en noir quand l'habillage
+# de `simctl` a été perdu. Mesuré le 21 octobre : 88,6 % de pixels noirs sur l'écran
+# fautif, 0,0 % sur les onze autres. Un seuil à 20 % sépare les deux sans ambiguïté.
+#
+# Ce contrôle existe parce que le précédent ne voyait rien : une capsule noire ne change
+# ni les dimensions ni le nombre de teintes. Sur iPad il n'y a pas d'îlot, et la mesure
+# rend naturellement zéro.
+noirs = -1.0
+bande = fichier + ".bande.png"
+bandebmp = fichier + ".bande.bmp"
+try:
+    L, H = int(largeur), int(hauteur)
+    subprocess.run(
+        ["sips", "--cropOffset", str(int(H * 0.012)), str(int(L * 0.36)),
+         "-c", str(max(1, int(H * 0.040))), str(max(1, int(L * 0.28))),
+         fichier, "--out", bande],
+        capture_output=True, text=True,
+    )
+    subprocess.run(["sips", "-s", "format", "bmp", bande, "--out", bandebmp],
+                   capture_output=True, text=True)
+    d = open(bandebmp, "rb").read()
+    depart = int.from_bytes(d[10:14], "little")
+    pas = int.from_bytes(d[28:30], "little") // 8
+    if depart and pas:
+        px = d[depart:]
+        points = [px[i:i + 3] for i in range(0, len(px) - pas, pas)]
+        if points:
+            noirs = sum(1 for q in points if max(q) < 40) / len(points)
+except (OSError, ValueError):
+    noirs = -1.0
+for f in (bande, bandebmp):
+    try: os.remove(f)
+    except OSError: pass
+
+print(f"{largeur} {hauteur} {couleurs} {noirs:.3f}")
 PY
 )"
 
@@ -374,7 +450,7 @@ PY
     continue
   fi
 
-  read -r largeur hauteur couleurs <<<"$mesure"
+  read -r largeur hauteur couleurs noirs <<<"$mesure"
 
   if (( couleurs < 0 )); then
     gris "$nom — ${largeur}×${hauteur}, mais le contenu n'a pas pu être examiné"
@@ -383,6 +459,12 @@ PY
     # Une capture d'application en compte des milliers. Cinquante est très large : le seuil
     # n'est pas là pour juger du graphisme, seulement pour distinguer une image d'un aplat.
     rouge "$nom — ${largeur}×${hauteur}, mais seulement $couleurs couleurs : image vide"
+    fautes=$((fautes + 1))
+  elif awk -v n="$noirs" 'BEGIN { exit !(n > 0.20) }'; then
+    rouge "$nom — ${largeur}×${hauteur} : une capsule noire en haut au centre"
+    echo "    $(awk -v n="$noirs" 'BEGIN { printf "%.1f", n * 100 }') % de pixels noirs là où l'Îlot dynamique se dessine." >&2
+    echo "    L'habillage de la barre d'état a été perdu — un écran qui change son style," >&2
+    echo "    ou un bandeau système passé par-dessus. Refaites cette passe." >&2
     fautes=$((fautes + 1))
   else
     vert "$nom — ${largeur}×${hauteur}, $couleurs teintes"
