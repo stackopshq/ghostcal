@@ -13,14 +13,41 @@
 # they cannot diverge, and a single Ansible variable describes both — without
 # paying the merged-image cost this comment argues against.
 #
-# Base image pinned by digest with the tag alongside for readability, following
-# the backend Containerfile: a tag is mutable, so an unpinned build is not
-# reproducible and a scan of it says nothing about what ships tomorrow. Update
-# deliberately —
-#   podman image inspect <tag> --format '{{index .RepoDigests 0}}'
-# after pulling the new tag.
+# Rocky Linux, like the hosts it runs on and like the backend image, not
+# Debian. Node is the official build from nodejs.org, pinned by version and
+# SHA-256 (the line for each architecture in that release's SHASUMS256.txt):
+# Rocky's own nodejs package trails upstream security releases, and this is a
+# public-facing server. The Rocky base is pinned by tag and multi-arch index
+# digest, like the backend's. Update deliberately.
 
-FROM docker.io/library/node:22-bookworm-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436 AS builder
+ARG ROCKY_IMAGE=docker.io/rockylinux/rockylinux:10.2.20260525.0-minimal@sha256:bc5c1e7a2ec7f4bcef1e51c7f0ebb2d43f05409e0108cdd34f693921d0604360
+ARG NODE_VERSION=22.23.4
+ARG NODE_SHA256_X64=1805bcd35e6815559bd2eb97db438d3fdb0eb3a5e6a977b7c1badca76337e9ce
+ARG NODE_SHA256_ARM64=6287aa46b6c375d816e63ae66d024fbbfd70404825aabdfdf898a970871d2f4b
+
+FROM ${ROCKY_IMAGE} AS node
+ARG NODE_VERSION
+ARG NODE_SHA256_X64
+ARG NODE_SHA256_ARM64
+ARG TARGETARCH
+
+# Only the `node` binary goes on to the runtime stage; npm stays here, where
+# the build needs it.
+RUN microdnf -y install --setopt=install_weak_deps=0 tar xz \
+ && microdnf clean all \
+ && case "${TARGETARCH:-amd64}" in \
+      amd64) arch=x64; sum="${NODE_SHA256_X64}" ;; \
+      arm64) arch=arm64; sum="${NODE_SHA256_ARM64}" ;; \
+      *) echo "unsupported architecture ${TARGETARCH}" >&2; exit 1 ;; \
+    esac \
+ && curl -fsSLo /tmp/node.tar.xz "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${arch}.tar.xz" \
+ && echo "${sum}  /tmp/node.tar.xz" | sha256sum -c - \
+ && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 --no-same-owner \
+ && rm /tmp/node.tar.xz \
+ && node --version
+
+
+FROM node AS builder
 
 WORKDIR /app
 
@@ -39,41 +66,26 @@ COPY . .
 RUN npm run build
 
 
-FROM docker.io/library/node:22-bookworm-slim@sha256:d649c27dae7ba0137b3cef5dd75baa422c08dc3d9e3fc0c23dfb172dc3cc6436 AS runtime
+FROM ${ROCKY_IMAGE} AS runtime
 
-# Non-root runtime user. The upstream node image ships a `node` user, but a
-# named one keeps both our images reading the same way.
-# ─── Les correctifs de sécurité de la distribution ───
+# ─── The distribution's security fixes ───
 #
-# L'image de base est épinglée par condensat, ce qui fige **aussi** l'état des paquets
-# Debian qu'elle embarque. Ils vieillissent pendant que le condensat, lui, ne bouge pas.
-#
-# Constaté le 2026-09-25 : Trivy a trouvé trois CVE HIGH dans `libpcre2-8-0` — écriture
-# hors limites, corruption mémoire (CVE-2026-86145, -89157, -89161) — présentes en
-# `10.42-1` et corrigées en `10.42-1+deb12u1`. Elles n'apparaissent dans aucun verrou de
-# dépendances : `osv-scanner` était vert. C'est le système sous les dépendances, et c'est
-# la plus grande surface de l'artefact déployé.
-#
-# `upgrade` plutôt que le seul paquet fautif : Trivy échoue sur tout HIGH/CRITICAL
-# **corrigé en amont**, donc n'en traiter qu'un rendrait la construction rouge à la
-# prochaine publication de Debian. Une construction qu'on ne peut pas rendre verte apprend
-# à ignorer le contrôle.
-#
-# Le condensat reste épinglé : c'est la couche de paquets qui flotte, pas l'image. On
-# échange une reproductibilité au paquet près contre des correctifs de sécurité appliqués
-# sans intervention — dans une image livrée, c'est le bon sens de l'échange.
-RUN apt-get update \
-    && apt-get upgrade -y --no-install-recommends \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+# The base is pinned by digest, which also freezes the OS packages it carries.
+# They age while the digest does not: on 2026-09-25 Trivy found three HIGH CVEs
+# in pcre2 that no dependency lockfile shows. So every build upgrades the OS
+# packages (CI builds with --no-cache for this to run); upgrading only the
+# offending package would turn the next errata red. The digest stays pinned: it
+# is the package layer that floats, not the image.
+RUN microdnf -y upgrade \
+ && microdnf clean all
 
 RUN groupadd --system app && useradd --system --gid app --home /app app
 
-# The global npm that ships in the base image is build tooling, and it is what
-# a scanner finds first: tar, sigstore, picomatch and ip-address all arrived
-# through it, none of them needed to serve pages. Removing it costs nothing at
-# runtime — the standalone server is started by `node`, never by npm.
-RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+# The node binary alone: no npm, no npx. The global npm is build tooling, and
+# it is what a scanner finds first (tar, sigstore, picomatch, ip-address all
+# arrived through it), none of it needed to serve pages. The standalone server
+# is started by `node`, never by npm.
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
 
 WORKDIR /app
 ENV NODE_ENV=production
