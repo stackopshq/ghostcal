@@ -51,7 +51,11 @@ class Jetons {
 /// - **une seule tentative de rafraîchissement** par appel, sinon un jeton définitivement
 ///   mort provoquerait une boucle ;
 /// - **l'organisation courante voyage en en-tête** ; sans elle le serveur retient la plus
-///   ancienne, ce qui ferait lire les données d'une équipe en en affichant une autre.
+///   ancienne, ce qui ferait lire les données d'une équipe en en affichant une autre ;
+/// - **la langue voyage aussi**, en `accept-language`. Le serveur ne produit qu'un seul
+///   texte visible — le nom du calendrier par défaut — et il le produit à la première
+///   lecture de la liste, pas à l'inscription : la requête vient donc d'un client qui
+///   connaît sa langue, et il suffit qu'il le dise.
 class ClientAPI {
   /// How long a request may take before it is reported as "server not responding".
   /// Without it, a server that accepts the connection and never answers leaves the
@@ -66,6 +70,7 @@ class ClientAPI {
 
   Jetons? _jetons;
   String? _organisation;
+  String? _langue;
 
   /// Rappelé quand les jetons tournent, pour que la session les réenregistre. Sans ce
   /// crochet, le trousseau garderait un jeton périmé et la prochaine ouverture échouerait
@@ -85,6 +90,9 @@ class ClientAPI {
   Jetons? get jetons => _jetons;
   void poserLesJetons(Jetons? valeur) => _jetons = valeur;
   void poserLOrganisation(String? id) => _organisation = id;
+
+  /// La langue de l'interface, pour le seul texte visible que le serveur produise.
+  void poserLaLangue(String? code) => _langue = code;
 
   Future<T> obtenir<T>(String chemin, [Map<String, String> requete = const {}]) async {
     final corps = await _appeler('GET', chemin, requete: requete);
@@ -141,6 +149,10 @@ class ClientAPI {
       if (corps != null) 'content-type': 'application/json',
       if (_jetons != null) 'authorization': 'Bearer ${_jetons!.acces}',
       'x-organization-id': ?_organisation,
+      // `accept-language`, l'en-tête standard, et non un `x-` maison : un navigateur
+      // l'envoie déjà sans qu'on le lui demande, si bien que le serveur n'a qu'une seule
+      // chose à lire pour ses deux clients.
+      'accept-language': ?_langue,
     };
 
     // Rebuilt on every attempt: a request, once sent, cannot be sent again after a refresh.

@@ -1,3 +1,5 @@
+import 'dart:ui' show PlatformDispatcher;
+
 import 'package:flutter/material.dart';
 
 import '../l10n/generated/app_localisations.dart';
@@ -22,6 +24,22 @@ enum ChoixDeLangue {
         ChoixDeLangue.francais => l.langueFrancais,
         ChoixDeLangue.anglais => l.langueAnglais,
       };
+}
+
+/// La langue réellement en vigueur, « fr » ou « en », d'après le choix fait dans
+/// l'application et, à défaut, la langue de l'appareil.
+///
+/// Posée hors de la classe pour une raison de mesure : `PlatformDispatcher.instance` est
+/// un singleton que le harnais de test n'intercepte pas. Un témoin qui poserait une
+/// langue d'appareil factice mesurerait son propre décor pendant que le code lirait le
+/// vrai système. On passe donc l'appareil en argument, et c'est le seul moyen d'éprouver
+/// le repli.
+String codeDeLangueDepuis(ChoixDeLangue choix, Locale appareil) {
+  final code = choix.locale?.languageCode ?? appareil.languageCode;
+  // Toute autre langue retombe sur le français — le repli documenté de l'application.
+  // L'en-tête doit dire la même chose que l'écran : nommer le calendrier dans une langue
+  // que l'interface ne parle pas serait pire que de le nommer en français.
+  return code == 'en' ? 'en' : 'fr';
 }
 
 /// Light, dark, or whatever the device uses.
@@ -51,6 +69,12 @@ class Apparence extends ChangeNotifier {
 
   ChoixDeTheme _theme = ChoixDeTheme.appareil;
   ChoixDeTheme get theme => _theme;
+
+  /// La langue que le serveur verrait s'il regardait l'écran : « fr » ou « en », jamais
+  /// `null`. Elle voyage jusqu'à lui parce qu'il produit **un** texte visible, le nom du
+  /// calendrier par défaut, créé à la première lecture de la liste et non à l'inscription.
+  String get codeDeLangue =>
+      codeDeLangueDepuis(_langue, PlatformDispatcher.instance.locale);
 
   Future<void> amorcer() async {
     final langue = await Trousseau.lire(cleLangue);

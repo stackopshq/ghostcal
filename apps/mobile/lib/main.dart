@@ -32,6 +32,11 @@ Future<void> main() async {
   await verrouillage.amorcer();
   final apparence = Apparence();
   await apparence.amorcer();
+  // La langue suit la session, et continue de la suivre : posée maintenant pour le client
+  // API qui naîtra à la connexion, et reposée chaque fois qu'on en change dans les
+  // réglages. Sans le second, changer de langue n'aurait d'effet qu'au prochain lancement.
+  session.poserLaLangue(apparence.codeDeLangue);
+  apparence.addListener(() => session.poserLaLangue(apparence.codeDeLangue));
   Rappels? rappels;
   if (Rappels.disponible) {
     // Seulement là où une tâche périodique existe : `Workmanager` sur iOS s'appuie sur
