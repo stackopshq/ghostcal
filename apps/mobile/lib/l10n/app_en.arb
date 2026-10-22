@@ -192,6 +192,7 @@
   "vueSemaine": "Week",
   "vueMois": "Month",
   "vueListe": "List",
+  "vueAnnee": "Year",
   "periodePrecedente": "Previous",
   "periodeSuivante": "Next",
   "rienSurLaPeriode": "Nothing planned for this period.",

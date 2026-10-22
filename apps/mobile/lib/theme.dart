@@ -136,6 +136,18 @@ class Mesures {
   /// iPad en paysage, la semaine gagne la même lisibilité que sur un Mac, pour la même
   /// raison. La borne suit ce que l'écran **est**, pas la machine qui l'affiche.
   static const largeurDeLAgenda = 1100.0;
+
+  /// À partir d'où l'application se tient comme une application de bureau.
+  ///
+  /// Au-dessus, les commandes montent dans la barre de titre et la barre flottante du
+  /// bas disparaît : un bandeau flottant, une poignée de glissement et une feuille
+  /// modale sont des gestes de pouce, et ils n'ont pas de sens avec une souris. En
+  /// dessous — un téléphone, une tablette étroite, une fenêtre qu'on a réduite — la
+  /// barre du bas reste, parce qu'elle y est le bon outil.
+  ///
+  /// 900 et non la largeur minimale de la fenêtre (720) : entre les deux, le segmenté
+  /// des quatre vues et les boutons ne tiennent pas sans se chevaucher. Mesuré, pas posé.
+  static const seuilBureau = 900.0;
 }
 
 /// Borne la largeur du contenu et le centre, sans toucher à ce qui l'entoure.
