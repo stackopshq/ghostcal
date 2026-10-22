@@ -67,6 +67,29 @@ class Calendrier {
   /// le comportement d'avant. Refuser par défaut priverait d'écriture sur un serveur
   /// parfaitement fonctionnel.
   bool get inscriptible => peutEcrireBrut ?? true;
+
+  /// Un calendrier qu'on possède, par opposition à un calendrier qu'on vous partage.
+  ///
+  /// C'est la condition du renommage, et elle ne se confond pas avec [inscriptible] :
+  /// quelqu'un peut vous laisser **écrire** dans son calendrier sans vous laisser le
+  /// **rebaptiser** chez lui. Le serveur le refuserait — sa clause `WHERE` porte le
+  /// propriétaire — mais proposer un geste qui finira en 404 est une promesse qu'on ne
+  /// tient pas.
+  bool get aSoi => !partage;
+
+  /// La même ligne, sous un autre nom.
+  ///
+  /// Renommer ne touche ni la couleur, ni le partage, ni le droit d'écriture : les
+  /// recopier évite d'avoir à relire toute la liste au serveur pour un champ.
+  Calendrier renomme(String nouveauNom) => Calendrier(
+    id: id,
+    nom: nouveauNom,
+    couleur: couleur,
+    parDefaut: parDefaut,
+    partage: partage,
+    proprietaire: proprietaire,
+    peutEcrireBrut: peutEcrireBrut,
+  );
 }
 
 /// D'où vient le titre d'une ligne, et s'il y en a un.
@@ -195,6 +218,24 @@ class Agenda {
         .map(Calendrier.depuisJson)
         .toList();
   }
+
+  /// Renomme un calendrier qu'on possède.
+  ///
+  /// `PATCH` et non `PUT` : le corps ne porte que le champ qui change, donc la couleur
+  /// n'est pas remise à une valeur qu'on n'a pas lue. Le serveur laisse intact tout champ
+  /// omis, refuse un nom vide par un 422, et ne trouve pas un calendrier dont on n'est pas
+  /// propriétaire — un 404, et non un 403, parce qu'il ne dit pas à un tiers qu'un
+  /// identifiant existe.
+  ///
+  /// Le nom est rogné ici **aussi**, et pas seulement par le serveur : sans cela, « Perso »
+  /// suivi d'une espace partirait, reviendrait rogné à la relecture, et l'écran afficherait
+  /// autre chose que ce que l'utilisateur croit avoir tapé.
+  Future<void> renommerLeCalendrier({
+    required String id,
+    required String nom,
+  }) => api.envoyerSansReponse('PATCH', 'v1/me/calendars/$id', {
+    'name': nom.trim(),
+  });
 
   /// L'agenda entre deux dates.
   ///
