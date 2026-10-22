@@ -271,16 +271,24 @@ class _EcranDAccueilState extends State<EcranDAccueil>
     final pile = IndexedStack(
       index: _onglet,
       children: [
-        ContenuBorne(
-          largeur: Mesures.largeurDeLAgenda,
-          child: EcranDAgenda(
-            key: _agenda,
-            session: widget.session,
-            verrouillage: widget.verrouillage,
-            surChangement: () {
-              if (mounted) setState(() {});
-            },
-          ),
+        // ─── L'agenda n'est plus borné ───
+        //
+        // Il l'était à 1100 points, pour que la semaine garde des colonnes lisibles sur
+        // un écran large. La colonne latérale a changé la donne : elle prend déjà 232
+        // points, et sur un grand écran l'agenda se retrouvait en vignette centrée entre
+        // deux marges vides — vu en capture sur 2000 points de large.
+        //
+        // Une grille de calendrier n'a pas de largeur « trop grande » : sept colonnes de
+        // 280 points se lisent mieux que sept de 150, et c'est ce que montre tout agenda
+        // de bureau. Les quatre autres sections gardent leur borne de 560 : une liste de
+        // tâches sur 2000 points se lirait en tournant la tête.
+        EcranDAgenda(
+          key: _agenda,
+          session: widget.session,
+          verrouillage: widget.verrouillage,
+          surChangement: () {
+            if (mounted) setState(() {});
+          },
         ),
         ContenuBorne(child: EcranDeTaches(session: widget.session)),
         ContenuBorne(child: EcranDeReunions(session: widget.session)),
@@ -694,9 +702,8 @@ class _EcranDAccueilState extends State<EcranDAccueil>
       majour(() {});
     } on Object catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(lisible(e, L.of(context)))));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(lisible(e, L.of(context)))));
     }
   }
 
