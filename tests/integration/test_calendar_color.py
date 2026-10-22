@@ -28,7 +28,7 @@ from ghostcal.application.auth import AuthConfig, AuthService
 from ghostcal.application.calendar import (
     CalendarNotFound,
     list_calendars,
-    set_calendar_color,
+    update_calendar,
 )
 from ghostcal.application.ports.clock import SystemClock
 from ghostcal.application.subscriptions import (
@@ -125,7 +125,9 @@ async def test_a_calendar_can_be_recoloured_after_it_exists(admin_engine: AsyncE
             before = calendars[0].color
 
         async with org_session(org_id) as s:
-            await set_calendar_color(SqlCalendarRepository(s, org_id), user_id, cal_id, "#ff2d95")
+            await update_calendar(
+                SqlCalendarRepository(s, org_id), user_id, cal_id, color="#ff2d95"
+            )
 
         async with org_session(org_id) as s:
             after = await list_calendars(SqlCalendarRepository(s, org_id), user_id)
@@ -150,13 +152,76 @@ async def test_recolouring_someone_elses_calendar_is_a_miss(admin_engine: AsyncE
 
         with pytest.raises(CalendarNotFound):
             async with org_session(my_org) as s:
-                await set_calendar_color(SqlCalendarRepository(s, my_org), mine, target, "#ff2d95")
+                await update_calendar(
+                    SqlCalendarRepository(s, my_org), mine, target, color="#ff2d95"
+                )
 
         async with org_session(their_org) as s:
             still = await list_calendars(SqlCalendarRepository(s, their_org), theirs)
         assert next(c.color for c in still if c.id == target) == was
     finally:
         await _cleanup(admin_engine, mine, theirs)
+
+
+async def test_the_default_calendar_can_be_renamed(admin_engine: AsyncEngine) -> None:
+    """The server names the default calendar « Mon agenda »; an English speaker must be able to
+    rename it, and renaming must leave the colour alone."""
+    mailer = CapturingMailer()
+    user_id, org_id = await _account(mailer, "rename")
+    try:
+        async with org_session(org_id) as s:
+            calendars = await list_calendars(SqlCalendarRepository(s, org_id), user_id)
+        default = next(c for c in calendars if c.is_default)
+        assert default.name == "Mon agenda"
+
+        async with org_session(org_id) as s:
+            await update_calendar(
+                SqlCalendarRepository(s, org_id), user_id, default.id, name="My calendar"
+            )
+
+        async with org_session(org_id) as s:
+            after = await list_calendars(SqlCalendarRepository(s, org_id), user_id)
+        renamed = next(c for c in after if c.id == default.id)
+        assert renamed.name == "My calendar"
+        assert renamed.color == default.color
+        assert renamed.is_default, "renaming must not demote the default calendar"
+        assert len(after) == len(calendars), "renaming must not create a second default"
+    finally:
+        await _cleanup(admin_engine, user_id)
+
+
+async def test_renaming_someone_elses_calendar_is_a_miss(admin_engine: AsyncEngine) -> None:
+    mailer = CapturingMailer()
+    mine, my_org = await _account(mailer, "rn-owner")
+    theirs, their_org = await _account(mailer, "rn-other")
+    try:
+        async with org_session(their_org) as s:
+            target = (await list_calendars(SqlCalendarRepository(s, their_org), theirs))[0]
+
+        with pytest.raises(CalendarNotFound):
+            async with org_session(my_org) as s:
+                await update_calendar(
+                    SqlCalendarRepository(s, my_org), mine, target.id, name="Hijacked"
+                )
+
+        async with org_session(their_org) as s:
+            still = await list_calendars(SqlCalendarRepository(s, their_org), theirs)
+        assert next(c.name for c in still if c.id == target.id) == target.name
+    finally:
+        await _cleanup(admin_engine, mine, theirs)
+
+
+def test_a_patch_must_change_something() -> None:
+    from pydantic import ValidationError
+
+    from ghostcal.presentation.schemas import CalendarUpdateIn
+
+    with pytest.raises(ValidationError):
+        CalendarUpdateIn()
+    with pytest.raises(ValidationError):
+        CalendarUpdateIn(name="   ")
+    assert CalendarUpdateIn(name="  My calendar ").name == "My calendar"
+    assert CalendarUpdateIn(color="#ff2d95").name is None
 
 
 async def test_a_subscription_can_be_recoloured(admin_engine: AsyncEngine) -> None:

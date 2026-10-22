@@ -160,3 +160,12 @@ export function PlusIcon(props: SVGProps<SVGSVGElement>) {
     </Icon>
   );
 }
+
+export function PencilIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M4 20h4L19 9l-4-4L4 16v4Z" />
+      <path d="m13.5 6.5 4 4" />
+    </Icon>
+  );
+}

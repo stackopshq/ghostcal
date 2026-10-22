@@ -26,9 +26,9 @@ from ghostcal.application.calendar import (
     get_event,
     list_calendars,
     list_shares,
-    set_calendar_color,
     share_calendar,
     unshare_calendar,
+    update_calendar,
     update_event,
 )
 from ghostcal.application.subscriptions import (
@@ -56,7 +56,7 @@ from ghostcal.presentation.schemas import (
     AttendeeOut,
     CalendarIn,
     CalendarOut,
-    CalendarPatchIn,
+    CalendarUpdateIn,
     CreatedOut,
     EventIn,
     EventOut,
@@ -164,24 +164,25 @@ async def create_my_calendar(
 
 
 @router.patch("/calendars/{calendar_id}", status_code=204)
-async def recolor_my_calendar(
+async def update_my_calendar(
     calendar_id: uuid.UUID,
-    payload: CalendarPatchIn,
+    payload: CalendarUpdateIn,
     member: Member = Depends(current_member),
 ) -> None:
-    """Change a calendar's colour once it exists.
+    """Rename and/or recolour a calendar once it exists.
 
-    PATCH rather than PUT: the body carries the one field that changes, so a client that has not
+    PATCH rather than PUT: the body carries only the fields that change, so a client that has not
     read the calendar cannot blank the rest of it by omission. GhostCal has already paid for that
     distinction once, on event types, where a PUT missing a field reset it silently.
     """
     async with org_session(member.organization_id) as session:
         try:
-            await set_calendar_color(
+            await update_calendar(
                 _repo(session, member.organization_id),
                 member.user.id,
                 calendar_id,
-                payload.color,
+                name=payload.name,
+                color=payload.color,
             )
         except CalendarNotFound as exc:
             raise HTTPException(status_code=404, detail="calendar not found") from exc
