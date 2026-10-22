@@ -9,6 +9,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ghostcal/ecrans/colonne_laterale.dart';
 import 'package:ghostcal/ecrans/renommer_un_calendrier.dart';
 import 'package:ghostcal/services/agenda.dart';
 import 'package:ghostcal/services/api.dart';
@@ -243,6 +244,60 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Rename calendar'), findsOneWidget);
       expect(find.text('Save'), findsOneWidget);
+    });
+  });
+
+  group('la colonne latérale', () {
+    // Elle remplace la feuille du bas au-dessus de 900 points de large — donc sur un iPad
+    // de treize pouces, qui en fait 1032. Un crayon présent seulement dans la feuille
+    // serait introuvable précisément là où l'écran est assez grand pour qu'on administre
+    // ses calendriers.
+    Widget colonne(List<Calendrier> calendriers, {ValueChanged<Calendrier>? surRenommage}) =>
+        appDEpreuve(Scaffold(
+          body: ColonneLaterale(
+            onglet: 0,
+            surOnglet: (_) {},
+            calendriers: calendriers,
+            masques: const {},
+            surMasques: (_) {},
+            ancre: DateTime(2026, 10, 22),
+            surJour: (_) {},
+            surRenommage: surRenommage,
+          ),
+        ));
+
+    testWidgets('un crayon sur les siens', (tester) async {
+      await tester.pumpWidget(colonne([calendrier()], surRenommage: (_) {}));
+      await tester.pump();
+      expect(find.byKey(const Key('colonne.renommer.c1')), findsOneWidget);
+    });
+
+    testWidgets("aucun crayon sur le calendrier d'un autre", (tester) async {
+      await tester.pumpWidget(
+        colonne([calendrier(id: 'c2', partage: true)], surRenommage: (_) {}),
+      );
+      await tester.pump();
+      expect(find.byKey(const Key('colonne.renommer.c2')), findsNothing);
+    });
+
+    testWidgets('aucun crayon quand personne ne peut renommer', (tester) async {
+      // Sur macOS la colonne existe aussi ; si l'écran qui la monte ne sait pas renommer,
+      // elle ne doit pas dessiner un bouton mort.
+      await tester.pumpWidget(colonne([calendrier()]));
+      await tester.pump();
+      expect(find.byKey(const Key('colonne.renommer.c1')), findsNothing);
+    });
+
+    testWidgets('il rend le calendrier touché, et lui seul', (tester) async {
+      final touches = <String>[];
+      await tester.pumpWidget(colonne(
+        [calendrier(), calendrier(id: 'c9', nom: 'Perso')],
+        surRenommage: (c) => touches.add(c.id),
+      ));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('colonne.renommer.c9')));
+      await tester.pump();
+      expect(touches, ['c9']);
     });
   });
 }

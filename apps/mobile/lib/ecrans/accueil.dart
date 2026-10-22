@@ -305,6 +305,9 @@ class _EcranDAccueilState extends State<EcranDAccueil>
           onglet: _onglet,
           surOnglet: (indice) => setState(() => _onglet = indice),
           calendriers: agenda?.calendriers ?? const [],
+          surRenommage: agenda == null
+              ? null
+              : (c) => _renommer(agenda, c, (f) => setState(f)),
           masques: agenda?.masques ?? const {},
           surMasques: (m) => agenda?.masquer(m),
           ancre: agenda?.ancre ?? DateTime.now(),
