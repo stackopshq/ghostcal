@@ -637,6 +637,9 @@ class LEn extends L {
   String get vueListe => 'List';
 
   @override
+  String get vueAnnee => 'Year';
+
+  @override
   String get periodePrecedente => 'Previous';
 
   @override

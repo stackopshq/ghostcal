@@ -6,14 +6,16 @@ enum VueDAgenda {
   jour,
   semaine,
   mois,
-  liste;
+  liste,
+  annee;
 
   String libelle(L l) => switch (this) {
-        VueDAgenda.jour => l.vueJour,
-        VueDAgenda.semaine => l.vueSemaine,
-        VueDAgenda.mois => l.vueMois,
-        VueDAgenda.liste => l.vueListe,
-      };
+    VueDAgenda.jour => l.vueJour,
+    VueDAgenda.semaine => l.vueSemaine,
+    VueDAgenda.mois => l.vueMois,
+    VueDAgenda.liste => l.vueListe,
+    VueDAgenda.annee => l.vueAnnee,
+  };
 
   static const _cle = 'ghostcal.agenda.vue';
 
@@ -21,8 +23,10 @@ enum VueDAgenda {
   static Future<VueDAgenda> retenue() async {
     try {
       final brut = await Trousseau.lire(_cle);
-      return VueDAgenda.values.firstWhere((v) => v.name == brut,
-          orElse: () => VueDAgenda.jour);
+      return VueDAgenda.values.firstWhere(
+        (v) => v.name == brut,
+        orElse: () => VueDAgenda.jour,
+      );
     } on Object {
       return VueDAgenda.jour;
     }

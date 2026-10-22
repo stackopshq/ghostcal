@@ -35,18 +35,19 @@ quand même, pour les raisons données dans son propre en-tête.
 machine, contre un vrai serveur, et mesure ce qu'aucun témoin hors matériel ne peut dire.
 Voir « Ce qui a été vérifié ».
 
-## Ce qui manque, et c'est une seule chose
+## Pourquoi `flutter build` ne suffit pas
 
-**Il n'y a pas de certificat « Developer ID Application » sur cette machine.**
+Le certificat « Developer ID Application » est là depuis le 2026-10-20 :
 
 ```
 $ security find-identity -v -p codesigning
   1) … "Apple Development: clara@stackops.ch (RJ29WBG4US)"
   2) … "Apple Development: Clara Vanacker (W2P4BU4H3S)"
-     2 valid identities found
+  3) … "Developer ID Application: Clara Vanacker (9WHCJ5W7S6)"
+     3 valid identities found
 ```
 
-Conséquence directe, et elle n'est pas cosmétique : `flutter build macos --release`
+Mais l'avoir ne suffit pas, et c'est ce que cette section garde : `flutter build macos --release`
 produit un paquet signé **en développement**, qui porte
 `com.apple.security.get-task-allow`. Relevé sur le paquet construit le 2026-10-15 :
 
@@ -74,17 +75,33 @@ C'est le comportement attendu d'un paquet de développement, pas un défaut du p
 signature Developer ID ne se pose **pas** par `flutter build` : elle se pose à
 l'exportation d'une archive, qui re-signe tout et laisse `get-task-allow` derrière.
 
-## La marche à suivre, pour Kevin
+## La marche à suivre
 
-Rien de ce qui suit n'a été exécuté. Chaque étape dit ce qu'elle produit et comment on
-voit qu'elle a marché.
+Exécutée en entier le 2026-10-20, pour la 1.4.0 puis la 1.4.1 — voir « Les versions
+notariées » plus bas. Chaque étape dit ce qu'elle produit et comment on voit qu'elle a
+marché, parce que c'est ce qui manquait le plus la première fois.
 
 ### 1 · Le certificat
 
 Dans Xcode, **Settings › Accounts › Manage Certificates › + › Developer ID Application**,
-avec un compte ayant le rôle *Account Holder* ou *Admin* sur l'équipe 9WHCJ5W7S6. Un rôle
-*Developer* ne peut pas en créer, et l'interface ne le dit pas : le bouton est simplement
+avec le compte **Account Holder** de l'équipe 9WHCJ5W7S6 — et lui seul. Ni *Admin* ni
+*Developer* ne peuvent en créer, et l'interface ne le dit pas : le bouton est simplement
 absent.
+
+L'API App Store Connect ne peut pas davantage le faire, et elle le dit en clair, ce qui
+est la seule fois de cette page où Apple est explicite. **Les deux types ont été
+essayés**, le 2026-10-20, pour qu'on n'ait pas à se demander si l'autre aurait marché :
+
+```
+POST /v1/certificates   DEVELOPER_ID_APPLICATION_G2   → 403
+POST /v1/certificates   DEVELOPER_ID_APPLICATION      → 403
+« This operation can only be performed by the Account Holder »
+```
+
+Et ce n'est pas une question de droits de la clé : « titulaire du compte » est une
+**personne**, pas un rôle qu'on attribue à une clé d'API. Une clé mieux dotée ne changerait
+rien. Inutile donc de chercher à automatiser cette étape, ni une variante d'appel : il n'y
+en a pas. Le certificat se crée à la main, dans Xcode, par cette personne-là.
 
 À vérifier avant de continuer :
 
@@ -92,11 +109,58 @@ absent.
 security find-identity -v -p codesigning | grep "Developer ID Application"
 ```
 
-### 2 · Le mot de passe d'application, pour notarytool
+#### Celui qu'on a est un G1, et il expire le 2027-02-01
 
-`notarytool` n'accepte pas le mot de passe du compte Apple. Il faut un **mot de passe pour
-application**, créé sur <https://account.apple.com> › Connexion et sécurité. Rangé une
-fois dans le trousseau, il n'est plus jamais retapé :
+Xcode délivre un certificat signé par l'autorité **G1**, et la validité d'un certificat ne
+dépasse jamais celle de son émetteur — ici à la seconde près. Relu sur la machine le
+2026-10-21 :
+
+```
+$ security find-certificate -c "Developer ID Application: Clara Vanacker" -p \
+    | openssl x509 -noout -issuer -enddate
+issuer=CN=Developer ID Certification Authority, …, O=Apple Inc.
+notAfter=Feb  1 22:12:15 2027 GMT
+```
+
+```
+notre certificat   notBefore=Oct 20 09:09:52 2026   notAfter=Feb  1 22:12:15 2027
+autorité G1        notBefore=Feb  1 22:12:15 2012   notAfter=Feb  1 22:12:15 2027
+autorité G2        OU=G2                            notAfter=Sep 17 00:00:00 2031
+```
+
+Trois mois et demi, là où un Developer ID dure normalement cinq ans. C'est pour cela
+qu'Apple a fait la G2.
+
+Trois conséquences, et la deuxième est celle qui se paie chez les autres :
+
+1. **On peut signer et distribuer aujourd'hui.** C'est fait : la 1.4.0 et la 1.4.1 sont
+   notariées et en ligne.
+2. **Il faut signer avec un horodatage sécurisé** — `--timestamp`, voir l'étape 3. Avec
+   lui, ce qui est distribué continue de s'ouvrir après le 1er février 2027 : l'horodatage
+   prouve que la signature était valide au moment où elle a été faite. Sans lui, **tout ce
+   qui a été distribué cesse de se vérifier à cette date**, et le défaut ne se voit jamais
+   sur la machine qui a signé — comme l'agrafage de l'application dans l'image.
+3. **Après le 1er février 2027, plus aucune build nouvelle** ne pourra être signée avec
+   celui-ci. Il faudra un G2, créé depuis `developer.apple.com` plutôt que depuis Xcode.
+
+Rien n'oblige à le faire maintenant. Mais le jour où ce certificat expire est connu, et
+c'est le genre d'échéance qu'on découvre autrement un vendredi soir.
+
+### 2 · De quoi s'authentifier auprès de notarytool
+
+Deux voies, et **c'est la seconde qui a servi** : elle évite de créer un second secret sur
+une machine qui en porte déjà un pour l'envoi iOS.
+
+**La clé API App Store Connect.** Si la machine en a déjà une — `~/.appstoreconnect/
+private_keys/AuthKey_<ID>.p8` —, `notarytool` l'accepte directement, avec l'identifiant de
+clé et celui d'émetteur. L'identifiant d'émetteur ne se déduit pas de la clé : c'est la
+revendication `iss` du jeton qu'il faut justement signer, et il s'affiche en clair dans
+App Store Connect, au-dessus du tableau des clés. Voir l'étape 5 pour l'invocation.
+
+**Le mot de passe pour application.** `notarytool` n'accepte pas le mot de passe du compte
+Apple. Il faut un **mot de passe pour application**, créé sur
+<https://account.apple.com> › Connexion et sécurité. Rangé une fois dans le trousseau, il
+n'est plus jamais retapé :
 
 ```sh
 xcrun notarytool store-credentials "ghostcal-notarisation" \
@@ -212,14 +276,26 @@ l'image ne voyage pas avec l'application qu'on en glisse vers *Applications* : u
 sortie, elle n'a plus rien de local, et son premier lancement redemande le réseau — ce
 qu'on ne voit jamais ici, puisque la machine qui notarise a toujours du réseau.
 
-L'ordre coûte un envoi de plus, et il n'y a pas moyen de l'éviter : l'image change quand
-on y remplace l'application, donc elle doit être resignée et renotariée.
+Il faut deux envois, mais **l'ordre décide de leur nature** : notariser l'application
+d'abord, ou refaire l'image. Le second est celui qu'on trouve en tâtonnant, et c'est le
+plus coûteux.
 
-1. notariser l'image (l'application qu'elle contient reçoit son billet au passage) ;
-2. `stapler staple` sur **l'application** — le billet est déjà émis pour son empreinte,
-   donc l'agrafe se pose sans réenvoi ;
-3. refabriquer l'image autour de l'application agrafée ;
-4. resigner l'image, la renotariser, l'agrafer.
+Le bon ordre — l'application part seule, dans une archive :
+
+1. `ditto -c -k --keepParent build/export/GhostCal.app build/GhostCal-app.zip` ;
+2. notariser ce `.zip` — le billet est émis pour l'empreinte de l'application ;
+3. `stapler staple` sur l'application ;
+4. fabriquer l'image **autour de l'application déjà agrafée** ;
+5. signer l'image, la notariser, l'agrafer.
+
+Chaque objet est notarié une fois, et rien n'est refait. L'archive ne sert qu'au transport :
+on ne la distribue pas, et on ne l'agrafe pas — c'est l'application qu'elle contient qui
+reçoit l'agrafe.
+
+L'ordre inverse — notariser l'image, puis découvrir que l'application n'a pas d'agrafe —
+oblige à refabriquer l'image autour de l'application agrafée, donc à la resigner et à la
+renotarier, puisqu'elle a changé. C'est ce qui a été fait pour la 1.4.0, avant de
+comprendre. Même nombre d'envois, mais une image construite deux fois.
 
 Le contrôle final porte sur les deux, et sur l'application montée depuis l'image :
 
@@ -255,11 +331,30 @@ franchit Gatekeeper sans être examiné.
 - le numéro de version, lisible sans télécharger ;
 - la somme SHA-256, pour qui veut vérifier. `shasum -a 256 build/GhostCal-1.2.0.dmg`.
 
-**Et rien avant que le web qui lit le format `v:1` soit en production.** L'application
-macOS écrit ses enveloppes en `v:1` — vérifié sur les octets rendus par le serveur, voir
-ci-dessous. Le web actuellement déployé ne les lit pas : un événement créé depuis le Mac
-s'afficherait illisible dans le navigateur. La version du web qui corrige cela est la
-#176 ; tant qu'elle n'est pas déployée, l'image disque ne se met pas en ligne.
+**La condition qui bloquait la mise en ligne est levée.** L'application macOS écrit ses
+enveloppes en `v:1`, et le web qui les lit (#176) est en production depuis le 2026-10-15 ;
+un événement créé depuis le Mac s'ouvre donc dans le navigateur. Ce qui précède est resté
+vrai plusieurs jours et ne l'est plus : avant la #176, un tel événement s'affichait
+illisible dans le web.
+
+L'image est jointe à la publication de la forge, sur l'étiquette `mobile-vX.Y.Z`, à côté
+de l'AAB et de l'APK. Elle ne vit plus dans le dépôt.
+
+## Les versions notariées
+
+| Version | Source | Envois acceptés | SHA-256 de l'image |
+|---|---|---|---|
+| 1.4.1 (6) | `0c1f6b6` | `81a324cf…` (application), `21e30a07…` (image) | `428b85efa09ab83bdf2b34222b1ae1f57609efb32e1e31139a71c900b752c255` |
+| 1.4.0 (5) | `b5e2846` | `f49a440d…`, `3a96acfd…` (image construite deux fois) | `a6c372fdf463ad928686d52402c4759742a225ac01f8dfeb6be317a5ad248b80` |
+
+Pour les deux : universelle `x86_64 arm64`, runtime durci, autorité Developer ID,
+horodatage sécurisé, `get-task-allow` absent, droits limités à `app-sandbox`,
+`network.client`, `files.user-selected.read-only` et `keychain-access-groups`. Les deux
+agrafes valides, `spctl` accepte l'image et l'application montée depuis l'image, et
+l'application s'ouvre avec sa barre de menus complète.
+
+Les images ne vivent plus dans le dépôt : elles sont jointes aux publications de la forge,
+sur l'étiquette `mobile-vX.Y.Z`.
 
 ## La notarisation du 2026-10-20
 
@@ -305,6 +400,7 @@ Campagne du 2026-10-15, `flutter test integration_test/macos_test.dart -d macos`
 | L'ouverture du coffre par Touch ID | **À la main**, par Clara, le 2026-10-20 sur l'application installée dans `/Applications` : cocher « Ouvrir avec Touch ID », verrouiller, rouvrir, poser le doigt. Aucun témoin ne peut le faire — c'est le propre d'une biométrie |
 | L'inscription aux ouvertures de session | Posée, relue **auprès du système**, puis remise comme elle était — un témoin n'a pas à laisser une entrée dans les Réglages Système de qui l'exécute |
 | Les dix raccourcis de la barre de menus | Deux moitiés, mesurées séparément. La frappe → l'envoi natif : l'envoi instrumenté, les dix équivalents déclenchés par `System Events`, **y compris sur ABC-AZERTY** — voir ci-dessous. L'envoi → l'écran : `integration_test/macos_test.dart`, qui pousse chaque commande sur le canal et relit la vue, l'ancre, l'écran de recherche et l'état du coffre |
+| Une série récurrente survit à une modification depuis le Mac | `tools/semer-une-serie.py` dépose une série dont le rappel est posé **par le serveur**, comme le web le fait. Le témoin modifie la série depuis l'application, retire une occurrence, puis supprime tout — et relit `rrule`, `exdates` et `reminder_minutes` **sur le serveur** à chaque étape. Un titre correct à l'écran ne dit rien de ce qui a été écrit, et c'est là que la perte se produisait : la route `PUT` remplace l'enregistrement entier |
 | Les deux côtés parlent la même langue | `test/menu_macos_test.dart` compare les noms de méthode émis par le Swift à ceux traités par `accueil.dart`, dans les deux sens. Sans témoin, un item renommé d'un seul côté donne un raccourci qui ne fait rien, en silence |
 
 ### Les chiffres, sur un clavier qui n'en porte pas à cet endroit

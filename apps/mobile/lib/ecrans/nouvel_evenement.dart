@@ -22,7 +22,15 @@ class EcranDeNouvelEvenement extends StatefulWidget {
     this.evenement,
     this.debut,
     this.occurrence,
+    this.surFin,
   });
+
+  /// Comment l'écran se referme, quand il n'est **pas** une route.
+  ///
+  /// Sur une fenêtre large l'agenda le loge dans un panneau à côté de la grille, et il
+  /// n'y a alors aucune route à dépiler : `Navigator.pop` y retirerait l'agenda
+  /// lui-même. Le drapeau dit si quelque chose a changé, donc s'il faut recharger.
+  final ValueChanged<bool>? surFin;
 
   /// The start of the occurrence tapped in the agenda, for a series: the one "delete
   /// this occurrence" removes.
@@ -196,7 +204,7 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
           organisation: organisation,
         );
       }
-      if (mounted) Navigator.of(context).pop(true);
+      _terminer(true);
     } on Object catch (e) {
       if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     } finally {
@@ -243,12 +251,23 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
       } else {
         await agenda.supprimerUnEvenement(widget.evenement!);
       }
-      if (mounted) Navigator.of(context).pop(true);
+      _terminer(true);
     } on Object catch (e) {
       if (mounted) setState(() => _erreur = lisible(e, L.of(context)));
     } finally {
       if (mounted) setState(() => _occupe = false);
     }
+  }
+
+  /// Referme, par la route ou par le panneau selon la façon dont l'écran est monté.
+  void _terminer(bool modifie) {
+    if (!mounted) return;
+    final surFin = widget.surFin;
+    if (surFin != null) {
+      surFin(modifie);
+      return;
+    }
+    Navigator.of(context).pop(modifie);
   }
 
   @override
@@ -270,6 +289,14 @@ class _EcranDeNouvelEvenementState extends State<EcranDeNouvelEvenement> {
     return FondGhost(
       child: Scaffold(
         appBar: AppBar(
+          automaticallyImplyLeading: widget.surFin == null,
+          leading: widget.surFin == null
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: L.of(context).annuler,
+                  onPressed: () => _terminer(false),
+                ),
           title: Text(
             _modification
                 ? L.of(context).modifierLEvenement

@@ -640,6 +640,9 @@ class LFr extends L {
   String get vueListe => 'Liste';
 
   @override
+  String get vueAnnee => 'Année';
+
+  @override
   String get periodePrecedente => 'Précédent';
 
   @override

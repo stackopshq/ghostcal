@@ -292,6 +292,10 @@ def _is_worth_retrying(status_code: int) -> bool:
 @celery_app.task(  # type: ignore[untyped-decorator]
     name="ghostcal.send_email",
     bind=True,
+    # Personne ne lit le résultat d'un envoi de courriel : c'est `hand_off` qui décide, et il
+    # décide sans attendre. Le déclarer évite que la publication touche le dépôt de résultats,
+    # dont les reprises comptaient pour une bonne part des vingt secondes mesurées.
+    ignore_result=True,
     autoretry_for=(EmailDeferred,),
     retry_backoff=_settings.task_retry_backoff_seconds,
     retry_backoff_max=600,

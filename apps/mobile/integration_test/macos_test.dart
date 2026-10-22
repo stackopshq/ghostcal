@@ -51,7 +51,21 @@ import 'package:ghostcal/src/rust/frb_generated.dart';
 
 /// The bottom bar's menu holds the agenda's views and the other sections, since the
 /// floating bar replaced the tab bar.
+/// Change de vue, par le chemin que la fenêtre offre.
+///
+/// Au-dessus du seuil de bureau les quatre vues sont dans le segmenté de la barre de
+/// titre ; en dessous elles restent dans la feuille du menu. Un témoin qui ne
+/// connaîtrait qu'un des deux chemins échouerait selon la taille de la fenêtre, en
+/// accusant l'écran plutôt que lui-même.
 Future<void> allerA(WidgetTester tester, String entree) async {
+  final segmente = find.byKey(const Key('bureau.vues'));
+  if (segmente.evaluate().isNotEmpty) {
+    await tester.tap(
+      find.descendant(of: segmente, matching: find.text(entree)),
+    );
+    await tester.pumpAndSettle();
+    return;
+  }
   await tester.tap(find.byKey(const Key('accueil.menu')));
   await tester.pumpAndSettle();
   await tester.tap(find.text(entree).last);
@@ -194,7 +208,11 @@ void main() {
         final champ = find.byKey(Key(cle));
         if (champ.evaluate().isNotEmpty) await tester.enterText(champ, valeur);
       }
-      await tester.pumpAndSettle();
+      // Pas de `pumpAndSettle` : le champ qu'on vient de remplir a le focus, et un
+      // curseur qui clignote n'est jamais « stable ».
+      await tester.pump();
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+      await tester.pump();
       await tester.testTextInput.receiveAction(TextInputAction.done);
     }
 
@@ -224,7 +242,18 @@ void main() {
       await tester.pump(const Duration(milliseconds: 250));
       await Future<void>.delayed(const Duration(milliseconds: 250));
     }
-    await tester.pumpAndSettle();
+    // Et surtout pas ici. `accueil.pret` paraît dès que le coffre est ouvert ; l'agenda,
+    // lui, charge encore, son indicateur tourne, l'arbre n'est jamais stable, et le
+    // témoin meurt au délai de trois minutes **sans dire où**.
+    //
+    // Ça ne se produisait que lorsque le serveur était lent sur ce tour-là — une fois
+    // sur deux, une fois sur dix. Mesuré le 2026-10-22 : le même commit bloqué puis vert
+    // à la relance. J'ai bissecté quatre fois mon propre code avant de douter du harnais.
+    // Un témoin instable ne coûte pas une relance : il coûte la confiance qu'on met dans
+    // tous les autres.
+    await tester.pump();
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    await tester.pump();
   }
 
   /// Attend qu'un libellé paraisse, puis rend la main.
@@ -659,4 +688,329 @@ void main() {
       'Le coffre ne s\'est pas refermé sur ⌘L',
     );
   }, timeout: const Timeout(Duration(minutes: 3)));
+
+  // ─── La récurrence ───
+  //
+  // Déposée par `tools/semer-une-serie.py`, avec un rappel posé **par le serveur** et non
+  // par l'application : c'est le cas qui a cassé. Un rappel réglé depuis le web vit dans
+  // `reminder_minutes`, un champ que l'application n'affiche pas et doit pourtant renvoyer
+  // tel quel. La route `PUT` remplace l'enregistrement entier, donc tout champ omis
+  // revient à sa valeur par défaut — en silence.
+  //
+  // Le témoin relit **le serveur**, pas l'écran : un titre correct à l'écran ne dit rien
+  // de ce qui a été écrit, et c'est précisément là que la perte se produisait.
+
+  /// Un client HTTP pour interroger le banc en direct, à côté de l'application.
+  ///
+  /// Le témoin ne peut pas déchiffrer les enveloppes, mais `rrule`, `exdates` et
+  /// `reminder_minutes` sont **en clair** côté serveur : ce sont des colonnes, pas du
+  /// contenu scellé. C'est ce qui rend cette épreuve possible sans clé.
+  Future<Map<String, dynamic>> interroger(
+    String chemin,
+    String jeton, {
+    String? organisation,
+  }) async {
+    final client = HttpClient();
+    try {
+      final requete = await client.getUrl(Uri.parse('http://$serveur/$chemin'));
+      requete.headers.set('authorization', 'Bearer $jeton');
+      if (organisation != null) {
+        requete.headers.set('x-organization-id', organisation);
+      }
+      final reponse = await requete.close();
+      final corps = await reponse.transform(utf8.decoder).join();
+      if (reponse.statusCode == 404) return {'absent': true};
+      return jsonDecode(corps) as Map<String, dynamic>;
+    } finally {
+      client.close();
+    }
+  }
+
+  testWidgets(
+    'modifier une série depuis le Mac garde rrule, exdates et le rappel du web',
+    (tester) async {
+      // ─── D'abord le banc, avant de monter quoi que ce soit ───
+      final client = HttpClient();
+      late String jeton;
+      late String organisation;
+      late List<dynamic> lignes;
+      try {
+        final connexion = await client.postUrl(
+          Uri.parse('http://$serveur/v1/auth/login'),
+        );
+        connexion.headers.contentType = ContentType.json;
+        connexion.write(jsonEncode({'email': email, 'password': phrase}));
+        final reponse = await connexion.close();
+        jeton =
+            (jsonDecode(await reponse.transform(utf8.decoder).join())
+                    as Map<String, dynamic>)['access_token']
+                as String;
+
+        final cles = await client.getUrl(
+          Uri.parse('http://$serveur/v1/auth/zk-keys'),
+        );
+        cles.headers.set('authorization', 'Bearer $jeton');
+        final reponseCles = await cles.close();
+        final generations = jsonDecode(
+          await reponseCles.transform(utf8.decoder).join(),
+        ) as List<dynamic>;
+        organisation =
+            (generations.last as Map<String, dynamic>)['organization_id']
+                as String;
+
+        final de = DateTime.now().toUtc();
+        final a = de.add(const Duration(days: 60));
+        final agenda = await client.getUrl(
+          Uri.parse(
+            'http://$serveur/v1/me/calendar/agenda'
+            '?from=${Uri.encodeQueryComponent(de.toIso8601String())}'
+            '&to=${Uri.encodeQueryComponent(a.toIso8601String())}',
+          ),
+        );
+        agenda.headers.set('authorization', 'Bearer $jeton');
+        agenda.headers.set('x-organization-id', organisation);
+        final reponseAgenda = await agenda.close();
+        lignes = jsonDecode(
+          await reponseAgenda.transform(utf8.decoder).join(),
+        ) as List<dynamic>;
+      } finally {
+        client.close();
+      }
+
+      // La série se reconnaît à son `rrule`, et non à un identifiant passé en paramètre :
+      // le témoin reste utilisable après n'importe quel réamorçage du banc.
+      String? identifiant;
+      Map<String, dynamic>? serie;
+      for (final id in {
+        for (final l in lignes.whereType<Map<String, dynamic>>())
+          if (l['event_id'] != null) '${l['event_id']}',
+      }) {
+        final e = await interroger(
+          'v1/me/calendar/events/$id',
+          jeton,
+          organisation: organisation,
+        );
+        if ((e['rrule'] as String?)?.isNotEmpty ?? false) {
+          identifiant = id;
+          serie = e;
+          break;
+        }
+      }
+      expect(
+        identifiant,
+        isNotNull,
+        reason: 'Aucune série sur le banc. Lancer `tools/semer-une-serie.py`.',
+      );
+      final rrule = serie!['rrule'] as String;
+      final rappel = serie['reminder_minutes'];
+      expect(
+        rappel,
+        isNotNull,
+        reason:
+            'La série doit porter un rappel posé par le serveur, comme le web',
+      );
+      expect(serie['exdates'], isEmpty, reason: 'La série part sans exception');
+
+      await monter(tester, langue: const Locale('fr'));
+      await ouvrirLeCoffre(tester);
+
+      // La vue « Liste » couvre trente jours depuis l'ancre, donc la première occurrence
+      // de demain y est, sans navigation à tâtons.
+      Future<void> commande(String methode, [String? argument]) async {
+        unawaited(
+          tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+            'ch.stackops.ghostcal/menu',
+            const StandardMethodCodec().encodeMethodCall(
+              MethodCall(methode, argument),
+            ),
+            (_) {},
+          ),
+        );
+        await tester.pump();
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        await tester.pump();
+      }
+
+      /// Fait défiler jusqu'à ce que la cible paraisse.
+      ///
+      /// Un `ListView` ne construit que ce qui est visible : `find.text` ne trouve donc
+      /// pas une ligne située sous le pli, et `attendre` échouerait en accusant
+      /// l'application de ne pas l'afficher. Le défilement est manuel plutôt que
+      /// `scrollUntilVisible`, qui stabilise l'arbre — impossible tant qu'un indicateur
+      /// de chargement tourne.
+      Future<void> faireApparaitre(Finder quoi, String raison) async {
+        for (var essai = 0; essai < 40; essai++) {
+          if (quoi.evaluate().isNotEmpty) return;
+          final defilable = find.byType(Scrollable);
+          if (defilable.evaluate().isNotEmpty) {
+            await tester.drag(defilable.first, const Offset(0, -200));
+          }
+          await tester.pump(const Duration(milliseconds: 150));
+          await Future<void>.delayed(const Duration(milliseconds: 150));
+        }
+        fail(raison);
+      }
+
+      /// Touche une cible après s'être assuré qu'elle est **dans le champ visible**.
+      ///
+      /// `find.text(...).evaluate()` rend aussi les widgets construits d'avance dans le
+      /// `cacheExtent` du `ListView`, qui sont hors de l'écran. Les toucher envoie la
+      /// frappe au centre d'un rectangle invisible : le test ne rouspète pas, rien ne
+      /// s'ouvre, et l'échec se lit ensuite comme « l'écran de modification ne s'ouvre
+      /// pas » — en accusant l'application. Mesuré : après la touche, l'agenda était
+      /// toujours à l'écran, sans champ de saisie ni indicateur de chargement.
+      Future<void> toucher(Finder quoi) async {
+        await tester.ensureVisible(quoi);
+        await tester.pump(const Duration(milliseconds: 200));
+        await tester.tap(quoi);
+        await tester.pump();
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+        await tester.pump();
+      }
+
+      await commande('vue', 'liste');
+      await Future<void>.delayed(const Duration(seconds: 2));
+      await tester.pump();
+      await faireApparaitre(
+        find.text("Série d'épreuve"),
+        "La série n'apparaît pas dans la vue Liste, même en défilant",
+      );
+
+      // ─── Modifier la série ───
+      /// Ouvre la série, et réessaie.
+      ///
+      /// L'enregistrement et le retrait d'une occurrence déclenchent tous deux un
+      /// rechargement de l'agenda : la liste se reconstruit sous la frappe, et une touche
+      /// partie au bon endroit atterrit parfois dans le vide. Une seule tentative rendait
+      /// ce témoin instable — il passait, puis échouait à la même ligne sans que rien
+      /// n'ait changé, ce qui est la pire façon d'échouer : on cherche la panne dans
+      /// l'application.
+      Future<void> ouvrirLaSerie(String titre, String raison) async {
+        for (var essai = 0; essai < 4; essai++) {
+          await faireApparaitre(find.text(titre), raison);
+          await toucher(find.text(titre).first);
+          for (var attente = 0; attente < 12; attente++) {
+            if (find
+                .byKey(const Key('evenement.serie'))
+                .evaluate()
+                .isNotEmpty) {
+              return;
+            }
+            await tester.pump(const Duration(milliseconds: 250));
+            await Future<void>.delayed(const Duration(milliseconds: 250));
+          }
+        }
+        fail(raison);
+      }
+
+      await ouvrirLaSerie(
+        "Série d'épreuve",
+        "L'écran ne prévient pas que la modification vaut pour toute la série",
+      );
+
+      // Un titre unique à chaque exécution. Une épreuve interrompue laisse derrière elle
+      // un événement portant le titre modifié — et si sa récurrence a sauté entre-temps,
+      // le nettoyage du semoir ne le voit pas, puisqu'il ne retire que ce qui a un
+      // `rrule`. Un titre fixe faisait alors tomber la seconde ouverture sur le résidu,
+      // qui ne se répète pas : le témoin accusait l'application de ne plus signaler la
+      // série. Mesuré, après une injection de faute qui avait laissé un tel résidu.
+      final nouveauTitre =
+          'Série modifiée ${DateTime.now().millisecondsSinceEpoch}';
+      await tester.enterText(find.byType(TextField).first, nouveauTitre);
+      await tester.pump();
+      await tester.tap(find.text('Enregistrer'));
+      await attendre(
+        tester,
+        find.text(nouveauTitre),
+        "Le nouveau titre ne revient pas dans l'agenda : l'enregistrement a échoué",
+      );
+
+      var relu = await interroger(
+        'v1/me/calendar/events/$identifiant',
+        jeton,
+        organisation: organisation,
+      );
+      expect(relu['rrule'], rrule, reason: 'la modification a perdu rrule');
+      expect(
+        relu['reminder_minutes'],
+        rappel,
+        reason: 'la modification a perdu le rappel posé par le web',
+      );
+      expect(
+        relu['exdates'],
+        isEmpty,
+        reason: 'la modification a inventé une exception',
+      );
+
+      // ─── Supprimer une occurrence ───
+      await ouvrirLaSerie(
+        nouveauTitre,
+        "L'écran de modification ne s'ouvre pas une seconde fois",
+      );
+      await tester.tap(find.byTooltip('Supprimer'));
+      await attendre(
+        tester,
+        find.byKey(const Key('evenement.supprimer.occurrence')),
+        'Une série doit proposer de ne retirer que cette occurrence',
+      );
+      await tester.tap(find.byKey(const Key('evenement.supprimer.occurrence')));
+      await tester.pump();
+      await Future<void>.delayed(const Duration(seconds: 2));
+      await tester.pump();
+
+      relu = await interroger(
+        'v1/me/calendar/events/$identifiant',
+        jeton,
+        organisation: organisation,
+      );
+      expect(
+        relu['exdates'],
+        hasLength(1),
+        reason: "retirer une occurrence doit l'ajouter aux exceptions",
+      );
+      expect(
+        relu['rrule'],
+        rrule,
+        reason: 'retirer une occurrence a perdu rrule',
+      );
+      expect(
+        relu['reminder_minutes'],
+        rappel,
+        reason: 'retirer une occurrence a perdu le rappel',
+      );
+
+      // ─── Supprimer toute la série ───
+      await attendre(
+        tester,
+        find.text(nouveauTitre),
+        'La série devait rester : une seule occurrence a été retirée',
+      );
+      await ouvrirLaSerie(
+        nouveauTitre,
+        "L'écran de modification ne s'ouvre pas une troisième fois",
+      );
+      await tester.tap(find.byTooltip('Supprimer'));
+      await attendre(
+        tester,
+        find.byKey(const Key('evenement.supprimer.tout')),
+        'Une série doit proposer de tout supprimer',
+      );
+      await tester.tap(find.byKey(const Key('evenement.supprimer.tout')));
+      await tester.pump();
+      await Future<void>.delayed(const Duration(seconds: 2));
+      await tester.pump();
+
+      relu = await interroger(
+        'v1/me/calendar/events/$identifiant',
+        jeton,
+        organisation: organisation,
+      );
+      expect(
+        relu['absent'],
+        isTrue,
+        reason: 'toute la série devait disparaître du serveur',
+      );
+    },
+    timeout: const Timeout(Duration(minutes: 4)),
+  );
 }

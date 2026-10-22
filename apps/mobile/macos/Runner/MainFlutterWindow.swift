@@ -51,6 +51,44 @@ class MainFlutterWindow: NSWindow {
     // session, et n'utilise les deux appels précédents que lorsqu'il n'a rien à restituer.
     self.setFrameAutosaveName("GhostCal.fenetre")
 
+    // ─── La barre de titre devient la barre d'outils ───
+    //
+    // Sans cela, l'application porte une barre de titre vide au-dessus de ses propres
+    // commandes : deux bandeaux empilés, dont un ne sert à rien. C'est l'un des trois
+    // signes qui font lire ce portage comme une application de téléphone étirée.
+    //
+    // `fullSizeContentView` fait passer la vue Flutter **sous** la barre de titre ; la
+    // transparence et le titre masqué la rendent invisible. Il ne reste que les trois
+    // pastilles, qui se retrouvent alors sur la même ligne que nos boutons — exactement
+    // ce que font Fantastical, Calendrier et les Réglages Système.
+    //
+    // Ce qui reste à éprouver **à la main** : tirer la fenêtre par la barre. En théorie
+    // `NSWindow` traite le glissement dans cette bande, pas la vue Flutter. Un essai par
+    // `System Events` ne vaut rien ici — poser une position n'est pas un glissement, et
+    // je l'ai vérifié par acquit de conscience : ça passe dans les deux cas. Tant que
+    // personne n'a tiré la fenêtre, on n'en sait rien.
+    //
+    // Côté Flutter, le bord gauche est réservé aux pastilles : y poser un bouton le
+    // rendrait inatteignable. Voir `_barreDeTitre` dans `accueil.dart`, qui porte la
+    // mesure.
+    self.titlebarAppearsTransparent = true
+    self.titleVisibility = .hidden
+    self.styleMask.insert(.fullSizeContentView)
+
+    // ─── Et les pastilles se centrent sur nos boutons ───
+    //
+    // Sans ceci, macOS les place dans une barre de titre de 28 points : centrées à 16,
+    // quand nos boutons le sont à 26 dans une barre de 52. Dix points de décalage —
+    // assez pour qu'on sente que ça ne vient pas du système, sans pouvoir dire pourquoi.
+    // Mesuré par `System Events` : pastilles de 16×16 à x = 8, 31, 54.
+    //
+    // Une `NSToolbar` vide en style **unifié** fait grandir la barre de titre à la
+    // hauteur de la barre d'outils, et macOS y recentre les pastilles lui-même. Elle
+    // reste vide : nos commandes sont dessinées par Flutter, pas par AppKit.
+    let barreUnifiee = NSToolbar(identifier: "GhostCal.barre")
+    self.toolbar = barreUnifiee
+    self.toolbarStyle = .unified
+
     RegisterGeneratedPlugins(registry: flutterViewController)
     // Hors du registre engendré, qui est réécrit à chaque `flutter pub get` : ce qu'on y
     // ajouterait serait effacé sans message, et la photo de profil cesserait de partir

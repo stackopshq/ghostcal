@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -13,6 +15,7 @@ import '../services/verrouillage.dart';
 import '../services/vue_agenda.dart';
 import '../theme.dart';
 import 'agenda_jours.dart';
+import 'agenda_annee.dart';
 import 'agenda_vues.dart';
 import 'nouvel_evenement.dart';
 import 'recherche.dart';
@@ -79,6 +82,14 @@ class EcranDAgendaState extends State<EcranDAgenda> {
   Set<String> _masques = const {};
   ModeDuMois _modeDuMois = ModeDuMois.automatique;
 
+  /// Ce que le panneau d'inspection montre, sur les fenêtres larges.
+  ///
+  /// `null` quand il n'y a rien à montrer — le panneau disparaît alors et la grille
+  /// reprend toute la place. Sur un téléphone il reste toujours `null` : l'écran y est
+  /// poussé par-dessus, comme avant.
+  ({String? evenement, DateTime jour, DateTime? debut, DateTime? occurrence})?
+  _inspecte;
+
   @override
   void initState() {
     super.initState();
@@ -135,6 +146,10 @@ class EcranDAgendaState extends State<EcranDAgenda> {
   /// The macOS menu bar drives these two. `_allerA` and `_deplacer` stay private:
   /// they take an anchor and a sign that only this screen knows how to form.
   void allerAujourdhui() => _allerA(DateTime.now());
+
+  /// Le mini-mois de la colonne latérale saute à n'importe quel jour — là où les
+  /// chevrons de l'en-tête coûtent un clic par période franchie.
+  void allerAuJour(DateTime jour) => _allerA(jour);
   void deplacer(int sens) => _deplacer(sens);
 
   Future<void> masquer(Set<String> masques) async {
@@ -159,6 +174,11 @@ class EcranDAgendaState extends State<EcranDAgenda> {
       ),
     );
   }
+
+  /// Le même seuil que la chrome de l'accueil, et pour la même raison : c'est la place
+  /// qui décide, pas la plateforme. En dessous, un panneau de 340 points laisserait à la
+  /// grille de quoi afficher trois colonnes.
+  bool get _bureau => MediaQuery.sizeOf(context).width >= Mesures.seuilBureau;
 
   bool _visible(LigneDAgenda ligne) =>
       ligne.calendrier == null || !_masques.contains(ligne.calendrier);
@@ -198,6 +218,12 @@ class EcranDAgendaState extends State<EcranDAgenda> {
         return (de: jours.first, a: plusJours(jours.last, 1));
       case VueDAgenda.liste:
         return (de: _ancre, a: plusJours(_ancre, _joursDeLaListe));
+      case VueDAgenda.annee:
+        // L'année ne montre aucun contenu, seulement des nombres : charger douze mois
+        // d'événements pour ne rien en dessiner coûterait une requête par ouverture,
+        // sur la fenêtre la plus large de l'application. Le serveur refuse d'ailleurs
+        // au-delà de 366 jours.
+        return (de: _ancre, a: plusJours(_ancre, 1));
     }
   }
 
@@ -298,6 +324,7 @@ class EcranDAgendaState extends State<EcranDAgenda> {
       VueDAgenda.semaine => plusJours(_ancre, 7 * sens),
       VueDAgenda.mois => plusMois(_ancre, sens),
       VueDAgenda.liste => plusJours(_ancre, _joursDeLaListe * sens),
+      VueDAgenda.annee => plusAnnees(_ancre, sens),
     };
     _allerA(cible);
   }
@@ -329,6 +356,9 @@ class EcranDAgendaState extends State<EcranDAgenda> {
           '${DateFormat.MMMd(langue).format(debut)} – ${DateFormat.MMMd(langue).format(fin)}',
           DateFormat.y(langue).format(fin),
         );
+      case VueDAgenda.annee:
+        // L'année porte son propre nom : « Octobre 2026 » devant douze mois serait faux.
+        return ('', annee);
       case VueDAgenda.mois:
       case VueDAgenda.liste:
         // "octobre" heads the screen: a title takes its capital in French too.
@@ -369,6 +399,17 @@ class EcranDAgendaState extends State<EcranDAgenda> {
       _calendriers.where((c) => c.inscriptible).toList();
 
   Future<void> _nouvelEvenement({DateTime? debut}) async {
+    if (_bureau) {
+      setState(
+        () => _inspecte = (
+          evenement: null,
+          jour: debut ?? _ancre,
+          debut: debut,
+          occurrence: null,
+        ),
+      );
+      return;
+    }
     final cree = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => EcranDeNouvelEvenement(
@@ -427,6 +468,17 @@ class EcranDAgendaState extends State<EcranDAgenda> {
               ],
             ),
           ),
+        ),
+      );
+      return;
+    }
+    if (_bureau) {
+      setState(
+        () => _inspecte = (
+          evenement: ligne.evenement,
+          jour: ligne.debut,
+          debut: null,
+          occurrence: ligne.debut,
         ),
       );
       return;
@@ -516,11 +568,50 @@ class EcranDAgendaState extends State<EcranDAgenda> {
                 if (vitesse.abs() < 300) return;
                 _deplacer(vitesse < 0 ? 1 : -1);
               },
-              child: _corps(context),
+              child: _avecPanneau(context, _corps(context)),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  /// La grille et, à côté d'elle, l'événement — au lieu de l'écran poussé par-dessus.
+  ///
+  /// C'est ce qui distingue un agenda de bureau d'un agenda de téléphone : on garde sous
+  /// les yeux ce qu'on est en train de regarder. Cliquer un rendez-vous pour vérifier son
+  /// heure ne doit pas faire disparaître la semaine dont on le compare.
+  ///
+  /// L'écran logé ici est **le même** que celui qu'on pousse ailleurs : deux écrans
+  /// jumeaux divergeraient à la première correction faite d'un seul côté. Il ne sait
+  /// qu'une chose de plus — comment se refermer sans route, par `surFin`.
+  Widget _avecPanneau(BuildContext context, Widget grille) {
+    final inspecte = _inspecte;
+    if (inspecte == null || !_bureau) return grille;
+    return Row(
+      children: [
+        Expanded(child: grille),
+        VerticalDivider(width: 1, color: Gc.of(context).bordure),
+        SizedBox(
+          width: 360,
+          child: EcranDeNouvelEvenement(
+            // La clé force un écran neuf quand on passe d'un événement à un autre :
+            // sans elle, Flutter réutiliserait l'état, et les champs garderaient le
+            // titre du précédent.
+            key: ValueKey(('inspection', inspecte.evenement, inspecte.jour)),
+            session: widget.session,
+            calendriers: _inscriptibles,
+            jour: inspecte.jour,
+            evenement: inspecte.evenement,
+            debut: inspecte.debut,
+            occurrence: inspecte.occurrence,
+            surFin: (modifie) {
+              setState(() => _inspecte = null);
+              if (modifie) unawaited(_recharger());
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -595,11 +686,21 @@ class EcranDAgendaState extends State<EcranDAgenda> {
             // dots and the day list, titles always give titles — on a phone they are
             // cut short, as in Fantastical's expanded month, and still say which day is
             // busy with what.
-            final titres = switch (_modeDuMois) {
-              ModeDuMois.automatique => selonLaPlace,
-              ModeDuMois.compact => 0,
-              ModeDuMois.titres => selonLaPlace > 0 ? selonLaPlace : 1,
-            };
+            // ─── Sur le bureau, la place décide seule ───
+            //
+            // La poignée qui bascule pastilles/titres est un geste de pouce, et elle
+            // disparaît au-dessus du seuil. Son réglage doit donc disparaître avec
+            // elle : sinon un « compact » mémorisé sur un téléphone suivrait la
+            // personne jusqu'au Mac, où plus rien ne permettrait d'en sortir. C'est
+            // arrivé — un mois muet sur 1440 points, et le code accusé à tort.
+            final bureau = contraintes.maxWidth >= Mesures.seuilBureau;
+            final titres = bureau
+                ? selonLaPlace
+                : switch (_modeDuMois) {
+                    ModeDuMois.automatique => selonLaPlace,
+                    ModeDuMois.compact => 0,
+                    ModeDuMois.titres => selonLaPlace > 0 ? selonLaPlace : 1,
+                  };
             final grille = GrilleDuMois(
               mois: _ancre,
               jours: joursDeLaGrilleDuMois(_ancre, _premierJour),
@@ -610,6 +711,7 @@ class EcranDAgendaState extends State<EcranDAgenda> {
               surJour: surJour,
             );
             if (titres > 0) {
+              if (bureau) return grille;
               return Column(
                 children: [
                   Expanded(child: grille),
@@ -673,6 +775,14 @@ class EcranDAgendaState extends State<EcranDAgenda> {
               ],
             );
           },
+        );
+      case VueDAgenda.annee:
+        return GrilleDeLAnnee(
+          annee: _ancre,
+          premierJour: _premierJour,
+          // Un jour cliqué ouvre ce jour : c'est la seule chose qu'on puisse vouloir
+          // faire depuis une grille qui ne montre que des nombres.
+          surJour: (jour) => _allerA(jour, vue: VueDAgenda.jour),
         );
       case VueDAgenda.liste:
         return RefreshIndicator(

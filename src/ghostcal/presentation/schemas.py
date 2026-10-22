@@ -161,6 +161,13 @@ class ForgotPasswordIn(BaseModel):
     email: EmailStr
 
 
+class ResendVerificationIn(BaseModel):
+    """Même forme que `ForgotPasswordIn`, et pourtant un type à part : une route que
+    l'OpenAPI décrit doit se lire sans avoir à deviner laquelle des deux on appelle."""
+
+    email: EmailStr
+
+
 class ResetPasswordIn(BaseModel):
     """A new password and the key envelopes that go with it, in one request.
 
@@ -816,15 +823,42 @@ class MirrorDetailIn(BaseModel):
 
 
 class CalendarPatchIn(BaseModel):
-    """What can be changed on a calendar that already exists.
-
-    Only the colour, for now. It was settable at creation and never afterwards, so the only way to
-    recolour a calendar was to delete it — taking its events with it.
-    """
+    """Recolour something that carries a colour but no name of its own (a CalDAV connection)."""
 
     color: str = Field(max_length=20)
 
     _v_color = field_validator("color")(_validate_color)
+
+
+class CalendarUpdateIn(BaseModel):
+    """What can be changed on one of your own calendars once it exists: name, colour, or both.
+
+    Both were settable at creation and never afterwards, so the only fix was to delete the calendar
+    and lose its events. The name matters most on the default calendar, which the server names
+    itself: an English speaker was left with « Mon agenda » for good. An omitted field is left
+    alone.
+    """
+
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    color: str | None = Field(default=None, max_length=20)
+
+    _v_color = field_validator("color")(_validate_optional_color)
+
+    @field_validator("name")
+    @classmethod
+    def _strip_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not value:
+            raise ValueError("name must not be blank")
+        return value
+
+    @model_validator(mode="after")
+    def _something_to_change(self) -> CalendarUpdateIn:
+        if self.name is None and self.color is None:
+            raise ValueError("send name, color or both")
+        return self
 
 
 class EventIn(BaseModel):
