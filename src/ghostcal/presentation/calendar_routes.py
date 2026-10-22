@@ -20,6 +20,7 @@ from ghostcal.application.calendar import (
     CalendarNotFound,
     EventInput,
     EventNotFound,
+    Language,
     create_event,
     delete_event,
     get_agenda,
@@ -49,6 +50,7 @@ from ghostcal.infrastructure.db.session import org_session
 from ghostcal.infrastructure.db.subscriptions_repository import SqlSubscriptionRepository
 from ghostcal.infrastructure.email import build_email_sender
 from ghostcal.presentation.dashboard_routes import Member, current_member
+from ghostcal.presentation.language import request_language
 from ghostcal.presentation.schemas import (
     AgendaItemOut,
     AttendeeAddedOut,
@@ -92,9 +94,14 @@ def _to_input(payload: EventIn) -> EventInput:
 
 
 @router.get("/calendars", response_model=list[CalendarOut])
-async def list_my_calendars(member: Member = Depends(current_member)) -> list[CalendarOut]:
+async def list_my_calendars(
+    member: Member = Depends(current_member),
+    language: Language = Depends(request_language),
+) -> list[CalendarOut]:
     async with org_session(member.organization_id) as session:
-        calendars = await list_calendars(_repo(session, member.organization_id), member.user.id)
+        calendars = await list_calendars(
+            _repo(session, member.organization_id), member.user.id, language
+        )
     return [
         CalendarOut(
             id=c.id,

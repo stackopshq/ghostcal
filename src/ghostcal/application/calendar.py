@@ -9,6 +9,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Literal
 
 from ghostcal.domain.calendar import RecurringEvent, expand
 
@@ -134,8 +135,8 @@ class CalendarRepository:
     async def list_calendars(self, owner_id: uuid.UUID) -> list[CalendarRecord]:
         raise NotImplementedError
 
-    async def ensure_default_calendar(self, owner_id: uuid.UUID) -> CalendarRecord:
-        """Return the owner's default calendar, creating it on first use."""
+    async def ensure_default_calendar(self, owner_id: uuid.UUID, *, name: str) -> CalendarRecord:
+        """Return the owner's default calendar, creating it on first use under `name`."""
         raise NotImplementedError
 
     async def create_calendar(
@@ -209,11 +210,26 @@ class CalendarRepository:
         raise NotImplementedError
 
 
-async def list_calendars(repo: CalendarRepository, owner_id: uuid.UUID) -> list[CalendarRecord]:
+Language = Literal["fr", "en"]
+
+# The name the server gives the default calendar, in the language of the request that creates it.
+# French stays the fallback: it is what every account created so far received.
+DEFAULT_CALENDAR_NAMES: dict[Language, str] = {"fr": "Mon agenda", "en": "My calendar"}
+
+
+async def list_calendars(
+    repo: CalendarRepository, owner_id: uuid.UUID, language: Language = "fr"
+) -> list[CalendarRecord]:
     calendars = await repo.list_calendars(owner_id)
-    # Ensure the user has at least one calendar of their own (shared ones don't count).
+    # Ensure the user has at least one calendar of their own (shared ones don't count). This is
+    # where the default calendar is born — lazily, on the first authenticated listing, never at
+    # sign-up — so the language of this request is the one it is named in. Nothing is stored:
+    # only the name is, and it can be changed afterwards.
     if not any(not c.is_shared for c in calendars):
-        return [await repo.ensure_default_calendar(owner_id), *calendars]
+        default = await repo.ensure_default_calendar(
+            owner_id, name=DEFAULT_CALENDAR_NAMES[language]
+        )
+        return [default, *calendars]
     return calendars
 
 

@@ -144,7 +144,7 @@ class SqlCalendarRepository(CalendarRepository):
             )
         ).scalar_one_or_none() is not None
 
-    async def ensure_default_calendar(self, owner_id: uuid.UUID) -> CalendarRecord:
+    async def ensure_default_calendar(self, owner_id: uuid.UUID, *, name: str) -> CalendarRecord:
         existing = (
             await self._session.execute(
                 select(models.Calendar)
@@ -163,16 +163,12 @@ class SqlCalendarRepository(CalendarRepository):
                 .values(
                     organization_id=self._org_id,
                     owner_id=owner_id,
-                    # Le seul texte visible par l'utilisateur que ce serveur produise —
-                    # vérifié : `grep` sur `src/` n'en trouve aucun autre. Ce n'était donc
-                    # pas une politique de langue, c'était un oubli, et il se voyait : sur
-                    # la capture App Store de l'écran de création d'événement, le sélecteur
-                    # affichait « My calendar » au milieu d'une interface française.
-                    #
-                    # Le nom posé ici n'est qu'un point de départ : PATCH /v1/calendars/{id}
-                    # le renomme. Les comptes déjà créés conservent l'ancien : cette valeur
-                    # n'est lue qu'à la création du calendrier par défaut.
-                    name="Mon agenda",
+                    # The name comes from the caller, in the language of the request that
+                    # creates this calendar (see `list_calendars`). A fixed string here swung
+                    # once from "My calendar" to « Mon agenda » and was wrong for half the
+                    # users either way. It is only a starting point: PATCH
+                    # /v1/me/calendars/{id} renames it, and existing calendars never get here.
+                    name=name,
                     color="#00f0ff",
                     is_default=True,
                 )

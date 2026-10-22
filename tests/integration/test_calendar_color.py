@@ -270,3 +270,45 @@ def _two_factor(session: object) -> TwoFactorService:
         PyotpEngine(),
         _CLOCK,
     )
+
+
+async def _first_listing(user_id: uuid.UUID, accept_language: str | None) -> list[str]:
+    """The first GET /v1/me/calendars of a new account — the request that names its default."""
+    from httpx import ASGITransport, AsyncClient
+
+    from ghostcal.presentation.api import app
+    from ghostcal.presentation.auth_routes import _codec
+
+    headers = {"Authorization": f"Bearer {_codec.encode(user_id)}"}
+    if accept_language is not None:
+        headers["Accept-Language"] = accept_language
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/v1/me/calendars", headers=headers)
+    assert response.status_code == 200, response.text
+    return [c["name"] for c in response.json() if c["is_default"]]
+
+
+@pytest.mark.parametrize(
+    ("accept_language", "expected"),
+    [
+        ("en", "My calendar"),
+        ("fr", "Mon agenda"),
+        (None, "Mon agenda"),  # no header: exactly what every existing account got
+        ("fr-CH,fr;q=0.9,en-US;q=0.8,en;q=0.7", "Mon agenda"),  # a real Swiss browser
+        ("de-CH,de;q=0.9,en-US;q=0.8,en;q=0.7", "My calendar"),  # first known tag wins
+        ("it-CH,it;q=0.9", "Mon agenda"),  # nothing known: the French fallback
+    ],
+)
+async def test_the_default_calendar_is_named_in_the_request_language(
+    admin_engine: AsyncEngine, accept_language: str | None, expected: str
+) -> None:
+    mailer = CapturingMailer()
+    user_id, _ = await _account(mailer, "lang")
+    try:
+        assert await _first_listing(user_id, accept_language) == [expected]
+        # Created once: a later request in another language does not rename it.
+        assert await _first_listing(user_id, "en" if expected != "My calendar" else "fr") == [
+            expected
+        ]
+    finally:
+        await _cleanup(admin_engine, user_id)
