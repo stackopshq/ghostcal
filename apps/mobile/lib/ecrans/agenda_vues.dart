@@ -980,7 +980,20 @@ class GrilleDuMois extends StatelessWidget {
           montres = duJour.take((tiennent - 1).clamp(0, tiennent)).toList();
           reste = duJour.length - montres.length;
         }
-        return _contenuDeCase(context, gc, numero, montres, reste);
+        // ─── L'heure, quand la case a de quoi la porter ───
+        //
+        // 150 points : en dessous, l'heure prend le tiers de la ligne et le titre
+        // n'est plus qu'une ellipse — on aurait troqué « Comité de direction » contre
+        // « Comi… 09:00 », ce qui dit moins. Au-dessus, les deux tiennent, et c'est ce
+        // que montre Fantastical.
+        return _contenuDeCase(
+          context,
+          gc,
+          numero,
+          montres,
+          reste,
+          avecHeure: contraintes.maxWidth >= 150,
+        );
       },
     );
     // Today's cell is tinted, so today reads before its number does.
@@ -1002,8 +1015,9 @@ class GrilleDuMois extends StatelessWidget {
     Gc gc,
     Widget numero,
     List<LigneDAgenda> montres,
-    int reste,
-  ) {
+    int reste, {
+    required bool avecHeure,
+  }) {
     return Container(
       // Un filet en haut de chaque case : sans lui, des titres alignés sur sept colonnes
       // se lisent comme une seule liste en désordre. C'est ce que dessine tout agenda qui
@@ -1022,7 +1036,8 @@ class GrilleDuMois extends StatelessWidget {
             // Le numéro n'est plus centré : il tient le coin, et les titres commencent
             // sous lui. Centré, il laisserait une colonne de vide de part et d'autre.
             numero,
-            for (final ligne in montres) _titreDeCase(context, gc, ligne),
+            for (final ligne in montres)
+              _titreDeCase(context, gc, ligne, avecHeure: avecHeure),
             // `+N`, et non les N titres suivants écrasés : une case qui déborde doit le
             // dire, pas le cacher derrière trois ellipses.
             if (reste > 0)
@@ -1048,7 +1063,12 @@ class GrilleDuMois extends StatelessWidget {
   /// n'ouvre pas doit se lire « Contenu illisible » en rouge **ici aussi**. La grille du
   /// mois est souvent le premier écran qu'on regarde ; y masquer ce cas le ferait
   /// découvrir ailleurs, ou jamais.
-  Widget _titreDeCase(BuildContext context, Gc gc, LigneDAgenda ligne) {
+  Widget _titreDeCase(
+    BuildContext context,
+    Gc gc,
+    LigneDAgenda ligne, {
+    required bool avecHeure,
+  }) {
     final (titre, style) = titreAffiche(context, ligne, gc);
     // An all-day item is a band in its colour, a timed one a dot and a title: the
     // two read apart at a glance, as in Fantastical.
@@ -1093,6 +1113,23 @@ class GrilleDuMois extends StatelessWidget {
               style: style.copyWith(fontSize: 11, height: 1.1),
             ),
           ),
+          // L'heure à droite, en retrait : elle répond à « quand », que le titre ne dit
+          // pas, sans lui disputer la lecture. Une journée entière n'en a pas, et une
+          // case étroite s'en passe — voir `avecHeure`.
+          if (avecHeure)
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Text(
+                heureCourte(context, ligne.debut),
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: 10,
+                  height: 1.1,
+                  color: gc.estompe,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
         ],
       ),
     );
