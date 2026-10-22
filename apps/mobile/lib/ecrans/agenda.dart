@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -78,6 +80,14 @@ class EcranDAgendaState extends State<EcranDAgenda> {
   /// calendar and always show: hiding them would hide a commitment.
   Set<String> _masques = const {};
   ModeDuMois _modeDuMois = ModeDuMois.automatique;
+
+  /// Ce que le panneau d'inspection montre, sur les fenêtres larges.
+  ///
+  /// `null` quand il n'y a rien à montrer — le panneau disparaît alors et la grille
+  /// reprend toute la place. Sur un téléphone il reste toujours `null` : l'écran y est
+  /// poussé par-dessus, comme avant.
+  ({String? evenement, DateTime jour, DateTime? debut, DateTime? occurrence})?
+  _inspecte;
 
   @override
   void initState() {
@@ -163,6 +173,11 @@ class EcranDAgendaState extends State<EcranDAgenda> {
       ),
     );
   }
+
+  /// Le même seuil que la chrome de l'accueil, et pour la même raison : c'est la place
+  /// qui décide, pas la plateforme. En dessous, un panneau de 340 points laisserait à la
+  /// grille de quoi afficher trois colonnes.
+  bool get _bureau => MediaQuery.sizeOf(context).width >= Mesures.seuilBureau;
 
   bool _visible(LigneDAgenda ligne) =>
       ligne.calendrier == null || !_masques.contains(ligne.calendrier);
@@ -373,6 +388,17 @@ class EcranDAgendaState extends State<EcranDAgenda> {
       _calendriers.where((c) => c.inscriptible).toList();
 
   Future<void> _nouvelEvenement({DateTime? debut}) async {
+    if (_bureau) {
+      setState(
+        () => _inspecte = (
+          evenement: null,
+          jour: debut ?? _ancre,
+          debut: debut,
+          occurrence: null,
+        ),
+      );
+      return;
+    }
     final cree = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => EcranDeNouvelEvenement(
@@ -431,6 +457,17 @@ class EcranDAgendaState extends State<EcranDAgenda> {
               ],
             ),
           ),
+        ),
+      );
+      return;
+    }
+    if (_bureau) {
+      setState(
+        () => _inspecte = (
+          evenement: ligne.evenement,
+          jour: ligne.debut,
+          debut: null,
+          occurrence: ligne.debut,
         ),
       );
       return;
@@ -520,11 +557,50 @@ class EcranDAgendaState extends State<EcranDAgenda> {
                 if (vitesse.abs() < 300) return;
                 _deplacer(vitesse < 0 ? 1 : -1);
               },
-              child: _corps(context),
+              child: _avecPanneau(context, _corps(context)),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  /// La grille et, à côté d'elle, l'événement — au lieu de l'écran poussé par-dessus.
+  ///
+  /// C'est ce qui distingue un agenda de bureau d'un agenda de téléphone : on garde sous
+  /// les yeux ce qu'on est en train de regarder. Cliquer un rendez-vous pour vérifier son
+  /// heure ne doit pas faire disparaître la semaine dont on le compare.
+  ///
+  /// L'écran logé ici est **le même** que celui qu'on pousse ailleurs : deux écrans
+  /// jumeaux divergeraient à la première correction faite d'un seul côté. Il ne sait
+  /// qu'une chose de plus — comment se refermer sans route, par `surFin`.
+  Widget _avecPanneau(BuildContext context, Widget grille) {
+    final inspecte = _inspecte;
+    if (inspecte == null || !_bureau) return grille;
+    return Row(
+      children: [
+        Expanded(child: grille),
+        VerticalDivider(width: 1, color: Gc.of(context).bordure),
+        SizedBox(
+          width: 360,
+          child: EcranDeNouvelEvenement(
+            // La clé force un écran neuf quand on passe d'un événement à un autre :
+            // sans elle, Flutter réutiliserait l'état, et les champs garderaient le
+            // titre du précédent.
+            key: ValueKey(('inspection', inspecte.evenement, inspecte.jour)),
+            session: widget.session,
+            calendriers: _inscriptibles,
+            jour: inspecte.jour,
+            evenement: inspecte.evenement,
+            debut: inspecte.debut,
+            occurrence: inspecte.occurrence,
+            surFin: (modifie) {
+              setState(() => _inspecte = null);
+              if (modifie) unawaited(_recharger());
+            },
+          ),
+        ),
+      ],
     );
   }
 
