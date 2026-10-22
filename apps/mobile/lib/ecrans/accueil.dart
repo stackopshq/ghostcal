@@ -11,6 +11,7 @@ import '../services/vue_agenda.dart';
 import '../services/verrouillage.dart';
 import '../theme.dart';
 import 'agenda.dart';
+import 'colonne_laterale.dart';
 import 'reglages.dart';
 import 'reunions.dart';
 import 'types_de_rendez_vous.dart';
@@ -251,37 +252,66 @@ class _EcranDAccueilState extends State<EcranDAccueil>
         // veulent pas. Une liste de tâches sur 1100 points donne des lignes qu'on lit de
         // gauche à droite en tournant la tête ; une semaine sur 560 donne sept colonnes de
         // 72 points. Les deux besoins sont contraires, et une borne unique en trahit un.
-        body: IndexedStack(
-          index: _onglet,
-          children: [
-            ContenuBorne(
-              largeur: Mesures.largeurDeLAgenda,
-              child: EcranDAgenda(
-                key: _agenda,
-                session: widget.session,
-                verrouillage: widget.verrouillage,
-                surChangement: () {
-                  if (mounted) setState(() {});
-                },
-              ),
-            ),
-            ContenuBorne(child: EcranDeTaches(session: widget.session)),
-            ContenuBorne(child: EcranDeReunions(session: widget.session)),
-            ContenuBorne(
-              child: EcranDeTypesDeRendezVous(session: widget.session),
-            ),
-            ContenuBorne(
-              child: EcranDeReglages(
-                session: widget.session,
-                verrouillage: widget.verrouillage,
-                apparence: widget.apparence,
-                rappels: widget.rappels,
-              ),
-            ),
-          ],
-        ),
+        body: _corps(context, bureau: bureau),
         bottomNavigationBar: bureau ? null : _barre(context),
       ),
+    );
+  }
+
+  /// Le corps, et la colonne qui l'accompagne sur les fenêtres larges.
+  ///
+  /// `IndexedStack` et non un `switch` : les cinq sections restent montées, donc
+  /// l'agenda garde sa position et ses données quand on passe par les Réglages. C'est
+  /// aussi ce qui permet à la colonne de lire l'état de l'agenda — `_agenda.currentState`
+  /// ne vaut quelque chose que parce que l'écran n'est jamais démonté.
+  Widget _corps(BuildContext context, {required bool bureau}) {
+    final pile = IndexedStack(
+      index: _onglet,
+      children: [
+        ContenuBorne(
+          largeur: Mesures.largeurDeLAgenda,
+          child: EcranDAgenda(
+            key: _agenda,
+            session: widget.session,
+            verrouillage: widget.verrouillage,
+            surChangement: () {
+              if (mounted) setState(() {});
+            },
+          ),
+        ),
+        ContenuBorne(child: EcranDeTaches(session: widget.session)),
+        ContenuBorne(child: EcranDeReunions(session: widget.session)),
+        ContenuBorne(child: EcranDeTypesDeRendezVous(session: widget.session)),
+        ContenuBorne(
+          child: EcranDeReglages(
+            session: widget.session,
+            verrouillage: widget.verrouillage,
+            apparence: widget.apparence,
+            rappels: widget.rappels,
+          ),
+        ),
+      ],
+    );
+    if (!bureau) return pile;
+    // La colonne lit l'agenda plutôt que de tenir son propre état : deux sources pour
+    // la même sélection finiraient par diverger, et c'est la colonne qui aurait tort.
+    final agenda = _agenda.currentState;
+    return Row(
+      children: [
+        ColonneLaterale(
+          onglet: _onglet,
+          surOnglet: (indice) => setState(() => _onglet = indice),
+          calendriers: agenda?.calendriers ?? const [],
+          masques: agenda?.masques ?? const {},
+          surMasques: (m) => agenda?.masquer(m),
+          ancre: agenda?.ancre ?? DateTime.now(),
+          surJour: (j) {
+            setState(() => _onglet = 0);
+            agenda?.allerAuJour(j);
+          },
+        ),
+        Expanded(child: pile),
+      ],
     );
   }
 
@@ -324,19 +354,9 @@ class _EcranDAccueilState extends State<EcranDAccueil>
             padding: const EdgeInsets.only(left: 96, right: 8),
             child: Row(
               children: [
-                IconButton(
-                  key: const Key('accueil.menu'),
-                  tooltip: l.menu,
-                  icon: const Icon(Icons.menu),
-                  onPressed: _ouvrirLeMenu,
-                ),
-                if (_onglet == 0)
-                  IconButton(
-                    key: const Key('accueil.calendriers'),
-                    tooltip: _libelleDesCalendriers(l),
-                    icon: const Icon(Icons.filter_list),
-                    onPressed: _choisirLesCalendriers,
-                  ),
+                // Ni hamburger ni filtre : la colonne porte les sections et les
+                // calendriers, en permanence. Les garder ici donnerait deux chemins
+                // vers la même chose, dont un caché — ce qu'on vient d'enlever.
                 Expanded(child: Center(child: _vuesDuBureau(context))),
                 IconButton(
                   key: const Key('accueil.recherche'),

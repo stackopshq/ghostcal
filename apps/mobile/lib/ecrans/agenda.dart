@@ -135,6 +135,10 @@ class EcranDAgendaState extends State<EcranDAgenda> {
   /// The macOS menu bar drives these two. `_allerA` and `_deplacer` stay private:
   /// they take an anchor and a sign that only this screen knows how to form.
   void allerAujourdhui() => _allerA(DateTime.now());
+
+  /// Le mini-mois de la colonne latérale saute à n'importe quel jour — là où les
+  /// chevrons de l'en-tête coûtent un clic par période franchie.
+  void allerAuJour(DateTime jour) => _allerA(jour);
   void deplacer(int sens) => _deplacer(sens);
 
   Future<void> masquer(Set<String> masques) async {
