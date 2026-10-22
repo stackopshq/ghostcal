@@ -1,6 +1,6 @@
 # 0014 — Google and Microsoft calendars, read and write, through OAuth
 
-*Status: proposed — 2026-10-22*
+*Status: accepted — 2026-10-22*
 
 ## Context
 
