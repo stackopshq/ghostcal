@@ -1807,6 +1807,12 @@ abstract class L {
   /// **'{nombre} calendriers'**
   String calendriersAffiches(int nombre);
 
+  /// Le crayon de la feuille des calendriers, et le titre de la boîte qu'il ouvre. Seuls les calendriers qu'on possède en portent un : le serveur refuserait les autres, sa clause WHERE portant le propriétaire.
+  ///
+  /// In fr, this message translates to:
+  /// **'Renommer le calendrier'**
+  String get renommerLeCalendrier;
+
   /// No description provided for @calendriersAAfficher.
   ///
   /// In fr, this message translates to:

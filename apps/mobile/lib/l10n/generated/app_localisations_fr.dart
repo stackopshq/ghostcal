@@ -1000,6 +1000,9 @@ class LFr extends L {
   }
 
   @override
+  String get renommerLeCalendrier => 'Renommer le calendrier';
+
+  @override
   String get calendriersAAfficher => 'Calendriers affichés';
 
   @override

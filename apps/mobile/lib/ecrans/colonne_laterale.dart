@@ -31,6 +31,7 @@ class ColonneLaterale extends StatelessWidget {
     required this.onglet,
     required this.surOnglet,
     required this.calendriers,
+    this.surRenommage,
     required this.masques,
     required this.surMasques,
     required this.ancre,
@@ -42,6 +43,16 @@ class ColonneLaterale extends StatelessWidget {
   final ValueChanged<int> surOnglet;
 
   final List<Calendrier> calendriers;
+
+  /// Renommer un calendrier qu'on possède. Nul là où personne ne peut renommer — la
+  /// colonne ne dessine alors aucun crayon plutôt qu'un crayon mort.
+  ///
+  /// La feuille du bas porte le même geste. Les deux existent parce qu'elles ne se voient
+  /// pas aux mêmes largeurs : au-dessus de 900 points la colonne remplace la feuille, et
+  /// sur un iPad de treize pouces — 1032 points — c'est la colonne qu'on a sous les yeux.
+  /// Un crayon qui n'existerait que dans la feuille serait introuvable là où le nom
+  /// « Mon agenda » gêne le plus.
+  final ValueChanged<Calendrier>? surRenommage;
   final Set<String> masques;
   final ValueChanged<Set<String>> surMasques;
 
@@ -96,6 +107,7 @@ class ColonneLaterale extends StatelessWidget {
                   _Titre(l.tousLesCalendriers),
                   for (final c in calendriers)
                     _Calendrier(
+                      surRenommage: surRenommage,
                       calendrier: c,
                       visible: !masques.contains(c.id),
                       surBascule: (visible) => surMasques({
@@ -195,11 +207,13 @@ class _Calendrier extends StatelessWidget {
     required this.calendrier,
     required this.visible,
     required this.surBascule,
+    this.surRenommage,
   });
 
   final Calendrier calendrier;
   final bool visible;
   final ValueChanged<bool> surBascule;
+  final ValueChanged<Calendrier>? surRenommage;
 
   /// La même lecture que `EcranDAgendaState._couleurDe` : un `#RRGGBB` que le serveur
   /// donne, et l'accent du thème quand il ne donne rien d'exploitable.
@@ -251,6 +265,20 @@ class _Calendrier extends StatelessWidget {
                 ),
               ),
             ),
+            // Seulement sur les siens : le serveur refuse de renommer le calendrier d'un
+            // autre, sa clause `WHERE` portant le propriétaire. Un crayon qui finirait en
+            // 404 serait une promesse qu'on ne tient pas.
+            if (surRenommage != null && calendrier.aSoi)
+              IconButton(
+                key: Key('colonne.renommer.${calendrier.id}'),
+                icon: const Icon(Icons.edit_outlined, size: 14),
+                tooltip: L.of(context).renommerLeCalendrier,
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                padding: EdgeInsets.zero,
+                color: gc.estompe,
+                onPressed: () => surRenommage!(calendrier),
+              ),
           ],
         ),
       ),

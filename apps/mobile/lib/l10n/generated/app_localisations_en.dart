@@ -996,6 +996,9 @@ class LEn extends L {
   }
 
   @override
+  String get renommerLeCalendrier => 'Rename calendar';
+
+  @override
   String get calendriersAAfficher => 'Calendars shown';
 
   @override
