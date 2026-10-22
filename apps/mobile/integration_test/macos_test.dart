@@ -51,7 +51,21 @@ import 'package:ghostcal/src/rust/frb_generated.dart';
 
 /// The bottom bar's menu holds the agenda's views and the other sections, since the
 /// floating bar replaced the tab bar.
+/// Change de vue, par le chemin que la fenêtre offre.
+///
+/// Au-dessus du seuil de bureau les quatre vues sont dans le segmenté de la barre de
+/// titre ; en dessous elles restent dans la feuille du menu. Un témoin qui ne
+/// connaîtrait qu'un des deux chemins échouerait selon la taille de la fenêtre, en
+/// accusant l'écran plutôt que lui-même.
 Future<void> allerA(WidgetTester tester, String entree) async {
+  final segmente = find.byKey(const Key('bureau.vues'));
+  if (segmente.evaluate().isNotEmpty) {
+    await tester.tap(
+      find.descendant(of: segmente, matching: find.text(entree)),
+    );
+    await tester.pumpAndSettle();
+    return;
+  }
   await tester.tap(find.byKey(const Key('accueil.menu')));
   await tester.pumpAndSettle();
   await tester.tap(find.text(entree).last);
@@ -194,7 +208,11 @@ void main() {
         final champ = find.byKey(Key(cle));
         if (champ.evaluate().isNotEmpty) await tester.enterText(champ, valeur);
       }
-      await tester.pumpAndSettle();
+      // Pas de `pumpAndSettle` : le champ qu'on vient de remplir a le focus, et un
+      // curseur qui clignote n'est jamais « stable ».
+      await tester.pump();
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+      await tester.pump();
       await tester.testTextInput.receiveAction(TextInputAction.done);
     }
 
@@ -224,7 +242,18 @@ void main() {
       await tester.pump(const Duration(milliseconds: 250));
       await Future<void>.delayed(const Duration(milliseconds: 250));
     }
-    await tester.pumpAndSettle();
+    // Et surtout pas ici. `accueil.pret` paraît dès que le coffre est ouvert ; l'agenda,
+    // lui, charge encore, son indicateur tourne, l'arbre n'est jamais stable, et le
+    // témoin meurt au délai de trois minutes **sans dire où**.
+    //
+    // Ça ne se produisait que lorsque le serveur était lent sur ce tour-là — une fois
+    // sur deux, une fois sur dix. Mesuré le 2026-10-22 : le même commit bloqué puis vert
+    // à la relance. J'ai bissecté quatre fois mon propre code avant de douter du harnais.
+    // Un témoin instable ne coûte pas une relance : il coûte la confiance qu'on met dans
+    // tous les autres.
+    await tester.pump();
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    await tester.pump();
   }
 
   /// Attend qu'un libellé paraisse, puis rend la main.

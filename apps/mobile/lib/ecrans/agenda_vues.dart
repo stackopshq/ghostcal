@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -890,20 +891,11 @@ class GrilleDuMois extends StatelessWidget {
                         .skip(semaine * 7)
                         .take(7)
                         .any((j) => memeJour(j, selection)),
-                child: Row(
-                  children: [
-                    for (final jour in jours.skip(semaine * 7).take(7))
-                      Expanded(
-                        child: InkWell(
-                          key: Key('mois.${jour.month}.${jour.day}'),
-                          borderRadius: BorderRadius.circular(
-                            _avecTitres ? 6 : 12,
-                          ),
-                          onTap: () => surJour(jour),
-                          child: _case(context, gc, jour, maintenant),
-                        ),
-                      ),
-                  ],
+                child: _semaine(
+                  context,
+                  gc,
+                  jours.skip(semaine * 7).take(7).toList(),
+                  maintenant,
                 ),
               ),
             ),
@@ -926,8 +918,17 @@ class GrilleDuMois extends StatelessWidget {
     BuildContext context,
     Gc gc,
     DateTime jour,
-    DateTime maintenant,
-  ) {
+    DateTime maintenant, {
+
+    /// Combien de pistes de barres la semaine occupe. La case leur réserve la place en
+    /// haut, sous le numéro : sans cette réserve, les barres passeraient par-dessus les
+    /// titres du jour et on lirait deux choses au même endroit.
+    int pistes = 0,
+
+    /// Ce que les barres disent déjà, et que la case ne redit pas. C'est tout l'objet :
+    /// un séjour de quatre jours s'écrivait quatre fois.
+    Set<LigneDAgenda> enBarre = const {},
+  }) {
     final numero = _numero(
       gc,
       jour,
@@ -955,8 +956,9 @@ class GrilleDuMois extends StatelessWidget {
       );
     }
 
-    final duJour = lignes.where((l) => couvre(l, jour)).toList()
-      ..sort(Agenda.comparerLesLignes);
+    final duJour =
+        lignes.where((l) => couvre(l, jour) && !enBarre.contains(l)).toList()
+          ..sort(Agenda.comparerLesLignes);
 
     // ─── Le compte se refait **ici**, sur la hauteur réelle de la case ───
     //
@@ -971,7 +973,10 @@ class GrilleDuMois extends StatelessWidget {
     // Plus d'arithmétique à tenir en double.
     final cetteCase = LayoutBuilder(
       builder: (context, contraintes) {
-        final place = contraintes.maxHeight - _hauteurDuNumero;
+        final place =
+            contraintes.maxHeight -
+            _hauteurDuNumero -
+            pistes * _hauteurDUneLigne;
         final tiennent = (place / _hauteurDUneLigne).floor().clamp(0, 8);
         var montres = duJour.take(tiennent).toList();
         var reste = duJour.length - montres.length;
@@ -980,7 +985,21 @@ class GrilleDuMois extends StatelessWidget {
           montres = duJour.take((tiennent - 1).clamp(0, tiennent)).toList();
           reste = duJour.length - montres.length;
         }
-        return _contenuDeCase(context, gc, numero, montres, reste);
+        // ─── L'heure, quand la case a de quoi la porter ───
+        //
+        // 150 points : en dessous, l'heure prend le tiers de la ligne et le titre
+        // n'est plus qu'une ellipse — on aurait troqué « Comité de direction » contre
+        // « Comi… 09:00 », ce qui dit moins. Au-dessus, les deux tiennent, et c'est ce
+        // que montre Fantastical.
+        return _contenuDeCase(
+          context,
+          gc,
+          numero,
+          montres,
+          reste,
+          avecHeure: contraintes.maxWidth >= 150,
+          pistes: pistes,
+        );
       },
     );
     // Today's cell is tinted, so today reads before its number does.
@@ -990,6 +1009,154 @@ class GrilleDuMois extends StatelessWidget {
             child: cetteCase,
           )
         : cetteCase;
+  }
+
+  /// Une semaine : les sept cases, et les barres du multi-jours posées par-dessus.
+  ///
+  /// La `Stack` plutôt qu'une rangée de segments au-dessus des cases : les numéros de
+  /// jour doivent rester en haut de leur case, et une bande posée avant eux les
+  /// repousserait vers le bas. Les barres se placent donc **dans** la rangée, à la
+  /// hauteur que les cases leur réservent — voir `pistes` dans `_case`.
+  Widget _semaine(
+    BuildContext context,
+    Gc gc,
+    List<DateTime> semaine,
+    DateTime maintenant,
+  ) {
+    final barres = _avecTitres
+        ? barresDeLaSemaine(semaine)
+        : const <({LigneDAgenda ligne, int debut, int fin, int piste})>[];
+    final pistes = barres.isEmpty
+        ? 0
+        : barres.map((b) => b.piste).reduce(math.max) + 1;
+    final enBarre = {for (final b in barres) b.ligne};
+
+    final cases = Row(
+      children: [
+        for (final jour in semaine)
+          Expanded(
+            child: InkWell(
+              key: Key('mois.${jour.month}.${jour.day}'),
+              borderRadius: BorderRadius.circular(_avecTitres ? 6 : 12),
+              onTap: () => surJour(jour),
+              child: _case(
+                context,
+                gc,
+                jour,
+                maintenant,
+                pistes: pistes,
+                enBarre: enBarre,
+              ),
+            ),
+          ),
+      ],
+    );
+    if (barres.isEmpty) return cases;
+
+    return LayoutBuilder(
+      builder: (context, contraintes) {
+        final colonne = contraintes.maxWidth / 7;
+        return Stack(
+          children: [
+            cases,
+            for (final b in barres)
+              Positioned(
+                left: b.debut * colonne + 2,
+                width: (b.fin - b.debut + 1) * colonne - 4,
+                // Le filet du haut de case vaut un point, le numéro sa hauteur nommée.
+                top: 1 + _hauteurDuNumero + b.piste * _hauteurDUneLigne,
+                height: _hauteurDUneLigne,
+                // La barre ne prend pas le clic : c'est la case dessous qui ouvre le
+                // jour, et une barre qui avalerait le clic rendrait quatre jours
+                // inatteignables.
+                child: IgnorePointer(child: _barre(context, gc, b.ligne)),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Une barre : la couleur du calendrier, le titre une seule fois, à gauche.
+  Widget _barre(BuildContext context, Gc gc, LigneDAgenda ligne) {
+    final (titre, style) = titreAffiche(context, ligne, gc);
+    final couleur = couleurDe(ligne);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        color: couleur.withValues(alpha: gc.sombre ? 0.34 : 0.20),
+        borderRadius: BorderRadius.circular(3),
+        border: Border(left: BorderSide(color: couleur, width: 2.5)),
+      ),
+      alignment: Alignment.centerLeft,
+      child: Text(
+        titre,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        softWrap: false,
+        style: style.copyWith(fontSize: 11, height: 1.1),
+      ),
+    );
+  }
+
+  /// Au plus trois pistes de barres par semaine.
+  ///
+  /// Au-delà, une semaine chargée n'aurait plus de place pour les titres du jour : les
+  /// barres mangeraient la case entière et on ne saurait plus ce qui se passe le mardi.
+  /// Ce qui dépasse retombe dans les lignes ordinaires, jour par jour, et se compte donc
+  /// dans le « +N » comme n'importe quel autre événement.
+  static const _pistesMaximum = 3;
+
+  /// Les événements qui traversent plusieurs jours de cette semaine, et leur piste.
+  ///
+  /// ─── Pourquoi une barre et non trois lignes ───
+  ///
+  /// Un séjour du mercredi au samedi s'écrivait quatre fois, une fois par case, et rien
+  /// ne disait que c'était le même. Une barre continue le dit d'un seul trait — c'est ce
+  /// que fait tout agenda de bureau, et ce que la comparaison avec Fantastical a rendu
+  /// évident.
+  ///
+  /// Les pistes sont attribuées au plus bas libre, après tri par date de début puis par
+  /// durée décroissante : sans ce tri, un court intercalé pousserait un long d'une piste
+  /// à l'autre d'une semaine à la suivante, et l'œil perdrait le fil.
+  List<({LigneDAgenda ligne, int debut, int fin, int piste})> barresDeLaSemaine(
+    List<DateTime> semaine,
+  ) {
+    final candidats = <({LigneDAgenda ligne, int debut, int fin})>[];
+    for (final l in lignes) {
+      var premier = -1;
+      var dernier = -1;
+      for (var i = 0; i < semaine.length; i++) {
+        if (!couvre(l, semaine[i])) continue;
+        if (premier < 0) premier = i;
+        dernier = i;
+      }
+      // Un seul jour reste une ligne de case : une barre d'une colonne de large n'est
+      // pas une barre, c'est un titre avec un fond.
+      if (premier < 0 || dernier == premier) continue;
+      candidats.add((ligne: l, debut: premier, fin: dernier));
+    }
+    candidats.sort((a, b) {
+      final parDebut = a.debut.compareTo(b.debut);
+      return parDebut != 0
+          ? parDebut
+          : (b.fin - b.debut).compareTo(a.fin - a.debut);
+    });
+
+    final occupees = <List<({int debut, int fin})>>[];
+    final resultat = <({LigneDAgenda ligne, int debut, int fin, int piste})>[];
+    for (final c in candidats) {
+      var piste = 0;
+      while (piste < occupees.length &&
+          occupees[piste].any((o) => c.debut <= o.fin && o.debut <= c.fin)) {
+        piste++;
+      }
+      if (piste >= _pistesMaximum) continue;
+      if (piste == occupees.length) occupees.add([]);
+      occupees[piste].add((debut: c.debut, fin: c.fin));
+      resultat.add((ligne: c.ligne, debut: c.debut, fin: c.fin, piste: piste));
+    }
+    return resultat;
   }
 
   /// Hauteurs réelles, nommées une fois : [titresParCaseDuMois] les estime pour choisir le
@@ -1002,8 +1169,10 @@ class GrilleDuMois extends StatelessWidget {
     Gc gc,
     Widget numero,
     List<LigneDAgenda> montres,
-    int reste,
-  ) {
+    int reste, {
+    required bool avecHeure,
+    required int pistes,
+  }) {
     return Container(
       // Un filet en haut de chaque case : sans lui, des titres alignés sur sept colonnes
       // se lisent comme une seule liste en désordre. C'est ce que dessine tout agenda qui
@@ -1022,7 +1191,11 @@ class GrilleDuMois extends StatelessWidget {
             // Le numéro n'est plus centré : il tient le coin, et les titres commencent
             // sous lui. Centré, il laisserait une colonne de vide de part et d'autre.
             numero,
-            for (final ligne in montres) _titreDeCase(context, gc, ligne),
+            // La place des barres, qui sont dessinées par la semaine et non par la
+            // case : elle la réserve sans rien y mettre.
+            if (pistes > 0) SizedBox(height: pistes * _hauteurDUneLigne),
+            for (final ligne in montres)
+              _titreDeCase(context, gc, ligne, avecHeure: avecHeure),
             // `+N`, et non les N titres suivants écrasés : une case qui déborde doit le
             // dire, pas le cacher derrière trois ellipses.
             if (reste > 0)
@@ -1048,7 +1221,12 @@ class GrilleDuMois extends StatelessWidget {
   /// n'ouvre pas doit se lire « Contenu illisible » en rouge **ici aussi**. La grille du
   /// mois est souvent le premier écran qu'on regarde ; y masquer ce cas le ferait
   /// découvrir ailleurs, ou jamais.
-  Widget _titreDeCase(BuildContext context, Gc gc, LigneDAgenda ligne) {
+  Widget _titreDeCase(
+    BuildContext context,
+    Gc gc,
+    LigneDAgenda ligne, {
+    required bool avecHeure,
+  }) {
     final (titre, style) = titreAffiche(context, ligne, gc);
     // An all-day item is a band in its colour, a timed one a dot and a title: the
     // two read apart at a glance, as in Fantastical.
@@ -1093,6 +1271,23 @@ class GrilleDuMois extends StatelessWidget {
               style: style.copyWith(fontSize: 11, height: 1.1),
             ),
           ),
+          // L'heure à droite, en retrait : elle répond à « quand », que le titre ne dit
+          // pas, sans lui disputer la lecture. Une journée entière n'en a pas, et une
+          // case étroite s'en passe — voir `avecHeure`.
+          if (avecHeure)
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Text(
+                heureCourte(context, ligne.debut),
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: 10,
+                  height: 1.1,
+                  color: gc.estompe,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
         ],
       ),
     );

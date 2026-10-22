@@ -20,15 +20,16 @@ from ghostcal.application.calendar import (
     CalendarNotFound,
     EventInput,
     EventNotFound,
+    Language,
     create_event,
     delete_event,
     get_agenda,
     get_event,
     list_calendars,
     list_shares,
-    set_calendar_color,
     share_calendar,
     unshare_calendar,
+    update_calendar,
     update_event,
 )
 from ghostcal.application.subscriptions import (
@@ -49,6 +50,7 @@ from ghostcal.infrastructure.db.session import org_session
 from ghostcal.infrastructure.db.subscriptions_repository import SqlSubscriptionRepository
 from ghostcal.infrastructure.email import build_email_sender
 from ghostcal.presentation.dashboard_routes import Member, current_member
+from ghostcal.presentation.language import request_language
 from ghostcal.presentation.schemas import (
     AgendaItemOut,
     AttendeeAddedOut,
@@ -56,7 +58,7 @@ from ghostcal.presentation.schemas import (
     AttendeeOut,
     CalendarIn,
     CalendarOut,
-    CalendarPatchIn,
+    CalendarUpdateIn,
     CreatedOut,
     EventIn,
     EventOut,
@@ -92,9 +94,14 @@ def _to_input(payload: EventIn) -> EventInput:
 
 
 @router.get("/calendars", response_model=list[CalendarOut])
-async def list_my_calendars(member: Member = Depends(current_member)) -> list[CalendarOut]:
+async def list_my_calendars(
+    member: Member = Depends(current_member),
+    language: Language = Depends(request_language),
+) -> list[CalendarOut]:
     async with org_session(member.organization_id) as session:
-        calendars = await list_calendars(_repo(session, member.organization_id), member.user.id)
+        calendars = await list_calendars(
+            _repo(session, member.organization_id), member.user.id, language
+        )
     return [
         CalendarOut(
             id=c.id,
@@ -164,24 +171,25 @@ async def create_my_calendar(
 
 
 @router.patch("/calendars/{calendar_id}", status_code=204)
-async def recolor_my_calendar(
+async def update_my_calendar(
     calendar_id: uuid.UUID,
-    payload: CalendarPatchIn,
+    payload: CalendarUpdateIn,
     member: Member = Depends(current_member),
 ) -> None:
-    """Change a calendar's colour once it exists.
+    """Rename and/or recolour a calendar once it exists.
 
-    PATCH rather than PUT: the body carries the one field that changes, so a client that has not
+    PATCH rather than PUT: the body carries only the fields that change, so a client that has not
     read the calendar cannot blank the rest of it by omission. GhostCal has already paid for that
     distinction once, on event types, where a PUT missing a field reset it silently.
     """
     async with org_session(member.organization_id) as session:
         try:
-            await set_calendar_color(
+            await update_calendar(
                 _repo(session, member.organization_id),
                 member.user.id,
                 calendar_id,
-                payload.color,
+                name=payload.name,
+                color=payload.color,
             )
         except CalendarNotFound as exc:
             raise HTTPException(status_code=404, detail="calendar not found") from exc

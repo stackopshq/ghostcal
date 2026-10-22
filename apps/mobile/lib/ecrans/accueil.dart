@@ -13,6 +13,7 @@ import '../services/vue_agenda.dart';
 import '../services/verrouillage.dart';
 import '../theme.dart';
 import 'agenda.dart';
+import 'colonne_laterale.dart';
 import 'reglages.dart';
 import 'renommer_un_calendrier.dart';
 import 'reunions.dart';
@@ -229,8 +230,20 @@ class _EcranDAccueilState extends State<EcranDAccueil>
   }
 
   Widget _ecran(BuildContext context) {
+    // ─── Deux chromes, une seule application ───
+    //
+    // Au-dessus de [Mesures.seuilBureau], les commandes montent dans la barre de titre
+    // et la barre flottante du bas s'en va. En dessous, rien ne change : la barre
+    // flottante est le bon outil pour un pouce, et elle reste la chrome d'Android,
+    // d'iOS et d'une fenêtre qu'on a réduite.
+    //
+    // La bascule est une **mesure** et non une plateforme. Un iPad en paysage y gagne
+    // autant qu'un Mac, et un Mac dont la fenêtre est étroite retrouve la barre du bas
+    // plutôt qu'une barre d'outils tassée.
+    final bureau = MediaQuery.sizeOf(context).width >= Mesures.seuilBureau;
     return FondGhost(
       child: Scaffold(
+        appBar: bureau ? _barreDeTitre(context) : null,
         // The signal that the vault is open and the app is ready, for the integration
         // tests: it used to be the tab bar, which the floating bar replaced.
         key: const Key('accueil.pret'),
@@ -242,37 +255,158 @@ class _EcranDAccueilState extends State<EcranDAccueil>
         // veulent pas. Une liste de tâches sur 1100 points donne des lignes qu'on lit de
         // gauche à droite en tournant la tête ; une semaine sur 560 donne sept colonnes de
         // 72 points. Les deux besoins sont contraires, et une borne unique en trahit un.
-        body: IndexedStack(
-          index: _onglet,
-          children: [
-            ContenuBorne(
-              largeur: Mesures.largeurDeLAgenda,
-              child: EcranDAgenda(
-                key: _agenda,
-                session: widget.session,
-                verrouillage: widget.verrouillage,
-                surChangement: () {
-                  if (mounted) setState(() {});
-                },
-              ),
-            ),
-            ContenuBorne(child: EcranDeTaches(session: widget.session)),
-            ContenuBorne(child: EcranDeReunions(session: widget.session)),
-            ContenuBorne(
-              child: EcranDeTypesDeRendezVous(session: widget.session),
-            ),
-            ContenuBorne(
-              child: EcranDeReglages(
-                session: widget.session,
-                verrouillage: widget.verrouillage,
-                apparence: widget.apparence,
-                rappels: widget.rappels,
-              ),
-            ),
-          ],
-        ),
-        bottomNavigationBar: _barre(context),
+        body: _corps(context, bureau: bureau),
+        bottomNavigationBar: bureau ? null : _barre(context),
       ),
+    );
+  }
+
+  /// Le corps, et la colonne qui l'accompagne sur les fenêtres larges.
+  ///
+  /// `IndexedStack` et non un `switch` : les cinq sections restent montées, donc
+  /// l'agenda garde sa position et ses données quand on passe par les Réglages. C'est
+  /// aussi ce qui permet à la colonne de lire l'état de l'agenda — `_agenda.currentState`
+  /// ne vaut quelque chose que parce que l'écran n'est jamais démonté.
+  Widget _corps(BuildContext context, {required bool bureau}) {
+    final pile = IndexedStack(
+      index: _onglet,
+      children: [
+        ContenuBorne(
+          largeur: Mesures.largeurDeLAgenda,
+          child: EcranDAgenda(
+            key: _agenda,
+            session: widget.session,
+            verrouillage: widget.verrouillage,
+            surChangement: () {
+              if (mounted) setState(() {});
+            },
+          ),
+        ),
+        ContenuBorne(child: EcranDeTaches(session: widget.session)),
+        ContenuBorne(child: EcranDeReunions(session: widget.session)),
+        ContenuBorne(child: EcranDeTypesDeRendezVous(session: widget.session)),
+        ContenuBorne(
+          child: EcranDeReglages(
+            session: widget.session,
+            verrouillage: widget.verrouillage,
+            apparence: widget.apparence,
+            rappels: widget.rappels,
+          ),
+        ),
+      ],
+    );
+    if (!bureau) return pile;
+    // La colonne lit l'agenda plutôt que de tenir son propre état : deux sources pour
+    // la même sélection finiraient par diverger, et c'est la colonne qui aurait tort.
+    final agenda = _agenda.currentState;
+    return Row(
+      children: [
+        ColonneLaterale(
+          onglet: _onglet,
+          surOnglet: (indice) => setState(() => _onglet = indice),
+          calendriers: agenda?.calendriers ?? const [],
+          masques: agenda?.masques ?? const {},
+          surMasques: (m) => agenda?.masquer(m),
+          ancre: agenda?.ancre ?? DateTime.now(),
+          surJour: (j) {
+            setState(() => _onglet = 0);
+            agenda?.allerAuJour(j);
+          },
+        ),
+        Expanded(child: pile),
+      ],
+    );
+  }
+
+  /// Hauteur de la barre d'outils du bureau. Les pastilles de la fenêtre sont centrées
+  /// verticalement dedans, comme dans Fantastical et les Réglages Système.
+  static const _hauteurDeLaBarre = 52.0;
+
+  /// La barre d'outils du bureau, logée **dans** la barre de titre.
+  ///
+  /// ─── Pourquoi elle existe ───
+  ///
+  /// Sans elle, une fenêtre large porte une barre de titre vide au-dessus des commandes
+  /// de l'application : deux bandeaux empilés dont le premier ne sert à rien. Et les
+  /// commandes, elles, restaient en bas dans une pilule flottante — un objet fait pour
+  /// un pouce, posé devant une souris.
+  ///
+  /// ─── La contrainte dure ───
+  ///
+  /// `MainFlutterWindow` rend la barre de titre transparente et fait passer la vue
+  /// Flutter dessous. Les trois pastilles de la fenêtre se retrouvent donc **sur cette
+  /// ligne**, et le bord gauche leur appartient : y poser un bouton le rendrait
+  /// inatteignable, sans que rien ne le signale.
+  ///
+  /// Mesuré le 2026-10-22 par `System Events`, barre de titre unifiée comprise : trois
+  /// pastilles de 16×16 à x = 18, 41 et 64, donc occupées jusqu'à 80. La marge vaut 96
+  /// et non 80 — seize points de respiration, sans quoi le premier bouton les touche.
+  PreferredSizeWidget _barreDeTitre(BuildContext context) {
+    final l = L.of(context);
+    return PreferredSize(
+      preferredSize: const Size.fromHeight(_hauteurDeLaBarre),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: Theme.of(context).dividerColor),
+          ),
+        ),
+        child: SizedBox(
+          height: _hauteurDeLaBarre,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 96, right: 8),
+            child: Row(
+              children: [
+                // Ni hamburger ni filtre : la colonne porte les sections et les
+                // calendriers, en permanence. Les garder ici donnerait deux chemins
+                // vers la même chose, dont un caché — ce qu'on vient d'enlever.
+                Expanded(child: Center(child: _vuesDuBureau(context))),
+                IconButton(
+                  key: const Key('accueil.recherche'),
+                  tooltip: l.rechercher,
+                  icon: const Icon(Icons.search),
+                  onPressed: () => _agenda.currentState?.rechercher(),
+                ),
+                // Même règle que la barre du bas : sans calendrier inscriptible, offrir
+                // de créer mènerait à un formulaire qu'on ne peut pas enregistrer.
+                if (_agenda.currentState?.peutCreer ?? false)
+                  IconButton(
+                    key: const Key('accueil.nouveau'),
+                    tooltip: l.nouvelEvenement,
+                    icon: const Icon(Icons.add),
+                    onPressed: () => _agenda.currentState?.nouvelEvenement(),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Les quatre vues, en segmenté permanent plutôt que cachées dans une feuille.
+  ///
+  /// Une vue choisie ramène l'agenda devant, comme le fait déjà la feuille du menu :
+  /// changer de vue depuis les Réglages aurait sinon un effet invisible.
+  Widget _vuesDuBureau(BuildContext context) {
+    final l = L.of(context);
+    final vue = _agenda.currentState?.vue ?? VueDAgenda.jour;
+    return SegmentedButton<VueDAgenda>(
+      key: const Key('bureau.vues'),
+      showSelectedIcon: false,
+      style: const ButtonStyle(
+        visualDensity: VisualDensity.compact,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      segments: [
+        for (final v in VueDAgenda.values)
+          ButtonSegment<VueDAgenda>(value: v, label: Text(v.libelle(l))),
+      ],
+      selected: {vue},
+      onSelectionChanged: (choix) {
+        setState(() => _onglet = 0);
+        _agenda.currentState?.choisirLaVue(choix.first);
+      },
     );
   }
 
@@ -410,6 +544,7 @@ class _EcranDAccueilState extends State<EcranDAccueil>
                   (VueDAgenda.semaine, Icons.view_week_outlined),
                   (VueDAgenda.mois, Icons.calendar_view_month),
                   (VueDAgenda.liste, Icons.view_agenda_outlined),
+                  (VueDAgenda.annee, Icons.calendar_today_outlined),
                 ])
                   entree(v, icone, v.libelle(l), _onglet == 0 && vue == v),
                 const Divider(),

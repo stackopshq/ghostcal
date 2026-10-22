@@ -120,6 +120,17 @@ export function setCalendarColor(calendarId: string, color: string): Promise<voi
   });
 }
 
+/**
+ * Rename one of your own calendars. Same PATCH as the colour, carrying only the name: the default
+ * calendar is named by the server, in French, and this is the only way to change it.
+ */
+export function renameCalendar(calendarId: string, name: string): Promise<void> {
+  return authedFetch<void>(`/v1/me/calendars/${calendarId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ name: name.trim() }),
+  });
+}
+
 export function listShares(calendarId: string): Promise<Share[]> {
   return authedFetch<Share[]>(`/v1/me/calendars/${calendarId}/shares`);
 }
