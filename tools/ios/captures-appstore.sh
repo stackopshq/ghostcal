@@ -55,9 +55,20 @@ PHRASE="${GHOSTCAL_PHRASE:-banc-local-ghostcal-jetable-2026}"
 APPAREIL="${GHOSTCAL_APPAREIL:-iPhone 17 Pro Max}"
 
 SORTIE="$MOBILE/AppStore/captures"
+# La langue de la prise de vue. App Store Connect réclame un jeu **par langue** déclarée
+# sur la fiche : une fiche bilingue dont une langue n'a pas de captures ne se soumet pas.
+# Le français reste le défaut, c'est la langue source du produit.
+LANGUE="${GHOSTCAL_LANGUE:-fr}"
+case "$LANGUE" in
+  fr|en) ;;
+  *) echo "GHOSTCAL_LANGUE doit valoir fr ou en, pas « $LANGUE »" >&2; exit 2 ;;
+esac
 case "$APPAREIL" in
   iPad*) SORTIE="$MOBILE/AppStore/captures-ipad" ;;
 esac
+# Un répertoire par langue, pour la même raison qu'un répertoire par appareil : sans lui
+# la seconde passe écraserait la première, et on s'en apercevrait devant App Store Connect.
+[ "$LANGUE" = fr ] || SORTIE="$SORTIE-$LANGUE"
 
 MESURER_SEULEMENT=0
 [[ "${1:-}" == "--mesurer" ]] && MESURER_SEULEMENT=1
@@ -125,6 +136,35 @@ if [[ -z "$JETON" ]]; then
 fi
 vert "connexion réelle établie sur $API"
 
+# ── Le banc parle-t-il la même langue que la prise de vue ? ───────────────────
+#
+# L'interface suit la langue du simulateur ; les **données** suivent celle de l'amorçage.
+# Rien ne les lie, et c'est ainsi que le jeu anglais du 21 octobre est sorti avec des
+# libellés anglais au-dessus d'un agenda français — « October 21 », « All calendars », et
+# « Renouveler le passeport ». Aucun contrôle ne l'a vu : l'image était pleine, nette, aux
+# bonnes dimensions. Il a fallu l'ouvrir.
+#
+# On compare donc le titre du premier type de rendez-vous à celui que
+# `tools/amorcer_vitrine.py` dépose dans cette langue. C'est une donnée que l'amorçage
+# pose toujours, et son titre diffère franchement d'une langue à l'autre.
+ATTENDU="$([ "$LANGUE" = en ] && echo '30-minute interview' || echo 'Entretien de 30 minutes')"
+TITRES="$(curl -s --max-time 5 "$API/v1/me/event-types" -H "authorization: Bearer $JETON" \
+  | python3 -c 'import json,sys
+try: print("\n".join(t.get("title","") for t in json.load(sys.stdin)))
+except Exception: pass' 2>/dev/null || true)"
+
+if ! printf '%s' "$TITRES" | grep -qxF "$ATTENDU"; then
+  rouge "Le banc n'est pas amorcé en « $LANGUE »."
+  echo "  Attendu un type de rendez-vous « $ATTENDU » ; le banc propose :" >&2
+  printf '%s\n' "$TITRES" | sed 's/^/    /' >&2
+  echo "  Réamorcez dans la bonne langue :" >&2
+  echo "    GHOSTCAL_LANGUE=$LANGUE ./tools/banc-local.sh --vitrine" >&2
+  echo "  (Photographier par-dessus donnerait des libellés d'une langue et des données" >&2
+  echo "   de l'autre — ce que ni les dimensions ni le compte de teintes ne voient.)" >&2
+  exit 2
+fi
+vert "banc amorcé en « $LANGUE »"
+
 # ── Simulateur à la bonne taille ──────────────────────────────────────────────
 dire "Simulateur « $APPAREIL »"
 # `export`, et non une affectation en tête de commande : celle-ci ne vaudrait que pour
@@ -172,7 +212,7 @@ fi
 #
 # Le remède n'est pas un délai, c'est l'ordre : on ne parle à un simulateur qu'une fois
 # qu'il a dit être prêt.
-xcrun simctl spawn "$APPAREIL_ID" defaults write .GlobalPreferences AppleLanguages -array fr || true
+xcrun simctl spawn "$APPAREIL_ID" defaults write .GlobalPreferences AppleLanguages -array "$LANGUE" || true
 
 
 # Barre d'état figée : c'est l'usage pour une fiche App Store, et cela évite qu'une heure
@@ -207,6 +247,27 @@ surveiller() {
       # Un instant de repos : le témoin est écrit depuis le fil de l'interface, et la
       # dalle peut avoir un cadre de retard sur ce que Flutter croit avoir posé.
       sleep 0.4
+      # L'habillage de la barre d'état, **réappliqué avant chaque vue**.
+      #
+      # Mesuré le 21 octobre, et c'est une mesure et non une impression : sur les douze
+      # images du jeu iPhone, « 02-nouvel-evenement » portait 88,6 % de pixels noirs dans
+      # la bande centrale du haut, et les onze autres 0,0 %. Une capsule noire à la place
+      # de l'Îlot dynamique, sur cette vue-là seulement, dans les deux langues.
+      #
+      # La cause est l'écran lui-même : il change le style de la barre d'état par le canal
+      # natif ajouté pour corriger le contraste, iOS redessine alors la vraie barre, et le
+      # dessin de `simctl status_bar override` posé au démarrage est perdu dans cette
+      # région. L'heure figée à 9 h 41 survivait, ce qui rendait la perte invisible à tout
+      # contrôle qui aurait regardé l'horloge.
+      #
+      # Réappliquer coûte quelques millisecondes et vaut pour toutes les vues, y compris
+      # celles qui ne changent rien : un habillage qu'on repose est un habillage qu'on
+      # n'a pas à supposer intact.
+      xcrun simctl status_bar "$APPAREIL_ID" override \
+        --time "09:41" --batteryState charged --batteryLevel 100 \
+        --cellularMode active --cellularBars 4 --wifiMode active --wifiBars 3 \
+        >/dev/null 2>&1 || true
+      sleep 0.3
       xcrun simctl io "$APPAREIL_ID" screenshot --type png "$SORTIE/$nom.png" >/dev/null 2>&1
       printf '  📷 %s\n' "$nom" >&2
       rm -f "$demande"

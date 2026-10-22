@@ -348,7 +348,7 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
-      # `--no-cache` : le `apt-get upgrade` des Containerfile n'a d'effet que s'il s'exécute.
+      # `--no-cache` : le `microdnf upgrade` des Containerfile n'a d'effet que s'il s'exécute.
       # Ce job tourne sur la VM elle-même, dont le cache podman persiste d'un job à l'autre :
       # le 2026-10-14, la couche venait du cache et Trivy a trouvé pcre2 et perl périmés dans
       # une image construite le jour même. Le cache `uv` (montage `type=cache`) reste utilisé.
@@ -364,7 +364,7 @@ jobs:
         run: podman build --no-cache -t ghostcal-frontend:ci -f frontend/Containerfile frontend
 
       # osv-scanner covers uv.lock and package-lock.json — our dependencies, not the operating
-      # system underneath them. Everything in the base layer (OpenSSL, zlib, the Debian userland)
+      # system underneath them. Everything in the base layer (OpenSSL, zlib, the Rocky userland)
       # was unscanned, which is the largest surface in the deployed artefact.
       #
       # Fails on HIGH/CRITICAL with a fix available. Vulnerabilities with no upstream fix are
