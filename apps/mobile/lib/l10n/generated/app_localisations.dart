@@ -1201,6 +1201,12 @@ abstract class L {
   /// **'Liste'**
   String get vueListe;
 
+  /// No description provided for @vueAnnee.
+  ///
+  /// In fr, this message translates to:
+  /// **'Année'**
+  String get vueAnnee;
+
   /// No description provided for @periodePrecedente.
   ///
   /// In fr, this message translates to:

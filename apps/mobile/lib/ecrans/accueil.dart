@@ -541,6 +541,7 @@ class _EcranDAccueilState extends State<EcranDAccueil>
                   (VueDAgenda.semaine, Icons.view_week_outlined),
                   (VueDAgenda.mois, Icons.calendar_view_month),
                   (VueDAgenda.liste, Icons.view_agenda_outlined),
+                  (VueDAgenda.annee, Icons.calendar_today_outlined),
                 ])
                   entree(v, icone, v.libelle(l), _onglet == 0 && vue == v),
                 const Divider(),

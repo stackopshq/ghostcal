@@ -15,6 +15,7 @@ import '../services/verrouillage.dart';
 import '../services/vue_agenda.dart';
 import '../theme.dart';
 import 'agenda_jours.dart';
+import 'agenda_annee.dart';
 import 'agenda_vues.dart';
 import 'nouvel_evenement.dart';
 import 'recherche.dart';
@@ -217,6 +218,12 @@ class EcranDAgendaState extends State<EcranDAgenda> {
         return (de: jours.first, a: plusJours(jours.last, 1));
       case VueDAgenda.liste:
         return (de: _ancre, a: plusJours(_ancre, _joursDeLaListe));
+      case VueDAgenda.annee:
+        // L'année ne montre aucun contenu, seulement des nombres : charger douze mois
+        // d'événements pour ne rien en dessiner coûterait une requête par ouverture,
+        // sur la fenêtre la plus large de l'application. Le serveur refuse d'ailleurs
+        // au-delà de 366 jours.
+        return (de: _ancre, a: plusJours(_ancre, 1));
     }
   }
 
@@ -317,6 +324,7 @@ class EcranDAgendaState extends State<EcranDAgenda> {
       VueDAgenda.semaine => plusJours(_ancre, 7 * sens),
       VueDAgenda.mois => plusMois(_ancre, sens),
       VueDAgenda.liste => plusJours(_ancre, _joursDeLaListe * sens),
+      VueDAgenda.annee => plusAnnees(_ancre, sens),
     };
     _allerA(cible);
   }
@@ -348,6 +356,9 @@ class EcranDAgendaState extends State<EcranDAgenda> {
           '${DateFormat.MMMd(langue).format(debut)} – ${DateFormat.MMMd(langue).format(fin)}',
           DateFormat.y(langue).format(fin),
         );
+      case VueDAgenda.annee:
+        // L'année porte son propre nom : « Octobre 2026 » devant douze mois serait faux.
+        return ('', annee);
       case VueDAgenda.mois:
       case VueDAgenda.liste:
         // "octobre" heads the screen: a title takes its capital in French too.
@@ -764,6 +775,14 @@ class EcranDAgendaState extends State<EcranDAgenda> {
               ],
             );
           },
+        );
+      case VueDAgenda.annee:
+        return GrilleDeLAnnee(
+          annee: _ancre,
+          premierJour: _premierJour,
+          // Un jour cliqué ouvre ce jour : c'est la seule chose qu'on puisse vouloir
+          // faire depuis une grille qui ne montre que des nombres.
+          surJour: (jour) => _allerA(jour, vue: VueDAgenda.jour),
         );
       case VueDAgenda.liste:
         return RefreshIndicator(
