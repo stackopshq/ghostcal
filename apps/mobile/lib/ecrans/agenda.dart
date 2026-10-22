@@ -595,11 +595,21 @@ class EcranDAgendaState extends State<EcranDAgenda> {
             // dots and the day list, titles always give titles — on a phone they are
             // cut short, as in Fantastical's expanded month, and still say which day is
             // busy with what.
-            final titres = switch (_modeDuMois) {
-              ModeDuMois.automatique => selonLaPlace,
-              ModeDuMois.compact => 0,
-              ModeDuMois.titres => selonLaPlace > 0 ? selonLaPlace : 1,
-            };
+            // ─── Sur le bureau, la place décide seule ───
+            //
+            // La poignée qui bascule pastilles/titres est un geste de pouce, et elle
+            // disparaît au-dessus du seuil. Son réglage doit donc disparaître avec
+            // elle : sinon un « compact » mémorisé sur un téléphone suivrait la
+            // personne jusqu'au Mac, où plus rien ne permettrait d'en sortir. C'est
+            // arrivé — un mois muet sur 1440 points, et le code accusé à tort.
+            final bureau = contraintes.maxWidth >= Mesures.seuilBureau;
+            final titres = bureau
+                ? selonLaPlace
+                : switch (_modeDuMois) {
+                    ModeDuMois.automatique => selonLaPlace,
+                    ModeDuMois.compact => 0,
+                    ModeDuMois.titres => selonLaPlace > 0 ? selonLaPlace : 1,
+                  };
             final grille = GrilleDuMois(
               mois: _ancre,
               jours: joursDeLaGrilleDuMois(_ancre, _premierJour),
@@ -610,6 +620,7 @@ class EcranDAgendaState extends State<EcranDAgenda> {
               surJour: surJour,
             );
             if (titres > 0) {
+              if (bureau) return grille;
               return Column(
                 children: [
                   Expanded(child: grille),
