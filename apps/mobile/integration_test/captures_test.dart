@@ -46,13 +46,41 @@ import 'package:ghostcal/src/rust/frb_generated.dart';
 /// bilingue dont l'anglais n'a pas d'images ne se soumet pas. Ce scénario doit donc
 /// tourner dans les deux, et naviguer par un libellé d'une seule langue l'en empêchait.
 Future<void> allerA(WidgetTester tester, List<String> entrees) async {
-  await tester.tap(find.byKey(const Key('accueil.menu')));
-  await tester.pumpAndSettle();
-  final entree = entrees
-      .map(find.text)
-      .firstWhere((f) => f.evaluate().isNotEmpty,
-          orElse: () => fail('Aucune de $entrees dans le menu — '
-              'la navigation a-t-elle changé, ou la langue ?'));
+  // Deux chemins, parce qu'il y a deux mises en page.
+  //
+  // Au-dessus de 900 points de large, `ColonneLaterale` remplace la barre du bas et
+  // affiche les sections en clair : il n'y a plus de bouton de menu à toucher. Un iPad
+  // Pro 13 pouces fait 1032 points, et les deux passes iPad ont donc échoué sur
+  // « getCenter » — une erreur qui désigne la frappe et ne dit rien de la largeur.
+  final menu = find.byKey(const Key('accueil.menu'));
+  if (menu.evaluate().isNotEmpty) {
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+  }
+  final entree = entrees.map(find.text).firstWhere(
+    (f) => f.evaluate().isNotEmpty,
+    // Le message dit **ce qu'il voit**, et pas seulement ce qu'il cherchait.
+    //
+    // Les deux passes iPad ont échoué deux fois de suite sur « Aucune de [Tâches, Tasks] »,
+    // et ce message laissait trois hypothèses ouvertes — la langue, la mise en page large,
+    // ou un écran resté par-dessus. Chacune demandait une passe de six minutes pour être
+    // écartée. Lister les libellés présents les tranche toutes d'un coup.
+    orElse: () {
+      final vus = find
+          .byType(Text)
+          .evaluate()
+          .map((e) => (e.widget as Text).data)
+          .whereType<String>()
+          .where((s) => s.trim().isNotEmpty)
+          .take(30)
+          .toList();
+      return fail(
+        'Aucune de $entrees à l\'écran.\n'
+        'Menu trouvé : ${menu.evaluate().isNotEmpty}\n'
+        'Textes visibles : $vus',
+      );
+    },
+  );
   await tester.tap(entree.last);
   await tester.pumpAndSettle();
 }
@@ -254,8 +282,21 @@ void main() {
     // donc sur « One back button expected on screen ».
     //
     // On dépile par le navigateur, ce qui ne dépend d'aucune apparence.
-    tester.state<NavigatorState>(find.byType(Navigator).first).pop();
-    await tester.pumpAndSettle();
+    // On ne dépile **que s'il y a quelque chose à dépiler**.
+    //
+    // Sur un écran large, la refonte de bureau ouvre l'événement *à côté* de la grille au
+    // lieu de le pousser par-dessus : il n'existe alors aucune route à retirer, et ce
+    // `pop()` enlevait l'écran d'accueil lui-même. Les deux passes iPad échouaient ensuite
+    // sur « Aucune de [Tâches, Tasks] », un message qui accusait la langue ou la
+    // navigation — alors que l'arbre ne contenait plus **aucun** texte. C'est
+    // l'instrumentation qui l'a dit : « Textes visibles : [] ».
+    final navigateur = tester.state<NavigatorState>(
+      find.byType(Navigator).first,
+    );
+    if (navigateur.canPop()) {
+      navigateur.pop();
+      await tester.pumpAndSettle();
+    }
 
     // ── 03 · Tâches ──
     await allerA(tester, const ['Tâches', 'Tasks']);
