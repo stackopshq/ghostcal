@@ -151,7 +151,18 @@ AUTH=(-H "authorization: Bearer $ACCES")
 PUBLIQUE="$(curl -s "${AUTH[@]}" "$API/v1/auth/zk-keys" | jq_ "[0]['public_key']")"
 ORG="$(curl -s "${AUTH[@]}" "$API/v1/me/organizations" | jq_ "[0]['id']")"
 ORGH=(-H "x-organization-id: $ORG")
-CAL="$(curl -s "${AUTH[@]}" "${ORGH[@]}" "$API/v1/me/calendars" | jq_ "[0]['id']")"
+# C'est **cette requête** qui crée le calendrier par défaut, et donc qui le nomme.
+#
+# Le serveur ne l'écrit pas à l'inscription : `list_calendars` appelle
+# `ensure_default_calendar` paresseusement, à la première lecture de la liste, et le nomme
+# d'après `accept-language`. Sans cet en-tête, le banc anglais recevait « Mon agenda » —
+# ce que la capture App Store anglaise affichait, au milieu d'une interface anglaise.
+#
+# L'application, elle, envoie cet en-tête depuis la 1.5.0. Ici c'est `curl` qui parle en
+# premier, donc c'est à lui de le dire.
+LANGUE_DU_BANC="${GHOSTCAL_LANGUE:-fr}"
+CAL="$(curl -s "${AUTH[@]}" "${ORGH[@]}" -H "accept-language: $LANGUE_DU_BANC" \
+  "$API/v1/me/calendars" | jq_ "[0]['id']")"
 
 sceller() { "$AMORCER" sceller "$PUBLIQUE" "$1"; }
 horodate() { python3 -c "
