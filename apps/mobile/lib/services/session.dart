@@ -99,6 +99,15 @@ class Session extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// La langue de l'interface, retenue ici parce que le client API naît et meurt avec la
+  /// connexion, alors que le choix de langue, lui, lui survit.
+  String? _langue;
+
+  void poserLaLangue(String? code) {
+    _langue = code;
+    api?.poserLaLangue(code);
+  }
+
   /// Le compte réclame un second facteur, et l'écran doit ouvrir un champ.
   ///
   /// Un état à part, pas un message d'erreur : `_pendant` transforme toute
@@ -261,6 +270,7 @@ class Session extends ChangeNotifier {
     // affichant une autre.
     _organisation ??= service.organisations.isEmpty ? null : service.organisations.first;
     client.poserLOrganisation(_organisation);
+    client.poserLaLangue(_langue);
   }
 
   Future<void> _pendant(Future<void> Function() corps) async {
