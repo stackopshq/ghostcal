@@ -143,6 +143,29 @@ class EcranDAgendaState extends State<EcranDAgenda> {
     await _retenir(masques.join(','), _cleDesMasques);
   }
 
+  /// Renomme un calendrier, puis le repose dans la liste déjà chargée.
+  ///
+  /// La liste n'est lue qu'une fois par session — « les calendriers ne changent pas d'une
+  /// période à l'autre » — si bien qu'un renommage réussi resterait invisible jusqu'à la
+  /// prochaine connexion si on ne la corrigeait pas ici. Relire la liste entière pour un
+  /// champ coûterait un aller-retour et ferait clignoter la barre du bas.
+  ///
+  /// On n'écrit en mémoire **qu'après** que le serveur a accepté : poser le nom d'abord
+  /// montrerait un renommage qui n'a pas eu lieu, et c'est exactement le genre d'écran
+  /// cohérent et faux qu'on paye plus tard.
+  Future<void> renommerLeCalendrier(String id, String nom) async {
+    final agenda = _agenda;
+    if (agenda == null) return;
+    await agenda.renommerLeCalendrier(id: id, nom: nom);
+    if (!mounted) return;
+    setState(() {
+      _calendriers = [
+        for (final c in _calendriers) c.id == id ? c.renomme(nom.trim()) : c,
+      ];
+    });
+    widget.surChangement?.call();
+  }
+
   Future<void> rechercher() async {
     final agenda = _agenda;
     final organisation = widget.session.organisation;

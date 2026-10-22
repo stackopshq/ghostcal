@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../services/agenda.dart' show Calendrier;
+import '../services/erreurs.dart' show lisible;
 import '../services/session.dart';
 import '../services/apparence.dart';
 import '../services/rappels.dart';
@@ -12,6 +14,7 @@ import '../services/verrouillage.dart';
 import '../theme.dart';
 import 'agenda.dart';
 import 'reglages.dart';
+import 'renommer_un_calendrier.dart';
 import 'reunions.dart';
 import 'types_de_rendez_vous.dart';
 import 'taches.dart';
@@ -501,7 +504,24 @@ class _EcranDAccueilState extends State<EcranDAccueil>
                         radius: 7,
                         backgroundColor: _couleur(c.couleur),
                       ),
-                      title: Text(c.nom),
+                      // Le crayon vit **dans** le titre, et non en `secondary` : cette
+                      // place est prise par la pastille de couleur, qui dit de quel
+                      // calendrier il s'agit et qu'on ne peut pas retirer pour faire de
+                      // la place. Un `IconButton` absorbe la frappe, donc toucher le
+                      // crayon n'allume ni n'éteint la case.
+                      title: Row(
+                        children: [
+                          Expanded(child: Text(c.nom)),
+                          if (c.aSoi)
+                            IconButton(
+                              key: Key('calendriers.renommer.${c.id}'),
+                              icon: const Icon(Icons.edit_outlined, size: 18),
+                              tooltip: l.renommerLeCalendrier,
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () => _renommer(agenda, c, majour),
+                            ),
+                        ],
+                      ),
                       value: !masques.contains(c.id),
                       onChanged: (montre) => poser(
                         montre == true
@@ -516,6 +536,30 @@ class _EcranDAccueilState extends State<EcranDAccueil>
         },
       ),
     );
+  }
+
+  /// Demande un nom et ne referme la boucle qu'une fois le serveur d'accord.
+  ///
+  /// `majour` est le `setState` du `StatefulBuilder` de la feuille : sans lui, le nom
+  /// changerait dans l'état de l'agenda et la feuille continuerait d'afficher l'ancien,
+  /// puisqu'elle est reconstruite par son propre constructeur et non par l'écran.
+  Future<void> _renommer(
+    EcranDAgendaState agenda,
+    Calendrier calendrier,
+    void Function(VoidCallback) majour,
+  ) async {
+    final nom = await demanderUnNouveauNom(context, nomActuel: calendrier.nom);
+    if (nom == null || !mounted) return;
+    try {
+      await agenda.renommerLeCalendrier(calendrier.id, nom);
+      // La feuille porte sa propre copie de la liste : on la redessine.
+      majour(() {});
+    } on Object catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(lisible(e, L.of(context)))));
+    }
   }
 
   Color _couleur(String hex) {
