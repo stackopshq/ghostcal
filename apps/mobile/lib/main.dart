@@ -170,9 +170,11 @@ class GhostcalApp extends StatelessWidget {
       // l'appareil. Voir `_BarreDEtatSelonLeTheme`, qui porte la mesure et les trois
       // chemins essayés avant celui-là.
       builder: (context, enfant) => _BarreDEtatSelonLeTheme(
-        enfant: _RetirerLesEcransAuVerrouillage(
-          session: session,
-          enfant: enfant ?? const SizedBox.shrink(),
+        enfant: _SousLaBarreDeTitre(
+          child: _RetirerLesEcransAuVerrouillage(
+            session: session,
+            enfant: enfant ?? const SizedBox.shrink(),
+          ),
         ),
       ),
       home:
@@ -261,6 +263,48 @@ class _EtatDuRetrait extends State<_RetirerLesEcransAuVerrouillage> {
 
   @override
   Widget build(BuildContext context) => widget.enfant;
+}
+
+/// Réserve la hauteur de la barre de titre, que la vue Flutter traverse sur macOS.
+///
+/// ─── Le défaut que ce widget corrige ───
+///
+/// `MainFlutterWindow` rend la barre de titre transparente et fait passer la vue
+/// dessous, pour que la barre d'outils de l'accueil se tienne sur la même ligne que les
+/// trois pastilles de la fenêtre. Tout ce qui est **poussé par-dessus** hérite de la
+/// même chose sans l'avoir demandé : un écran de détail commence à y = 0, et sa flèche
+/// de retour se glisse exactement sous les pastilles — mesuré, elles occupent x = 18 à
+/// 80, et la flèche se pose à x = 16.
+///
+/// Le résultat est un bouton inatteignable, et rien ne le dit : la flèche est visible,
+/// elle est simplement derrière.
+///
+/// ─── Comment ───
+///
+/// En posant une marge haute dans le `MediaQuery`, comme iOS le fait de sa barre
+/// d'état. `AppBar` et `SafeArea` la lisent tous les deux sans qu'on ait à les toucher :
+/// chaque écran poussé descend sous les pastilles, y compris ceux qu'on écrira demain.
+///
+/// L'accueil l'enlève pour lui-même — voir `_ecran` dans `accueil.dart` —, puisque c'est
+/// précisément lui qui dessine dans cette bande.
+class _SousLaBarreDeTitre extends StatelessWidget {
+  const _SousLaBarreDeTitre({required this.child});
+
+  final Widget child;
+
+  /// La hauteur de la barre de titre unifiée, celle que `MenuDeLApplication` et
+  /// `_barreDeTitre` connaissent sous le même nombre.
+  static const hauteur = 52.0;
+
+  @override
+  Widget build(BuildContext context) {
+    if (defaultTargetPlatform != TargetPlatform.macOS) return child;
+    final mesures = MediaQuery.of(context);
+    return MediaQuery(
+      data: mesures.copyWith(padding: mesures.padding.copyWith(top: hauteur)),
+      child: child,
+    );
+  }
 }
 
 /// Donne à iOS le style de barre d'état qui va avec le thème **de l'application**.

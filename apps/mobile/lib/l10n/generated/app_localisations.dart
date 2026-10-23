@@ -1813,6 +1813,12 @@ abstract class L {
   /// **'Renommer le calendrier'**
   String get renommerLeCalendrier;
 
+  /// No description provided for @nouveauCalendrier.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nouveau calendrier'**
+  String get nouveauCalendrier;
+
   /// No description provided for @calendriersAAfficher.
   ///
   /// In fr, this message translates to:

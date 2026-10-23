@@ -35,5 +35,33 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<!-- ─── Les mises à jour ─── -->
+	<!--
+	  L'URL est **compilée dans l'application** : en changer plus tard laisse derrière
+	  tous les exemplaires déjà installés, qui continueront d'interroger l'ancienne. Elle
+	  pointe sur le site, qui est public et déjà servi en HTTPS.
+	-->
+	<key>SUFeedURL</key>
+	<string>https://ghostsuite.cloud/ghostcal/appcast.xml</string>
+	<!--
+	  La clé publique qui valide la signature de chaque mise à jour. Sa moitié privée est
+	  dans le Bao, sous `kv/ghostcal/sparkle`, et dans le trousseau de la machine de
+	  publication sous le compte `ghostcal`. La perdre coupe définitivement les mises à
+	  jour de tout le parc installé.
+	-->
+	<key>SUPublicEDKey</key>
+	<string>0k3dHuuuNoGUtcccykg+oeFRfsLqcQ1cx4csQfqj5j0=</string>
+	<!--
+	  Vérifier oui, installer seul non. Une application qui vend la confidentialité et
+	  qui remplace son propre binaire sans qu'on ait rien demandé envoie un drôle de
+	  message — et on ne saurait plus dire quelle version tourne.
+	-->
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUAutomaticallyUpdate</key>
+	<false/>
+	<!-- Une fois par jour, pas à chaque ouverture : le flux ne bouge qu'aux versions. -->
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
 </dict>
 </plist>

@@ -1,5 +1,6 @@
 import AppKit
 import FlutterMacOS
+import Sparkle
 
 /// La barre de menus de l'application : celle du gabarit, rendue vivante, et ce qui manque.
 ///
@@ -61,6 +62,7 @@ final class MenuDeLApplication: NSObject {
     guard !monte else { return }
     monte = true
     cablerLExistant()
+    poserLaRechercheDeMisesAJour()
     monterLeMenuFichier()
     garnirLeMenuPresentation()
   }
@@ -89,6 +91,32 @@ final class MenuDeLApplication: NSObject {
     item.action = #selector(envoyer(_:))
     item.representedObject = Commande(methode: methode, argument: argument)
     item.isEnabled = true
+  }
+
+  /// « Rechercher les mises à jour… », juste sous « À propos ».
+  ///
+  /// C'est là que macOS le met, dans toutes les applications qui en ont un — assez
+  /// haut pour qu'on le trouve sans le chercher, et pas dans les Réglages, où il
+  /// passerait pour une préférence.
+  ///
+  /// L'item vise directement le contrôleur de Sparkle : rien ne transite par Flutter.
+  /// Une vérification de mise à jour n'a aucun état à partager avec les écrans, et
+  /// l'envoyer sur le canal ajouterait un aller-retour pour revenir au même endroit.
+  ///
+  /// Posé en seconde position plutôt qu'après un séparateur cherché : les menus du
+  /// gabarit n'ont pas d'identifiant, et viser « l'item qui suit celui dont le
+  /// sélecteur est `orderFrontStandardAboutPanel:` » reviendrait à deviner.
+  private func poserLaRechercheDeMisesAJour() {
+    guard let menu = NSApp.mainMenu?.items.first?.submenu else { return }
+    let item = NSMenuItem(
+      title: traduire("menu.misesAJour"),
+      action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)),
+      keyEquivalent: ""
+    )
+    item.target = MisesAJour.controleur
+    // Après « À propos », avant le premier séparateur du gabarit.
+    menu.insertItem(item, at: min(1, menu.items.count))
+    menu.insertItem(.separator(), at: min(2, menu.items.count))
   }
 
   // MARK: - Construire ce qui manque

@@ -241,7 +241,15 @@ class _EcranDAccueilState extends State<EcranDAccueil>
     // autant qu'un Mac, et un Mac dont la fenêtre est étroite retrouve la barre du bas
     // plutôt qu'une barre d'outils tassée.
     final bureau = MediaQuery.sizeOf(context).width >= Mesures.seuilBureau;
-    return FondGhost(
+    // L'accueil **dessine** dans la barre de titre : sa barre d'outils s'y tient, à
+    // côté des pastilles de la fenêtre. Il rend donc la marge que l'application réserve
+    // pour tous les écrans poussés — voir `_SousLaBarreDeTitre` dans `main.dart`. Sans
+    // ce retrait, la barre d'outils descendrait de 52 points et laisserait la bande
+    // vide, ce qui est exactement ce qu'on a enlevé.
+    //
+    // Seulement sur le bureau : en dessous du seuil il n'y a pas de barre d'outils, et
+    // le contenu doit descendre sous les pastilles comme partout ailleurs.
+    final ecran = FondGhost(
       child: Scaffold(
         appBar: bureau ? _barreDeTitre(context) : null,
         // The signal that the vault is open and the app is ready, for the integration
@@ -259,6 +267,31 @@ class _EcranDAccueilState extends State<EcranDAccueil>
         bottomNavigationBar: bureau ? null : _barre(context),
       ),
     );
+    // ─── Deux questions, et elles ne se confondent pas ───
+    //
+    // `bureau` décide de la **chrome** : barre d'outils en haut, pas de barre flottante
+    // en bas. La barre de titre traversée, elle, est une affaire de **plateforme** :
+    // seul `MainFlutterWindow` fait passer la vue dessous, et seul macOS a des pastilles
+    // à éviter.
+    //
+    // Les confondre retirait à l'iPad une encoche que personne ne lui avait ajoutée :
+    // `_SousLaBarreDeTitre` ne pose ses 52 points que sur macOS, et ce retrait les
+    // enlevait dès 900 points de large — donc sur un iPad dans les deux orientations.
+    // L'`AppBar` se dessinait alors à y = 0, et l'heure, la batterie et le wifi se
+    // posaient par-dessus la barre d'outils.
+    //
+    // Trouvé par la session iOS en lisant le code, avant que la build existe.
+    final dansLaBarreDeTitre = Mesures.dansLaBarreDeTitre(
+      bureau: bureau,
+      plateforme: defaultTargetPlatform,
+    );
+    return dansLaBarreDeTitre
+        ? MediaQuery.removePadding(
+            context: context,
+            removeTop: true,
+            child: ecran,
+          )
+        : ecran;
   }
 
   /// Le corps, et la colonne qui l'accompagne sur les fenêtres larges.
@@ -316,6 +349,7 @@ class _EcranDAccueilState extends State<EcranDAccueil>
           surRenommage: agenda == null
               ? null
               : (c) => _renommer(agenda, c, (f) => setState(f)),
+          surCreation: agenda == null ? null : () => _creerUnCalendrier(agenda),
           masques: agenda?.masques ?? const {},
           surMasques: (m) => agenda?.masquer(m),
           ancre: agenda?.ancre ?? DateTime.now(),
@@ -628,12 +662,32 @@ class _EcranDAccueilState extends State<EcranDAccueil>
                       Mesures.marge,
                       8,
                     ),
-                    child: Text(
-                      l.calendriersAAfficher,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            l.calendriersAAfficher,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        // Le même « + » que la colonne du bureau, au même endroit
+                        // relatif : au bout de l'en-tête. La feuille est le seul endroit
+                        // où un téléphone gère ses calendriers ; sans ce bouton, créer
+                        // resterait réservé au web.
+                        IconButton(
+                          key: const Key('calendriers.nouveau'),
+                          icon: const Icon(Icons.add),
+                          tooltip: l.nouveauCalendrier,
+                          onPressed: () async {
+                            await _creerUnCalendrier(agenda);
+                            // La feuille porte sa propre copie de la liste.
+                            majour(() {});
+                          },
+                        ),
+                      ],
                     ),
                   ),
                   CheckboxListTile(
@@ -689,6 +743,23 @@ class _EcranDAccueilState extends State<EcranDAccueil>
   /// `majour` est le `setState` du `StatefulBuilder` de la feuille : sans lui, le nom
   /// changerait dans l'état de l'agenda et la feuille continuerait d'afficher l'ancien,
   /// puisqu'elle est reconstruite par son propre constructeur et non par l'écran.
+  /// Demande un nom et crée le calendrier, une fois le serveur d'accord.
+  ///
+  /// Même forme que [_renommer] : la boîte d'abord, l'appel ensuite, et l'erreur dite
+  /// là où on l'a provoquée. Un calendrier dont la création échoue en silence laisserait
+  /// quelqu'un la refaire trois fois.
+  Future<void> _creerUnCalendrier(EcranDAgendaState agenda) async {
+    final nom = await demanderUnNomDeCalendrier(context);
+    if (nom == null || !mounted) return;
+    try {
+      await agenda.creerUnCalendrier(nom);
+    } on Object catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(lisible(e, L.of(context)))));
+    }
+  }
+
   Future<void> _renommer(
     EcranDAgendaState agenda,
     Calendrier calendrier,

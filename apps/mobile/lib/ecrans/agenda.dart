@@ -168,6 +168,26 @@ class EcranDAgendaState extends State<EcranDAgenda> {
   /// On n'écrit en mémoire **qu'après** que le serveur a accepté : poser le nom d'abord
   /// montrerait un renommage qui n'a pas eu lieu, et c'est exactement le genre d'écran
   /// cohérent et faux qu'on paye plus tard.
+  /// Crée un calendrier et l'ajoute à la liste, une fois le serveur d'accord.
+  ///
+  /// Même règle que le renommage : on n'écrit en mémoire qu'après l'accord du serveur,
+  /// et on ajoute **ce qu'il a rendu** plutôt que ce qu'on a demandé. C'est lui qui
+  /// décide de l'identifiant, et c'est aussi lui qui tranche si le nom a été rogné.
+  ///
+  /// La couleur est choisie parmi celles qui ne sont pas déjà prises — voir
+  /// [Agenda.couleurLibre].
+  Future<void> creerUnCalendrier(String nom) async {
+    final agenda = _agenda;
+    if (agenda == null) return;
+    final cree = await agenda.creerUnCalendrier(
+      nom: nom,
+      couleur: Agenda.couleurLibre([for (final c in _calendriers) c.couleur]),
+    );
+    if (!mounted) return;
+    setState(() => _calendriers = [..._calendriers, cree]);
+    widget.surChangement?.call();
+  }
+
   Future<void> renommerLeCalendrier(String id, String nom) async {
     final agenda = _agenda;
     if (agenda == null) return;
