@@ -16,20 +16,50 @@ pas chez Apple.
 
 Relevé le 25 septembre 2026.
 
-**La 1.5.0 (build 7) est en revue chez Apple depuis le 22 octobre 2026**, état
-`WAITING_FOR_REVIEW`, publication réglée sur **manuelle** — rien ne sortira sans un geste,
-même après acceptation, ce qui permet de faire coïncider la sortie avec le dépôt Play.
+**La 1.5.0 (build 7) a été retirée de la revue le 23 octobre 2026**, à la demande de
+Clara. État actuel : `DEVELOPER_REJECTED`, donc modifiable. Elle avait été soumise le
+22 octobre à 18h30 et attendait son tour.
+
+Pourquoi la retirer plutôt que la laisser passer : le mobile était resté loin derrière le
+Mac. La 1.5.0 serait sortie sans la vue Année, sans les barres continues des événements sur
+plusieurs jours, sans la création d'un calendrier depuis l'application, et **sans le
+correctif de verrouillage** — des écrans empilés restaient affichés, déchiffrés, par-dessus
+un agenda verrouillé. Ce dernier point est ce qui a décidé : il ne valait pas une version
+d'attente. Le coût est la place acquise dans la file d'Apple, et il est assumé.
+
+### Une affirmation fausse, et comment elle l'est devenue
+
+Ce paragraphe disait, jusqu'au 23 octobre : « publication réglée sur **manuelle** — rien ne
+sortira sans un geste ». **C'était faux.** L'API rend `releaseType=AFTER_APPROVAL` et
+`earliestReleaseDate=None` : la version serait sortie **d'elle-même** dès l'accord d'Apple.
+
+Le réglage avait bien été lu `MANUAL` le 22 octobre, avant la soumission. Il ne l'était plus
+le 23, et rien dans ce dépôt ne dit qui l'a changé — l'interface web le permet, et plusieurs
+sessions travaillent sur ce produit. Ce n'est donc pas une erreur de relevé : c'est un
+relevé devenu faux, laissé dans un document qui a l'air de décrire le présent.
+
+La leçon est la même que pour les cinq absences du tableau plus bas, et elle revient une
+fois de trop : **un état vérifié est vrai à une date, pas pour toujours.** Ce qu'on peut
+faire, c'est le relire depuis l'API avant de s'en servir — ce qui a été fait ici, et qui a
+évité une publication automatique d'une version qu'on venait de décider de remplacer.
 
 | Ce qu'il reste | Pourquoi ça ne peut pas se faire ici |
 |---|---|
+| **Fusionner le mobile**, puis monter un build neuf et le resoumettre | La branche qui porte la création de calendrier et le correctif de verrouillage n'était pas fusionnée au 23 octobre ; `main` déclarait 1.5.1+8. Rien à resoumettre avant |
 | Trancher la **note 3 du §740.17(b)** et mener les démarches BIS et ANSSI | Questions de droit ; GhostPass a le même arbitrage en cours |
 | Déposer l'**AAB sur le Play Store** | Aucun accès Play Console ni compte de service, de ce Mac ni de dev-loutre. L'AAB 1.5.0 (7) est construit et signé, empreinte de certificat identique à celle de la 1.4.1 |
 
 Fait : les quatre jeux de captures, déposés et acceptés sans erreur ; la **page
 d'assistance**, en ligne et vérifiée au contenu ; la classification d'âge ; la déclaration
 des **droits sur le contenu** ; le **texte promotionnel** dans les deux langues ; la
-conformité à l'export, cochée **sur le build 7** ; le build monté, distribué en TestFlight
-interne, et soumis.
+conformité à l'export, cochée **sur le build 7** ; le build monté et distribué en
+TestFlight interne.
+
+Tout cela **reste acquis** après le retrait : les captures, les textes, la classification et
+les déclarations vivent sur la version, pas sur la soumission. Ce qu'il faut refaire est le
+build et la soumission — et la conformité à l'export, qui se coche **par build** et non par
+version. C'est le piège de la 1.3.0 : elle avait été soumise avec un build dont la case
+n'était pas cochée.
 
 **Le questionnaire App Privacy ne se remplit pas par l'API.** Sept chemins sondés, tous en
 404, y compris ceux qu'une application déjà en revue utiliserait : ces réponses ne
