@@ -33,15 +33,22 @@ Ce paragraphe disait, jusqu'au 23 octobre : « publication réglée sur **manuel
 sortira sans un geste ». **C'était faux.** L'API rend `releaseType=AFTER_APPROVAL` et
 `earliestReleaseDate=None` : la version serait sortie **d'elle-même** dès l'accord d'Apple.
 
-Le réglage avait bien été lu `MANUAL` le 22 octobre, avant la soumission. Il ne l'était plus
-le 23, et rien dans ce dépôt ne dit qui l'a changé — l'interface web le permet, et plusieurs
-sessions travaillent sur ce produit. Ce n'est donc pas une erreur de relevé : c'est un
-relevé devenu faux, laissé dans un document qui a l'air de décrire le présent.
+Le réglage avait bien été lu `MANUAL` le 22 octobre, avant la soumission. **C'est Clara qui
+l'a basculé**, délibérément, parce qu'elle veut une publication automatique. Le document,
+lui, continuait d'annoncer le contraire.
 
-La leçon est la même que pour les cinq absences du tableau plus bas, et elle revient une
-fois de trop : **un état vérifié est vrai à une date, pas pour toujours.** Ce qu'on peut
-faire, c'est le relire depuis l'API avant de s'en servir — ce qui a été fait ici, et qui a
-évité une publication automatique d'une version qu'on venait de décider de remplacer.
+Ce premier paragraphe a d'ailleurs commencé par dire « rien ne dit qui l'a changé », en
+supposant une dérive entre sessions. C'était faux aussi, et dans un sens qui compte : un
+réglage délibéré de la propriétaire du produit s'était fait prendre pour un accident. La
+question « qui ? » avait une réponse — il suffisait de la poser.
+
+La leçon est double. **Un état vérifié est vrai à une date, pas pour toujours** : relire
+depuis l'API avant de s'en servir est ce qui a évité, le 23, de publier automatiquement une
+version qu'on venait de décider de remplacer. Et **un écart entre le dépôt et la réalité
+n'est pas forcément un défaut** : ici c'était une décision, et le document avait tort, pas
+le réglage.
+
+La 1.6.0 est donc soumise en `AFTER_APPROVAL`, et c'est voulu.
 
 | Ce qu'il reste | Pourquoi ça ne peut pas se faire ici |
 |---|---|
