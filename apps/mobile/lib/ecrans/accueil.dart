@@ -388,8 +388,30 @@ class _EcranDAccueilState extends State<EcranDAccueil>
   /// et non 80 — seize points de respiration, sans quoi le premier bouton les touche.
   PreferredSizeWidget _barreDeTitre(BuildContext context) {
     final l = L.of(context);
+    // ─── L'encoche, et pourquoi il faut l'ajouter à la main ───
+    //
+    // Cette barre est un `PreferredSize`, pas un `AppBar`. **Seul `AppBar` lit
+    // `MediaQuery.padding.top` et s'agrandit d'autant** ; un `PreferredSize` se pose à
+    // y = 0 quoi qu'il arrive.
+    //
+    // Sur macOS c'est voulu : l'application dessine dans la barre de titre, et la marge
+    // a justement été retirée en amont. Sur un **iPad** — large, donc « bureau », mais
+    // avec une vraie barre d'état — la barre d'outils se dessinait par-dessus l'heure,
+    // le wifi et la batterie. Mesuré sur `captures-ipad/01-agenda.png` : le trait du bas
+    // tombe à 104 pixels physiques, soit exactement les 52 points de la barre, donc elle
+    // commence bien à zéro.
+    //
+    // Le correctif de `Mesures.dansLaBarreDeTitre` ne suffisait pas : il **préserve** la
+    // marge, ce qui ne sert à rien tant que le widget qui la reçoit ne la lit pas. Les
+    // deux moitiés étaient nécessaires, et seule la première avait été posée.
+    final encoche = Mesures.dansLaBarreDeTitre(
+      bureau: true,
+      plateforme: Theme.of(context).platform,
+    )
+        ? 0.0
+        : MediaQuery.paddingOf(context).top;
     return PreferredSize(
-      preferredSize: const Size.fromHeight(_hauteurDeLaBarre),
+      preferredSize: Size.fromHeight(_hauteurDeLaBarre + encoche),
       child: DecoratedBox(
         decoration: BoxDecoration(
           border: Border(
@@ -397,9 +419,13 @@ class _EcranDAccueilState extends State<EcranDAccueil>
           ),
         ),
         child: SizedBox(
-          height: _hauteurDeLaBarre,
+          height: _hauteurDeLaBarre + encoche,
           child: Padding(
-            padding: const EdgeInsets.only(left: 96, right: 8),
+            // Les 96 points de gauche sont la place des pastilles de la fenêtre macOS.
+            // Sur iPad ils ne servent à rien, mais ils ne gênent pas : les deux icônes de
+            // droite les compensent, et le segmenté reste centré à trois points près —
+            // vérifié sur la capture avant d'y toucher.
+            padding: EdgeInsets.only(top: encoche, left: 96, right: 8),
             child: Row(
               children: [
                 // Ni hamburger ni filtre : la colonne porte les sections et les
