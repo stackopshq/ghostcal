@@ -241,7 +241,15 @@ class _EcranDAccueilState extends State<EcranDAccueil>
     // autant qu'un Mac, et un Mac dont la fenêtre est étroite retrouve la barre du bas
     // plutôt qu'une barre d'outils tassée.
     final bureau = MediaQuery.sizeOf(context).width >= Mesures.seuilBureau;
-    return FondGhost(
+    // L'accueil **dessine** dans la barre de titre : sa barre d'outils s'y tient, à
+    // côté des pastilles de la fenêtre. Il rend donc la marge que l'application réserve
+    // pour tous les écrans poussés — voir `_SousLaBarreDeTitre` dans `main.dart`. Sans
+    // ce retrait, la barre d'outils descendrait de 52 points et laisserait la bande
+    // vide, ce qui est exactement ce qu'on a enlevé.
+    //
+    // Seulement sur le bureau : en dessous du seuil il n'y a pas de barre d'outils, et
+    // le contenu doit descendre sous les pastilles comme partout ailleurs.
+    final ecran = FondGhost(
       child: Scaffold(
         appBar: bureau ? _barreDeTitre(context) : null,
         // The signal that the vault is open and the app is ready, for the integration
@@ -259,6 +267,13 @@ class _EcranDAccueilState extends State<EcranDAccueil>
         bottomNavigationBar: bureau ? null : _barre(context),
       ),
     );
+    return bureau
+        ? MediaQuery.removePadding(
+            context: context,
+            removeTop: true,
+            child: ecran,
+          )
+        : ecran;
   }
 
   /// Le corps, et la colonne qui l'accompagne sur les fenêtres larges.
