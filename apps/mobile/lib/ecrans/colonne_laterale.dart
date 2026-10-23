@@ -32,6 +32,7 @@ class ColonneLaterale extends StatelessWidget {
     required this.surOnglet,
     required this.calendriers,
     this.surRenommage,
+    this.surCreation,
     required this.masques,
     required this.surMasques,
     required this.ancre,
@@ -53,6 +54,11 @@ class ColonneLaterale extends StatelessWidget {
   /// Un crayon qui n'existerait que dans la feuille serait introuvable là où le nom
   /// « Mon agenda » gêne le plus.
   final ValueChanged<Calendrier>? surRenommage;
+
+  /// Créer un calendrier. Le chemin n'existait nulle part dans l'application : la route
+  /// `POST /v1/me/calendars` était là depuis toujours et seule l'interface web
+  /// l'appelait. On pouvait renommer, masquer, partager — pas créer.
+  final VoidCallback? surCreation;
   final Set<String> masques;
   final ValueChanged<Set<String>> surMasques;
 
@@ -104,7 +110,7 @@ class ColonneLaterale extends StatelessWidget {
                   ),
                 if (calendriers.isNotEmpty) ...[
                   const SizedBox(height: 14),
-                  _Titre(l.tousLesCalendriers),
+                  _Titre(l.tousLesCalendriers, surAjout: surCreation),
                   for (final c in calendriers)
                     _Calendrier(
                       surRenommage: surRenommage,
@@ -128,23 +134,44 @@ class ColonneLaterale extends StatelessWidget {
 }
 
 class _Titre extends StatelessWidget {
-  const _Titre(this.texte);
+  const _Titre(this.texte, {this.surAjout});
 
   final String texte;
 
+  /// Le « + » de la section, quand elle en a un. Au bout de l'en-tête plutôt qu'en bas
+  /// de la liste : la liste s'allonge, l'en-tête non, et un bouton qui se déplace à
+  /// chaque calendrier ajouté se cherche à chaque fois.
+  final VoidCallback? surAjout;
+
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
-    child: Text(
-      texte.toUpperCase(),
-      style: TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.6,
-        color: Gc.of(context).estompe,
+  Widget build(BuildContext context) {
+    final gc = Gc.of(context);
+    final style = TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.6,
+      color: gc.estompe,
+    );
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 6, surAjout == null ? 16 : 6, 4),
+      child: Row(
+        children: [
+          Expanded(child: Text(texte.toUpperCase(), style: style)),
+          if (surAjout != null)
+            IconButton(
+              key: const Key('colonne.nouveau-calendrier'),
+              icon: const Icon(Icons.add, size: 15),
+              tooltip: L.of(context).nouveauCalendrier,
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+              padding: EdgeInsets.zero,
+              color: gc.estompe,
+              onPressed: surAjout,
+            ),
+        ],
       ),
-    ),
-  );
+    );
+  }
 }
 
 /// Une section. Le fond marque la sélection plutôt qu'une coche : c'est ce que font les

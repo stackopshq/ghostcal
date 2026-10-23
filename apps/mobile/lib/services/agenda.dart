@@ -230,6 +230,53 @@ class Agenda {
   /// Le nom est rogné ici **aussi**, et pas seulement par le serveur : sans cela, « Perso »
   /// suivi d'une espace partirait, reviendrait rogné à la relecture, et l'écran afficherait
   /// autre chose que ce que l'utilisateur croit avoir tapé.
+  /// Crée un calendrier, et rend celui que le serveur a enregistré.
+  ///
+  /// La route existait depuis toujours — `POST /v1/me/calendars` — et l'application ne
+  /// l'appelait nulle part : on pouvait renommer un calendrier, le masquer, le partager,
+  /// mais pas en faire un. Il fallait passer par le web pour cela.
+  ///
+  /// La couleur est choisie **ici** et non laissée au défaut du serveur. Ce défaut vaut
+  /// `#00f0ff` pour tout le monde : trois calendriers créés d'affilée seraient
+  /// identiques, et la colonne latérale, qui colore sa case pour relier une ligne de la
+  /// grille à son calendrier, ne relierait plus rien.
+  Future<Calendrier> creerUnCalendrier({
+    required String nom,
+    required String couleur,
+  }) async {
+    final brut = await api.envoyer<Map<String, dynamic>>(
+      'POST',
+      'v1/me/calendars',
+      {'name': nom.trim(), 'color': couleur},
+    );
+    return Calendrier.depuisJson(brut);
+  }
+
+  /// Une couleur qui ne soit pas déjà prise, prise dans cet ordre.
+  ///
+  /// Huit teintes franches et distinctes à l'œil, y compris pour un daltonisme rouge-vert
+  /// : on ne distingue pas deux calendriers par leur nuance mais par leur famille. Au
+  /// neuvième calendrier on recommence au début — mieux vaut une couleur répétée qu'une
+  /// couleur inventée dont on ne sait pas ce qu'elle donne sur fond sombre.
+  static const _palette = [
+    '#2E7DFF', // bleu
+    '#15803D', // vert
+    '#D11F45', // rouge
+    '#B45309', // ambre
+    '#7C3AED', // violet
+    '#0E8FA8', // cyan
+    '#BE185D', // magenta
+    '#4D7C0F', // olive
+  ];
+
+  static String couleurLibre(Iterable<String> prises) {
+    final normalisees = prises.map((c) => c.toLowerCase()).toSet();
+    return _palette.firstWhere(
+      (c) => !normalisees.contains(c.toLowerCase()),
+      orElse: () => _palette.first,
+    );
+  }
+
   Future<void> renommerLeCalendrier({
     required String id,
     required String nom,

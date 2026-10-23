@@ -316,6 +316,7 @@ class _EcranDAccueilState extends State<EcranDAccueil>
           surRenommage: agenda == null
               ? null
               : (c) => _renommer(agenda, c, (f) => setState(f)),
+          surCreation: agenda == null ? null : () => _creerUnCalendrier(agenda),
           masques: agenda?.masques ?? const {},
           surMasques: (m) => agenda?.masquer(m),
           ancre: agenda?.ancre ?? DateTime.now(),
@@ -628,12 +629,32 @@ class _EcranDAccueilState extends State<EcranDAccueil>
                       Mesures.marge,
                       8,
                     ),
-                    child: Text(
-                      l.calendriersAAfficher,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            l.calendriersAAfficher,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        // Le même « + » que la colonne du bureau, au même endroit
+                        // relatif : au bout de l'en-tête. La feuille est le seul endroit
+                        // où un téléphone gère ses calendriers ; sans ce bouton, créer
+                        // resterait réservé au web.
+                        IconButton(
+                          key: const Key('calendriers.nouveau'),
+                          icon: const Icon(Icons.add),
+                          tooltip: l.nouveauCalendrier,
+                          onPressed: () async {
+                            await _creerUnCalendrier(agenda);
+                            // La feuille porte sa propre copie de la liste.
+                            majour(() {});
+                          },
+                        ),
+                      ],
                     ),
                   ),
                   CheckboxListTile(
@@ -689,6 +710,23 @@ class _EcranDAccueilState extends State<EcranDAccueil>
   /// `majour` est le `setState` du `StatefulBuilder` de la feuille : sans lui, le nom
   /// changerait dans l'état de l'agenda et la feuille continuerait d'afficher l'ancien,
   /// puisqu'elle est reconstruite par son propre constructeur et non par l'écran.
+  /// Demande un nom et crée le calendrier, une fois le serveur d'accord.
+  ///
+  /// Même forme que [_renommer] : la boîte d'abord, l'appel ensuite, et l'erreur dite
+  /// là où on l'a provoquée. Un calendrier dont la création échoue en silence laisserait
+  /// quelqu'un la refaire trois fois.
+  Future<void> _creerUnCalendrier(EcranDAgendaState agenda) async {
+    final nom = await demanderUnNomDeCalendrier(context);
+    if (nom == null || !mounted) return;
+    try {
+      await agenda.creerUnCalendrier(nom);
+    } on Object catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(lisible(e, L.of(context)))));
+    }
+  }
+
   Future<void> _renommer(
     EcranDAgendaState agenda,
     Calendrier calendrier,
