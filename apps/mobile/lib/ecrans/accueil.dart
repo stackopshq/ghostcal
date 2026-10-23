@@ -13,6 +13,7 @@ import '../services/vue_agenda.dart';
 import '../services/verrouillage.dart';
 import '../theme.dart';
 import 'agenda.dart';
+import 'barre_de_titre.dart';
 import 'colonne_laterale.dart';
 import 'reglages.dart';
 import 'renommer_un_calendrier.dart';
@@ -363,121 +364,31 @@ class _EcranDAccueilState extends State<EcranDAccueil>
     );
   }
 
-  /// Hauteur de la barre d'outils du bureau. Les pastilles de la fenêtre sont centrées
-  /// verticalement dedans, comme dans Fantastical et les Réglages Système.
-  static const _hauteurDeLaBarre = 52.0;
-
-  /// La barre d'outils du bureau, logée **dans** la barre de titre.
+  /// La barre d'outils du bureau, et l'encoche qu'elle doit s'ajouter.
   ///
-  /// ─── Pourquoi elle existe ───
+  /// Le widget vit dans `barre_de_titre.dart` : sorti d'ici pour qu'un témoin puisse le
+  /// monter seul, l'accueil ne se montant pas en test. Voir son en-tête.
   ///
-  /// Sans elle, une fenêtre large porte une barre de titre vide au-dessus des commandes
-  /// de l'application : deux bandeaux empilés dont le premier ne sert à rien. Et les
-  /// commandes, elles, restaient en bas dans une pilule flottante — un objet fait pour
-  /// un pouce, posé devant une souris.
-  ///
-  /// ─── La contrainte dure ───
-  ///
-  /// `MainFlutterWindow` rend la barre de titre transparente et fait passer la vue
-  /// Flutter dessous. Les trois pastilles de la fenêtre se retrouvent donc **sur cette
-  /// ligne**, et le bord gauche leur appartient : y poser un bouton le rendrait
-  /// inatteignable, sans que rien ne le signale.
-  ///
-  /// Mesuré le 2026-10-22 par `System Events`, barre de titre unifiée comprise : trois
-  /// pastilles de 16×16 à x = 18, 41 et 64, donc occupées jusqu'à 80. La marge vaut 96
-  /// et non 80 — seize points de respiration, sans quoi le premier bouton les touche.
+  /// `defaultTargetPlatform` et non `Theme.of(context).platform`, le même nombre que
+  /// pour le `removePadding` de [build] : les deux décisions sont la même, et deux
+  /// sources les laisseraient diverger.
   PreferredSizeWidget _barreDeTitre(BuildContext context) {
-    final l = L.of(context);
-    // ─── L'encoche, et pourquoi il faut l'ajouter à la main ───
-    //
-    // Cette barre est un `PreferredSize`, pas un `AppBar`. **Seul `AppBar` lit
-    // `MediaQuery.padding.top` et s'agrandit d'autant** ; un `PreferredSize` se pose à
-    // y = 0 quoi qu'il arrive.
-    //
-    // Sur macOS c'est voulu : l'application dessine dans la barre de titre, et la marge
-    // a justement été retirée en amont. Sur un **iPad** — large, donc « bureau », mais
-    // avec une vraie barre d'état — la barre d'outils se dessinait par-dessus l'heure,
-    // le wifi et la batterie. Mesuré sur `captures-ipad/01-agenda.png` : le trait du bas
-    // tombe à 104 pixels physiques, soit exactement les 52 points de la barre, donc elle
-    // commence bien à zéro.
-    //
-    // Le correctif de `Mesures.dansLaBarreDeTitre` ne suffisait pas : il **préserve** la
-    // marge, ce qui ne sert à rien tant que le widget qui la reçoit ne la lit pas. Les
-    // deux moitiés étaient nécessaires, et seule la première avait été posée.
-    final encoche = Mesures.dansLaBarreDeTitre(
-      bureau: true,
-      plateforme: Theme.of(context).platform,
-    )
-        ? 0.0
-        : MediaQuery.paddingOf(context).top;
-    return PreferredSize(
-      preferredSize: Size.fromHeight(_hauteurDeLaBarre + encoche),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: Theme.of(context).dividerColor),
-          ),
-        ),
-        child: SizedBox(
-          height: _hauteurDeLaBarre + encoche,
-          child: Padding(
-            // Les 96 points de gauche sont la place des pastilles de la fenêtre macOS.
-            // Sur iPad ils ne servent à rien, mais ils ne gênent pas : les deux icônes de
-            // droite les compensent, et le segmenté reste centré à trois points près —
-            // vérifié sur la capture avant d'y toucher.
-            padding: EdgeInsets.only(top: encoche, left: 96, right: 8),
-            child: Row(
-              children: [
-                // Ni hamburger ni filtre : la colonne porte les sections et les
-                // calendriers, en permanence. Les garder ici donnerait deux chemins
-                // vers la même chose, dont un caché — ce qu'on vient d'enlever.
-                Expanded(child: Center(child: _vuesDuBureau(context))),
-                IconButton(
-                  key: const Key('accueil.recherche'),
-                  tooltip: l.rechercher,
-                  icon: const Icon(Icons.search),
-                  onPressed: () => _agenda.currentState?.rechercher(),
-                ),
-                // Même règle que la barre du bas : sans calendrier inscriptible, offrir
-                // de créer mènerait à un formulaire qu'on ne peut pas enregistrer.
-                if (_agenda.currentState?.peutCreer ?? false)
-                  IconButton(
-                    key: const Key('accueil.nouveau'),
-                    tooltip: l.nouvelEvenement,
-                    icon: const Icon(Icons.add),
-                    onPressed: () => _agenda.currentState?.nouvelEvenement(),
-                  ),
-              ],
-            ),
-          ),
-        ),
+    final agenda = _agenda.currentState;
+    return BarreDeTitreDeBureau(
+      encoche: BarreDeTitreDeBureau.encocheSelon(
+        context,
+        defaultTargetPlatform,
       ),
-    );
-  }
-
-  /// Les quatre vues, en segmenté permanent plutôt que cachées dans une feuille.
-  ///
-  /// Une vue choisie ramène l'agenda devant, comme le fait déjà la feuille du menu :
-  /// changer de vue depuis les Réglages aurait sinon un effet invisible.
-  Widget _vuesDuBureau(BuildContext context) {
-    final l = L.of(context);
-    final vue = _agenda.currentState?.vue ?? VueDAgenda.jour;
-    return SegmentedButton<VueDAgenda>(
-      key: const Key('bureau.vues'),
-      showSelectedIcon: false,
-      style: const ButtonStyle(
-        visualDensity: VisualDensity.compact,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      ),
-      segments: [
-        for (final v in VueDAgenda.values)
-          ButtonSegment<VueDAgenda>(value: v, label: Text(v.libelle(l))),
-      ],
-      selected: {vue},
-      onSelectionChanged: (choix) {
+      vue: agenda?.vue ?? VueDAgenda.jour,
+      // Une vue choisie ramène l'agenda devant, comme le fait déjà la feuille du menu :
+      // changer de vue depuis les Réglages aurait sinon un effet invisible.
+      surVue: (v) {
         setState(() => _onglet = 0);
-        _agenda.currentState?.choisirLaVue(choix.first);
+        agenda?.choisirLaVue(v);
       },
+      surRecherche: () => _agenda.currentState?.rechercher(),
+      peutCreer: agenda?.peutCreer ?? false,
+      surNouveau: () => _agenda.currentState?.nouvelEvenement(),
     );
   }
 

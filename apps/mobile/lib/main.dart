@@ -10,6 +10,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'ecrans/accueil.dart';
+import 'ecrans/barre_de_titre.dart';
 import 'ecrans/connexion.dart';
 import 'services/apparence.dart';
 import 'services/rappels.dart';
@@ -292,9 +293,10 @@ class _SousLaBarreDeTitre extends StatelessWidget {
 
   final Widget child;
 
-  /// La hauteur de la barre de titre unifiée, celle que `MenuDeLApplication` et
-  /// `_barreDeTitre` connaissent sous le même nombre.
-  static const hauteur = 52.0;
+  /// La hauteur de la barre de titre unifiée. Elle est **empruntée** à la barre
+  /// d'outils et non recopiée : les deux doivent être le même nombre, sans quoi un écran
+  /// poussé commence au-dessus ou en dessous d'elle, et rien ne le signale.
+  static const hauteur = BarreDeTitreDeBureau.hauteur;
 
   @override
   Widget build(BuildContext context) {
