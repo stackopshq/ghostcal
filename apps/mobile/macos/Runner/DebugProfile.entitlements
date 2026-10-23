@@ -25,5 +25,22 @@
 	</array>
 	<key>com.apple.security.files.user-selected.read-only</key>
 	<true/>
+	<!-- ─── Ce que Sparkle demande à une application en bac à sable ─── -->
+	<!--
+	  Une application sandboxée ne peut pas se remplacer elle-même : Sparkle passe par
+	  deux services XPC embarqués dans son cadriciel, et le bac à sable interdit de les
+	  joindre sans exception nommée. Les deux noms sont imposés par Sparkle — suffixes
+	  `-spks` (progression) et `-spki` (installation) sur l'identifiant du paquet.
+
+	  Ce sont des `temporary-exception`, et le mot inquiète à raison : Apple les accepte
+	  pour une distribution Developer ID, pas pour l'App Store. GhostCal macOS n'y va
+	  pas ; si cela changeait, ces deux lignes et Sparkle partiraient ensemble, l'App
+	  Store ayant son propre mécanisme de mise à jour.
+	-->
+	<key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
+	<array>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER)-spks</string>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER)-spki</string>
+	</array>
 </dict>
 </plist>

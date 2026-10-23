@@ -29,6 +29,15 @@ flutter_macos_podfile_setup
 target 'Runner' do
   use_frameworks!
 
+  # ─── Les mises à jour, sans repasser par le site ───
+  #
+  # Sparkle est ce qu'emploient les applications macOS distribuées hors App Store. Il
+  # apporte aussi `Downloader.xpc` et `Installer.xpc`, qui existent précisément pour les
+  # applications en bac à sable : sans eux, une application sandboxée ne peut pas se
+  # remplacer elle-même. Ils voyagent dans le cadriciel, donc l'embarquer suffit — mais
+  # les droits qui les autorisent, eux, sont à déclarer (voir les `.entitlements`).
+  pod 'Sparkle', '~> 2.9.6'
+
   flutter_install_all_macos_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
     inherit! :search_paths
