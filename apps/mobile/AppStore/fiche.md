@@ -16,16 +16,34 @@ pas chez Apple.
 
 Relevé le 25 septembre 2026.
 
-**La 1.5.0 (build 7) a été retirée de la revue le 23 octobre 2026**, à la demande de
-Clara. État actuel : `DEVELOPER_REJECTED`, donc modifiable. Elle avait été soumise le
-22 octobre à 18h30 et attendait son tour.
+**La 1.6.0 (build 10) est en revue chez Apple depuis le 23 octobre 2026**, état
+`WAITING_FOR_REVIEW`, publication en **`AFTER_APPROVAL`** : elle sortira d'elle-même dès
+l'accord. C'est le choix de Clara, et il est délibéré — voir plus bas.
 
-Pourquoi la retirer plutôt que la laisser passer : le mobile était resté loin derrière le
-Mac. La 1.5.0 serait sortie sans la vue Année, sans les barres continues des événements sur
+Elle remplace la **1.5.0 (build 7)**, retirée de la revue le même jour. Celle-là avait été
+soumise le 22 octobre à 18h30 et attendait son tour ; la retirer a coûté sa place dans la
+file, et le coût est assumé.
+
+Pourquoi l'avoir retirée plutôt que la laisser passer : le mobile était resté loin derrière
+le Mac. La 1.5.0 serait sortie sans la vue Année, sans les barres continues des événements sur
 plusieurs jours, sans la création d'un calendrier depuis l'application, et **sans le
 correctif de verrouillage** — des écrans empilés restaient affichés, déchiffrés, par-dessus
 un agenda verrouillé. Ce dernier point est ce qui a décidé : il ne valait pas une version
-d'attente. Le coût est la place acquise dans la file d'Apple, et il est assumé.
+d'attente.
+
+**Et un défaut de plus a été trouvé en chemin, par la capture et non par un test.** Le
+build 9, déjà déposé, portait une barre d'outils iPad dessinée **sous l'heure et la
+batterie** du système. Le correctif précédent préservait bien la marge haute, mais
+`_barreDeTitre` rend un `PreferredSize`, et **seul un `AppBar` lit
+`MediaQuery.padding.top`** : la marge était là, personne ne la lisait. Mesuré sur
+`captures-ipad/01-agenda.png` — le trait du bas tombait à 104 pixels physiques, soit
+exactement les 52 points de la barre. D'où le build 10, et les quatre jeux refaits.
+
+**Rien ne garde encore ce correctif.** Le témoin existant éprouve `Mesures.dansLaBarreDeTitre`
+en pur, donc il passait avec la barre posée sur l'heure. Un témoin qui morde doit monter la
+barre avec une marge haute non nulle et vérifier que sa hauteur l'absorbe — ce qui demande
+de l'extraire, puisque `EcranDAccueil` ne se monte pas en test (il exige une session
+ouverte, vérifié). Ce défaut a échappé deux fois de suite.
 
 ### Une affirmation fausse, et comment elle l'est devenue
 
@@ -52,7 +70,6 @@ La 1.6.0 est donc soumise en `AFTER_APPROVAL`, et c'est voulu.
 
 | Ce qu'il reste | Pourquoi ça ne peut pas se faire ici |
 |---|---|
-| **Fusionner le mobile**, puis monter un build neuf et le resoumettre | La branche qui porte la création de calendrier et le correctif de verrouillage n'était pas fusionnée au 23 octobre ; `main` déclarait 1.5.1+8. Rien à resoumettre avant |
 | Trancher la **note 3 du §740.17(b)** et mener les démarches BIS et ANSSI | Questions de droit ; GhostPass a le même arbitrage en cours |
 | Déposer l'**AAB sur le Play Store** | Aucun accès Play Console ni compte de service, de ce Mac ni de dev-loutre. L'AAB 1.5.0 (7) est construit et signé, empreinte de certificat identique à celle de la 1.4.1 |
 
