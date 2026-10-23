@@ -133,6 +133,29 @@ class Mesures {
   /// 900 et non la largeur minimale de la fenêtre (720) : entre les deux, le segmenté
   /// des quatre vues et les boutons ne tiennent pas sans se chevaucher. Mesuré, pas posé.
   static const seuilBureau = 900.0;
+
+  /// La vue Flutter passe-t-elle **sous** la barre de titre, ici et maintenant ?
+  ///
+  /// ─── Deux questions qu'on avait confondues ───
+  ///
+  /// [seuilBureau] décide de la **chrome** : barre d'outils en haut, pas de barre
+  /// flottante en bas. Elle s'allume dès 900 points, donc aussi sur un iPad, dans les
+  /// deux orientations.
+  ///
+  /// Passer sous la barre de titre est tout autre chose : seul `MainFlutterWindow` le
+  /// fait, et seul macOS a trois pastilles à éviter. L'accueil retirait pourtant la
+  /// marge haute dès que la chrome s'allumait — et sur un iPad, où rien n'avait été
+  /// ajouté, ce retrait emportait l'**encoche réelle** de la barre d'état. L'`AppBar`
+  /// se dessinait à y = 0 et l'heure du système se posait par-dessus la barre d'outils.
+  ///
+  /// La règle est nommée ici plutôt qu'écrite en ligne dans `accueil.dart` pour qu'elle
+  /// soit éprouvable sans monter l'écran : l'accueil demande une session ouverte, donc
+  /// un serveur et le cœur Rust, et un témoin monté sur lui mesurerait ses bouchons. La
+  /// première version de ce témoin passait au vert avec le défaut remis en place.
+  static bool dansLaBarreDeTitre({
+    required bool bureau,
+    required TargetPlatform plateforme,
+  }) => bureau && plateforme == TargetPlatform.macOS;
 }
 
 /// Borne la largeur du contenu et le centre, sans toucher à ce qui l'entoure.

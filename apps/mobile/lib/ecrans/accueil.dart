@@ -267,7 +267,25 @@ class _EcranDAccueilState extends State<EcranDAccueil>
         bottomNavigationBar: bureau ? null : _barre(context),
       ),
     );
-    return bureau
+    // ─── Deux questions, et elles ne se confondent pas ───
+    //
+    // `bureau` décide de la **chrome** : barre d'outils en haut, pas de barre flottante
+    // en bas. La barre de titre traversée, elle, est une affaire de **plateforme** :
+    // seul `MainFlutterWindow` fait passer la vue dessous, et seul macOS a des pastilles
+    // à éviter.
+    //
+    // Les confondre retirait à l'iPad une encoche que personne ne lui avait ajoutée :
+    // `_SousLaBarreDeTitre` ne pose ses 52 points que sur macOS, et ce retrait les
+    // enlevait dès 900 points de large — donc sur un iPad dans les deux orientations.
+    // L'`AppBar` se dessinait alors à y = 0, et l'heure, la batterie et le wifi se
+    // posaient par-dessus la barre d'outils.
+    //
+    // Trouvé par la session iOS en lisant le code, avant que la build existe.
+    final dansLaBarreDeTitre = Mesures.dansLaBarreDeTitre(
+      bureau: bureau,
+      plateforme: defaultTargetPlatform,
+    );
+    return dansLaBarreDeTitre
         ? MediaQuery.removePadding(
             context: context,
             removeTop: true,

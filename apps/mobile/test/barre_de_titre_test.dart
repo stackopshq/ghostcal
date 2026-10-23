@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ghostcal/main.dart';
 import 'package:ghostcal/services/session.dart';
+import 'package:ghostcal/theme.dart';
 import 'package:ghostcal/services/verrouillage.dart' as v;
 
 /// Ce qui est poussé par-dessus l'accueil doit commencer **sous** la barre de titre.
@@ -67,6 +68,62 @@ void main() {
           'la flèche de retour est sous les pastilles de la fenêtre, '
           'donc inatteignable',
     );
+  });
+
+  /// ─── L'encoche d'un iPad n'est pas une barre de titre ───
+  ///
+  /// La chrome de bureau s'allume à 900 points, donc sur un iPad dans les deux
+  /// orientations. Mais seul macOS fait passer la vue sous la barre de titre, et seul
+  /// macOS a des pastilles à éviter. L'accueil retirait pourtant la marge haute dès que
+  /// la chrome s'allumait : sur iPad, où rien n'avait été ajouté, ce retrait emportait
+  /// l'encoche réelle de la barre d'état, et l'heure du système se posait par-dessus la
+  /// barre d'outils.
+  ///
+  /// Trouvé en lisant le code, pas sur une capture.
+  ///
+  /// La règle s'éprouve seule et non à travers l'écran : la première version de ce
+  /// témoin montait `GhostcalApp` avec un `accueilDEpreuve`, qui **remplace** l'accueil
+  /// — le code à garder n'était jamais exécuté, et le témoin passait au vert avec le
+  /// défaut remis en place. Un témoin qui ne mord pas est pire qu'absent : il dit que
+  /// la question est réglée.
+  group('la barre de titre traversée est une affaire de plateforme', () {
+    test('un Mac large y passe', () {
+      expect(
+        Mesures.dansLaBarreDeTitre(
+          bureau: true,
+          plateforme: TargetPlatform.macOS,
+        ),
+        isTrue,
+      );
+    });
+
+    test('un iPad large, non — son encoche lui appartient', () {
+      expect(
+        Mesures.dansLaBarreDeTitre(
+          bureau: true,
+          plateforme: TargetPlatform.iOS,
+        ),
+        isFalse,
+        reason: "retirer sa marge haute pose l'heure du système sur la barre d'outils",
+      );
+      expect(
+        Mesures.dansLaBarreDeTitre(
+          bureau: true,
+          plateforme: TargetPlatform.android,
+        ),
+        isFalse,
+      );
+    });
+
+    test('et un Mac étroit non plus : il n\'a pas de barre d\'outils', () {
+      expect(
+        Mesures.dansLaBarreDeTitre(
+          bureau: false,
+          plateforme: TargetPlatform.macOS,
+        ),
+        isFalse,
+      );
+    });
   });
 
   /// La même application sur un téléphone ne doit pas gagner 52 points de vide : la
