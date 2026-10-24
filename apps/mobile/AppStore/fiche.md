@@ -39,11 +39,24 @@ batterie** du système. Le correctif précédent préservait bien la marge haute
 `captures-ipad/01-agenda.png` — le trait du bas tombait à 104 pixels physiques, soit
 exactement les 52 points de la barre. D'où le build 10, et les quatre jeux refaits.
 
-**Rien ne garde encore ce correctif.** Le témoin existant éprouve `Mesures.dansLaBarreDeTitre`
-en pur, donc il passait avec la barre posée sur l'heure. Un témoin qui morde doit monter la
-barre avec une marge haute non nulle et vérifier que sa hauteur l'absorbe — ce qui demande
-de l'extraire, puisque `EcranDAccueil` ne se monte pas en test (il exige une session
-ouverte, vérifié). Ce défaut a échappé deux fois de suite.
+**Ce correctif est gardé depuis la PR #243.** Il ne l'était pas au moment où ces lignes ont
+été écrites, et c'est la seule raison pour laquelle elles existent.
+
+Le témoin d'alors éprouvait `Mesures.dansLaBarreDeTitre` **en pur**, donc il restait vert
+avec la barre posée sur l'heure : le prédicat était juste, personne ne lisait son résultat.
+Le témoin qui mord monte `BarreDeTitreDeBureau` sous une `MediaQuery` à marge haute non
+nulle et mesure la **boîte rendue** — ce qui a demandé d'extraire la barre, puisque
+`EcranDAccueil` ne se monte pas du tout en test (il exige une session ouverte ; essayé, pas
+déduit).
+
+Il a été éprouvé en remettant le défaut quatre fois. Trois mutations le font échouer ; la
+quatrième — un `preferredSize` faux — **passe**, et c'est écrit dans le fichier avec sa
+raison : `_ScaffoldLayout` dispose l'`appBar` sous des contraintes de hauteur libres et
+place le corps sous la hauteur rendue, si bien que `preferredSize` n'est jamais lu sur ce
+chemin. Un témoin dont on connaît les trous vaut mieux qu'un témoin qu'on croit complet.
+
+Ce défaut avait échappé deux fois de suite, et c'est une capture ouverte qui l'a trouvé —
+pas un test.
 
 ### Une affirmation fausse, et comment elle l'est devenue
 
