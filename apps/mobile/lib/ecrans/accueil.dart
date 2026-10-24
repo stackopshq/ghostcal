@@ -12,7 +12,9 @@ import '../services/rappels.dart';
 import '../services/vue_agenda.dart';
 import '../services/verrouillage.dart';
 import '../theme.dart';
+import '../services/abonnements.dart' show Abonnement;
 import 'agenda.dart';
+import 'ajouter_un_abonnement.dart';
 import 'barre_de_titre.dart';
 import 'colonne_laterale.dart';
 import 'reglages.dart';
@@ -351,6 +353,13 @@ class _EcranDAccueilState extends State<EcranDAccueil>
               ? null
               : (c) => _renommer(agenda, c, (f) => setState(f)),
           surCreation: agenda == null ? null : () => _creerUnCalendrier(agenda),
+          abonnements: agenda?.abonnements ?? const [],
+          surAbonnement: agenda == null
+              ? null
+              : () => _ajouterUnAbonnement(agenda, (f) => setState(f)),
+          surDesabonnement: agenda == null
+              ? null
+              : (a) => _desabonner(agenda, a, (f) => setState(f)),
           masques: agenda?.masques ?? const {},
           surMasques: (m) => agenda?.masquer(m),
           ancre: agenda?.ancre ?? DateTime.now(),
@@ -666,6 +675,65 @@ class _EcranDAccueilState extends State<EcranDAccueil>
                             : {...masques, c.id},
                       ),
                     ),
+                  // Les abonnements, dans la même feuille et sous leur propre titre.
+                  // C'est le seul endroit où un téléphone les gère : sans cette section,
+                  // s'abonner et se désabonner resteraient réservés au web, exactement
+                  // comme la création d'un calendrier l'était.
+                  const Divider(),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      Mesures.marge,
+                      4,
+                      Mesures.marge,
+                      0,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            l.abonnements,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          key: const Key('abonnements.nouveau'),
+                          icon: const Icon(Icons.add),
+                          tooltip: l.nouvelAbonnement,
+                          onPressed: () => _ajouterUnAbonnement(agenda, majour),
+                        ),
+                      ],
+                    ),
+                  ),
+                  for (final a in agenda.abonnements)
+                    CheckboxListTile(
+                      key: Key('abonnements.${a.id}'),
+                      secondary: CircleAvatar(
+                        radius: 7,
+                        backgroundColor: _couleur(a.couleur),
+                      ),
+                      title: Row(
+                        children: [
+                          Expanded(child: Text(a.nom)),
+                          IconButton(
+                            key: Key('abonnements.desabonner.${a.id}'),
+                            icon: const Icon(Icons.delete_outline, size: 18),
+                            tooltip: l.supprimerLAbonnement,
+                            visualDensity: VisualDensity.compact,
+                            onPressed: () => _desabonner(agenda, a, majour),
+                          ),
+                        ],
+                      ),
+                      subtitle: a.enPanne ? Text(l.abonnementEnPanne) : null,
+                      value: !masques.contains(a.id),
+                      onChanged: (montre) => poser(
+                        montre == true
+                            ? ({...masques}..remove(a.id))
+                            : {...masques, a.id},
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -690,6 +758,73 @@ class _EcranDAccueilState extends State<EcranDAccueil>
     if (nom == null || !mounted) return;
     try {
       await agenda.creerUnCalendrier(nom);
+    } on Object catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(lisible(e, L.of(context)))));
+    }
+  }
+
+  /// Demande un flux et s'y abonne, une fois le serveur d'accord.
+  ///
+  /// L'erreur est montrée telle quelle et c'est délibéré : le serveur **lit** le flux
+  /// avant de l'enregistrer, donc un 422 ici veut dire « cette adresse ne rend pas de
+  /// calendrier ». C'est précisément ce que la personne a besoin de savoir, et c'est
+  /// perdu si on le remplace par un message générique.
+  ///
+  /// `majour` est le `setState` de la feuille quand l'appel vient du téléphone : elle
+  /// porte sa propre copie de la liste et n'est pas reconstruite par l'écran.
+  Future<void> _ajouterUnAbonnement(
+    EcranDAgendaState agenda,
+    void Function(VoidCallback) majour,
+  ) async {
+    final flux = await demanderUnAbonnement(context);
+    if (flux == null || !mounted) return;
+    try {
+      await agenda.ajouterUnAbonnement(nom: flux.nom, url: flux.url);
+      majour(() {});
+    } on Object catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(lisible(e, L.of(context)))));
+    }
+  }
+
+  /// Se désabonne, après confirmation.
+  ///
+  /// Une confirmation et pas un geste direct : la corbeille est à côté d'une case à
+  /// cocher, et les deux se visent de la même façon. Décocher cache le flux ; supprimer
+  /// l'enlève, avec son adresse — qu'il faudrait retrouver chez le fournisseur pour
+  /// revenir en arrière. Les deux ne se valent pas, donc elles ne se touchent pas de la
+  /// même manière.
+  Future<void> _desabonner(
+    EcranDAgendaState agenda,
+    Abonnement abonnement,
+    void Function(VoidCallback) majour,
+  ) async {
+    final l = L.of(context);
+    final confirme = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l.supprimerLAbonnement),
+        content: Text(abonnement.nom),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l.annuler),
+          ),
+          TextButton(
+            key: const Key('abonnement.confirmer'),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l.supprimer),
+          ),
+        ],
+      ),
+    );
+    if (confirme != true || !mounted) return;
+    try {
+      await agenda.supprimerUnAbonnement(abonnement.id);
+      majour(() {});
     } on Object catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)

@@ -1860,6 +1860,36 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Cet événement se répète : vos modifications s\'appliquent à toute la série. Pour n\'en changer qu\'un, passez par le web.'**
   String get modifierLaSerie;
+
+  /// Le titre de la section des flux ICS, dans la colonne du bureau et dans la feuille du téléphone. Distincte des calendriers : on n'écrit jamais dans un abonnement.
+  ///
+  /// In fr, this message translates to:
+  /// **'Abonnements'**
+  String get abonnements;
+
+  /// No description provided for @nouvelAbonnement.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nouvel abonnement'**
+  String get nouvelAbonnement;
+
+  /// Le champ d'URL de la boîte d'abonnement. Un lien webcal:// est accepté — le serveur le réécrit en https.
+  ///
+  /// In fr, this message translates to:
+  /// **'Adresse du flux'**
+  String get adresseDuFlux;
+
+  /// No description provided for @supprimerLAbonnement.
+  ///
+  /// In fr, this message translates to:
+  /// **'Supprimer l\'abonnement'**
+  String get supprimerLAbonnement;
+
+  /// Montré sous le nom d'un abonnement dont le dernier rapatriement a échoué. Ce qui s'affiche vient alors du précédent, et le taire laisserait croire à un agenda à jour.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ce flux ne répond plus'**
+  String get abonnementEnPanne;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

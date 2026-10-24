@@ -1023,4 +1023,19 @@ class LEn extends L {
   @override
   String get modifierLaSerie =>
       'This event repeats: your changes apply to the whole series. To change only one, use the web.';
+
+  @override
+  String get abonnements => 'Subscriptions';
+
+  @override
+  String get nouvelAbonnement => 'New subscription';
+
+  @override
+  String get adresseDuFlux => 'Feed address';
+
+  @override
+  String get supprimerLAbonnement => 'Remove subscription';
+
+  @override
+  String get abonnementEnPanne => 'This feed is no longer responding';
 }

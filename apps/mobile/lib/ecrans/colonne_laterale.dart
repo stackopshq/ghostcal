@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../l10n/generated/app_localisations.dart';
 import '../outils/calendrier.dart';
+import '../services/abonnements.dart';
 import '../services/agenda.dart';
 import '../theme.dart';
 
@@ -33,6 +34,9 @@ class ColonneLaterale extends StatelessWidget {
     required this.calendriers,
     this.surRenommage,
     this.surCreation,
+    required this.abonnements,
+    this.surAbonnement,
+    this.surDesabonnement,
     required this.masques,
     required this.surMasques,
     required this.ancre,
@@ -59,6 +63,19 @@ class ColonneLaterale extends StatelessWidget {
   /// `POST /v1/me/calendars` était là depuis toujours et seule l'interface web
   /// l'appelait. On pouvait renommer, masquer, partager — pas créer.
   final VoidCallback? surCreation;
+
+  /// Les flux ICS, dans leur propre section. Voir [Abonnement] : ils se ressemblent assez
+  /// aux calendriers pour qu'on les mélange, et assez peu pour que les confondre fasse
+  /// offrir « Nouvel événement » sur un flux en lecture seule.
+  final List<Abonnement> abonnements;
+
+  /// S'abonner à un flux, et s'en désabonner. L'application n'appelait **aucune** des
+  /// routes d'abonnement : on pouvait poser un flux depuis le web, ses événements
+  /// s'affichaient ici — le filtre étant une liste de masqués, pas d'autorisés — mais sans
+  /// son nom, sans sa couleur, sans sa case et sans moyen de l'enlever.
+  final VoidCallback? surAbonnement;
+  final ValueChanged<Abonnement>? surDesabonnement;
+
   final Set<String> masques;
   final ValueChanged<Set<String>> surMasques;
 
@@ -122,6 +139,28 @@ class ColonneLaterale extends StatelessWidget {
                       }),
                     ),
                 ],
+                // La section n'apparaît que s'il existe un flux **ou** un moyen d'en
+                // ajouter : un titre « Abonnements » seul, sans ligne et sans « + »,
+                // ne dirait rien à qui n'en a jamais posé.
+                if (abonnements.isNotEmpty || surAbonnement != null) ...[
+                  const SizedBox(height: 14),
+                  _Titre(
+                    l.abonnements,
+                    surAjout: surAbonnement,
+                    cleDAjout: const Key('colonne.nouvel-abonnement'),
+                    libelleDAjout: l.nouvelAbonnement,
+                  ),
+                  for (final a in abonnements)
+                    _Abonnement(
+                      abonnement: a,
+                      visible: !masques.contains(a.id),
+                      surBascule: (visible) => surMasques({
+                        ...masques.where((x) => x != a.id),
+                        if (!visible) a.id,
+                      }),
+                      surSuppression: surDesabonnement,
+                    ),
+                ],
               ],
             ),
           ),
@@ -134,7 +173,7 @@ class ColonneLaterale extends StatelessWidget {
 }
 
 class _Titre extends StatelessWidget {
-  const _Titre(this.texte, {this.surAjout});
+  const _Titre(this.texte, {this.surAjout, this.cleDAjout, this.libelleDAjout});
 
   final String texte;
 
@@ -142,6 +181,15 @@ class _Titre extends StatelessWidget {
   /// de la liste : la liste s'allonge, l'en-tête non, et un bouton qui se déplace à
   /// chaque calendrier ajouté se cherche à chaque fois.
   final VoidCallback? surAjout;
+
+  /// La clé et l'infobulle du « + », **par section**.
+  ///
+  /// Elles étaient en dur — `colonne.nouveau-calendrier` et « Nouveau calendrier » —
+  /// tant qu'une seule section portait un bouton. À la deuxième, ça donnait deux widgets
+  /// de même clé dans le même arbre, et un « + » d'abonnement qui annonçait qu'il créait
+  /// un calendrier. Trouvé par le premier témoin monté sur la nouvelle section.
+  final Key? cleDAjout;
+  final String? libelleDAjout;
 
   @override
   Widget build(BuildContext context) {
@@ -159,9 +207,9 @@ class _Titre extends StatelessWidget {
           Expanded(child: Text(texte.toUpperCase(), style: style)),
           if (surAjout != null)
             IconButton(
-              key: const Key('colonne.nouveau-calendrier'),
+              key: cleDAjout ?? const Key('colonne.nouveau-calendrier'),
               icon: const Icon(Icons.add, size: 15),
-              tooltip: L.of(context).nouveauCalendrier,
+              tooltip: libelleDAjout ?? L.of(context).nouveauCalendrier,
               visualDensity: VisualDensity.compact,
               constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
               padding: EdgeInsets.zero,
@@ -459,6 +507,101 @@ class _JourDuMini extends StatelessWidget {
                   : FontWeight.w400,
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Un abonnement, sa case et sa corbeille.
+///
+/// La même rangée qu'un calendrier à deux choses près, et les deux disent ce qu'un
+/// abonnement a de différent :
+///
+/// - **une corbeille et pas de crayon.** On ne renomme pas un flux : son nom est celui
+///   qu'on lui a donné en s'y abonnant, et l'API ne le modifie pas. Se désabonner est en
+///   revanche le seul geste que l'application ne savait pas faire.
+/// - **un avertissement quand le flux ne répond plus.** Ce qui s'affiche vient alors du
+///   dernier rapatriement réussi. Le taire laisserait croire à un agenda à jour, et c'est
+///   le pire des deux états possibles : un agenda faux qu'on croit juste.
+class _Abonnement extends StatelessWidget {
+  const _Abonnement({
+    required this.abonnement,
+    required this.visible,
+    required this.surBascule,
+    this.surSuppression,
+  });
+
+  final Abonnement abonnement;
+  final bool visible;
+  final ValueChanged<bool> surBascule;
+  final ValueChanged<Abonnement>? surSuppression;
+
+  Color _couleur(Gc gc) {
+    final valeur = int.tryParse(
+      abonnement.couleur.replaceFirst('#', ''),
+      radix: 16,
+    );
+    return valeur == null ? gc.accent : Color(0xFF000000 | valeur);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final gc = Gc.of(context);
+    final l = L.of(context);
+    return InkWell(
+      onTap: () => surBascule(!visible),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: Checkbox(
+                value: visible,
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                fillColor: WidgetStateProperty.resolveWith(
+                  (etats) => etats.contains(WidgetState.selected)
+                      ? _couleur(gc)
+                      : Colors.transparent,
+                ),
+                side: BorderSide(color: _couleur(gc), width: 1.5),
+                onChanged: (v) => surBascule(v ?? false),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    abonnement.nom,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: visible ? gc.encre : gc.estompe,
+                    ),
+                  ),
+                  if (abonnement.enPanne)
+                    Text(
+                      l.abonnementEnPanne,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11, color: gc.danger),
+                    ),
+                ],
+              ),
+            ),
+            if (surSuppression != null)
+              IconButton(
+                key: Key('colonne.desabonner.${abonnement.id}'),
+                icon: const Icon(Icons.delete_outline, size: 18),
+                tooltip: l.supprimerLAbonnement,
+                visualDensity: VisualDensity.compact,
+                onPressed: () => surSuppression!(abonnement),
+              ),
+          ],
         ),
       ),
     );
