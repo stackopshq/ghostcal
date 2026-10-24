@@ -1038,4 +1038,7 @@ class LEn extends L {
 
   @override
   String get abonnementEnPanne => 'This feed is no longer responding';
+
+  @override
+  String get aucunAbonnement => 'No subscriptions';
 }

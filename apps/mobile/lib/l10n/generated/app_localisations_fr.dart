@@ -1042,4 +1042,7 @@ class LFr extends L {
 
   @override
   String get abonnementEnPanne => 'Ce flux ne répond plus';
+
+  @override
+  String get aucunAbonnement => 'Aucun abonnement';
 }

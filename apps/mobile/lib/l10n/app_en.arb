@@ -327,5 +327,6 @@
   "nouvelAbonnement": "New subscription",
   "adresseDuFlux": "Feed address",
   "supprimerLAbonnement": "Remove subscription",
-  "abonnementEnPanne": "This feed is no longer responding"
+  "abonnementEnPanne": "This feed is no longer responding",
+  "aucunAbonnement": "No subscriptions"
 }

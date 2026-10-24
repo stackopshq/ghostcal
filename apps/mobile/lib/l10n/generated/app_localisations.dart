@@ -1890,6 +1890,12 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Ce flux ne répond plus'**
   String get abonnementEnPanne;
+
+  /// Sous le titre « Abonnements » quand il n'y en a aucun. Sans cette ligne, la section montre un intitulé, un « + » et du vide — ce qui se lit comme un écran inachevé ou un chargement qui n'a pas fini, là où une section vide est un état parfaitement normal.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun abonnement'**
+  String get aucunAbonnement;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {
