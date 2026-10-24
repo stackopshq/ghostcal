@@ -165,6 +165,55 @@ if ! printf '%s' "$TITRES" | grep -qxF "$ATTENDU"; then
 fi
 vert "banc amorcé en « $LANGUE »"
 
+# ── …et amorcé AUJOURD'HUI ───────────────────────────────────────────────────
+#
+# La langue ne suffit pas : le semeur ancre ses événements sur **le jour où il tourne**.
+# Jour 0 en porte cinq, jour +1 deux, jour +3 un seul. Un banc laissé debout de la veille
+# reste donc dans la bonne langue, répond parfaitement — et l'agenda du jour n'affiche
+# plus que les deux rendez-vous du lendemain d'hier.
+#
+# C'est ce qui est arrivé aux jeux anglais du 23 octobre, amorcés le 22 : la première
+# image de la fiche, celle qui décide si quelqu'un fait défiler, montrait une journée aux
+# trois quarts vide. Aucun contrôle ne l'a vu, et pour la même raison que d'habitude —
+# l'image était pleine, nette, aux bonnes dimensions. Une journée creuse a autant de
+# teintes qu'une journée chargée.
+#
+# On compte donc les événements du jour. Cinq sont attendus ; en dessous de quatre, le
+# banc est d'un autre jour ou n'a pas fini de semer.
+# `/v1/me/calendar/agenda`, et **pas** `/v1/me/calendar/events` : la seconde ne répond
+# qu'au POST — un GET y rend 405, que le premier jet de ce contrôle a pris pour « zéro
+# événement ». Il a donc crié au loup sur un banc parfaitement frais, ce qui est pire que
+# de ne rien contrôler. Les bornes sont des horodatages ISO, pas des dates : avec des
+# dates nues la route rend une liste vide sans se plaindre.
+AUJOURD_HUI="$(date +%Y-%m-%d)"
+DEMAIN="$(date -v+1d +%Y-%m-%d 2>/dev/null || date -d '+1 day' +%Y-%m-%d)"
+NOMBRE="$(curl -s --max-time 5 \
+  "$API/v1/me/calendar/agenda?from=${AUJOURD_HUI}T00:00:00Z&to=${DEMAIN}T00:00:00Z" \
+  -H "authorization: Bearer $JETON" \
+  | python3 -c 'import json,sys
+try:
+    d = json.load(sys.stdin)
+    print(len(d if isinstance(d, list) else d.get("items", d.get("events", []))))
+except Exception:
+    print(-1)' 2>/dev/null || echo -1)"
+
+if [ "$NOMBRE" = "-1" ]; then
+  # On ne bloque pas sur une route qu'on ne sait pas lire : le contrôle doit protéger la
+  # prise de vue, pas l'empêcher parce que l'API a changé de forme. Mais on le dit.
+  echo "  (impossible de compter les événements du jour — contrôle de fraîcheur ignoré)" >&2
+elif [ "$NOMBRE" -lt 4 ]; then
+  rouge "Le banc n'a pas été amorcé aujourd'hui."
+  echo "  $NOMBRE événement(s) le $AUJOURD_HUI, cinq attendus." >&2
+  echo "  Le semeur ancre ses dates sur le jour où il tourne : un banc de la veille" >&2
+  echo "  montre la journée du lendemain, qui est presque vide." >&2
+  echo "  Arrêtez-le et réamorcez :" >&2
+  echo "    pg_ctl -D \"\$TMPDIR/ghostcal-banc/pgdata\" stop ; pkill -f 'uvicorn ghostcal'" >&2
+  echo "    GHOSTCAL_LANGUE=$LANGUE ./tools/banc-local.sh --vitrine" >&2
+  exit 2
+else
+  vert "banc amorcé aujourd'hui — $NOMBRE événements le $AUJOURD_HUI"
+fi
+
 # ── Simulateur à la bonne taille ──────────────────────────────────────────────
 dire "Simulateur « $APPAREIL »"
 # `export`, et non une affectation en tête de commande : celle-ci ne vaudrait que pour
