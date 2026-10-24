@@ -314,7 +314,7 @@
   "aucunResultat": "No results.",
   "tousLesCalendriers": "All calendars",
   "calendriersAffiches": "{nombre} calendars",
-    "renommerLeCalendrier": "Rename calendar",
+  "renommerLeCalendrier": "Rename calendar",
   "nouveauCalendrier": "New calendar",
   "calendriersAAfficher": "Calendars shown",
   "developperLeMois": "Expand the month",
@@ -322,5 +322,10 @@
   "evenementQuiSeRepete": "This event repeats. Delete only this one, or the whole series?",
   "cetteOccurrence": "This one",
   "touteLaSerie": "Whole series",
-  "modifierLaSerie": "This event repeats: your changes apply to the whole series. To change only one, use the web."
+  "modifierLaSerie": "This event repeats: your changes apply to the whole series. To change only one, use the web.",
+  "abonnements": "Subscriptions",
+  "nouvelAbonnement": "New subscription",
+  "adresseDuFlux": "Feed address",
+  "supprimerLAbonnement": "Remove subscription",
+  "abonnementEnPanne": "This feed is no longer responding"
 }

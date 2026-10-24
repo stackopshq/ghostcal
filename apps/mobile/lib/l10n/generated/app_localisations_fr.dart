@@ -1027,4 +1027,19 @@ class LFr extends L {
   @override
   String get modifierLaSerie =>
       'Cet événement se répète : vos modifications s\'appliquent à toute la série. Pour n\'en changer qu\'un, passez par le web.';
+
+  @override
+  String get abonnements => 'Abonnements';
+
+  @override
+  String get nouvelAbonnement => 'Nouvel abonnement';
+
+  @override
+  String get adresseDuFlux => 'Adresse du flux';
+
+  @override
+  String get supprimerLAbonnement => 'Supprimer l\'abonnement';
+
+  @override
+  String get abonnementEnPanne => 'Ce flux ne répond plus';
 }

@@ -498,7 +498,7 @@
   "aucunResultat": "Aucun résultat.",
   "tousLesCalendriers": "Tous les calendriers",
   "calendriersAffiches": "{nombre} calendriers",
-    "renommerLeCalendrier": "Renommer le calendrier",
+  "renommerLeCalendrier": "Renommer le calendrier",
   "nouveauCalendrier": "Nouveau calendrier",
   "@renommerLeCalendrier": {
     "description": "Le crayon de la feuille des calendriers, et le titre de la boîte qu'il ouvre. Seuls les calendriers qu'on possède en portent un : le serveur refuserait les autres, sa clause WHERE portant le propriétaire."
@@ -516,5 +516,19 @@
   "evenementQuiSeRepete": "Cet événement se répète. Supprimer seulement celui-ci, ou toute la série ?",
   "cetteOccurrence": "Celui-ci",
   "touteLaSerie": "Toute la série",
-  "modifierLaSerie": "Cet événement se répète : vos modifications s'appliquent à toute la série. Pour n'en changer qu'un, passez par le web."
+  "modifierLaSerie": "Cet événement se répète : vos modifications s'appliquent à toute la série. Pour n'en changer qu'un, passez par le web.",
+  "abonnements": "Abonnements",
+  "@abonnements": {
+    "description": "Le titre de la section des flux ICS, dans la colonne du bureau et dans la feuille du téléphone. Distincte des calendriers : on n'écrit jamais dans un abonnement."
+  },
+  "nouvelAbonnement": "Nouvel abonnement",
+  "adresseDuFlux": "Adresse du flux",
+  "@adresseDuFlux": {
+    "description": "Le champ d'URL de la boîte d'abonnement. Un lien webcal:// est accepté — le serveur le réécrit en https."
+  },
+  "supprimerLAbonnement": "Supprimer l'abonnement",
+  "abonnementEnPanne": "Ce flux ne répond plus",
+  "@abonnementEnPanne": {
+    "description": "Montré sous le nom d'un abonnement dont le dernier rapatriement a échoué. Ce qui s'affiche vient alors du précédent, et le taire laisserait croire à un agenda à jour."
+  }
 }

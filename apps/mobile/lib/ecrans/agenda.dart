@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../l10n/generated/app_localisations.dart';
 import '../outils/calendrier.dart';
 import '../outils/dates.dart';
+import '../services/abonnements.dart';
 import '../services/agenda.dart';
 import '../services/erreurs.dart';
 import '../services/session.dart';
@@ -72,9 +73,14 @@ class EcranDAgendaState extends State<EcranDAgenda> {
   ({DateTime de, DateTime a})? _fenetreChargee;
   List<LigneDAgenda>? _lignes;
   List<Calendrier> _calendriers = const [];
+
+  /// Les flux ICS auxquels on s'abonne. Chargés avec les calendriers et tenus à part :
+  /// voir [Abonnement] pour ce qui les en distingue.
+  List<Abonnement> _abonnements = const [];
   List<Tache> _taches = const [];
   String? _erreur;
   bool _charge = false;
+  bool _abonnementsDemandes = false;
   int _premierJour = 1;
 
   /// Calendars the user chose not to see. Bookings and external busy slots have no
@@ -138,6 +144,7 @@ class EcranDAgendaState extends State<EcranDAgenda> {
   DateTime get ancre => _ancre;
   bool get peutCreer => _inscriptibles.isNotEmpty;
   List<Calendrier> get calendriers => _calendriers;
+  List<Abonnement> get abonnements => _abonnements;
   Set<String> get masques => _masques;
 
   void choisirLaVue(VueDAgenda vue) => _allerA(_ancre, vue: vue);
@@ -248,6 +255,66 @@ class EcranDAgendaState extends State<EcranDAgenda> {
     return Agenda(api: api, auth: auth);
   }
 
+  Abonnements? get _lesAbonnements {
+    final api = widget.session.api;
+    return api == null ? null : Abonnements(api: api);
+  }
+
+  /// Ajoute un flux et le repose dans la liste, une fois le serveur d'accord.
+  ///
+  /// Puis **recharge la période** : le serveur va chercher le flux à la création et en
+  /// garde les événements, qui n'arriveront donc qu'à la prochaine lecture de l'agenda.
+  /// Sans ce rechargement, un abonnement ajouté apparaîtrait dans la colonne, vide, et
+  /// on le croirait cassé.
+  ///
+  /// La couleur sort de la même palette que les calendriers et évite celles déjà prises
+  /// **des deux côtés** : une pastille partagée entre un calendrier et un flux ne
+  /// relierait plus une ligne de la grille à sa source.
+  Future<void> ajouterUnAbonnement({
+    required String nom,
+    required String url,
+  }) async {
+    final service = _lesAbonnements;
+    if (service == null) return;
+    await service.ajouter(
+      nom: nom,
+      url: url,
+      couleur: Agenda.couleurLibre([
+        for (final c in _calendriers) c.couleur,
+        for (final a in _abonnements) a.couleur,
+      ]),
+    );
+    if (!mounted) return;
+    _abonnements = await service.lister();
+    if (!mounted) return;
+    widget.surChangement?.call();
+    _fenetreChargee = null;
+    await _recharger();
+  }
+
+  /// Supprime un abonnement, puis recharge : ses événements sont encore en mémoire et
+  /// resteraient affichés, sous un nom qui ne figure plus nulle part.
+  Future<void> supprimerUnAbonnement(String id) async {
+    final service = _lesAbonnements;
+    if (service == null) return;
+    await service.supprimer(id);
+    if (!mounted) return;
+    setState(() {
+      _abonnements = [
+        for (final a in _abonnements)
+          if (a.id != id) a,
+      ];
+      // Et on retire son masque : garder l'identifiant d'un abonnement supprimé ferait
+      // grossir la liste retenue sans que rien ne la nettoie, et masquerait un futur
+      // abonnement s'il retombait sur le même identifiant.
+      _masques = {..._masques}..remove(id);
+    });
+    widget.surChangement?.call();
+    await _retenir(_masques.join(','), _cleDesMasques);
+    _fenetreChargee = null;
+    await _recharger();
+  }
+
   /// The window the current view needs. The day view loads its whole week, so the strip
   /// above it can show which days are busy.
   ({DateTime de, DateTime a}) get _fenetre {
@@ -292,6 +359,24 @@ class EcranDAgendaState extends State<EcranDAgenda> {
       if (_calendriers.isEmpty) {
         _calendriers = await agenda.calendriers();
         widget.surChangement?.call();
+      }
+      // Les abonnements, de même, et pour la même raison. Une liste vide est un état
+      // légitime — la plupart des comptes n'en ont aucun —, donc la demande est gardée
+      // par un drapeau et non par la vacuité de la liste, sans quoi elle repartirait à
+      // chaque changement de période.
+      if (!_abonnementsDemandes) {
+        _abonnementsDemandes = true;
+        final service = _lesAbonnements;
+        if (service != null) {
+          try {
+            _abonnements = await service.lister();
+            widget.surChangement?.call();
+          } on Object catch (e) {
+            // Un flux qui ne répond pas ne doit pas emporter l'agenda : les rendez-vous
+            // qu'on a soi-même pris comptent plus que la liste des abonnements.
+            debugPrint('ghostcal.abonnements: liste indisponible: $e');
+          }
+        }
       }
       // A slow answer for a window the user has already left must not overwrite the
       // current one.
@@ -376,10 +461,18 @@ class EcranDAgendaState extends State<EcranDAgenda> {
     final gc = Gc.of(context);
     if (ligne.source == 'booking') return gc.accentTexte;
     if (ligne.calendrier == null) return gc.estompe;
-    final hex = _calendriers
-        .where((c) => c.id == ligne.calendrier)
-        .map((c) => c.couleur)
-        .firstOrNull;
+    // Les deux sources, dans cet ordre. Un abonnement porte sa couleur comme un
+    // calendrier, et l'oublier ici donnait des événements de flux dans la teinte
+    // d'accent — la même pour tous, donc on ne savait plus d'où ils venaient.
+    final hex =
+        _calendriers
+            .where((c) => c.id == ligne.calendrier)
+            .map((c) => c.couleur)
+            .firstOrNull ??
+        _abonnements
+            .where((a) => a.id == ligne.calendrier)
+            .map((a) => a.couleur)
+            .firstOrNull;
     final valeur = int.tryParse((hex ?? '').replaceFirst('#', ''), radix: 16);
     return valeur == null ? gc.accent : Color(0xFF000000 | valeur);
   }
