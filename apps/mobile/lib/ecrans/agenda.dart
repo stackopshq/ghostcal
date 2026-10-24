@@ -230,6 +230,24 @@ class EcranDAgendaState extends State<EcranDAgenda> {
   /// grille de quoi afficher trois colonnes.
   bool get _bureau => MediaQuery.sizeOf(context).width >= Mesures.seuilBureau;
 
+  /// ─── Une liste de masqués, et non une liste d'autorisés ───
+  ///
+  /// La distinction n'est pas un détail d'implémentation : elle décide de ce qui arrive
+  /// à une source que l'application **ne connaît pas**. Ici, elle passe.
+  ///
+  /// C'est ce qui a caché les abonnements ICS pendant toute la vie du client mobile. Le
+  /// serveur rendait leurs événements avec `calendar_id` portant l'identifiant de
+  /// l'abonnement ; aucun ne figurait dans `_calendriers`, aucun n'était masqué, donc
+  /// tous s'affichaient. On voyait les rendez-vous d'un flux posé depuis le web, dans la
+  /// couleur d'accent faute de correspondance, sans son nom, sans sa case. **Un écran
+  /// cohérent et faux, et rien pour le signaler** — là où une liste d'autorisés aurait
+  /// fait disparaître ces lignes, ce qui se remarque tout de suite.
+  ///
+  /// Le choix reste le bon, et pour une raison qui compte plus : une réservation et un
+  /// créneau occupé externe n'ont **pas** de calendrier, et une liste d'autorisés les
+  /// masquerait — donc cacherait un engagement pris. Mais il a un prix, et le prix est
+  /// qu'une source nouvelle s'affiche sans être gérable. Qui ajoute une source doit donc
+  /// lui donner sa ligne dans la colonne, pas seulement ses événements dans la grille.
   bool _visible(LigneDAgenda ligne) =>
       ligne.calendrier == null || !_masques.contains(ligne.calendrier);
 

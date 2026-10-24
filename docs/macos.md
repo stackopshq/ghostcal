@@ -403,6 +403,41 @@ Campagne du 2026-10-15, `flutter test integration_test/macos_test.dart -d macos`
 | Une série récurrente survit à une modification depuis le Mac | `tools/semer-une-serie.py` dépose une série dont le rappel est posé **par le serveur**, comme le web le fait. Le témoin modifie la série depuis l'application, retire une occurrence, puis supprime tout — et relit `rrule`, `exdates` et `reminder_minutes` **sur le serveur** à chaque étape. Un titre correct à l'écran ne dit rien de ce qui a été écrit, et c'est là que la perte se produisait : la route `PUT` remplace l'enregistrement entier |
 | Les deux côtés parlent la même langue | `test/menu_macos_test.dart` compare les noms de méthode émis par le Swift à ceux traités par `accueil.dart`, dans les deux sens. Sans témoin, un item renommé d'un seul côté donne un raccourci qui ne fait rien, en silence |
 
+### Ce que les témoins ne peuvent pas atteindre, et ce que ça coûte
+
+**`EcranDAccueil` ne se monte pas en test.** Pas « mal » : pas du tout. Un `pumpWidget`
+avec une `Session()` nue lève à la construction — il lui faut une session ouverte, donc un
+serveur et le cœur Rust. C'est pourquoi `test/menu_macos_test.dart` et `test/fond_test.dart`
+lisent le **source** au lieu de monter quoi que ce soit, et ils le disent tous les deux
+dans leur en-tête.
+
+La conséquence est précise : chaque morceau de l'accueil s'éprouve **seul** —
+`BarreDeTitreDeBureau`, `ColonneLaterale`, les boîtes de dialogue —, et le **chaînage**
+n'est gardé par rien. Un composant juste, branché nulle part, passe au vert.
+
+Ce n'est pas une inquiétude de principe, c'est arrivé deux fois en deux jours :
+
+| Le défaut | Pourquoi aucun témoin n'a mordu |
+|---|---|
+| La barre d'outils posée sur l'heure de l'iPad | `Mesures.dansLaBarreDeTitre` **préservait** la marge haute, et `_barreDeTitre` ne la lisait pas. Deux témoins purs au vert au-dessus : une fonction pure reste verte quand le défaut est de ne **pas** l'appeler |
+| Les abonnements ICS invisibles | Le filtre des calendriers est une liste de **masqués** et non d'autorisés, donc les événements d'un flux passaient — sans nom, sans couleur propre, sans case. Un écran cohérent et faux, et rien pour le signaler |
+
+Les deux ont la même forme : **la chose était là, personne ne la lisait.** C'est exactement
+ce qu'un témoin de composant ne voit pas.
+
+Ce qui manquerait pour le garder : des bouchons de session permettant de monter l'accueil.
+C'est une dette consignée et non un chantier en cours — la bricoler dans la précipitation
+donnerait un harnais qu'on croit, ce qui est le pire des deux états.
+
+En attendant, deux habitudes tiennent lieu de filet, et elles ont trouvé des défauts que
+les témoins avaient laissés passer :
+
+- **remettre le défaut.** Un témoin qu'on n'a pas vu échouer ne dit rien. Les mutations qui
+  **passent** valent autant que celles qui échouent : elles disent où il ne protège pas.
+- **regarder l'écran, pas seulement la mesure.** Un témoin qui ne relève aucun débordement
+  et une capture qu'on ouvre ne disent pas la même chose. La barre posée sur l'heure a été
+  vue en image, après deux témoins verts.
+
 ### Les chiffres, sur un clavier qui n'en porte pas à cet endroit
 
 `keyEquivalent: "1"` ne reste pas « 1 ». AppKit le traduit pour la disposition active :
