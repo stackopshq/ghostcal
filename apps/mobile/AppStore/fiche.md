@@ -71,7 +71,8 @@ La 1.6.0 est donc soumise en `AFTER_APPROVAL`, et c'est voulu.
 | Ce qu'il reste | Pourquoi ça ne peut pas se faire ici |
 |---|---|
 | Trancher la **note 3 du §740.17(b)** et mener les démarches BIS et ANSSI | Questions de droit ; GhostPass a le même arbitrage en cours |
-| Déposer l'**AAB sur le Play Store** | Aucun accès Play Console ni compte de service, de ce Mac ni de dev-loutre. L'AAB 1.5.0 (7) est construit et signé, empreinte de certificat identique à celle de la 1.4.1 |
+| **Promouvoir** sur le Play Store | L'AAB **1.5.0 (7) est déjà sur la piste interne**, déposé le 22 octobre. Ce qui reste est la promotion vers la production, et les droits du compte de service pour cela ne se lisent que dans la console |
+| Monter un **AAB 1.6.0 (10)** pour Android | L'iOS part en 1.6.0 (10) ; la piste interne est restée en 1.5.0 (7). Deux plateformes à deux numéros depuis la même source |
 
 Fait : les quatre jeux de captures, déposés et acceptés sans erreur ; la **page
 d'assistance**, en ligne et vérifiée au contenu ; la classification d'âge ; la déclaration
@@ -84,6 +85,35 @@ les déclarations vivent sur la version, pas sur la soumission. Ce qu'il faut re
 build et la soumission — et la conformité à l'export, qui se coche **par build** et non par
 version. C'est le piège de la 1.3.0 : elle avait été soumise avec un build dont la case
 n'était pas cochée.
+
+### « Aucun accès Play Console » était faux, et je l'ai écrit deux jours
+
+Cette ligne disait, jusqu'au 24 octobre : « Aucun accès Play Console ni compte de service,
+de ce Mac ni de dev-loutre. » **C'est faux, et ça l'était déjà quand je l'ai écrit.**
+
+Le chemin existe et il a servi : `ghostcal-play-publisher@stackops-504008.iam.gserviceaccount.com`,
+emprunté depuis la session gcloud de Clara par
+`gcloud auth print-access-token --impersonate-service-account=… --scopes=…/androidpublisher`.
+Le compte n'a **aucune clé JSON** — une règle d'organisation l'interdit — ce qui explique
+qu'un `find` de fichiers de clés ne trouve rien et que j'en aie conclu l'absence d'accès.
+C'est par là que la 1.5.0 (7) est montée sur la piste interne le 22 octobre, par
+`bundles.upload` puis `tracks/internal`.
+
+L'erreur n'est pas d'avoir cherché au mauvais endroit : c'est d'avoir transformé « je n'ai
+rien trouvé » en « il n'y a rien », et de l'avoir **écrit comme un fait** dans le document
+qui sert à décider. Le dépôt lui-même portait pourtant l'indice — l'AAB de la piste interne
+est cité ailleurs dans ces pages.
+
+Ce qui reste vrai, et qu'il ne faut pas jeter avec le reste :
+
+- **l'API Android Publisher ne crée pas d'application.** Elle gère les versions d'une
+  application qui existe déjà. GhostPass n'ayant jamais été déposée, sa fiche demande un
+  passage humain dans la console — `applicationId`, classification, Data safety ;
+- **les droits de promotion ne se lisent pas depuis gcloud.** Téléverser sur une piste
+  interne et publier en production sont deux permissions distinctes, accordées dans
+  « Utilisateurs et autorisations ». Seul un essai, ou la console, le dira ;
+- **la session gcloud est celle de Clara**, sur la machine de dev-loutre. Elle expire, et
+  sa reconnexion lui appartient.
 
 **Le questionnaire App Privacy ne se remplit pas par l'API.** Sept chemins sondés, tous en
 404, y compris ceux qu'une application déjà en revue utiliserait : ces réponses ne
