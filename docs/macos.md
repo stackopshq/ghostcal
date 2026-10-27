@@ -403,6 +403,70 @@ Campagne du 2026-10-15, `flutter test integration_test/macos_test.dart -d macos`
 | Une série récurrente survit à une modification depuis le Mac | `tools/semer-une-serie.py` dépose une série dont le rappel est posé **par le serveur**, comme le web le fait. Le témoin modifie la série depuis l'application, retire une occurrence, puis supprime tout — et relit `rrule`, `exdates` et `reminder_minutes` **sur le serveur** à chaque étape. Un titre correct à l'écran ne dit rien de ce qui a été écrit, et c'est là que la perte se produisait : la route `PUT` remplace l'enregistrement entier |
 | Les deux côtés parlent la même langue | `test/menu_macos_test.dart` compare les noms de méthode émis par le Swift à ceux traités par `accueil.dart`, dans les deux sens. Sans témoin, un item renommé d'un seul côté donne un raccourci qui ne fait rien, en silence |
 
+### Ce que les témoins ne peuvent pas atteindre, et ce que ça coûte
+
+**`EcranDAccueil` ne se monte pas en test.** Pas « mal » : pas du tout. Un `pumpWidget`
+avec une `Session()` nue lève à la construction — il lui faut une session ouverte, donc un
+serveur et le cœur Rust. C'est pourquoi `test/menu_macos_test.dart` et `test/fond_test.dart`
+lisent le **source** au lieu de monter quoi que ce soit, et ils le disent tous les deux
+dans leur en-tête.
+
+La conséquence est précise : chaque morceau de l'accueil s'éprouve **seul** —
+`BarreDeTitreDeBureau`, `ColonneLaterale`, les boîtes de dialogue —, et le **chaînage**
+n'est gardé par rien. Un composant juste, branché nulle part, passe au vert.
+
+Ce n'est pas une inquiétude de principe, c'est arrivé deux fois en deux jours :
+
+| Le défaut | Pourquoi aucun témoin n'a mordu |
+|---|---|
+| La barre d'outils posée sur l'heure de l'iPad | `Mesures.dansLaBarreDeTitre` **préservait** la marge haute, et `_barreDeTitre` ne la lisait pas. Deux témoins purs au vert au-dessus : une fonction pure reste verte quand le défaut est de ne **pas** l'appeler |
+| Les abonnements ICS invisibles | Le filtre des calendriers est une liste de **masqués** et non d'autorisés, donc les événements d'un flux passaient — sans nom, sans couleur propre, sans case. Un écran cohérent et faux, et rien pour le signaler |
+
+Les deux ont la même forme : **la chose était là, personne ne la lisait.** C'est exactement
+ce qu'un témoin de composant ne voit pas.
+
+Ce qui manquerait pour le garder : des bouchons de session permettant de monter l'accueil.
+C'est une dette consignée et non un chantier en cours — la bricoler dans la précipitation
+donnerait un harnais qu'on croit, ce qui est le pire des deux états.
+
+En attendant, deux habitudes tiennent lieu de filet, et elles ont trouvé des défauts que
+les témoins avaient laissés passer :
+
+- **remettre le défaut.** Un témoin qu'on n'a pas vu échouer ne dit rien. Les mutations qui
+  **passent** valent autant que celles qui échouent : elles disent où il ne protège pas.
+- **regarder l'écran, pas seulement la mesure.** Un témoin qui ne relève aucun débordement
+  et une capture qu'on ouvre ne disent pas la même chose. La barre posée sur l'heure a été
+  vue en image, après deux témoins verts.
+
+### Trois façons de croire qu'on a vérifié
+
+Les trois sont arrivées sur ce dépôt en une semaine, à deux sessions différentes. Elles ont
+la même forme : non pas l'absence de vérification, mais **sa sensation sans sa substance**.
+
+**Un témoin rouge qui devient vert ressemble trop à une preuve.** La vue Année marquait
+« aujourd'hui » dans les deux grilles qui le contiennent. Le témoin était rouge, une
+condition l'a fait repasser au vert, et ça a été présenté comme une démonstration. Mais ce
+témoin lisait `DateTime.now()` comme la vue qu'il éprouvait : il ne mesurait que **le jour
+où il tournait**, et il serait reparti au vert le lendemain, défaut remis ou pas. Un témoin
+jamais vu échouer se soupçonne ; celui-là **s'était manifesté sous la main**, et c'est ce
+qui éteint le soupçon. D'où l'horloge injectable et des dates choisies — voir
+`test/agenda_annee_test.dart`.
+
+**Un état vérifié est vrai à une date — y compris quand c'est soi qui l'a vérifié.** La
+règle existait déjà pour les relevés d'autrui, après qu'une fiche a affirmé pendant deux
+jours « aucun accès Play Console » là où le chemin existait et avait servi. Elle lui
+manquait un cran : une branche lue le 24, corrigée le 25, a été rapportée dans l'état du 24
+le 27 — par celui-là même qui venait de l'avoir lue. Sa propre lecture est un relevé comme
+un autre.
+
+**Une explication qui met hors de cause se vérifie moins qu'une autre, pas plus.** Les deux
+sessions l'ont fait dans la même minute, sur la même question, en se reprochant l'inverse :
+l'une a avancé « la PR est épinglée à un vieux commit » et l'autre l'a relayée, sans que
+personne regarde. La cause était plus simple et moins flatteuse — personne n'avait relu. Et
+la suivante aussi : un auteur de commit inattendu a fait conclure à une machine mal
+identifiée, alors qu'un champ avait simplement été **écrit à la main** dans un appel d'API.
+Une métadonnée qu'on peut écrire ne dit pas qui a agi ; elle dit ce que l'appelant y a mis.
+
 ### Les chiffres, sur un clavier qui n'en porte pas à cet endroit
 
 `keyEquivalent: "1"` ne reste pas « 1 ». AppKit le traduit pour la disposition active :
