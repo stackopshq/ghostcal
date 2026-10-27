@@ -30,6 +30,7 @@ class GrilleDeLAnnee extends StatelessWidget {
     required this.annee,
     required this.premierJour,
     required this.surJour,
+    this.aujourdhui,
   });
 
   /// N'importe quelle date de l'année montrée.
@@ -39,6 +40,21 @@ class GrilleDeLAnnee extends StatelessWidget {
   final int premierJour;
 
   final ValueChanged<DateTime> surJour;
+
+  /// Le jour à marquer, pour les témoins. `null` en production : c'est alors
+  /// `DateTime.now()`.
+  ///
+  /// ─── Pourquoi une horloge injectable ───
+  ///
+  /// Le témoin de ce repère lisait `DateTime.now()` comme la vue, donc il n'éprouvait
+  /// que **le jour où il tournait**. Il a été vert le 24 octobre 2026 avec le défaut en
+  /// place, et rouge le 26 — parce que le défaut ne se voit que si aujourd'hui tombe dans
+  /// une semaine partagée par deux mois, ce qui arrive une semaine sur quatre environ.
+  ///
+  /// Un témoin qui ne mord qu'à certaines dates est pire qu'absent le reste du temps : il
+  /// dit que la question est réglée. Et il rend `main` rouge sans qu'une ligne ait changé,
+  /// ce qui bloque tout le monde pour une raison que personne ne cherche dans le calendrier.
+  final DateTime? aujourdhui;
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +89,12 @@ class GrilleDeLAnnee extends StatelessWidget {
           childAspectRatio: largeurDeCase / hauteurDeCase,
           children: [
             for (final mois in moisDeLAnnee(annee))
-              _Mois(mois: mois, premierJour: premierJour, surJour: surJour),
+              _Mois(
+                mois: mois,
+                premierJour: premierJour,
+                surJour: surJour,
+                aujourdhui: aujourdhui,
+              ),
           ],
         );
       },
@@ -86,18 +107,20 @@ class _Mois extends StatelessWidget {
     required this.mois,
     required this.premierJour,
     required this.surJour,
+    this.aujourdhui,
   });
 
   final DateTime mois;
   final int premierJour;
   final ValueChanged<DateTime> surJour;
+  final DateTime? aujourdhui;
 
   @override
   Widget build(BuildContext context) {
     final gc = Gc.of(context);
     final langue = Localizations.localeOf(context).toLanguageTag();
     final jours = joursDeLaGrilleDuMois(mois, premierJour);
-    final aujourdhui = minuit(DateTime.now());
+    final leJour = minuit(aujourdhui ?? DateTime.now());
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -141,7 +164,16 @@ class _Mois extends StatelessWidget {
                     child: _Jour(
                       jour: jour,
                       duMois: jour.month == mois.month,
-                      aujourdhui: minuit(jour) == aujourdhui,
+                      // `duMois` **et** la date : une grille mensuelle affiche les
+                      // jours débordants du mois voisin, et sans la première condition
+                      // le jour d'aujourd'hui s'allume dans les **deux** grilles qui le
+                      // contiennent. Novembre 2026 commence un dimanche, donc sa
+                      // première rangée montre le 26 au 31 octobre.
+                      //
+                      // Trouvé par la session iOS, sur `main` rouge. Le correctif est
+                      // le sien.
+                      aujourdhui:
+                          jour.month == mois.month && minuit(jour) == leJour,
                       surClic: () => surJour(jour),
                     ),
                   ),
