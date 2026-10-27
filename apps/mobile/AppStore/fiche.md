@@ -16,16 +16,47 @@ pas chez Apple.
 
 Relevé le 25 septembre 2026.
 
-**La 1.5.0 (build 7) a été retirée de la revue le 23 octobre 2026**, à la demande de
-Clara. État actuel : `DEVELOPER_REJECTED`, donc modifiable. Elle avait été soumise le
-22 octobre à 18h30 et attendait son tour.
+**La 1.6.0 (build 10) est en revue chez Apple depuis le 23 octobre 2026**, état
+`WAITING_FOR_REVIEW`, publication en **`AFTER_APPROVAL`** : elle sortira d'elle-même dès
+l'accord. C'est le choix de Clara, et il est délibéré — voir plus bas.
 
-Pourquoi la retirer plutôt que la laisser passer : le mobile était resté loin derrière le
-Mac. La 1.5.0 serait sortie sans la vue Année, sans les barres continues des événements sur
+Elle remplace la **1.5.0 (build 7)**, retirée de la revue le même jour. Celle-là avait été
+soumise le 22 octobre à 18h30 et attendait son tour ; la retirer a coûté sa place dans la
+file, et le coût est assumé.
+
+Pourquoi l'avoir retirée plutôt que la laisser passer : le mobile était resté loin derrière
+le Mac. La 1.5.0 serait sortie sans la vue Année, sans les barres continues des événements sur
 plusieurs jours, sans la création d'un calendrier depuis l'application, et **sans le
 correctif de verrouillage** — des écrans empilés restaient affichés, déchiffrés, par-dessus
 un agenda verrouillé. Ce dernier point est ce qui a décidé : il ne valait pas une version
-d'attente. Le coût est la place acquise dans la file d'Apple, et il est assumé.
+d'attente.
+
+**Et un défaut de plus a été trouvé en chemin, par la capture et non par un test.** Le
+build 9, déjà déposé, portait une barre d'outils iPad dessinée **sous l'heure et la
+batterie** du système. Le correctif précédent préservait bien la marge haute, mais
+`_barreDeTitre` rend un `PreferredSize`, et **seul un `AppBar` lit
+`MediaQuery.padding.top`** : la marge était là, personne ne la lisait. Mesuré sur
+`captures-ipad/01-agenda.png` — le trait du bas tombait à 104 pixels physiques, soit
+exactement les 52 points de la barre. D'où le build 10, et les quatre jeux refaits.
+
+**Ce correctif est gardé depuis la PR #243.** Il ne l'était pas au moment où ces lignes ont
+été écrites, et c'est la seule raison pour laquelle elles existent.
+
+Le témoin d'alors éprouvait `Mesures.dansLaBarreDeTitre` **en pur**, donc il restait vert
+avec la barre posée sur l'heure : le prédicat était juste, personne ne lisait son résultat.
+Le témoin qui mord monte `BarreDeTitreDeBureau` sous une `MediaQuery` à marge haute non
+nulle et mesure la **boîte rendue** — ce qui a demandé d'extraire la barre, puisque
+`EcranDAccueil` ne se monte pas du tout en test (il exige une session ouverte ; essayé, pas
+déduit).
+
+Il a été éprouvé en remettant le défaut quatre fois. Trois mutations le font échouer ; la
+quatrième — un `preferredSize` faux — **passe**, et c'est écrit dans le fichier avec sa
+raison : `_ScaffoldLayout` dispose l'`appBar` sous des contraintes de hauteur libres et
+place le corps sous la hauteur rendue, si bien que `preferredSize` n'est jamais lu sur ce
+chemin. Un témoin dont on connaît les trous vaut mieux qu'un témoin qu'on croit complet.
+
+Ce défaut avait échappé deux fois de suite, et c'est une capture ouverte qui l'a trouvé —
+pas un test.
 
 ### Une affirmation fausse, et comment elle l'est devenue
 
@@ -52,9 +83,9 @@ La 1.6.0 est donc soumise en `AFTER_APPROVAL`, et c'est voulu.
 
 | Ce qu'il reste | Pourquoi ça ne peut pas se faire ici |
 |---|---|
-| **Fusionner le mobile**, puis monter un build neuf et le resoumettre | La branche qui porte la création de calendrier et le correctif de verrouillage n'était pas fusionnée au 23 octobre ; `main` déclarait 1.5.1+8. Rien à resoumettre avant |
 | Trancher la **note 3 du §740.17(b)** et mener les démarches BIS et ANSSI | Questions de droit ; GhostPass a le même arbitrage en cours |
-| Déposer l'**AAB sur le Play Store** | Aucun accès Play Console ni compte de service, de ce Mac ni de dev-loutre. L'AAB 1.5.0 (7) est construit et signé, empreinte de certificat identique à celle de la 1.4.1 |
+| **Promouvoir** sur le Play Store | L'AAB **1.5.0 (7) est déjà sur la piste interne**, déposé le 22 octobre. Ce qui reste est la promotion vers la production, et les droits du compte de service pour cela ne se lisent que dans la console |
+| Monter un **AAB 1.6.0 (10)** pour Android | L'iOS part en 1.6.0 (10) ; la piste interne est restée en 1.5.0 (7). Deux plateformes à deux numéros depuis la même source |
 
 Fait : les quatre jeux de captures, déposés et acceptés sans erreur ; la **page
 d'assistance**, en ligne et vérifiée au contenu ; la classification d'âge ; la déclaration
@@ -67,6 +98,35 @@ les déclarations vivent sur la version, pas sur la soumission. Ce qu'il faut re
 build et la soumission — et la conformité à l'export, qui se coche **par build** et non par
 version. C'est le piège de la 1.3.0 : elle avait été soumise avec un build dont la case
 n'était pas cochée.
+
+### « Aucun accès Play Console » était faux, et je l'ai écrit deux jours
+
+Cette ligne disait, jusqu'au 24 octobre : « Aucun accès Play Console ni compte de service,
+de ce Mac ni de dev-loutre. » **C'est faux, et ça l'était déjà quand je l'ai écrit.**
+
+Le chemin existe et il a servi : `ghostcal-play-publisher@stackops-504008.iam.gserviceaccount.com`,
+emprunté depuis la session gcloud de Clara par
+`gcloud auth print-access-token --impersonate-service-account=… --scopes=…/androidpublisher`.
+Le compte n'a **aucune clé JSON** — une règle d'organisation l'interdit — ce qui explique
+qu'un `find` de fichiers de clés ne trouve rien et que j'en aie conclu l'absence d'accès.
+C'est par là que la 1.5.0 (7) est montée sur la piste interne le 22 octobre, par
+`bundles.upload` puis `tracks/internal`.
+
+L'erreur n'est pas d'avoir cherché au mauvais endroit : c'est d'avoir transformé « je n'ai
+rien trouvé » en « il n'y a rien », et de l'avoir **écrit comme un fait** dans le document
+qui sert à décider. Le dépôt lui-même portait pourtant l'indice — l'AAB de la piste interne
+est cité ailleurs dans ces pages.
+
+Ce qui reste vrai, et qu'il ne faut pas jeter avec le reste :
+
+- **l'API Android Publisher ne crée pas d'application.** Elle gère les versions d'une
+  application qui existe déjà. GhostPass n'ayant jamais été déposée, sa fiche demande un
+  passage humain dans la console — `applicationId`, classification, Data safety ;
+- **les droits de promotion ne se lisent pas depuis gcloud.** Téléverser sur une piste
+  interne et publier en production sont deux permissions distinctes, accordées dans
+  « Utilisateurs et autorisations ». Seul un essai, ou la console, le dira ;
+- **la session gcloud est celle de Clara**, sur la machine de dev-loutre. Elle expire, et
+  sa reconnexion lui appartient.
 
 **Le questionnaire App Privacy ne se remplit pas par l'API.** Sept chemins sondés, tous en
 404, y compris ceux qu'une application déjà en revue utiliserait : ces réponses ne
