@@ -14,6 +14,7 @@ from ghostcal.application.calendar import (
     BusyBlock,
     CalendarRecord,
     CalendarRepository,
+    DefaultCalendarUndeletable,
     EventInput,
     EventRecord,
     ShareRecord,
@@ -217,6 +218,47 @@ class SqlCalendarRepository(CalendarRepository):
                     models.Calendar.organization_id == self._org_id,
                 )
                 .values(**values)
+                .returning(models.Calendar.id)
+            )
+        ).scalar_one_or_none()
+        return row is not None
+
+    async def delete_calendar(self, owner_id: uuid.UUID, calendar_id: uuid.UUID) -> bool:
+        # Deux instructions, et l'ordre compte. On lit d'abord `is_default` pour pouvoir refuser
+        # *en le disant* : une suppression qui écarterait le calendrier par défaut dans sa clause
+        # WHERE rendrait « introuvable », et l'utilisateur chercherait un calendrier qu'il a sous
+        # les yeux. Les deux issues ne sont pas la même phrase.
+        #
+        # L'`owner_id` et l'`organization_id` restent néanmoins dans la clause WHERE de la
+        # suppression, et pas seulement dans ce SELECT : une vérification suivie d'une écriture
+        # laisse une fenêtre entre les deux, et c'est ce que les autres méthodes de ce dépôt
+        # évitent déjà.
+        defaut = (
+            await self._session.execute(
+                select(models.Calendar.is_default).where(
+                    models.Calendar.id == calendar_id,
+                    models.Calendar.owner_id == owner_id,
+                    models.Calendar.organization_id == self._org_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if defaut is None:
+            return False
+        if defaut:
+            raise DefaultCalendarUndeletable(str(calendar_id))
+
+        # Les événements, les partages, les liens de réservation et les rappels s'en vont avec la
+        # ligne : toutes les clés étrangères qui pointent vers `calendars.id` sont en
+        # `ON DELETE CASCADE`. Les effacer ici ferait plusieurs instructions là où la base en fait
+        # une, et une coupure au milieu laisserait un calendrier sans ses événements.
+        row = (
+            await self._session.execute(
+                delete(models.Calendar)
+                .where(
+                    models.Calendar.id == calendar_id,
+                    models.Calendar.owner_id == owner_id,
+                    models.Calendar.organization_id == self._org_id,
+                )
                 .returning(models.Calendar.id)
             )
         ).scalar_one_or_none()

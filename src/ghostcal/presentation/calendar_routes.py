@@ -18,10 +18,12 @@ from ghostcal.application.calendar import (
     CalendarError,
     CalendarForbidden,
     CalendarNotFound,
+    DefaultCalendarUndeletable,
     EventInput,
     EventNotFound,
     Language,
     create_event,
+    delete_calendar,
     delete_event,
     get_agenda,
     get_event,
@@ -191,6 +193,40 @@ async def update_my_calendar(
                 name=payload.name,
                 color=payload.color,
             )
+        except CalendarNotFound as exc:
+            raise HTTPException(status_code=404, detail="calendar not found") from exc
+
+
+@router.delete("/calendars/{calendar_id}", status_code=204)
+async def delete_my_calendar(
+    calendar_id: uuid.UUID, member: Member = Depends(current_member)
+) -> None:
+    """Delete a calendar, and its events with it.
+
+    **There is no bin behind this.** An event deleted on its own goes to the trash and comes back;
+    a calendar deleted whole takes its events out of the database, through the `ON DELETE CASCADE`
+    on every table that points at it. The client has to say so before it asks for confirmation,
+    and say how many people lose a shared calendar — the server cannot soften it afterwards.
+
+    Three outcomes the caller has to be able to tell apart:
+
+      * **204** — gone, with everything that hung off it;
+      * **404** — no such calendar, or it belongs to someone else. The two are deliberately one
+        answer: distinguishing them would say whether a stranger's identifier exists;
+      * **409** — it is the default calendar. It exists and it is theirs, so neither 404 nor 403
+        fits; what is refused is this verb on this row. `ensure_default_calendar` would recreate
+        one on the next read, so allowing it would destroy the events to produce an empty
+        calendar with the same job.
+    """
+    async with org_session(member.organization_id) as session:
+        try:
+            await delete_calendar(
+                _repo(session, member.organization_id), member.user.id, calendar_id
+            )
+        except DefaultCalendarUndeletable as exc:
+            raise HTTPException(
+                status_code=409, detail="the default calendar cannot be deleted"
+            ) from exc
         except CalendarNotFound as exc:
             raise HTTPException(status_code=404, detail="calendar not found") from exc
 

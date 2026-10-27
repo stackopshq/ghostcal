@@ -208,6 +208,26 @@ class EcranDAgendaState extends State<EcranDAgenda> {
     widget.surChangement?.call();
   }
 
+  /// Supprime un calendrier, et retire ses lignes de la grille sans la relire.
+  ///
+  /// La liste locale perd le calendrier, et `_lignes` perd ce qui venait de lui : sans ce
+  /// second geste, les événements d'un calendrier supprimé resteraient affichés jusqu'au
+  /// prochain chargement, dans une couleur qui ne désigne plus rien. Un écran cohérent et
+  /// faux est pire qu'un écran vide.
+  Future<void> supprimerLeCalendrier(String id) async {
+    final agenda = _agenda;
+    if (agenda == null) return;
+    await agenda.supprimerLeCalendrier(id);
+    if (!mounted) return;
+    setState(() {
+      _calendriers = [for (final c in _calendriers) if (c.id != id) c];
+      _lignes = _lignes
+          ?.where((ligne) => ligne.calendrier != id)
+          .toList(growable: false);
+    });
+    widget.surChangement?.call();
+  }
+
   Future<void> rechercher() async {
     final agenda = _agenda;
     final organisation = widget.session.organisation;

@@ -352,6 +352,9 @@ class _EcranDAccueilState extends State<EcranDAccueil>
           surRenommage: agenda == null
               ? null
               : (c) => _renommer(agenda, c, (f) => setState(f)),
+          surSuppressionDuCalendrier: agenda == null
+              ? null
+              : (c) => _supprimer(agenda, c, (f) => setState(f)),
           surCreation: agenda == null ? null : () => _creerUnCalendrier(agenda),
           abonnements: agenda?.abonnements ?? const [],
           surAbonnement: agenda == null
@@ -666,6 +669,21 @@ class _EcranDAccueilState extends State<EcranDAccueil>
                               visualDensity: VisualDensity.compact,
                               onPressed: () => _renommer(agenda, c, majour),
                             ),
+                          // **Pas sur le calendrier par défaut.** Le serveur le refuse
+                          // par un 409, et offrir le bouton ferait découvrir le refus
+                          // après la confirmation — c'est-à-dire après avoir cru
+                          // supprimer. Mieux vaut qu'il n'y ait rien à toucher.
+                          if (c.aSoi && !c.parDefaut)
+                            IconButton(
+                              key: Key('calendriers.supprimer.${c.id}'),
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                size: 18,
+                              ),
+                              tooltip: l.supprimerLeCalendrier,
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () => _supprimer(agenda, c, majour),
+                            ),
                         ],
                       ),
                       value: !masques.contains(c.id),
@@ -836,6 +854,57 @@ class _EcranDAccueilState extends State<EcranDAccueil>
     if (confirme != true || !mounted) return;
     try {
       await agenda.supprimerUnAbonnement(abonnement.id);
+      majour(() {});
+    } on Object catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(lisible(e, L.of(context)))));
+    }
+  }
+
+  /// La confirmation d'une suppression de calendrier, et ce qu'elle doit dire.
+  ///
+  /// Trois phrases, et aucune n'est de la prudence d'usage : le calendrier emporte **ses
+  /// événements**, il n'y a **pas de corbeille** — contrairement à un événement effacé
+  /// seul —, et s'il est partagé, **les autres le perdent aussi**. Le serveur ne peut rien
+  /// adoucir après coup : la cascade est posée sur la base, et elle est immédiate.
+  Future<void> _supprimer(
+    EcranDAgendaState agenda,
+    Calendrier calendrier,
+    void Function(VoidCallback) majour,
+  ) async {
+    final l = L.of(context);
+    final confirme = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l.supprimerLeCalendrier),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l.supprimerLeCalendrierCorps(calendrier.nom)),
+            if (calendrier.partage) ...[
+              const SizedBox(height: 10),
+              Text(l.supprimerLeCalendrierPartage),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l.annuler),
+          ),
+          TextButton(
+            key: const Key('calendrier.supprimer.confirmer'),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l.supprimer),
+          ),
+        ],
+      ),
+    );
+    if (confirme != true || !mounted) return;
+    try {
+      await agenda.supprimerLeCalendrier(calendrier.id);
       majour(() {});
     } on Object catch (e) {
       if (!mounted) return;

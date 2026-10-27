@@ -1896,6 +1896,24 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Aucun abonnement'**
   String get aucunAbonnement;
+
+  /// La corbeille de la feuille des calendriers, et le titre de la boîte qu'elle ouvre. Absente du calendrier par défaut — le serveur le refuse par un 409 — et des calendriers qu'on ne possède pas.
+  ///
+  /// In fr, this message translates to:
+  /// **'Supprimer le calendrier'**
+  String get supprimerLeCalendrier;
+
+  /// Le corps de la confirmation. Il dit les deux choses que le serveur ne pourra pas adoucir après coup : les événements partent avec le calendrier, et il n'y a pas de filet.
+  ///
+  /// In fr, this message translates to:
+  /// **'« {nom} » et tous ses événements seront supprimés. Il n\'y a pas de corbeille : contrairement à un événement effacé seul, rien ne se récupère ensuite.'**
+  String supprimerLeCalendrierCorps(String nom);
+
+  /// Ajouté à la confirmation quand le calendrier est partagé. Un partage est une vue sur la ligne du propriétaire, pas une copie : elle part avec elle, et celui qui supprime doit le savoir avant, pas après.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ce calendrier est partagé : les personnes à qui vous l\'avez ouvert le perdront aussi.'**
+  String get supprimerLeCalendrierPartage;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {
