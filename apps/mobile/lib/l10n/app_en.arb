@@ -327,5 +327,8 @@
   "nouvelAbonnement": "New subscription",
   "adresseDuFlux": "Feed address",
   "supprimerLAbonnement": "Remove subscription",
-  "abonnementEnPanne": "This feed is no longer responding"
+  "abonnementEnPanne": "This feed is no longer responding",
+  "supprimerLeCalendrier": "Delete calendar",
+  "supprimerLeCalendrierCorps": "“{nom}” and all its events will be deleted. There is no bin: unlike an event deleted on its own, nothing comes back.",
+  "supprimerLeCalendrierPartage": "This calendar is shared: the people you opened it to will lose it too."
 }
