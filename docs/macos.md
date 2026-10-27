@@ -438,6 +438,35 @@ les témoins avaient laissés passer :
   et une capture qu'on ouvre ne disent pas la même chose. La barre posée sur l'heure a été
   vue en image, après deux témoins verts.
 
+### Trois façons de croire qu'on a vérifié
+
+Les trois sont arrivées sur ce dépôt en une semaine, à deux sessions différentes. Elles ont
+la même forme : non pas l'absence de vérification, mais **sa sensation sans sa substance**.
+
+**Un témoin rouge qui devient vert ressemble trop à une preuve.** La vue Année marquait
+« aujourd'hui » dans les deux grilles qui le contiennent. Le témoin était rouge, une
+condition l'a fait repasser au vert, et ça a été présenté comme une démonstration. Mais ce
+témoin lisait `DateTime.now()` comme la vue qu'il éprouvait : il ne mesurait que **le jour
+où il tournait**, et il serait reparti au vert le lendemain, défaut remis ou pas. Un témoin
+jamais vu échouer se soupçonne ; celui-là **s'était manifesté sous la main**, et c'est ce
+qui éteint le soupçon. D'où l'horloge injectable et des dates choisies — voir
+`test/agenda_annee_test.dart`.
+
+**Un état vérifié est vrai à une date — y compris quand c'est soi qui l'a vérifié.** La
+règle existait déjà pour les relevés d'autrui, après qu'une fiche a affirmé pendant deux
+jours « aucun accès Play Console » là où le chemin existait et avait servi. Elle lui
+manquait un cran : une branche lue le 24, corrigée le 25, a été rapportée dans l'état du 24
+le 27 — par celui-là même qui venait de l'avoir lue. Sa propre lecture est un relevé comme
+un autre.
+
+**Une explication qui met hors de cause se vérifie moins qu'une autre, pas plus.** Les deux
+sessions l'ont fait dans la même minute, sur la même question, en se reprochant l'inverse :
+l'une a avancé « la PR est épinglée à un vieux commit » et l'autre l'a relayée, sans que
+personne regarde. La cause était plus simple et moins flatteuse — personne n'avait relu. Et
+la suivante aussi : un auteur de commit inattendu a fait conclure à une machine mal
+identifiée, alors qu'un champ avait simplement été **écrit à la main** dans un appel d'API.
+Une métadonnée qu'on peut écrire ne dit pas qui a agi ; elle dit ce que l'appelant y a mis.
+
 ### Les chiffres, sur un clavier qui n'en porte pas à cet endroit
 
 `keyEquivalent: "1"` ne reste pas « 1 ». AppKit le traduit pour la disposition active :
