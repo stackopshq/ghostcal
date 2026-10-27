@@ -530,5 +530,22 @@
   "abonnementEnPanne": "Ce flux ne répond plus",
   "@abonnementEnPanne": {
     "description": "Montré sous le nom d'un abonnement dont le dernier rapatriement a échoué. Ce qui s'affiche vient alors du précédent, et le taire laisserait croire à un agenda à jour."
+  },
+  "supprimerLeCalendrier": "Supprimer le calendrier",
+  "@supprimerLeCalendrier": {
+    "description": "La corbeille de la feuille des calendriers, et le titre de la boîte qu'elle ouvre. Absente du calendrier par défaut — le serveur le refuse par un 409 — et des calendriers qu'on ne possède pas."
+  },
+  "supprimerLeCalendrierCorps": "« {nom} » et tous ses événements seront supprimés. Il n'y a pas de corbeille : contrairement à un événement effacé seul, rien ne se récupère ensuite.",
+  "@supprimerLeCalendrierCorps": {
+    "description": "Le corps de la confirmation. Il dit les deux choses que le serveur ne pourra pas adoucir après coup : les événements partent avec le calendrier, et il n'y a pas de filet.",
+    "placeholders": {
+      "nom": {
+        "type": "String"
+      }
+    }
+  },
+  "supprimerLeCalendrierPartage": "Ce calendrier est partagé : les personnes à qui vous l'avez ouvert le perdront aussi.",
+  "@supprimerLeCalendrierPartage": {
+    "description": "Ajouté à la confirmation quand le calendrier est partagé. Un partage est une vue sur la ligne du propriétaire, pas une copie : elle part avec elle, et celui qui supprime doit le savoir avant, pas après."
   }
 }

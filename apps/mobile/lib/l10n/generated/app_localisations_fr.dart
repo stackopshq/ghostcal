@@ -1042,4 +1042,16 @@ class LFr extends L {
 
   @override
   String get abonnementEnPanne => 'Ce flux ne répond plus';
+
+  @override
+  String get supprimerLeCalendrier => 'Supprimer le calendrier';
+
+  @override
+  String supprimerLeCalendrierCorps(String nom) {
+    return '« $nom » et tous ses événements seront supprimés. Il n\'y a pas de corbeille : contrairement à un événement effacé seul, rien ne se récupère ensuite.';
+  }
+
+  @override
+  String get supprimerLeCalendrierPartage =>
+      'Ce calendrier est partagé : les personnes à qui vous l\'avez ouvert le perdront aussi.';
 }

@@ -284,6 +284,25 @@ class Agenda {
     'name': nom.trim(),
   });
 
+  /// Supprime un calendrier, **et ses événements avec lui**.
+  ///
+  /// Il n'y a pas de corbeille derrière. Un événement supprimé seul y va et revient ;
+  /// un calendrier supprimé en entier sort de la base, par la cascade posée sur chaque
+  /// table qui le référence. C'est à l'écran de le dire avant de demander confirmation —
+  /// le serveur ne peut rien adoucir après coup.
+  ///
+  /// Trois réponses à distinguer, et l'appelant doit pouvoir le faire :
+  ///
+  ///  - `204` : parti, avec tout ce qui y pendait ;
+  ///  - `409` : c'est le calendrier par défaut. Il existe et il est à nous ; ce qui est
+  ///    refusé est ce verbe sur cette ligne. Le serveur en recréerait un à la lecture
+  ///    suivante, donc l'autoriser détruirait les événements pour produire un calendrier
+  ///    vide portant le même rôle ;
+  ///  - `404` : inconnu, ou celui de quelqu'un d'autre. Les deux sont volontairement une
+  ///    seule réponse — les distinguer dirait si l'identifiant d'un tiers existe.
+  Future<void> supprimerLeCalendrier(String id) =>
+      api.envoyerSansReponse('DELETE', 'v1/me/calendars/$id');
+
   /// L'agenda entre deux dates.
   ///
   /// La fenêtre est bornée par le serveur à 366 jours — un événement récurrent développé

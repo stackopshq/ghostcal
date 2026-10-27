@@ -33,6 +33,7 @@ class ColonneLaterale extends StatelessWidget {
     required this.surOnglet,
     required this.calendriers,
     this.surRenommage,
+    this.surSuppressionDuCalendrier,
     this.surCreation,
     required this.abonnements,
     this.surAbonnement,
@@ -58,6 +59,14 @@ class ColonneLaterale extends StatelessWidget {
   /// Un crayon qui n'existerait que dans la feuille serait introuvable là où le nom
   /// « Mon agenda » gêne le plus.
   final ValueChanged<Calendrier>? surRenommage;
+
+  /// Supprimer un calendrier. Nul tant que l'agenda n'est pas chargé : on ne propose pas
+  /// un geste définitif sur une liste qu'on n'a pas encore lue.
+  ///
+  /// Le nom dit « du calendrier » parce qu'une `surSuppression` vit déjà plus bas, pour
+  /// les abonnements. Deux rappels de même nom dans un même fichier se confondent à la
+  /// lecture, et celui qui se trompe efface la mauvaise chose.
+  final ValueChanged<Calendrier>? surSuppressionDuCalendrier;
 
   /// Créer un calendrier. Le chemin n'existait nulle part dans l'application : la route
   /// `POST /v1/me/calendars` était là depuis toujours et seule l'interface web
@@ -131,6 +140,7 @@ class ColonneLaterale extends StatelessWidget {
                   for (final c in calendriers)
                     _Calendrier(
                       surRenommage: surRenommage,
+                      surSuppression: surSuppressionDuCalendrier,
                       calendrier: c,
                       visible: !masques.contains(c.id),
                       surBascule: (visible) => surMasques({
@@ -283,12 +293,14 @@ class _Calendrier extends StatelessWidget {
     required this.visible,
     required this.surBascule,
     this.surRenommage,
+    this.surSuppression,
   });
 
   final Calendrier calendrier;
   final bool visible;
   final ValueChanged<bool> surBascule;
   final ValueChanged<Calendrier>? surRenommage;
+  final ValueChanged<Calendrier>? surSuppression;
 
   /// La même lecture que `EcranDAgendaState._couleurDe` : un `#RRGGBB` que le serveur
   /// donne, et l'accent du thème quand il ne donne rien d'exploitable.
@@ -353,6 +365,22 @@ class _Calendrier extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 color: gc.estompe,
                 onPressed: () => surRenommage!(calendrier),
+              ),
+            // Ni sur le calendrier par défaut, que le serveur refuse par un 409, ni sur
+            // celui d'un autre. Un bouton qui échoue **après** la confirmation fait croire
+            // qu'on a supprimé.
+            if (surSuppression != null &&
+                calendrier.aSoi &&
+                !calendrier.parDefaut)
+              IconButton(
+                key: Key('colonne.supprimer.${calendrier.id}'),
+                icon: const Icon(Icons.delete_outline, size: 14),
+                tooltip: L.of(context).supprimerLeCalendrier,
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                padding: EdgeInsets.zero,
+                color: gc.estompe,
+                onPressed: () => surSuppression!(calendrier),
               ),
           ],
         ),

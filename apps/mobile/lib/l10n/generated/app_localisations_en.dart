@@ -1038,4 +1038,16 @@ class LEn extends L {
 
   @override
   String get abonnementEnPanne => 'This feed is no longer responding';
+
+  @override
+  String get supprimerLeCalendrier => 'Delete calendar';
+
+  @override
+  String supprimerLeCalendrierCorps(String nom) {
+    return '“$nom” and all its events will be deleted. There is no bin: unlike an event deleted on its own, nothing comes back.';
+  }
+
+  @override
+  String get supprimerLeCalendrierPartage =>
+      'This calendar is shared: the people you opened it to will lose it too.';
 }

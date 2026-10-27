@@ -141,7 +141,17 @@ class _Mois extends StatelessWidget {
                     child: _Jour(
                       jour: jour,
                       duMois: jour.month == mois.month,
-                      aujourdhui: minuit(jour) == aujourdhui,
+                      // `duMois` **et** la date : une grille mensuelle affiche les jours
+                      // débordants du mois voisin, et sans cette condition le jour
+                      // d'aujourd'hui s'allume dans les deux grilles qui le contiennent.
+                      //
+                      // Le défaut ne se voit que certains jours, ce qui l'a laissé passer :
+                      // il faut qu'aujourd'hui tombe dans une semaine partagée par deux
+                      // mois. Le 24 octobre 2026 le témoin était vert ; le 26 il est rouge,
+                      // parce que novembre commence un dimanche et que sa première rangée
+                      // montre le 26 au 31 octobre.
+                      aujourdhui: jour.month == mois.month &&
+                          minuit(jour) == aujourdhui,
                       surClic: () => surJour(jour),
                     ),
                   ),
