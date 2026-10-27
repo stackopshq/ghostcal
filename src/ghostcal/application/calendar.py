@@ -33,6 +33,14 @@ class CalendarForbidden(CalendarError):
     """The caller may not write to that calendar — it is not theirs, and not shared with edit."""
 
 
+class DefaultCalendarUndeletable(CalendarError):
+    """The default calendar cannot be deleted: it is where writes land when nothing else is chosen.
+
+    Not a permission problem, so not a 403, and not a missing row, so not a 404. The calendar is
+    there and it is theirs; what is refused is this particular verb on this particular row.
+    """
+
+
 @dataclass(frozen=True, slots=True)
 class CalendarRecord:
     id: uuid.UUID
@@ -156,6 +164,15 @@ class CalendarRepository:
         exist."""
         raise NotImplementedError
 
+    async def delete_calendar(self, owner_id: uuid.UUID, calendar_id: uuid.UUID) -> bool:
+        """Delete a calendar the owner owns, and everything that hangs off it.
+
+        False if it is not theirs or does not exist. Raises if it is the default one — see
+        [DefaultCalendarUndeletable]; the two outcomes are distinct and the caller must be able
+        to tell them apart.
+        """
+        raise NotImplementedError
+
     async def share_calendar(
         self, owner_id: uuid.UUID, calendar_id: uuid.UUID, user_id: uuid.UUID, *, can_edit: bool
     ) -> bool:
@@ -251,6 +268,43 @@ async def update_calendar(
     check followed by a write is two statements another request can slip between.
     """
     if not await repo.update_calendar(owner_id, calendar_id, name=name, color=color):
+        raise CalendarNotFound(str(calendar_id))
+
+
+async def delete_calendar(
+    repo: CalendarRepository, owner_id: uuid.UUID, calendar_id: uuid.UUID
+) -> None:
+    """Delete a calendar, **and its events with it**.
+
+    ─── What goes, and why it is not a choice made here ───
+
+    Every table that points at ``calendars.id`` does so with ``ON DELETE CASCADE``: the events, the
+    shares, the booking links, the reminders. Removing the row removes them, in one statement, in
+    the database. Deleting them from the application instead would be several statements with a
+    window between, and a crash in that window would leave a calendar whose events are gone.
+
+    The events are **destroyed, not moved**. Moving them to the default calendar was the other
+    candidate and it was rejected: the server cannot read them — the content is sealed — so it
+    cannot tell a years-old appointment from tomorrow's, and a silent flood of hundreds of events
+    into the one calendar someone actually looks at is worse than a deletion they asked for.
+
+    There is **no bin**. Events deleted one by one land in the trash; a calendar deleted whole does
+    not. That asymmetry is real and the interface has to say so before it asks for confirmation —
+    the cost of not saying it is a product GhostPass already paid for on team collections.
+
+    ─── The shared case ───
+
+    A calendar shared with other members disappears for them too. That is the owner's call to make:
+    they created it, they hold it, and a share is a view onto their row rather than a copy of it.
+    What the client owes them is to say how many people are about to lose it.
+
+    ─── The default calendar ───
+
+    Refused outright. It is where a write lands when the client names no calendar, and
+    ``ensure_default_calendar`` would create another one on the next read — so deleting it would
+    destroy a year of events to produce an empty calendar with the same job and a different name.
+    """
+    if not await repo.delete_calendar(owner_id, calendar_id):
         raise CalendarNotFound(str(calendar_id))
 
 
