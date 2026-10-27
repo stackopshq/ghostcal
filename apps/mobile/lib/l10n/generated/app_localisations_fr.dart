@@ -1044,6 +1044,9 @@ class LFr extends L {
   String get abonnementEnPanne => 'Ce flux ne répond plus';
 
   @override
+  String get aucunAbonnement => 'Aucun abonnement';
+
+  @override
   String get supprimerLeCalendrier => 'Supprimer le calendrier';
 
   @override

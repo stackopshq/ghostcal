@@ -725,6 +725,18 @@ class _EcranDAccueilState extends State<EcranDAccueil>
                       ],
                     ),
                   ),
+                  // La même règle que la colonne du bureau : une section vide le dit,
+                  // plutôt que de laisser un intitulé seul au-dessus du vide.
+                  if (agenda.abonnements.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        Mesures.marge,
+                        0,
+                        Mesures.marge,
+                        8,
+                      ),
+                      child: Text(l.aucunAbonnement),
+                    ),
                   for (final a in agenda.abonnements)
                     CheckboxListTile(
                       key: Key('abonnements.${a.id}'),

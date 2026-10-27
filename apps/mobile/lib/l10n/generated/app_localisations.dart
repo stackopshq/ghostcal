@@ -1891,6 +1891,12 @@ abstract class L {
   /// **'Ce flux ne répond plus'**
   String get abonnementEnPanne;
 
+  /// Sous le titre « Abonnements » quand il n'y en a aucun. Sans cette ligne, la section montre un intitulé, un « + » et du vide — ce qui se lit comme un écran inachevé ou un chargement qui n'a pas fini, là où une section vide est un état parfaitement normal.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun abonnement'**
+  String get aucunAbonnement;
+
   /// La corbeille de la feuille des calendriers, et le titre de la boîte qu'elle ouvre. Absente du calendrier par défaut — le serveur le refuse par un 409 — et des calendriers qu'on ne possède pas.
   ///
   /// In fr, this message translates to:

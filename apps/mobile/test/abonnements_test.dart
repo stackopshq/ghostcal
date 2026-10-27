@@ -184,6 +184,25 @@ void main() {
       expect(demande, 1);
     });
 
+    /// Vu en capture sur un iPad : sous l'intitulé il n'y avait pas « aucun abonnement »,
+    /// il n'y avait **rien**. Honnête, et illisible — ça se lit comme un écran inachevé,
+    /// ou comme un chargement qui n'a pas fini. Or n'avoir aucun abonnement est l'état de
+    /// la plupart des comptes.
+    testWidgets('une section vide le dit, plutôt que de rester vide', (
+      tester,
+    ) async {
+      await tester.pumpWidget(colonne(const [], surAbonnement: () {}));
+      await tester.pump();
+      expect(find.text('Aucun abonnement'), findsOneWidget);
+    });
+
+    testWidgets('et ne le dit plus dès qu\'il y en a un', (tester) async {
+      await tester.pumpWidget(colonne([abonnement()], surAbonnement: () {}));
+      await tester.pump();
+      expect(find.text('Aucun abonnement'), findsNothing);
+      expect(find.text('Jours fériés'), findsOneWidget);
+    });
+
     /// Un titre « Abonnements » seul, sans ligne et sans « + », ne dirait rien à qui n'en
     /// a jamais posé — et prendrait de la hauteur à la colonne pour cela.
     testWidgets('et disparaît quand il n\'y a ni flux ni moyen d\'en poser', (

@@ -160,6 +160,21 @@ class ColonneLaterale extends StatelessWidget {
                     cleDAjout: const Key('colonne.nouvel-abonnement'),
                     libelleDAjout: l.nouvelAbonnement,
                   ),
+                  // ─── Une section vide doit le dire ───
+                  //
+                  // Sans cette ligne : un intitulé, un « + » et du vide. Vu en capture
+                  // sur un iPad, ça se lit comme un écran inachevé — ou comme un
+                  // chargement qui n'a pas fini —, là où « TOUS LES CALENDRIERS » montre
+                  // une ligne juste au-dessus. Or n'avoir aucun abonnement est l'état de
+                  // la plupart des comptes, et il est parfaitement normal.
+                  if (abonnements.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
+                      child: Text(
+                        l.aucunAbonnement,
+                        style: TextStyle(fontSize: 12, color: gc.estompe),
+                      ),
+                    ),
                   for (final a in abonnements)
                     _Abonnement(
                       abonnement: a,

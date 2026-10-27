@@ -1040,6 +1040,9 @@ class LEn extends L {
   String get abonnementEnPanne => 'This feed is no longer responding';
 
   @override
+  String get aucunAbonnement => 'No subscriptions';
+
+  @override
   String get supprimerLeCalendrier => 'Delete calendar';
 
   @override
