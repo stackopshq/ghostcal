@@ -289,6 +289,37 @@ xcrun simctl spawn "$APPAREIL_ID" launchctl stop com.apple.SpringBoard >/dev/nul
 sleep 8
 
 
+# ── Enrôler un visage ────────────────────────────────────────────────────────
+#
+# Sans cela, `getAvailableBiometrics()` rend une liste vide et l'écran des Réglages
+# affiche « Aucune biométrie utilisable sur cet appareil » — en vitrine, sous une fiche
+# qui promet « Face ID ou Touch ID rouvrent votre agenda sans ressaisir la phrase ».
+# La fiche promettait une chose et l'image montrait son absence ; les versions 1.6.0 et
+# 1.8.1 sont parties comme ça.
+#
+# Ce n'est pas un trucage : le simulateur porte bien le matériel, il n'avait simplement
+# aucun enrôlement, et c'est exactement la case que l'on coche à la main dans
+# Fonctionnalités › Face ID › Enrôlé. L'état vit dans le `notifyd` de l'appareil et ne
+# survit donc pas à l'extinction de fin de passe — d'où sa place ici plutôt que dans une
+# préparation faite une fois pour toutes.
+#
+# Posé **avant** le relancement de SpringBoard ci-dessus serait inutile : l'application
+# interroge le trousseau à son propre lancement, qui vient après.
+xcrun simctl spawn "$APPAREIL_ID" notifyutil -s com.apple.BiometricKit.enrollmentChanged 1 \
+  >/dev/null 2>&1 || true
+xcrun simctl spawn "$APPAREIL_ID" notifyutil -p com.apple.BiometricKit.enrollmentChanged \
+  >/dev/null 2>&1 || true
+if xcrun simctl spawn "$APPAREIL_ID" notifyutil -g com.apple.BiometricKit.enrollmentChanged \
+     2>/dev/null | grep -q " 1$"; then
+  vert "visage enrôlé sur le simulateur"
+else
+  # On ne s'arrête pas : une capture sans biométrie reste livrable, c'est ce qui est parti
+  # jusqu'ici. Mais on le dit, parce que le contrôle d'images ne verra rien — la ligne a
+  # autant de teintes dans un cas que dans l'autre.
+  rouge "visage NON enrôlé — l'écran des Réglages dira « aucune biométrie »"
+fi
+
+
 # ── Laisser passer les notifications de premier démarrage ────────────────────
 #
 # Un simulateur **neuf** — et ce script en crée un à chaque passe — reçoit ses
