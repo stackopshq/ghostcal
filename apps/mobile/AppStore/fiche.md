@@ -181,8 +181,8 @@ GhostCal est un agenda et un outil de prise de rendez-vous que vous hébergez vo
 
 Le titre, le lieu et la description de vos événements sont chiffrés sur votre appareil,
 avec une clé dérivée de votre phrase de passe. Cette phrase ne quitte jamais l'appareil.
-Le serveur conserve les horaires — il lui faut bien savoir quand vous êtes occupé pour
-refuser une réservation qui se chevauche, et pour envoyer les rappels — mais il ne sait
+Le serveur conserve les horaires. Il lui faut bien savoir quand vous êtes occupé pour
+refuser une réservation qui se chevauche, et pour envoyer les rappels. Mais il ne sait
 pas de quoi il s'agit.
 
 VOTRE JOURNÉE
@@ -209,17 +209,20 @@ Les membres de votre organisation, leurs rôles, et de quoi les changer.
 RAPPELS SUR L'APPAREIL
 Une notification avant chaque rendez-vous réservé : 5, 10, 15 ou 30 minutes d'avance, à
 votre choix. Elle est programmée par l'appareil et non envoyée par le serveur, et elle ne
-porte ni le nom de l'invité ni le motif du rendez-vous — seulement l'heure.
+porte ni le nom de l'invité ni le motif du rendez-vous :
+seulement l'heure.
 
 FACE ID
 Face ID ou Touch ID rouvrent votre agenda sans ressaisir la phrase. Elle est scellée par
 le matériel de l'appareil : ajouter un visage ou une empreinte invalide le sceau, et
-GhostCal vous le dit au lieu de faire semblant. Le verrouillage automatique se règle —
+GhostCal vous le dit au lieu de faire semblant. Le verrouillage automatique se règle :
 immédiatement, ou après 1, 5 ou 15 minutes.
 
 SUR VOTRE SERVEUR
 Vous saisissez l'adresse de votre instance au premier écran. GhostCal ne connaît aucun
 serveur par défaut et n'en impose aucun.
+Si vous ne souhaitez pas héberger le vôtre, un compte gratuit se crée sur
+cal.ghostsuite.cloud.
 
 Aucun traceur. Aucune publicité. Aucune analyse comportementale.
 
@@ -229,8 +232,8 @@ GhostCal is a calendar and scheduling tool that you host yourself.
 
 The title, location and description of your events are encrypted on your device, with a
 key derived from your passphrase. That passphrase never leaves the device. The server
-keeps the times — it has to know when you are busy in order to turn down an overlapping
-booking, and to send reminders — but it does not know what any of it is about.
+keeps the times. It has to know when you are busy in order to turn down an overlapping
+booking, and to send reminders. But it does not know what any of it is about.
 
 YOUR DAY
 The day's agenda, your calendars, and the events you create from the app: title, location,
@@ -255,17 +258,19 @@ The members of your organisation, their roles, and what it takes to change them.
 ON-DEVICE REMINDERS
 A notification before each booked meeting: 5, 10, 15 or 30 minutes ahead, as you prefer.
 It is scheduled by the device rather than sent by the server, and it carries neither the
-invitee's name nor what the meeting is about — only the time.
+invitee's name nor what the meeting is about, only the time.
 
 FACE ID
 Face ID or Touch ID reopen your calendar without retyping the passphrase. It is sealed by
 the device's hardware: adding a face or a fingerprint invalidates the seal, and GhostCal
-tells you so instead of pretending. Auto-lock is configurable — immediately, or after 1,
+tells you so instead of pretending. Auto-lock is configurable: immediately, or after 1,
 5 or 15 minutes.
 
 ON YOUR SERVER
 You enter your instance's address on the first screen. GhostCal knows no default server
 and imposes none.
+If you would rather not host your own, a free account can be created at
+cal.ghostsuite.cloud.
 
 No trackers. No ads. No behavioural analytics.
 
