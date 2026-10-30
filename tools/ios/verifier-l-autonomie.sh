@@ -209,8 +209,19 @@ def chaines(chemin, minimum=4):
 # Du français, et des locutions anglaises de plusieurs mots. Ni le SDK Dart, ni le moteur
 # Flutter, ni CocoaPods n'écrivent « essai gratuit » ou « in-app purchase ». Une
 # correspondance ici est une vitrine, sans discussion possible.
+#
+# ─── « abonnement » a quitté cette liste le 30 octobre 2026 ───
+#
+# Il y était sur une prémisse vraie à l'époque : aucun moteur n'écrit ce mot, donc une
+# correspondance venait de nous, donc c'était une vitrine. Les deux premiers maillons
+# tiennent toujours ; **le troisième a cassé** quand GhostCal a su s'abonner à un flux ICS.
+# Le mot est devenu le nôtre *et* légitime — il descend donc d'un cran, vers AMBIGU, et se
+# juge sur la prose comme « subscription » le fait depuis le début.
+#
+# Les formes qui restent ici sont celles qu'une vitrine emploie et que nous n'employons
+# pas : on **s'abonne** à un service payant, on **a** un abonnement à un calendrier.
 VITRINE_CERTAINE = re.compile(
-    r"abonnement|s['’]abonner|abonnez|abonné|tarif|forfait|payante?\b|facturation"
+    r"s['’]abonner|abonnez|abonné|tarif|forfait|payante?\b|facturation"
     r"|paiement|acheter|achat intégré|essai gratuit|passer .{1,14} version"
     r"|free trial|in-app purchase|restore purchase|start your trial|subscribe now"
     r"|upgrade to|premium plan|paid plan",
@@ -233,7 +244,21 @@ VITRINE_CERTAINE = re.compile(
 # **phrase adressée à un humain**, un `StreamSubscription` est un identifiant. On exige
 # donc que la chaîne entière ressemble à de la prose — au moins trois mots, et pas de
 # `@`, `_`, `:` ou `$` qui trahissent un symbole.
-AMBIGU = re.compile(r"\b(subscription|upgrade|premium|purchase|checkout)\b", re.IGNORECASE)
+#
+# « abonnement » rejoint la liste le 30 octobre 2026, pour la raison écrite plus haut. Ce
+# que la prose sépare, mesuré sur ce paquet :
+#
+#   nos quatre textes      « Abonnements », « Nouvel abonnement », « Aucun abonnement »,
+#                          « Supprimer l'abonnement » — deux mots au plus, donc pas de la
+#                          prose, donc tolérés sans avoir à les nommer un par un ;
+#   nos identifiants       `Abonnement`, `Abonnement.depuisJson`, `_BoiteDAbonnement@…` —
+#                          écartés par SYMBOLE, comme `StreamSubscription` l'est déjà ;
+#   une vraie vitrine      « Abonnez-vous pour 4,90 € par mois » — trois mots et plus,
+#                          donc de la prose, donc prise. Et « Abonnez » reste de toute
+#                          façon dans la liste du dessus.
+AMBIGU = re.compile(
+    r"\b(abonnements?|subscription|upgrade|premium|purchase|checkout)\b", re.IGNORECASE
+)
 SYMBOLE = re.compile(r"[@_$:()\[\]<>]|\d{4,}")
 
 # Les phrases du SDK qui passent malgré tout cette épreuve, relevées le 25 septembre 2026.
