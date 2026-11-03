@@ -5,6 +5,7 @@ import '../l10n/generated/app_localisations.dart';
 import '../outils/calendrier.dart';
 import '../services/abonnements.dart';
 import '../services/agenda.dart';
+import '../services/connexions.dart';
 import '../theme.dart';
 
 /// La colonne de gauche des fenêtres larges : les sections, les calendriers, le mois.
@@ -38,6 +39,8 @@ class ColonneLaterale extends StatelessWidget {
     required this.abonnements,
     this.surAbonnement,
     this.surDesabonnement,
+    required this.connexions,
+    this.surSynchronisation,
     required this.masques,
     required this.surMasques,
     required this.ancre,
@@ -77,6 +80,20 @@ class ColonneLaterale extends StatelessWidget {
   /// aux calendriers pour qu'on les mélange, et assez peu pour que les confondre fasse
   /// offrir « Nouvel événement » sur un flux en lecture seule.
   final List<Abonnement> abonnements;
+
+  /// Les comptes externes connectés — CalDAV, iCloud, Google — dans une troisième
+  /// section. Encore une chose distincte des deux premières : on n'y écrit pas, on ne
+  /// s'y abonne pas, on **s'y connecte**, et cette connexion se noue au web parce
+  /// qu'elle demande un mot de passe de serveur.
+  ///
+  /// Leurs événements s'affichaient depuis toujours — le filtre est une liste de
+  /// masqués — mais sans nom, sans couleur et sans case. Voir [Connexion].
+  final List<Connexion> connexions;
+
+  /// Redemander les comptes au serveur. Nul tant que l'agenda n'est pas chargé, comme
+  /// les autres gestes : une synchronisation lancée sur un écran vide n'aurait rien à
+  /// rafraîchir.
+  final Future<void> Function()? surSynchronisation;
 
   /// S'abonner à un flux, et s'en désabonner. L'application n'appelait **aucune** des
   /// routes d'abonnement : on pouvait poser un flux depuis le web, ses événements
@@ -186,6 +203,34 @@ class ColonneLaterale extends StatelessWidget {
                       surSuppression: surDesabonnement,
                     ),
                 ],
+                // ─── Les comptes connectés ───
+                //
+                // Pas de section quand il n'y en a aucun, et c'est la différence avec
+                // les abonnements juste au-dessus : on ne peut pas en connecter d'ici,
+                // donc un intitulé vide n'offrirait aucun geste et n'apprendrait rien.
+                // Qui n'a aucun compte n'a rien à voir ici ; qui en a un veut savoir
+                // d'où viennent les créneaux qui remplissent sa semaine.
+                if (connexions.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  _Titre(
+                    l.comptesConnectes,
+                    surAjout: surSynchronisation == null
+                        ? null
+                        : () => surSynchronisation!(),
+                    cleDAjout: const Key('colonne.synchroniser'),
+                    libelleDAjout: l.synchroniserMaintenant,
+                    icone: Icons.refresh,
+                  ),
+                  for (final c in connexions)
+                    _Compte(
+                      connexion: c,
+                      visible: !masques.contains(c.id),
+                      surBascule: (visible) => surMasques({
+                        ...masques.where((x) => x != c.id),
+                        if (!visible) c.id,
+                      }),
+                    ),
+                ],
               ],
             ),
           ),
@@ -198,7 +243,13 @@ class ColonneLaterale extends StatelessWidget {
 }
 
 class _Titre extends StatelessWidget {
-  const _Titre(this.texte, {this.surAjout, this.cleDAjout, this.libelleDAjout});
+  const _Titre(
+    this.texte, {
+    this.surAjout,
+    this.cleDAjout,
+    this.libelleDAjout,
+    this.icone = Icons.add,
+  });
 
   final String texte;
 
@@ -215,6 +266,11 @@ class _Titre extends StatelessWidget {
   /// un calendrier. Trouvé par le premier témoin monté sur la nouvelle section.
   final Key? cleDAjout;
   final String? libelleDAjout;
+
+  /// Le dessin du bouton. « + » partout sauf sur les comptes connectés, qui ne
+  /// s'ajoutent pas d'ici : leur bouton redemande au serveur, et une croix y
+  /// promettrait une connexion que cet écran ne sait pas nouer.
+  final IconData icone;
 
   @override
   Widget build(BuildContext context) {
@@ -233,7 +289,7 @@ class _Titre extends StatelessWidget {
           if (surAjout != null)
             IconButton(
               key: cleDAjout ?? const Key('colonne.nouveau-calendrier'),
-              icon: const Icon(Icons.add, size: 15),
+              icon: Icon(icone, size: 15),
               tooltip: libelleDAjout ?? L.of(context).nouveauCalendrier,
               visualDensity: VisualDensity.compact,
               constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
@@ -644,6 +700,87 @@ class _Abonnement extends StatelessWidget {
                 visualDensity: VisualDensity.compact,
                 onPressed: () => surSuppression!(abonnement),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Une ligne de compte connecté : sa couleur, son nom, et ce qu'il a de travers.
+///
+/// Même forme que [_Abonnement] et volontairement : ce sont deux sources étrangères que
+/// l'on coche ou décoche, et leur donner deux allures ferait croire à deux mécanismes.
+/// Ce qui change est ce qu'on peut en faire — pas de corbeille ici, puisque déconnecter
+/// un compte emporte les créneaux rapatriés et se fait au web.
+class _Compte extends StatelessWidget {
+  const _Compte({
+    required this.connexion,
+    required this.visible,
+    required this.surBascule,
+  });
+
+  final Connexion connexion;
+  final bool visible;
+  final ValueChanged<bool> surBascule;
+
+  Color _couleur(Gc gc) {
+    final valeur = int.tryParse(
+      connexion.couleur.replaceFirst('#', ''),
+      radix: 16,
+    );
+    return valeur == null ? gc.accent : Color(0xFF000000 | valeur);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final gc = Gc.of(context);
+    final l = L.of(context);
+    return InkWell(
+      onTap: () => surBascule(!visible),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: Checkbox(
+                key: Key('colonne.compte.${connexion.id}'),
+                value: visible,
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                fillColor: WidgetStateProperty.resolveWith(
+                  (etats) => etats.contains(WidgetState.selected)
+                      ? _couleur(gc)
+                      : Colors.transparent,
+                ),
+                side: BorderSide(color: _couleur(gc), width: 1.5),
+                onChanged: (v) => surBascule(v ?? false),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    connexion.libelle,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: visible ? gc.encre : gc.estompe,
+                    ),
+                  ),
+                  if (connexion.enPanne)
+                    Text(
+                      l.compteEnPanne,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11, color: gc.danger),
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
       ),

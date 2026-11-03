@@ -59,6 +59,7 @@ void main() {
       calendriers: calendriers,
       surSuppressionDuCalendrier: surSuppression,
       abonnements: const [],
+      connexions: const [],
       masques: const {},
       surMasques: (_) {},
       ancre: DateTime(2026, 10, 27),

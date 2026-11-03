@@ -126,6 +126,7 @@ void main() {
         surOnglet: (_) {},
         calendriers: const [],
         abonnements: abonnements,
+        connexions: const [],
         surAbonnement: surAbonnement,
         surDesabonnement: surDesabonnement,
         masques: masques,

@@ -1897,6 +1897,30 @@ abstract class L {
   /// **'Aucun abonnement'**
   String get aucunAbonnement;
 
+  /// Le titre de la section des calendriers externes connectés — CalDAV, iCloud, Google. Troisième source de l'agenda, distincte des calendriers et des abonnements : on ne s'y abonne pas, on s'y connecte, et cette connexion se noue au web parce qu'elle demande un mot de passe de serveur.
+  ///
+  /// In fr, this message translates to:
+  /// **'Comptes connectés'**
+  String get comptesConnectes;
+
+  /// L'infobulle du bouton de la section des comptes connectés. Il porte une flèche de rafraîchissement et non un « + » : on ne connecte pas un compte depuis cet écran, et une croix promettrait un geste qui n'existe pas ici.
+  ///
+  /// In fr, this message translates to:
+  /// **'Synchroniser maintenant'**
+  String get synchroniserMaintenant;
+
+  /// Dit après une synchronisation manuelle combien de comptes ont abouti. Zéro est une réponse à part entière — c'est ce qu'on obtient quand un mot de passe a changé à l'autre bout — et un geste muet laisserait croire que tout va bien.
+  ///
+  /// In fr, this message translates to:
+  /// **'{nombre, plural, =0{Aucun compte synchronisé} one{1 compte synchronisé} other{{nombre} comptes synchronisés}}'**
+  String comptesSynchronises(int nombre);
+
+  /// Montré sous le nom d'un compte connecté que le serveur a marqué « needs_reauth » — typiquement un mot de passe changé à l'autre bout. Dit où aller le réparer, parce que l'application ne sait pas nouer la connexion : sans cette précision, on chercherait le geste dans l'application. Le taire laisserait croire à un agenda à jour, puisque ce qui reste affiché vient du dernier rapatriement réussi.
+  ///
+  /// In fr, this message translates to:
+  /// **'À reconnecter depuis le web'**
+  String get compteEnPanne;
+
   /// La corbeille de la feuille des calendriers, et le titre de la boîte qu'elle ouvre. Absente du calendrier par défaut — le serveur le refuse par un 409 — et des calendriers qu'on ne possède pas.
   ///
   /// In fr, this message translates to:

@@ -259,6 +259,7 @@ void main() {
             surOnglet: (_) {},
             calendriers: calendriers,
             abonnements: const [],
+            connexions: const [],
             masques: const {},
             surMasques: (_) {},
             ancre: DateTime(2026, 10, 22),
