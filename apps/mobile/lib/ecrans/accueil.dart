@@ -363,6 +363,10 @@ class _EcranDAccueilState extends State<EcranDAccueil>
           surDesabonnement: agenda == null
               ? null
               : (a) => _desabonner(agenda, a, (f) => setState(f)),
+          connexions: agenda?.connexions ?? const [],
+          surSynchronisation: agenda == null
+              ? null
+              : () => _synchroniserLesComptes(agenda),
           masques: agenda?.masques ?? const {},
           surMasques: (m) => agenda?.masquer(m),
           ancre: agenda?.ancre ?? DateTime.now(),
@@ -764,6 +768,59 @@ class _EcranDAccueilState extends State<EcranDAccueil>
                             : {...masques, a.id},
                       ),
                     ),
+                  // Les comptes connectés, troisième et dernière section. Pas de titre
+                  // quand il n'y en a aucun : contrairement aux abonnements, on ne peut
+                  // pas en connecter d'ici, donc un intitulé vide n'offrirait aucun
+                  // geste. Ils ne portent ni crayon ni corbeille pour la même raison.
+                  if (agenda.connexions.isNotEmpty) ...[
+                    const Divider(),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        Mesures.marge,
+                        4,
+                        Mesures.marge,
+                        0,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              l.comptesConnectes,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            key: const Key('comptes.synchroniser'),
+                            icon: const Icon(Icons.refresh),
+                            tooltip: l.synchroniserMaintenant,
+                            onPressed: () async {
+                              await _synchroniserLesComptes(agenda);
+                              majour(() {});
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    for (final c in agenda.connexions)
+                      CheckboxListTile(
+                        key: Key('comptes.${c.id}'),
+                        secondary: CircleAvatar(
+                          radius: 7,
+                          backgroundColor: _couleur(c.couleur),
+                        ),
+                        title: Text(c.libelle),
+                        subtitle: c.enPanne ? Text(l.compteEnPanne) : null,
+                        value: !masques.contains(c.id),
+                        onChanged: (montre) => poser(
+                          montre == true
+                              ? ({...masques}..remove(c.id))
+                              : {...masques, c.id},
+                        ),
+                      ),
+                  ],
                 ],
               ),
             ),
@@ -771,6 +828,25 @@ class _EcranDAccueilState extends State<EcranDAccueil>
         },
       ),
     );
+  }
+
+  /// Redemande les comptes externes, et dit ce qui en est sorti.
+  ///
+  /// Le nombre compte : « 2 comptes synchronisés » et « 0 compte synchronisé » sont
+  /// deux réponses, et la seconde arrive quand un mot de passe a changé à l'autre bout.
+  /// Un geste qui ne dit rien laisserait croire que tout va bien.
+  Future<void> _synchroniserLesComptes(EcranDAgendaState agenda) async {
+    try {
+      final combien = await agenda.synchroniserLesComptes();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(L.of(context).comptesSynchronises(combien))),
+      );
+    } on Object catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(lisible(e, L.of(context)))));
+    }
   }
 
   /// Demande un nom et ne referme la boucle qu'une fois le serveur d'accord.

@@ -1043,6 +1043,27 @@ class LEn extends L {
   String get aucunAbonnement => 'No subscriptions';
 
   @override
+  String get comptesConnectes => 'Connected accounts';
+
+  @override
+  String get synchroniserMaintenant => 'Sync now';
+
+  @override
+  String comptesSynchronises(int nombre) {
+    String _temp0 = intl.Intl.pluralLogic(
+      nombre,
+      locale: localeName,
+      other: '$nombre accounts synced',
+      one: '1 account synced',
+      zero: 'No account synced',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get compteEnPanne => 'Reconnect it from the web';
+
+  @override
   String get supprimerLeCalendrier => 'Delete calendar';
 
   @override

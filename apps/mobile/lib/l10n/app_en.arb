@@ -329,6 +329,10 @@
   "supprimerLAbonnement": "Remove subscription",
   "abonnementEnPanne": "This feed is no longer responding",
   "aucunAbonnement": "No subscriptions",
+  "comptesConnectes": "Connected accounts",
+  "synchroniserMaintenant": "Sync now",
+  "comptesSynchronises": "{nombre, plural, =0{No account synced} one{1 account synced} other{{nombre} accounts synced}}",
+  "compteEnPanne": "Reconnect it from the web",
   "supprimerLeCalendrier": "Delete calendar",
   "supprimerLeCalendrierCorps": "“{nom}” and all its events will be deleted. There is no bin: unlike an event deleted on its own, nothing comes back.",
   "supprimerLeCalendrierPartage": "This calendar is shared: the people you opened it to will lose it too."

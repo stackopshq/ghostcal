@@ -1047,6 +1047,27 @@ class LFr extends L {
   String get aucunAbonnement => 'Aucun abonnement';
 
   @override
+  String get comptesConnectes => 'Comptes connectés';
+
+  @override
+  String get synchroniserMaintenant => 'Synchroniser maintenant';
+
+  @override
+  String comptesSynchronises(int nombre) {
+    String _temp0 = intl.Intl.pluralLogic(
+      nombre,
+      locale: localeName,
+      other: '$nombre comptes synchronisés',
+      one: '1 compte synchronisé',
+      zero: 'Aucun compte synchronisé',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get compteEnPanne => 'À reconnecter depuis le web';
+
+  @override
   String get supprimerLeCalendrier => 'Supprimer le calendrier';
 
   @override

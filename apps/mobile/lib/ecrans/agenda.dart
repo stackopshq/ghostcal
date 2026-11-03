@@ -7,6 +7,7 @@ import '../l10n/generated/app_localisations.dart';
 import '../outils/calendrier.dart';
 import '../outils/dates.dart';
 import '../services/abonnements.dart';
+import '../services/connexions.dart';
 import '../services/agenda.dart';
 import '../services/erreurs.dart';
 import '../services/session.dart';
@@ -77,10 +78,16 @@ class EcranDAgendaState extends State<EcranDAgenda> {
   /// Les flux ICS auxquels on s'abonne. Chargés avec les calendriers et tenus à part :
   /// voir [Abonnement] pour ce qui les en distingue.
   List<Abonnement> _abonnements = const [];
+
+  /// Les comptes externes connectés — CalDAV, iCloud, Google. Troisième source de
+  /// l'agenda, et la dernière à n'avoir eu aucune ligne dans la colonne : voir
+  /// [Connexion].
+  List<Connexion> _connexions = const [];
   List<Tache> _taches = const [];
   String? _erreur;
   bool _charge = false;
   bool _abonnementsDemandes = false;
+  bool _connexionsDemandees = false;
   int _premierJour = 1;
 
   /// Calendars the user chose not to see. Bookings and external busy slots have no
@@ -145,6 +152,7 @@ class EcranDAgendaState extends State<EcranDAgenda> {
   bool get peutCreer => _inscriptibles.isNotEmpty;
   List<Calendrier> get calendriers => _calendriers;
   List<Abonnement> get abonnements => _abonnements;
+  List<Connexion> get connexions => _connexions;
   Set<String> get masques => _masques;
 
   void choisirLaVue(VueDAgenda vue) => _allerA(_ancre, vue: vue);
@@ -298,6 +306,32 @@ class EcranDAgendaState extends State<EcranDAgenda> {
     return api == null ? null : Abonnements(api: api);
   }
 
+  Connexions? get _lesConnexions {
+    final api = widget.session.api;
+    return api == null ? null : Connexions(api: api);
+  }
+
+  /// Redemande les comptes externes au serveur, puis recharge la période.
+  ///
+  /// Les deux, et dans cet ordre : la synchronisation rapatrie de nouveaux créneaux en
+  /// base, et sans le rechargement la grille afficherait toujours les anciens. Rendre la
+  /// main sur un écran inchangé ferait croire que la synchronisation n'a rien donné.
+  Future<int> synchroniserLesComptes() async {
+    final service = _lesConnexions;
+    if (service == null) return 0;
+    final combien = await service.synchroniser();
+    if (!mounted) return combien;
+    _connexions = await service.lister();
+    if (!mounted) return combien;
+    widget.surChangement?.call();
+    // La fenêtre en cache est devenue fausse : la synchronisation vient d'écrire des
+    // créneaux en base pour cette période-là. Sans cette remise à zéro, `_recharger`
+    // la croirait à jour et ne redemanderait rien.
+    _fenetreChargee = null;
+    await _recharger();
+    return combien;
+  }
+
   /// Ajoute un flux et le repose dans la liste, une fois le serveur d'accord.
   ///
   /// Puis **recharge la période** : le serveur va chercher le flux à la création et en
@@ -416,6 +450,22 @@ class EcranDAgendaState extends State<EcranDAgenda> {
           }
         }
       }
+      // Les comptes connectés, même traitement, même raison. Un serveur antérieur à
+      // cette route rendrait un 404 : l'attraper ici laisse l'agenda fonctionner tel
+      // qu'il le faisait avant, sans section et sans message d'erreur sur un écran qui
+      // marche.
+      if (!_connexionsDemandees) {
+        _connexionsDemandees = true;
+        final service = _lesConnexions;
+        if (service != null) {
+          try {
+            _connexions = await service.lister();
+            widget.surChangement?.call();
+          } on Object catch (e) {
+            debugPrint('ghostcal.connexions: liste indisponible: $e');
+          }
+        }
+      }
       // A slow answer for a window the user has already left must not overwrite the
       // current one.
       if (mounted && fenetre == _fenetre) {
@@ -510,6 +560,13 @@ class EcranDAgendaState extends State<EcranDAgenda> {
         _abonnements
             .where((a) => a.id == ligne.calendrier)
             .map((a) => a.couleur)
+            .firstOrNull ??
+        // Et les comptes connectés, qui portent la leur de la même façon : le serveur
+        // met l'identifiant de la connexion dans `calendar_id` des lignes
+        // `source: "external"`.
+        _connexions
+            .where((c) => c.id == ligne.calendrier)
+            .map((c) => c.couleur)
             .firstOrNull;
     final valeur = int.tryParse((hex ?? '').replaceFirst('#', ''), radix: 16);
     return valeur == null ? gc.accent : Color(0xFF000000 | valeur);
