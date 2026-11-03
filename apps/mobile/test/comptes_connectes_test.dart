@@ -1,8 +1,13 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ghostcal/ecrans/colonne_laterale.dart';
 import 'package:ghostcal/l10n/generated/app_localisations.dart';
+import 'package:ghostcal/services/api.dart';
 import 'package:ghostcal/services/connexions.dart';
 import 'package:ghostcal/theme.dart';
 
@@ -86,6 +91,67 @@ void main() {
         'password': 'ne-devrait-jamais-arriver',
       });
       expect(c.toString(), isNot(contains('ne-devrait-jamais-arriver')));
+    });
+  });
+
+  group('le service, contre un serveur simulé', () {
+    Connexions service(MockClient client) => Connexions(
+      api: ClientAPI(base: Uri.parse('https://cal.exemple.test'), client: client),
+    );
+
+    test('la liste part sur la bonne route et se lit', () async {
+      late http.Request recue;
+      final liste = await service(MockClient((r) async {
+        recue = r;
+        return http.Response(
+          jsonEncode([
+            {
+              'id': 'c1',
+              'server_url': 'https://dav.exemple.test/',
+              'username': 'clara',
+              'calendar_name': 'Travail',
+              'color': '#2E7DFF',
+              'status': 'active',
+            },
+          ]),
+          200,
+        );
+      })).lister();
+      expect(recue.method, 'GET');
+      expect(recue.url.path, '/v1/me/calendar/connections');
+      expect(liste.single.libelle, 'Travail');
+    });
+
+    test('un serveur en panne lève, il ne rend pas une liste vide', () async {
+      // La distinction décide de ce que voit l'utilisateur. Une liste vide rendue en
+      // silence ferait disparaître la section, donc disparaître des comptes qui
+      // existent — un écran cohérent et faux, exactement le défaut qu'on corrige ici.
+      // En levant, c'est l'écran qui décide, et il garde la dernière liste connue.
+      await expectLater(
+        service(MockClient((_) async => http.Response('nope', 500))).lister(),
+        throwsA(anything),
+      );
+    });
+
+    test('la synchronisation rend le nombre de comptes qui ont abouti', () async {
+      late http.Request recue;
+      final combien = await service(MockClient((r) async {
+        recue = r;
+        return http.Response('{"synced": 2}', 200);
+      })).synchroniser();
+      expect(recue.method, 'POST');
+      expect(recue.url.path, '/v1/me/calendar/sync');
+      // Les mains vides : la route ne lit aucune charge, et lui en envoyer une
+      // obligerait le serveur à l'accepter pour toujours.
+      expect(recue.body, isEmpty);
+      expect(combien, 2);
+    });
+
+    test('zéro compte synchronisé se lit comme zéro, pas comme une absence', () async {
+      final combien = await service(
+        MockClient((_) async => http.Response('{"synced": 0}', 200)),
+      ).synchroniser();
+      expect(combien, 0);
     });
   });
 
