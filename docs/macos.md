@@ -340,10 +340,54 @@ illisible dans le web.
 L'image est jointe à la publication de `github.com/stackopshq/ghostcal`, sur l'étiquette
 `mobile-vX.Y.Z`, à côté de l'AAB et de l'APK. Elle ne vit plus dans le dépôt.
 
+### Une publication restée en brouillon ne sert rien, et le dit mal
+
+Mesuré le 2026-11-03 sur la 1.8.1, environ trois heures après l'avoir crue publiée.
+
+`gh release create` ayant été refusé, la publication avait été créée avec `--draft` puis
+sortie du brouillon par `gh release edit --draft=false`. Ce second geste **n'a pas pris**,
+et rien ne l'a signalé : l'étiquette `mobile-v1.8.1` n'existait pas, la publication
+s'appelait `untagged-697b0137…`, et `Latest` désignait encore la 1.6.0.
+
+Un actif de brouillon n'est lisible qu'**authentifié**. Depuis cette machine, qui porte un
+jeton, tout avait l'air normal — c'est le défaut qui se voit le moins depuis l'endroit où
+on travaille, comme l'agrafe de l'application dans l'image. Pour tout le monde :
+
+```
+$ curl -o /dev/null -w '%{http_code}' -L \
+    https://github.com/stackopshq/ghostcal/releases/download/mobile-v1.8.1/GhostCal-1.8.1.dmg
+404
+```
+
+Pendant ce temps, l'appcast signé était en ligne et annonçait cette adresse, et la page de
+téléchargement du site pointait dessus. Donc : chaque exemplaire du parc se voyait proposer
+une mise à jour qu'il ne pouvait pas récupérer, et le bouton « Télécharger pour Mac » rendait
+une page d'erreur. **Notarisé, signé, annoncé, et inatteignable.**
+
+Après `gh release edit --draft=false --latest`, l'étiquette est apparue au bon commit, mais
+l'adresse a continué de rendre 404 quelques minutes : le CDN de GitHub avait mis la réponse
+négative en cache. N'importe quel paramètre d'URL la contournait (`?cb=1`), ce qui permet de
+distinguer ce cache d'un véritable défaut de publication.
+
+**Le contrôle à faire, et il ne coûte rien :**
+
+```sh
+# sans jeton, comme un client — doit rendre 200 et la taille annoncée dans l'appcast
+curl -s -o /tmp/verif.dmg -w '%{http_code} %{size_download}\n' -L <url nue>
+shasum -a 256 /tmp/verif.dmg            # doit égaler la somme du tableau ci-dessous
+spctl -a -vvv -t install /tmp/verif.dmg # accepted, source=Notarized Developer ID
+```
+
+Et sur l'entrée d'appcast, pour vérifier qu'elle parle bien de ces octets-là : la signature
+Ed25519 de Sparkle est **déterministe**, donc `sign_update --account ghostcal` relancé sur le
+fichier téléchargé doit rendre exactement la chaîne qui est en ligne. Fait le 2026-11-03 sur
+la 1.8.1 : identique, longueur comprise.
+
 ## Les versions notariées
 
 | Version | Source | Envois acceptés | SHA-256 de l'image |
 |---|---|---|---|
+| 1.8.2 (14) | `293dc06` | `b777ae7e…` (application), `74162c65…` (image refabriquée autour d'elle) | `b198003b44f61c6f9997adff156e103b9e64ddb7f99847eaf4160910bda7de6f` |
 | 1.8.1 (13) | `86b89c6` | `d5cf2637…` (application), `be799f1a…` (image refabriquée autour d'elle) | `2208cdfd73c8d67fab33371d601d3d3b234705f098313c96e77d50d1afe2d5ce` |
 | 1.6.0 (9) | non relevée | non relevés | `6c457f347d85246a620378f5ea2c650bf894f7ee0c087f2f50eb3b56ac802100` |
 | 1.5.1 (8) | non relevée | non relevés | `5600afa6bf6343041236c6f038b9c80918f3bf9014631f5cb8b1dafba9324725` |
@@ -358,7 +402,7 @@ affirmé pendant deux semaines que la dernière image distribuée était la 1.4.
 et cela a faussé un diagnostic le 2026-11-03. Un tableau qu'on ne remplit pas ment, il ne
 se tait pas.
 
-Pour les 1.4.x et la 1.8.1 : universelle `x86_64 arm64`, runtime durci, autorité Developer ID,
+Pour les 1.4.x, la 1.8.1 et la 1.8.2 : universelle `x86_64 arm64`, runtime durci, autorité Developer ID,
 horodatage sécurisé, `get-task-allow` absent. Les agrafes valides, et `spctl` accepte
 l'image **et** l'application montée depuis l'image.
 
@@ -372,6 +416,39 @@ Les images ne vivent plus dans le dépôt. Elles sont jointes aux publications d
 `github.com/stackopshq/ghostcal`, sur l'étiquette `mobile-vX.Y.Z` — et c'est de là que le
 flux Sparkle les sert, pas depuis le Gitea. Les cinq publiées y sont, de la 1.4.0 à la
 1.6.0.
+
+## La seconde notarisation du 2026-11-03
+
+`GhostCal 1.8.2 (14)`, depuis `293dc06`, soit `main` sans rien de plus. Faite le soir même
+que la 1.8.1, et pour la suite du même retour client : la 1.8.1 lui a rendu la suppression
+d'un calendrier et ses abonnements ICS, la 1.8.2 lui rend la **troisième** source, celle
+qu'il nommait en premier — « je ne vois pas mes calendriers externes ». Les comptes
+connectés depuis le web, CalDAV, iCloud et Google, n'avaient jamais eu leur ligne dans la
+colonne, à aucune version et sur aucune plateforme.
+
+| | |
+|---|---|
+| Envoi de l'application | `b777ae7e-ea19-4137-b458-85b04a8e8853` — **Accepted** |
+| Envoi de l'image refabriquée autour de l'application agrafée | `74162c65-7377-4c00-ac17-7c4c78248902` — **Accepted** |
+| `spctl -t install` sur l'image | `accepted`, `source=Notarized Developer ID` |
+| `spctl -t exec` sur l'application montée | `accepted`, `source=Notarized Developer ID` |
+| `stapler validate` | passe sur l'image **et** sur l'application |
+| `get-task-allow` | absent |
+| Architectures | `x86_64 arm64` |
+| Horodatage de l'image | `3 Nov 2026 at 23:37:04` |
+| Flux et clé compilés dans le paquet | `ghostsuite.cloud/ghostcal/appcast.xml`, `0k3dHuuuNoGUtcccykg+oeFRfsLqcQ1cx4csQfqj5j0=` |
+
+Le script s'est terminé en erreur (code 16) **après** tous ces contrôles : `hdiutil detach`
+a rendu « Ressource occupée » sur le volume de vérification, une archive iOS tournant en
+parallèle. Rien de la chaîne n'en dépend ; `hdiutil detach -force` a suffi. C'est écrit ici
+pour qu'un code de sortie non nul sur cette étape ne fasse pas recommencer deux envois.
+
+### Ce qui reste, et qui n'est pas à moi
+
+Les deux mêmes gestes que pour la 1.8.1 — la publication qui sert l'image, et l'entrée
+d'appcast signée — et ils attendent l'accord de Clara, parce que signer l'entrée pousse le
+binaire à tout le parc. Voir « Une publication restée en brouillon ne sert rien » plus haut :
+c'est précisément ce couple qui s'est désaccordé le même jour.
 
 ## La notarisation du 2026-11-03
 
