@@ -77,6 +77,37 @@ void main() {
       expect(c.dernierSynchro, DateTime.utc(2026, 11, 3, 8, 30).toLocal());
     });
 
+    test('la charge que le serveur rend vraiment, telle qu\'il la sérialise', () {
+      // Cette charge n'est pas écrite à la main : elle a été produite le 2026-11-03 en
+      // faisant sérialiser `ConnectionOut` par le serveur lui-même —
+      // `src/ghostcal/presentation/schemas.py:615`, `model_dump_json()`. C'est le seul
+      // moyen de prendre la FORME, et non seulement les noms de champs : un `id` est un
+      // `uuid.UUID` côté Python et arrive en chaîne, un `last_synced_at` est un
+      // `datetime` et arrive en ISO 8601 suffixé `Z`.
+      //
+      // Relire le schéma a déjà évité un défaut ici : `enPanne` a failli être écrit
+      // `etat.toLowerCase() != 'ok'`, ce qui aurait signalé en panne TOUS les comptes
+      // sains, puisque la base n'autorise que `active` et `needs_reauth`. Les noms, on
+      // les relit ; la forme, il faut la faire rendre.
+      final c = Connexion.depuisJson({
+        'id': '3f2a1b4c-5d6e-4f70-8192-a3b4c5d6e7f8',
+        'server_url': 'https://caldav.icloud.com/',
+        'username': 'clara@exemple.test',
+        'calendar_name': null,
+        'color': '#D11F45',
+        'mirror_bookings': true,
+        'mirror_detail': 'busy',
+        'status': 'needs_reauth',
+        'last_synced_at': '2026-11-03T08:30:00Z',
+      });
+      expect(c.id, '3f2a1b4c-5d6e-4f70-8192-a3b4c5d6e7f8');
+      // `calendar_name` nul : le libellé retombe sur le compte, et non sur « null ».
+      expect(c.libelle, 'clara@exemple.test');
+      expect(c.couleur, '#D11F45');
+      expect(c.enPanne, isTrue);
+      expect(c.dernierSynchro, DateTime.utc(2026, 11, 3, 8, 30).toLocal());
+    });
+
     test('aucun mot de passe ne figure dans ce que le modèle retient', () {
       // Le serveur n'en rend pas, et le modèle n'a pas de champ pour en loger un. Le
       // témoin garde l'absence : un champ ajouté « au cas où » finirait par être rempli,
