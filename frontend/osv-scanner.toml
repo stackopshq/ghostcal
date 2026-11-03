@@ -16,3 +16,18 @@ linter sur les sources du dépôt, jamais sur une entrée utilisateur.
 Pourquoi pas corrigé : aucune version corrigée n'est publiée au 2026-10-14.
 Réexamen à l'échéance, ou dès qu'une version corrigée existe.
 """
+
+[[IgnoredVulns]]
+id = "GHSA-g3hv-75wg-m249"
+ignoreUntil = 2026-12-31
+reason = """
+minimatch 3.1.5, tiré par eslint 9 et ses greffons (@eslint/config-array,
+@eslint/eslintrc, eslint-plugin-import, -jsx-a11y, -react). Dépendance de
+DÉVELOPPEMENT, exécutée seulement par le linter sur les motifs de sa propre
+configuration, jamais sur une entrée utilisateur.
+
+Pourquoi pas corrigé : le correctif n'existe qu'en 11.0.1, et ces paquets
+importent l'export par défaut de la 3.x, que la 10 a retiré. La copie 10.2.5
+tirée par @typescript-eslint/typescript-estree, elle, est forcée en 11 par
+`overrides`. Réexamen à l'échéance, ou dès qu'eslint passe à minimatch 10+.
+"""
