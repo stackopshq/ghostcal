@@ -344,17 +344,58 @@ de l'AAB et de l'APK. Elle ne vit plus dans le dépôt.
 
 | Version | Source | Envois acceptés | SHA-256 de l'image |
 |---|---|---|---|
+| 1.8.1 (13) | `86b89c6` | `d5cf2637…` (application), `be799f1a…` (image refabriquée autour d'elle) | `2208cdfd73c8d67fab33371d601d3d3b234705f098313c96e77d50d1afe2d5ce` |
 | 1.4.1 (6) | `0c1f6b6` | `81a324cf…` (application), `21e30a07…` (image) | `428b85efa09ab83bdf2b34222b1ae1f57609efb32e1e31139a71c900b752c255` |
 | 1.4.0 (5) | `b5e2846` | `f49a440d…`, `3a96acfd…` (image construite deux fois) | `a6c372fdf463ad928686d52402c4759742a225ac01f8dfeb6be317a5ad248b80` |
 
-Pour les deux : universelle `x86_64 arm64`, runtime durci, autorité Developer ID,
-horodatage sécurisé, `get-task-allow` absent, droits limités à `app-sandbox`,
-`network.client`, `files.user-selected.read-only` et `keychain-access-groups`. Les deux
-agrafes valides, `spctl` accepte l'image et l'application montée depuis l'image, et
-l'application s'ouvre avec sa barre de menus complète.
+Pour les trois : universelle `x86_64 arm64`, runtime durci, autorité Developer ID,
+horodatage sécurisé, `get-task-allow` absent. Les agrafes valides, et `spctl` accepte
+l'image **et** l'application montée depuis l'image.
+
+Les droits ne sont plus les mêmes des deux côtés de la 1.6.0, et le relevé ci-dessus vaut
+pour la version en face : les 1.4.x portent `app-sandbox`, `network.client`,
+`files.user-selected.read-only` et `keychain-access-groups` ; la 1.8.1 y ajoute
+`temporary-exception.mach-lookup.global-name`, pour les deux noms que Sparkle impose. Le
+motif est dans `Release.entitlements`, à l'endroit où on le lira.
 
 Les images ne vivent plus dans le dépôt : elles sont jointes aux publications de la forge,
 sur l'étiquette `mobile-vX.Y.Z`.
+
+## La notarisation du 2026-11-03
+
+`GhostCal 1.8.1 (13)`, depuis `86b89c6`, soit `main` sans rien de plus. Faite parce qu'un
+client a signalé deux choses qui n'étaient pas des défauts : il ne pouvait pas supprimer un
+calendrier, et ne voyait pas ses abonnements. Les deux gestes sont arrivés dans la 1.8.0,
+les 24 et 27 octobre ; il tournait sur la 1.4.1, la dernière image distribuée. Quatre
+versions mineures d'écart, sur un Mac qui n'avait aucun moyen de le dire.
+
+| | |
+|---|---|
+| Envoi de l'application | `d5cf2637-7fac-4d42-8a00-ee23d27823a2` — **Accepted** |
+| Envoi de l'image refabriquée autour de l'application agrafée | `be799f1a-c140-4b4d-8e91-b18bdd7f205e` — **Accepted** |
+| `spctl -t install` sur l'image | `accepted`, `source=Notarized Developer ID` |
+| `spctl -t exec` sur l'application montée | `accepted`, `source=Notarized Developer ID` |
+| `stapler validate` | passe sur l'image **et** sur l'application |
+| `get-task-allow` | absent |
+| Horodatage de l'image | `3 Nov 2026 at 21:10:43` |
+
+### Ce qui reste, et sans quoi personne ne la reçoit
+
+**La notarisation ne distribue rien.** Deux gestes manquent, et ils ne touchent pas le même
+monde :
+
+1. **Servir l'image** — publication de la forge sur `mobile-v1.8.1` (l'étiquette n'existe
+   pas encore : les étiquettes s'arrêtent à `mobile-v1.8.0`), et le site qui l'annonce avec
+   son numéro de version et sa somme.
+2. **L'entrée d'appcast**, signée avec la clé Sparkle — moitié privée dans le Bao sous
+   `kv/ghostcal/sparkle`, et dans le trousseau de cette machine sous le compte `ghostcal`.
+   Sans elle, `https://ghostsuite.cloud/ghostcal/appcast.xml` continue d'annoncer
+   l'ancienne, et le parc ne bouge pas.
+
+**Et cela ne suffira pas pour celui qui a écrit.** Sparkle est arrivé dans la 1.6.0 (`48d3192`) :
+une 1.4.1 ne se met pas à jour toute seule et n'a pas de quoi apprendre qu'une suite existe.
+Il faut la lui dire, et qu'il retélécharge à la main. C'est le prix d'avoir laissé quatre
+versions passer sans image — pas celui d'un défaut de Sparkle.
 
 ## La notarisation du 2026-10-20
 
