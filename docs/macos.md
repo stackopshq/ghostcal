@@ -337,24 +337,83 @@ un événement créé depuis le Mac s'ouvre donc dans le navigateur. Ce qui pré
 vrai plusieurs jours et ne l'est plus : avant la #176, un tel événement s'affichait
 illisible dans le web.
 
-L'image est jointe à la publication de la forge, sur l'étiquette `mobile-vX.Y.Z`, à côté
-de l'AAB et de l'APK. Elle ne vit plus dans le dépôt.
+L'image est jointe à la publication de `github.com/stackopshq/ghostcal`, sur l'étiquette
+`mobile-vX.Y.Z`, à côté de l'AAB et de l'APK. Elle ne vit plus dans le dépôt.
 
 ## Les versions notariées
 
 | Version | Source | Envois acceptés | SHA-256 de l'image |
 |---|---|---|---|
+| 1.8.1 (13) | `86b89c6` | `d5cf2637…` (application), `be799f1a…` (image refabriquée autour d'elle) | `2208cdfd73c8d67fab33371d601d3d3b234705f098313c96e77d50d1afe2d5ce` |
+| 1.6.0 (9) | non relevée | non relevés | `6c457f347d85246a620378f5ea2c650bf894f7ee0c087f2f50eb3b56ac802100` |
+| 1.5.1 (8) | non relevée | non relevés | `5600afa6bf6343041236c6f038b9c80918f3bf9014631f5cb8b1dafba9324725` |
+| 1.5.0 (7) | non relevée | non relevés | `7f630c87a829f52a9471eaedcfbcefa0bbf77ca0c3c4968817f32aefe37129b0` |
 | 1.4.1 (6) | `0c1f6b6` | `81a324cf…` (application), `21e30a07…` (image) | `428b85efa09ab83bdf2b34222b1ae1f57609efb32e1e31139a71c900b752c255` |
 | 1.4.0 (5) | `b5e2846` | `f49a440d…`, `3a96acfd…` (image construite deux fois) | `a6c372fdf463ad928686d52402c4759742a225ac01f8dfeb6be317a5ad248b80` |
 
-Pour les deux : universelle `x86_64 arm64`, runtime durci, autorité Developer ID,
-horodatage sécurisé, `get-task-allow` absent, droits limités à `app-sandbox`,
-`network.client`, `files.user-selected.read-only` et `keychain-access-groups`. Les deux
-agrafes valides, `spctl` accepte l'image et l'application montée depuis l'image, et
-l'application s'ouvre avec sa barre de menus complète.
+Trois lignes portent « non relevée » et ce n'est pas une coquette : les 1.5.0, 1.5.1 et
+1.6.0 ont été **notariées et servies** — elles sont en ligne, leurs sommes ci-dessus sont
+celles des fichiers publiés — sans que personne ne les inscrive ici. Ce tableau a donc
+affirmé pendant deux semaines que la dernière image distribuée était la 1.4.1. C'est faux,
+et cela a faussé un diagnostic le 2026-11-03. Un tableau qu'on ne remplit pas ment, il ne
+se tait pas.
 
-Les images ne vivent plus dans le dépôt : elles sont jointes aux publications de la forge,
-sur l'étiquette `mobile-vX.Y.Z`.
+Pour les 1.4.x et la 1.8.1 : universelle `x86_64 arm64`, runtime durci, autorité Developer ID,
+horodatage sécurisé, `get-task-allow` absent. Les agrafes valides, et `spctl` accepte
+l'image **et** l'application montée depuis l'image.
+
+Les droits ne sont plus les mêmes des deux côtés de la 1.6.0, et le relevé ci-dessus vaut
+pour la version en face : les 1.4.x portent `app-sandbox`, `network.client`,
+`files.user-selected.read-only` et `keychain-access-groups` ; la 1.8.1 y ajoute
+`temporary-exception.mach-lookup.global-name`, pour les deux noms que Sparkle impose. Le
+motif est dans `Release.entitlements`, à l'endroit où on le lira.
+
+Les images ne vivent plus dans le dépôt. Elles sont jointes aux publications de
+`github.com/stackopshq/ghostcal`, sur l'étiquette `mobile-vX.Y.Z` — et c'est de là que le
+flux Sparkle les sert, pas depuis le Gitea. Les cinq publiées y sont, de la 1.4.0 à la
+1.6.0.
+
+## La notarisation du 2026-11-03
+
+`GhostCal 1.8.1 (13)`, depuis `86b89c6`, soit `main` sans rien de plus. Faite parce qu'un
+client a signalé deux choses qui n'étaient pas des défauts : il ne pouvait pas supprimer un
+calendrier, et ne voyait pas ses abonnements. Les deux gestes sont arrivés dans la 1.8.0,
+les 24 et 27 octobre. La dernière image servie est la **1.6.0**, du 23 octobre : elle est
+antérieure aux deux, donc aucun retéléchargement ne pouvait les lui donner — il en a fait
+un, sans rien y gagner.
+
+Ce diagnostic a d'abord été rendu faux par ce document : son tableau s'arrêtait à la 1.4.1,
+donc la 1.4.1 a été annoncée à Clara comme la version du client. Le flux Sparkle et la page
+de téléchargement disaient tous deux 1.6.0. **Ce que sert le site se lit sur le site**, pas
+dans le dépôt.
+
+| | |
+|---|---|
+| Envoi de l'application | `d5cf2637-7fac-4d42-8a00-ee23d27823a2` — **Accepted** |
+| Envoi de l'image refabriquée autour de l'application agrafée | `be799f1a-c140-4b4d-8e91-b18bdd7f205e` — **Accepted** |
+| `spctl -t install` sur l'image | `accepted`, `source=Notarized Developer ID` |
+| `spctl -t exec` sur l'application montée | `accepted`, `source=Notarized Developer ID` |
+| `stapler validate` | passe sur l'image **et** sur l'application |
+| `get-task-allow` | absent |
+| Horodatage de l'image | `3 Nov 2026 at 21:10:43` |
+
+### Ce qui reste, et sans quoi personne ne la reçoit
+
+**La notarisation ne distribue rien.** Deux gestes manquent, et ils ne touchent pas le même
+monde :
+
+1. **Servir l'image** — publication de la forge sur `mobile-v1.8.1` (l'étiquette n'existe
+   pas encore : les étiquettes s'arrêtent à `mobile-v1.8.0`), et le site qui l'annonce avec
+   son numéro de version et sa somme.
+2. **L'entrée d'appcast**, signée avec la clé Sparkle — moitié privée dans le Bao sous
+   `kv/ghostcal/sparkle`, et dans le trousseau de cette machine sous le compte `ghostcal`.
+   Sans elle, `https://ghostsuite.cloud/ghostcal/appcast.xml` continue d'annoncer
+   l'ancienne, et le parc ne bouge pas.
+
+**Et lui n'aura rien à faire**, une fois l'entrée posée. Sparkle est arrivé dans la 1.6.0
+(`48d3192`), qui est précisément ce que sert le site : sa copie interroge le flux une fois
+par jour et lui proposera la 1.8.1 d'elle-même. Inutile de lui demander de retélécharger —
+il l'a déjà fait une fois pour rien, parce que la page lui a resservi la même version.
 
 ## La notarisation du 2026-10-20
 
