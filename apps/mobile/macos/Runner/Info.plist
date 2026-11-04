@@ -63,5 +63,32 @@
 	<!-- Une fois par jour, pas à chaque ouverture : le flux ne bouge qu'aux versions. -->
 	<key>SUScheduledCheckInterval</key>
 	<integer>86400</integer>
+	<!--
+	  SANS CETTE CLÉ, AUCUNE MISE À JOUR NE S'INSTALLE. L'application est dans le bac à
+	  sable (`com.apple.security.app-sandbox`), et Sparkle exige alors de passer par son
+	  service XPC `Installer.xpc` — qui installe HORS du bac à sable, puisqu'il faut
+	  remplacer un paquet dans /Applications. Sans la clé, Sparkle tente le lancement
+	  direct, le bac à sable le refuse, et l'utilisateur lit « An error occurred while
+	  launching the installer. Please try again later. »
+
+	  Le service lui-même n'est pas à copier dans l'application : il voyage dans
+	  `Sparkle.framework/Versions/B/XPCServices/Installer.xpc`, et la documentation de
+	  Sparkle dit explicitement de ne PAS l'embarquer ailleurs.
+
+	  `Downloader.xpc` ne nous concerne pas : il ne sert qu'aux applications dépourvues
+	  de `com.apple.security.network.client`, et nous l'avons.
+
+	  Les deux exceptions `mach-lookup` de `Release.entitlements` (`-spks`, `-spki`)
+	  étaient déjà là depuis la 1.6.0 : c'est l'autre moitié de la même exigence, et
+	  elle seule avait été posée. Les droits promettaient donc le chemin XPC que cette
+	  clé n'ouvrait pas.
+
+	  Mesuré le 2026-11-04 : la 1.6.0, la 1.8.1 et la 1.8.2 sont toutes dépourvues de la
+	  clé. Aucune installation n'a jamais pu se mettre à jour seule depuis l'arrivée de
+	  Sparkle, et la panne ne s'est vue qu'à la première entrée d'appcast réellement
+	  servie, deux semaines plus tard.
+	-->
+	<key>SUEnableInstallerLauncherService</key>
+	<true/>
 </dict>
 </plist>
