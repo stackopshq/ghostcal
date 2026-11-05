@@ -387,6 +387,7 @@ la 1.8.1 : identique, longueur comprise.
 
 | Version | Source | Envois acceptés | SHA-256 de l'image |
 |---|---|---|---|
+| 1.8.3 (15) | `1f7b610` | `7aaf3658…` (application), `a805418d…` (image refabriquée autour d'elle) | `909560888f31aa23cd3a09c6fd4196f9de91007a5624e147e9f6bd893d7868e0` |
 | 1.8.2 (14) | `293dc06` | `b777ae7e…` (application), `74162c65…` (image refabriquée autour d'elle) | `b198003b44f61c6f9997adff156e103b9e64ddb7f99847eaf4160910bda7de6f` |
 | 1.8.1 (13) | `86b89c6` | `d5cf2637…` (application), `be799f1a…` (image refabriquée autour d'elle) | `2208cdfd73c8d67fab33371d601d3d3b234705f098313c96e77d50d1afe2d5ce` |
 | 1.6.0 (9) | non relevée | non relevés | `6c457f347d85246a620378f5ea2c650bf894f7ee0c087f2f50eb3b56ac802100` |
@@ -402,7 +403,7 @@ affirmé pendant deux semaines que la dernière image distribuée était la 1.4.
 et cela a faussé un diagnostic le 2026-11-03. Un tableau qu'on ne remplit pas ment, il ne
 se tait pas.
 
-Pour les 1.4.x, la 1.8.1 et la 1.8.2 : universelle `x86_64 arm64`, runtime durci, autorité Developer ID,
+Pour les 1.4.x et les 1.8.x : universelle `x86_64 arm64`, runtime durci, autorité Developer ID,
 horodatage sécurisé, `get-task-allow` absent. Les agrafes valides, et `spctl` accepte
 l'image **et** l'application montée depuis l'image.
 
@@ -416,6 +417,77 @@ Les images ne vivent plus dans le dépôt. Elles sont jointes aux publications d
 `github.com/stackopshq/ghostcal`, sur l'étiquette `mobile-vX.Y.Z` — et c'est de là que le
 flux Sparkle les sert, pas depuis le Gitea. Les cinq publiées y sont, de la 1.4.0 à la
 1.6.0.
+
+## La notarisation du 2026-11-04, et la panne qu'elle répare
+
+`GhostCal 1.8.3 (15)`, depuis `1f7b610`. Faite le soir même où l'on a découvert que
+**aucune installation macOS n'avait jamais pu se mettre à jour seule**.
+
+### Le défaut : une clé d'Info.plist, et la moitié d'une page lue
+
+L'application est dans le bac à sable. Sparkle exige alors
+`SUEnableInstallerLauncherService` pour faire passer l'installation par son service XPC
+`Installer.xpc`, qui travaille **hors** du bac à sable — il faut bien remplacer un paquet
+dans `/Applications`. La clé n'a jamais été écrite. Sparkle tentait donc le lancement
+direct, le bac à sable le refusait, et l'utilisateur lisait :
+
+> An error occurred while launching the installer. Please try again later.
+
+Les deux exceptions `mach-lookup` de `Release.entitlements`
+(`$(PRODUCT_BUNDLE_IDENTIFIER)-spks` et `-spki`) étaient là **depuis la 1.6.0** : c'est
+l'autre moitié de la même exigence, et elle seule avait été posée. Les droits promettaient
+le chemin XPC que la clé n'ouvrait pas. C'est le genre d'écart qu'aucune compilation ne
+signale et qu'aucun témoin hors matériel ne voit.
+
+Relevé sur les trois images réellement servies : **la 1.6.0, la 1.8.1 et la 1.8.2 en sont
+toutes dépourvues.** La panne est restée invisible deux semaines parce qu'**aucune entrée
+d'appcast n'a été servie après la 1.6.0** : le chemin d'installation n'avait jamais tourné
+une seule fois. Il a tourné le 2026-11-03 au soir, sur l'écran de Clara, et il a cassé.
+
+### Ce que cette panne impose, et qui ne se rattrape pas
+
+**C'est l'application déjà installée qui installe.** Donc une version corrigée ne peut pas
+arriver par la mise à jour automatique : le réparateur est la pièce cassée. Tout le parc
+doit retélécharger **une fois** à la main. Les deux pages de téléchargement le disent
+désormais au-dessus du tableau, et c'est le dernier téléchargement manuel.
+
+### Ce qui a été mesuré, et ce qui ne l'a pas été
+
+**Essai positif, concluant.** Une paire 1.8.3 / 1.8.4 construite avec la clé, sur un
+identifiant de paquet et un flux d'essai isolés — pour ne pas approcher une installation
+réelle ni son conteneur. Appcast local sur `127.0.0.1`. Le paquet dans `/Applications` est
+passé de 1.8.3 à **1.8.4 tout seul**, et le journal système montre la chaîne entière :
+
+```
+org.sparkle-project.InstallerLauncher
+processus Installer
+ch.stackops.ghostcal.essai-spki
+processus Autoupdate
+```
+
+**Témoin négatif, NON concluant.** Deux tentatives sur le même binaire privé de la seule
+clé et re-signé : Sparkle n'a jamais reproposé la mise à jour, donc il n'a jamais tenté de
+l'installer, et la panne n'a pas été reproduite en labo. Le conteneur de bac à sable, qui
+retient l'heure du dernier contrôle, est protégé par le système et ne se remet pas à zéro
+depuis un terminal. La panne reste donc attestée par l'écran d'un utilisateur et par la
+documentation de Sparkle — **pas** par un banc. C'est écrit ici pour que personne ne croie
+la symétrie acquise.
+
+| | |
+|---|---|
+| Envoi de l'application | `7aaf3658-0552-4a60-a939-bba94a5b62d6` — **Accepted** |
+| Envoi de l'image refabriquée autour de l'application agrafée | `a805418d-f6af-4332-9bba-becedd1dab96` — **Accepted** |
+| `spctl -t install` sur l'image | `accepted`, `source=Notarized Developer ID` |
+| `spctl -t exec` sur l'application montée | `accepted`, `source=Notarized Developer ID` |
+| `stapler validate` | passe sur l'image **et** sur l'application |
+| `get-task-allow` | absent |
+| Architectures | `x86_64 arm64` |
+| Horodatage de l'image | `4 Nov 2026 at 21:51:35` |
+| `SUEnableInstallerLauncherService` | `true`, relue sur l'application **montée depuis l'image** |
+
+Cette dernière ligne est un garde-fou du script de notarisation, pas une coquetterie : il
+s'arrête si la clé manque ou n'est pas à `true`. Publier une 1.8.3 qui ne corrige rien
+serait pire que de n'avoir rien publié, puisque chacun aurait retéléchargé pour rien.
 
 ## La seconde notarisation du 2026-11-03
 
