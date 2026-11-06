@@ -40,6 +40,22 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<!-- Sans cette clé, chaque envoi à App Store Connect arrive sans réponse à la question
+	     de conformité à l'export, et la soumission à la revue est refusée : « You must provide
+	     a value for the attribute 'usesNonExemptEncryption' ». La réponse doit alors être
+	     donnée à la main, build par build, dans l'interface — ce qui a été oublié pour la
+	     build 14 et a bloqué la 1.8.2 le 2026-11-06.
+
+	     `false` ne veut pas dire « pas de chiffrement » : GhostCal chiffre bien les titres,
+	     les lieux et les descriptions sur l'appareil. Cela veut dire que ce chiffrement est
+	     exempté de déclaration — il relève des exemptions pour l'authentification et la
+	     protection des données de l'utilisateur, par les primitives du système. C'est la
+	     réponse déjà donnée pour les builds 7, 10 et 13, dont la 13 est en vente.
+
+	     Si un jour l'application chiffre autre chose, ou le fait autrement, cette clé est à
+	     revoir avant l'envoi, pas après le refus. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
