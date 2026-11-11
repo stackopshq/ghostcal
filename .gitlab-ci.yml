@@ -250,25 +250,3 @@ images:
         buildah push "$GHCR_IMAGE:$tag"
         echo "published $GHCR_IMAGE:$tag"
       done
-
-# Dependency updates, opened as merge requests here.
-renovate:
-  stage: verify
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $CI_PIPELINE_SCHEDULE_DESCRIPTION == "Weekly renovate" && $RENOVATE_TOKEN
-  needs: []
-  image:
-    name: docker.io/renovate/renovate:44.132.5
-    entrypoint: [""]
-  timeout: 30m
-  variables:
-    RENOVATE_PLATFORM: gitlab
-    RENOVATE_ENDPOINT: $CI_API_V4_URL
-    RENOVATE_REPOSITORIES: $CI_PROJECT_PATH
-    RENOVATE_AUTODISCOVER: "false"
-    RENOVATE_ONBOARDING: "false"
-    RENOVATE_REQUIRE_CONFIG: required
-    RENOVATE_GIT_AUTHOR: "Renovate Bot <renovate@stackops.ch>"
-    LOG_LEVEL: info
-  script:
-    - renovate
