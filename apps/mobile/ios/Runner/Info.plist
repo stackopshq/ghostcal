@@ -40,6 +40,28 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<!-- Sans cette clé, chaque envoi à App Store Connect arrive sans réponse à la question
+	     de conformité à l'export, et l'ajout de la version à une soumission est refusé :
+	     « You must provide a value for the attribute 'usesNonExemptEncryption' ». La réponse
+	     doit alors être donnée à la main, build par build, dans l'interface — ce qui a été
+	     oublié pour la build 14 et a bloqué la 1.8.2 le 2026-11-06.
+
+	     `false` ne veut pas dire « pas de chiffrement », et il ne veut pas dire non plus que
+	     l'on s'en remet aux primitives d'Apple : la build embarque son propre cœur,
+	     `suite/crates/ghost-crypto` — Argon2id, XChaCha20-Poly1305, X25519 — et chiffre avec
+	     lui les titres, les lieux et les descriptions, sur l'appareil. `false` veut dire que
+	     ce chiffrement relève des exemptions de la catégorie 5 partie 2 de l'EAR. C'est le
+	     motif écrit dans `docs/anssi-dossier-technique.md`, qui rappelle du même coup que
+	     cette réponse engage l'éditeur et doit rester cohérente avec l'auto-classification
+	     BIS — faite pour GhostPass (`ghostpass/docs/bis-autoclassification.md`, ECCN
+	     5D992.c), pas pour GhostCal.
+
+	     La valeur reprise ici est celle déjà déclarée pour les builds 7, 10 et 13, dont la 13
+	     est en vente. Si l'application chiffre un jour autre chose, ou si
+	     l'auto-classification conclut autrement, cette clé est à revoir avant l'envoi et non
+	     après le refus. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
