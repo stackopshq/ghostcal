@@ -1,7 +1,7 @@
 # Gitleaks configuration. Extends the default ruleset.
 #
-# NOTE: use the singular [allowlist] table, not the [[allowlists]] array — the array form is not
-# honoured by the gitleaks version pinned in CI (8.21.x), so path allowlisting silently no-ops.
+# NOTE: the singular [allowlist] table is kept: the [[allowlists]] array form was not honoured by
+# gitleaks 8.21.x, which CI pinned before the move to GitLab (8.30.1 now).
 [extend]
 useDefault = true
 
@@ -10,3 +10,7 @@ useDefault = true
 [allowlist]
 description = "Test placeholder credentials (fixtures, never real)"
 paths = ['''tests/.*\.py''']
+# A crate name, not a secret: gitleaks 8.30 reads `crypto_secretbox", "curve25519-dalek"` in a
+# dependency list of apps/mobile/rust/Cargo.lock as a generic API key whose value is the crate
+# name. Allowlisted by value, never by path.
+regexes = ['''^curve25519-dalek$''']
