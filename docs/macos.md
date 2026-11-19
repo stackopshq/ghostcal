@@ -338,7 +338,9 @@ vrai plusieurs jours et ne l'est plus : avant la #176, un tel événement s'affi
 illisible dans le web.
 
 L'image est jointe à la publication de `github.com/stackopshq/ghostcal`, sur l'étiquette
-`mobile-vX.Y.Z`, à côté de l'AAB et de l'APK. Elle ne vit plus dans le dépôt.
+`mobile-vX.Y.Z`, à côté de l'AAB et de l'APK. Elle ne vit plus dans le dépôt. La CI crée
+cette publication quand l'étiquette est posée ; le Mac y joint les fichiers avec
+`gh release upload` : voir `docs/releases/README.md`.
 
 ### Une publication restée en brouillon ne sert rien, et le dit mal
 

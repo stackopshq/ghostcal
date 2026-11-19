@@ -20,6 +20,8 @@ workflow:
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_PIPELINE_SOURCE == "web"
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    # Release tags: only release-github runs, see there.
+    - if: $CI_COMMIT_TAG =~ /^mobile-v/
     # No branch pipeline on top of an MR pipeline for the same commit.
     - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
       when: never
@@ -51,14 +53,19 @@ variables:
   UV_CACHE_DIR: /tmp/uv-cache
   UV_LINK_MODE: copy
 
+# A release tag sits on a main commit whose pipeline already ran these checks.
 .code:
   rules:
+    - if: $CI_COMMIT_TAG
+      when: never
     - if: $CI_PIPELINE_SOURCE == "schedule"
       when: never
     - when: on_success
 
 .security:
   rules:
+    - if: $CI_COMMIT_TAG
+      when: never
     - if: $CI_PIPELINE_SOURCE == "schedule" && $CI_PIPELINE_SCHEDULE_DESCRIPTION != "Weekly security"
       when: never
     - when: on_success
@@ -250,3 +257,96 @@ images:
         buildah push "$GHCR_IMAGE:$tag"
         echo "published $GHCR_IMAGE:$tag"
       done
+
+# Creates the GitHub Release for every `mobile-vX.Y.Z` tag.
+#
+# The GitLab project is private: GitHub is where the public sees a version,
+# and Sparkle downloads the macOS image from there. Notes come from
+# `docs/releases/<tag>.md`, reviewed in the same MR as the version bump; the
+# job fails without them.
+#
+# It creates the Release only. The DMG, AAB, APK and SHA256SUMS are built and
+# signed on the Mac, then attached with `gh release upload` (docs/releases/README.md).
+# The appcast entry is signed last, so Sparkle offers nothing until the image
+# is attached.
+#
+# Token: GITHUB_RELEASE_TOKEN, protected and masked, so only protected tags
+# (`mobile-v*`) see it. Missing, the job says so and stops without failing.
+release-github:
+  stage: publish
+  image: $NODE_IMAGE
+  needs: []
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^mobile-v/
+  interruptible: false
+  variables:
+    GITHUB_REPO: stackopshq/ghostcal
+  script:
+    - |
+      set -eu
+      notes="docs/releases/${CI_COMMIT_TAG}.md"
+      if [ ! -f "$notes" ]; then
+        echo "missing notes: $notes. Write them in an MR, then tag again."
+        exit 1
+      fi
+      # The Release is named after pubspec ("GhostCal 1.8.3 (15)"); a tag that
+      # disagrees with it would publish one version under another's name.
+      pubspec="$(sed -n 's/^version: *//p' apps/mobile/pubspec.yaml)"
+      version="${pubspec%%+*}"
+      build="${pubspec#*+}"
+      if [ "mobile-v${version}" != "$CI_COMMIT_TAG" ]; then
+        echo "tag ${CI_COMMIT_TAG} but apps/mobile/pubspec.yaml says ${pubspec}: nothing created."
+        exit 1
+      fi
+      if [ -z "${GITHUB_RELEASE_TOKEN:-}" ]; then
+        echo "GITHUB_RELEASE_TOKEN missing: no GitHub Release created."
+        exit 0
+      fi
+      # Token in a header file, never in argv: `ps` shows every process's argv.
+      umask 077
+      headers="$(mktemp)"
+      trap 'rm -f "$headers"' EXIT
+      printf 'Authorization: Bearer %s\nAccept: application/vnd.github+json\nX-GitHub-Api-Version: 2022-11-28\n' \
+        "$GITHUB_RELEASE_TOKEN" > "$headers"
+      api="https://api.github.com/repos/${GITHUB_REPO}"
+
+      # The push mirror sends the tag on its own, in no guaranteed order with
+      # this job. Wait for it: created here, the tag could point elsewhere.
+      # Only a 404/422 resolves by waiting; a refused token will not.
+      sha=""
+      for attempt in $(seq 1 20); do
+        code="$(curl -sS -o commit.json -w '%{http_code}' -H @"$headers" "${api}/commits/${CI_COMMIT_TAG}")"
+        if [ "$code" = 200 ]; then
+          sha="$(node -e 'console.log(JSON.parse(require("fs").readFileSync("commit.json","utf8")).sha)')"
+          break
+        elif [ "$code" != 404 ] && [ "$code" != 422 ]; then
+          echo "GitHub answered ${code} looking up ${CI_COMMIT_TAG}:"; cat commit.json; exit 1
+        fi
+        echo "${CI_COMMIT_TAG} not on GitHub yet (attempt ${attempt}/20), waiting 30 s"
+        sleep 30
+      done
+      if [ "$sha" != "$CI_COMMIT_SHA" ]; then
+        echo "On GitHub ${CI_COMMIT_TAG} points at '${sha:-nothing}', here at ${CI_COMMIT_SHA}. Nothing created."
+        exit 1
+      fi
+
+      body="$(TAG="$CI_COMMIT_TAG" NAME="GhostCal ${version} (${build})" NOTES="$notes" node -e '
+        const fs = require("fs");
+        process.stdout.write(JSON.stringify({
+          tag_name: process.env.TAG,
+          name: process.env.NAME,
+          body: fs.readFileSync(process.env.NOTES, "utf8"),
+          draft: false,
+          prerelease: false,
+        }));')"
+      code="$(curl -sS -o response.json -w '%{http_code}' -X POST -H @"$headers" \
+        --data "$body" "${api}/releases")"
+      if [ "$code" = 201 ]; then
+        echo "Release created: https://github.com/${GITHUB_REPO}/releases/tag/${CI_COMMIT_TAG}"
+        echo "Next, from the Mac: gh release upload ${CI_COMMIT_TAG} --repo ${GITHUB_REPO} <files>"
+      elif [ "$code" = 422 ] && grep -q already_exists response.json; then
+        # Retried, or created by hand: never overwritten.
+        echo "Release ${CI_COMMIT_TAG} already exists on GitHub: left as it is."
+      else
+        echo "GitHub answered ${code}:"; cat response.json; exit 1
+      fi
