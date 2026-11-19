@@ -583,6 +583,9 @@ class _DepotAuth(AuthRepository):
     ) -> None:
         self.jetons_emis += 1
 
+    async def record_sign_in(self, user_id: uuid.UUID, now: datetime) -> None:
+        return None
+
 
 class _HacheurFactice:
     def hash(self, password: str) -> str:

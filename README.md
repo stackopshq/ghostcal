@@ -324,6 +324,16 @@ podman-compose up -d --build
 
 To send real emails, set `GHOSTCAL_BREVO_API_KEY` or `GHOSTCAL_RESEND_API_KEY` (otherwise emails are logged, not sent). Brevo is used when both are present.
 
+**Administering your instance.** Create your own account in the web app first. Then put its
+address in `GHOSTCAL_ADMIN_EMAILS` in `.env` and run `podman-compose up -d` again: environment
+variables are read when a container is created, so a plain `restart` keeps the old ones. Sign in
+again and an *Administration* entry appears. From there you can close sign-up once everyone who
+needs an account has one, and suspend, reactivate or delete accounts. The view shows account
+metadata only (address, dates, second factor); calendars stay encrypted and out of its reach. To
+pin sign-up in your deployment files instead, set `GHOSTCAL_REGISTRATION=open` or `closed`; the
+view then shows the state without a button. The iOS and Android apps do not yet show a specific
+message for a closed sign-up or a suspended account; the web app does.
+
 > **Key management note.** `GHOSTCAL_TOKEN_ENCRYPTION_KEY` decrypts the at-rest (Tier 2) data; keep
 > it stable and backed up. The zero-knowledge (Tier 1) keys are derived in the browser — the server
 > never has them, so rotating the app key never exposes invitee answers.

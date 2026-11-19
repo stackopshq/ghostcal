@@ -205,6 +205,7 @@ class SqlAuthRepository(AuthRepository):
                 models.User.avatar_url,
                 models.User.avatar_updated_at,
                 models.User.email_verified_at,
+                models.User.suspended_at,
                 models.UserCredential.password_hash,
             )
             .outerjoin(models.UserCredential, models.UserCredential.user_id == models.User.id)
@@ -227,6 +228,7 @@ class SqlAuthRepository(AuthRepository):
                 models.User.avatar_url,
                 models.User.avatar_updated_at,
                 models.User.email_verified_at,
+                models.User.suspended_at,
                 models.UserCredential.password_hash,
             )
             .outerjoin(models.UserCredential, models.UserCredential.user_id == models.User.id)
@@ -360,6 +362,28 @@ class SqlAuthRepository(AuthRepository):
         )
         return len((await self._session.execute(stmt)).scalars().all())
 
+    async def record_sign_in(self, user_id: uuid.UUID, now: datetime) -> None:
+        # `users_update` opens the caller's own row only; without the declaration the UPDATE
+        # would match nothing and say nothing, and the view would show "never signed in".
+        await bind_user(self._session, user_id)
+        await self._session.execute(
+            update(models.User).where(models.User.id == user_id).values(last_login_at=now)
+        )
+
+    async def oidc_account_exists(self, *, issuer: str, subject: str, email: str) -> bool:
+        # `identities` carries no RLS; `users` is read through the login-address policy, the
+        # same one a password sign-in uses.
+        linked = (
+            await self._session.execute(
+                select(models.Identity.id).where(
+                    models.Identity.issuer == issuer, models.Identity.subject == subject
+                )
+            )
+        ).first()
+        if linked is not None:
+            return True
+        return await self.get_by_email(email) is not None
+
     async def update_profile(
         self, user_id: uuid.UUID, *, name: str, timezone: str, avatar_url: str | None
     ) -> None:
@@ -392,6 +416,7 @@ def _to_record(row: object) -> AuthUserRecord | None:
         password_hash=row.password_hash,  # type: ignore[attr-defined]
         avatar_url=row.avatar_url,  # type: ignore[attr-defined]
         avatar_updated_at=row.avatar_updated_at,  # type: ignore[attr-defined]
+        suspended_at=row.suspended_at,  # type: ignore[attr-defined]
     )
 
 

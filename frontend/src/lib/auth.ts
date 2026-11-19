@@ -22,6 +22,7 @@ import {
 } from "@/lib/zk";
 
 const ACCESS_KEY = "gc_access";
+export const ACCOUNT_SUSPENDED_EVENT = "gc:account-suspended";
 const REFRESH_KEY = "gc_refresh";
 const ORG_KEY = "gc_org";
 
@@ -42,6 +43,8 @@ export type User = {
   email_verified: boolean;
   // False for an SSO-only account: it has no password, so deletion is confirmed by the email alone.
   has_password: boolean;
+  // Listed in GHOSTCAL_ADMIN_EMAILS: show the Administration entry. The server checks again.
+  is_instance_admin?: boolean;
 };
 
 type Tokens = { access_token: string; refresh_token: string };
@@ -369,6 +372,22 @@ export function refaireLesCodesDeRecuperation(
 
 // --- SSO / OIDC ---------------------------------------------------------------------------------
 
+/** Whether sign-up is open, to hide the link when it is not. The server refuses anyway.
+ *
+ * On failure, open: a sign-up link that leads to a refusal beats one missing on an instance
+ * where sign-up works.
+ */
+export async function getRegistrationOpen(): Promise<boolean> {
+  try {
+    const res = await fetch(`${base()}/v1/auth/registration`, { cache: "no-store" });
+    if (!res.ok) return true;
+    const body = (await res.json()) as { open?: unknown };
+    return body.open !== false;
+  } catch {
+    return true;
+  }
+}
+
 export type AuthConfig = {
   oidc_enabled: boolean;
   /** Sibling GhostMail, or null/absent when this deployment has none. */
@@ -539,7 +558,14 @@ export async function authedRequest(
   }
   if (!res.ok) {
     const detail = await res.text().catch(() => res.statusText);
-    throw new ApiError(res.status, detail || res.statusText);
+    const error = new ApiError(res.status, detail || res.statusText);
+    // Suspended while signed in: every request from here on would fail the same way. End the
+    // session; the dashboard layout hears the event and sends the user to sign-in, with why.
+    if (error.code === "account_suspended" && typeof window !== "undefined") {
+      clearTokens();
+      window.dispatchEvent(new Event(ACCOUNT_SUSPENDED_EVENT));
+    }
+    throw error;
   }
   return res;
 }

@@ -66,6 +66,27 @@ export class ApiError extends Error {
     }
     return "";
   }
+
+  /** The machine-readable `code` the server puts next to a message, when there is one.
+   *
+   * `{"detail": {"detail": "...", "code": "account_suspended"}}`. Clients branch on the code,
+   * never on the English sentence beside it.
+   */
+  get code(): string {
+    try {
+      const parsed: unknown = JSON.parse(this.message);
+      if (parsed && typeof parsed === "object" && "detail" in parsed) {
+        const value = (parsed as { detail: unknown }).detail;
+        if (value && typeof value === "object" && "code" in value) {
+          const code = (value as { code: unknown }).code;
+          return typeof code === "string" ? code : "";
+        }
+      }
+    } catch {
+      // Not JSON: no code.
+    }
+    return "";
+  }
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {

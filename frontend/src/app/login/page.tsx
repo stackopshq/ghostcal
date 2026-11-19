@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AuthCard, { Champ, inputClass, lienDePied, primaryButtonClass } from "@/components/AuthCard";
 import { ApiError } from "@/lib/api";
-import { beginOidcLogin, getAuthConfig, login, resendVerification } from "@/lib/auth";
+import {
+  beginOidcLogin,
+  getAuthConfig,
+  getRegistrationOpen,
+  login,
+  resendVerification,
+} from "@/lib/auth";
 import { lireLEchecDeConnexion } from "@/lib/deuxiemeFacteur";
 import { useI18n, useT } from "@/lib/i18n";
 
@@ -36,6 +42,8 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [ssoEnabled, setSsoEnabled] = useState(false);
+  // Open until the server says otherwise: the common case, and no link flashing in on load.
+  const [registrationOpen, setRegistrationOpen] = useState(true);
   // Le second facteur. `codeDemande` bascule l'écran quand le serveur réclame ; `verrouJusqua`
   // porte l'échéance d'un 429, parce que « trop d'essais » n'est pas « mauvais code » et qu'il
   // faut dire jusqu'à quand attendre plutôt que faire retaper.
@@ -53,10 +61,21 @@ export default function LoginPage() {
     getAuthConfig()
       .then((c) => setSsoEnabled(c.oidc_enabled))
       .catch(() => setSsoEnabled(false));
+    getRegistrationOpen().then(setRegistrationOpen);
     const params = new URLSearchParams(window.location.search);
-    if (params.get("sso_error")) {
+    const ssoError = params.get("sso_error");
+    if (ssoError) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setError(t("login.errSso"));
+      setError(
+        ssoError === "account_suspended"
+          ? t("login.errSuspended")
+          : ssoError === "registration_closed"
+            ? t("login.errSsoClosed")
+            : t("login.errSso"),
+      );
+      history.replaceState(null, "", window.location.pathname);
+    } else if (params.get("reason") === "account-suspended") {
+      setError(t("login.errSuspended"));
       history.replaceState(null, "", window.location.pathname);
     } else if (params.get("reason") === "password-changed") {
       // Changing a password ends every session, this one included. Say so, or being bounced to
@@ -100,6 +119,9 @@ export default function LoginPage() {
           setError(t("login.errVerify"));
           setRenvoiPossible(true);
           break;
+        case "compte-suspendu":
+          setError(t("login.errSuspended"));
+          break;
         case "identifiants-refuses":
           setError(t("login.errInvalid"));
           break;
@@ -128,12 +150,15 @@ export default function LoginPage() {
       title={t("login.title")}
       footer={
         <>
-          <p>
-            {t("login.newHere")}{" "}
-            <Link href="/register" className={lienDePied}>
-              {t("login.create")}
-            </Link>
-          </p>
+          {/* Hidden when sign-up is closed. The server refuses a sign-up either way. */}
+          {registrationOpen && (
+            <p>
+              {t("login.newHere")}{" "}
+              <Link href="/register" className={lienDePied}>
+                {t("login.create")}
+              </Link>
+            </p>
+          )}
           <p className="mt-1.5">
             <Link href="/forgot-password" className={lienDePied}>
               {t("forgot.title")}

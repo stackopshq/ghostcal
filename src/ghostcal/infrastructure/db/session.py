@@ -129,6 +129,18 @@ async def bind_retention_scan(session: AsyncSession) -> None:
     await session.execute(text("SELECT set_config('app.retention_scan', 'on', true)"))
 
 
+async def bind_instance_admin(session: AsyncSession) -> None:
+    """Declare that this transaction acts for a checked instance administrator.
+
+    The `users_instance_admin_read` and `users_instance_admin_update` policies read this GUC: with
+    it set, every `users` row is visible and updatable, which is what listing and suspending
+    accounts needs. The check itself is the caller's: `AdministrationService` compares the caller
+    to `GHOSTCAL_ADMIN_EMAILS` first, and this helper is the only place that sets the GUC.
+    Transaction-local, like `bind_user`, so it cannot outlive the request on a pooled connection.
+    """
+    await session.execute(text("SELECT set_config('app.instance_admin', 'on', true)"))
+
+
 async def bind_user(session: AsyncSession, user_id: uuid.UUID) -> None:
     """Declare which authenticated user this transaction acts for.
 

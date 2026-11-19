@@ -14,6 +14,10 @@ x-ghostcal-env: &ghostcal-env
   GHOSTCAL_FRONTEND_BASE_URL: ${GHOSTCAL_FRONTEND_BASE_URL:-http://localhost:3001}
   GHOSTCAL_RESEND_API_KEY: ${GHOSTCAL_RESEND_API_KEY:-}
   GHOSTCAL_EMAIL_FROM: ${GHOSTCAL_EMAIL_FROM:-GhostCal <onboarding@resend.dev>}
+  # Instance administration: see .env.example. Empty by default (no administrator, sign-up
+  # decided from the view, open until someone closes it).
+  GHOSTCAL_ADMIN_EMAILS: ${GHOSTCAL_ADMIN_EMAILS:-}
+  GHOSTCAL_REGISTRATION: ${GHOSTCAL_REGISTRATION:-}
 
 services:
   postgres:

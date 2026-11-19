@@ -14,9 +14,11 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from ghostcal.application.auth import (
+    AccountSuspended,
     AuthConfig,
     AuthService,
     OidcIdentityRefused,
+    RegistrationClosed,
     ZkKeyMaterial,
     ZkKeysAlreadySet,
 )
@@ -307,3 +309,69 @@ def _two_factor(session: object) -> TwoFactorService:
         PyotpEngine(),
         _CLOCK,
     )
+
+
+class _ClosedRegistration:
+    async def is_open(self) -> bool:
+        return False
+
+
+async def test_closed_registration_turns_away_a_new_sso_identity(admin_engine: AsyncEngine) -> None:
+    """First SSO sign-in creates an account: with sign-up closed, that side door is shut too."""
+    subject = f"sub-{uuid.uuid4().hex[:10]}"
+    email = f"oidc-{uuid.uuid4().hex[:8]}@example.test"
+    with pytest.raises(RegistrationClosed):
+        async with db_session() as s:
+            await _service(s).authenticate_oidc(
+                provider="oidc",
+                issuer=_ISSUER,
+                subject=subject,
+                email=email,
+                name="Nobody Yet",
+                email_verified=True,
+                registration=_ClosedRegistration(),  # type: ignore[arg-type]
+            )
+    async with async_sessionmaker(admin_engine)() as s:
+        count = (
+            await s.execute(text("SELECT count(*) FROM users WHERE email = :e"), {"e": email})
+        ).scalar()
+    assert count == 0
+
+
+async def test_closed_registration_still_lets_an_existing_identity_in(
+    admin_engine: AsyncEngine,
+) -> None:
+    subject = f"sub-{uuid.uuid4().hex[:10]}"
+    email = f"oidc-{uuid.uuid4().hex[:8]}@example.test"
+    user_id: uuid.UUID | None = None
+    kwargs = {
+        "provider": "oidc",
+        "issuer": _ISSUER,
+        "subject": subject,
+        "email": email,
+        "name": "Robin Vale",
+        "email_verified": True,
+    }
+    try:
+        async with db_session() as s:
+            first = await _service(s).authenticate_oidc(**kwargs)  # type: ignore[arg-type]
+        user_id = _CODEC.decode(first.access_token)
+        async with db_session() as s:
+            again = await _service(s).authenticate_oidc(
+                **kwargs,  # type: ignore[arg-type]
+                registration=_ClosedRegistration(),  # type: ignore[arg-type]
+            )
+        assert _CODEC.decode(again.access_token) == user_id
+
+        # Suspended: the provider vouched for the identity, and the answer is "suspended".
+        async with async_sessionmaker(admin_engine)() as s:
+            await s.execute(
+                text("UPDATE users SET suspended_at = now() WHERE id = :u"), {"u": user_id}
+            )
+            await s.commit()
+        with pytest.raises(AccountSuspended):
+            async with db_session() as s:
+                await _service(s).authenticate_oidc(**kwargs)  # type: ignore[arg-type]
+    finally:
+        if user_id is not None:
+            await _delete_user(admin_engine, user_id)

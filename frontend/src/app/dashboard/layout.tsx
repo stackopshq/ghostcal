@@ -9,7 +9,14 @@ import { DashboardUserContext } from "@/components/dashboard-context";
 import NotificationsManager from "@/components/NotificationsManager";
 import OrgSwitcher from "@/components/OrgSwitcher";
 import SuiteSwitcher from "@/components/SuiteSwitcher";
-import { getMe, isAuthenticated, logout, type User } from "@/lib/auth";
+import {
+  ACCOUNT_SUSPENDED_EVENT,
+  getMe,
+  isAuthenticated,
+  logout,
+  type User,
+} from "@/lib/auth";
+import { ApiError } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 
 const ICONS: Record<string, string> = {
@@ -23,6 +30,7 @@ const ICONS: Record<string, string> = {
   polls: "M18 20V10M12 20V4M6 20v-6",
   analytics: "M3 3v18h18M7 16l4-4 3 3 5-6",
   profile: "M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z",
+  admin: "M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6l8-3z",
   plus: "M12 5v14M5 12h14",
   logout: "M16 17l5-5-5-5M21 12H9M13 21H5a2 2 0 01-2-2V5a2 2 0 012-2h8",
 };
@@ -56,6 +64,10 @@ const NAV = [
   { href: "/dashboard/settings", labelKey: "nav.settings", icon: ICONS.settings },
 ];
 
+// Only for the addresses in GHOSTCAL_ADMIN_EMAILS (`/v1/auth/me` says so). Hiding it is
+// comfort, not protection: every /v1/admin route checks again and answers 404 otherwise.
+const ADMIN_NAV = { href: "/dashboard/admin", labelKey: "nav.admin", icon: ICONS.admin };
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const t = useT();
   const router = useRouter();
@@ -78,8 +90,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
     getMe()
       .then(setUser)
-      .catch(() => router.replace(loginUrl))
+      .catch((err: unknown) =>
+        router.replace(
+          err instanceof ApiError && err.code === "account_suspended"
+            ? "/login?reason=account-suspended"
+            : loginUrl,
+        ),
+      )
       .finally(() => setReady(true));
+  }, [router]);
+
+  useEffect(() => {
+    const suspended = () => router.replace("/login?reason=account-suspended");
+    window.addEventListener(ACCOUNT_SUSPENDED_EVENT, suspended);
+    return () => window.removeEventListener(ACCOUNT_SUSPENDED_EVENT, suspended);
   }, [router]);
 
   async function onLogout() {
@@ -137,7 +161,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </Link>
 
         <nav className="flex flex-col gap-1">
-          {NAV.map((item) => {
+          {(user.is_instance_admin ? [...NAV, ADMIN_NAV] : NAV).map((item) => {
             const active = pathname.startsWith(item.href);
             return (
               <Link

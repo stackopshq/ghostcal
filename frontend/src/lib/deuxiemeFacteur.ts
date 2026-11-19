@@ -17,12 +17,14 @@ export type SuiteDeLaConnexion =
   | { quoi: "verrouille"; jusqua: Date | null }
   | { quoi: "identifiants-refuses" }
   | { quoi: "email-non-verifie" }
+  | { quoi: "compte-suspendu" }
   | { quoi: "autre" };
 
 /** La forme imbriquée que FastAPI produit : `{"detail": {"detail": …, "mfa_required": …}}`. */
 interface CorpsDeDetail {
   mfa_required?: boolean;
   locked_until?: string;
+  code?: string;
 }
 
 function detailImbrique(message: string): CorpsDeDetail | null {
@@ -70,6 +72,10 @@ export function lireLEchecDeConnexion(
       : { quoi: "demander-le-code" };
   }
   if (statut === 401) return { quoi: "identifiants-refuses" };
+  // Deux 403 : le compte suspendu porte son code, l'adresse non vérifiée n'en porte pas.
+  // Le serveur ne répond « suspendu » qu'après un bon mot de passe.
+  if (statut === 403 && detail?.code === "account_suspended")
+    return { quoi: "compte-suspendu" };
   if (statut === 403) return { quoi: "email-non-verifie" };
   return { quoi: "autre" };
 }

@@ -145,7 +145,14 @@ def wired(monkeypatch: pytest.MonkeyPatch) -> ExplodingMailer:
     monkeypatch.setattr(auth_routes, "_mailer", mailer)
     # The real checker would reach api.pwnedpasswords.com; the policy itself still applies.
     monkeypatch.setattr(auth_routes, "_breach_checker", NoBreachCheck())
+    # Sign-up open, without the database this file stands in for.
+    monkeypatch.setattr(auth_routes, "_registration", lambda session: _OpenRegistration())
     return mailer
+
+
+class _OpenRegistration:
+    async def is_open(self) -> bool:
+        return True
 
 
 # --------------------------------------------------------------------------------------------

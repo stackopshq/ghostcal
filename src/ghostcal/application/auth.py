@@ -63,6 +63,19 @@ class ZkKeysAlreadySet(AuthError):
     """Refuse to overwrite existing zero-knowledge keys (would orphan encrypted data)."""
 
 
+class AccountSuspended(AuthError):
+    """An instance administrator suspended this account: it keeps its data and cannot sign in.
+
+    Raised only once the caller has proved who they are (right password, valid token, vouched SSO
+    identity). Before that, a suspended account gets the ordinary refusal: telling a stranger with
+    a wrong password that the account is suspended would tell them it exists.
+    """
+
+
+class RegistrationClosed(AuthError):
+    """Sign-up is closed on this instance, by the environment or from the administration view."""
+
+
 @dataclass(frozen=True, slots=True)
 class AuthUserRecord:
     id: uuid.UUID
@@ -79,6 +92,7 @@ class AuthUserRecord:
     # le cache de l'image après un envoi. Sans lui, le navigateur continuerait d'afficher
     # l'ancienne — un téléversement qui semble n'avoir rien fait.
     avatar_updated_at: datetime | None = None
+    suspended_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -245,6 +259,21 @@ class AuthRepository:
         """Revoke every live session for a user. Returns how many were revoked."""
         raise NotImplementedError
 
+    async def record_sign_in(self, user_id: uuid.UUID, now: datetime) -> None:
+        """Stamp ``last_login_at``: a password or SSO sign-in, never a refresh."""
+        raise NotImplementedError
+
+    async def oidc_account_exists(self, *, issuer: str, subject: str, email: str) -> bool:
+        """Would this SSO sign-in reach an existing account (linked identity or same address)?"""
+        raise NotImplementedError
+
+
+class RegistrationGate:
+    """Whether a new account may be created right now. See ``application/administration.py``."""
+
+    async def is_open(self) -> bool:
+        raise NotImplementedError
+
 
 def _hash_token(plain: str) -> str:
     return hashlib.sha256(plain.encode()).hexdigest()
@@ -302,8 +331,18 @@ class AuthService:
         self._breach_checker = breach_checker or NoBreachCheck()
 
     async def register(
-        self, *, email: str, name: str, password: str, zk_keys: ZkKeyMaterial
+        self,
+        *,
+        email: str,
+        name: str,
+        password: str,
+        zk_keys: ZkKeyMaterial,
+        registration: RegistrationGate | None = None,
     ) -> uuid.UUID:
+        # First, before the password policy and its HIBP call: a closed instance answers the
+        # same for every request, and spends nothing on it.
+        if registration is not None and not await registration.is_open():
+            raise RegistrationClosed("registration closed")
         email = email.strip().lower()
         await enforce_password_policy(password, self._breach_checker)
         password_hash = self._hasher.hash(password)
@@ -495,9 +534,12 @@ class AuthService:
             raise InvalidCredentials("invalid email or password")
         if not self._hasher.verify(user.password_hash, password):
             raise InvalidCredentials("invalid email or password")
+        if user.suspended_at is not None:
+            raise AccountSuspended("account suspended")
         if not user.email_verified:
             raise EmailNotVerified("email not verified")
         await self._two_factor.enforce_at_login(user.id, code=totp_code)
+        await self._repo.record_sign_in(user.id, self._clock.now())
         return await self._issue_pair(user.id)
 
     async def verify_password(self, user_id: uuid.UUID, password: str) -> bool:
@@ -522,6 +564,7 @@ class AuthService:
         email: str,
         name: str,
         email_verified: bool,
+        registration: RegistrationGate | None = None,
     ) -> TokenPair:
         """Log a user in from a validated OIDC identity, provisioning on first login. No password
         is involved; the zero-knowledge content is unlocked later by the encryption passphrase.
@@ -531,8 +574,20 @@ class AuthService:
         facteur s'il y en a un. En redemander un ici n'ajouterait rien à la
         sécurité — le mot de passe qu'il protégerait n'existe pas de ce
         côté-ci — et donnerait une seconde façon de se retrouver enfermé dehors.
+
+        ``registration`` closes the side door: first SSO sign-in creates an account, so with
+        sign-up closed it must only reach accounts that already exist. The route always passes
+        it; ``None`` is for tests that do not exercise sign-up.
         """
         email = email.strip().lower()
+        if (
+            registration is not None
+            and not await registration.is_open()
+            and not await self._repo.oidc_account_exists(
+                issuer=issuer, subject=subject, email=email
+            )
+        ):
+            raise RegistrationClosed("registration closed")
         user_id = await self._repo.upsert_oidc_identity(
             provider=provider,
             issuer=issuer,
@@ -543,6 +598,10 @@ class AuthService:
             org_slug=_org_slug(email),
             email_verified=email_verified,
         )
+        user = await self._repo.get_by_id(user_id)
+        if user is not None and user.suspended_at is not None:
+            raise AccountSuspended("account suspended")
+        await self._repo.record_sign_in(user_id, self._clock.now())
         return await self._issue_pair(user_id)
 
     async def refresh(self, *, refresh_token: str) -> TokenPair:
@@ -550,6 +609,11 @@ class AuthService:
         user_id = await self._repo.rotate_refresh_token(_hash_token(refresh_token), now)
         if user_id is None:
             raise InvalidToken("invalid or expired refresh token")
+        # Suspension revokes every refresh token, so this is the belt to that braces: a token
+        # minted in the instant between the check and the revocation still gets no new pair.
+        user = await self._repo.get_by_id(user_id)
+        if user is not None and user.suspended_at is not None:
+            raise AccountSuspended("account suspended")
         return await self._issue_pair(user_id)
 
     async def logout(self, *, refresh_token: str) -> None:
@@ -563,6 +627,10 @@ class AuthService:
         user = await self._repo.get_by_id(user_id)
         if user is None:
             raise InvalidToken("unknown user")
+        # Every authenticated request passes here and already reads this row, so suspension
+        # takes effect on the next request, not when the access token expires.
+        if user.suspended_at is not None:
+            raise AccountSuspended("account suspended")
         return AuthenticatedUser(
             id=user.id, email=user.email, name=user.name, email_verified=user.email_verified
         )

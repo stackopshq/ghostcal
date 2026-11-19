@@ -125,7 +125,25 @@ class AccountService:
             password is None or not self._hasher.verify(user.password_hash, password)
         ):
             raise InvalidPassword("password is incorrect")
+        return await self._erase(user_id, now=now)
 
+    async def delete_for_admin(
+        self, user_id: uuid.UUID, *, email_confirmation: str, now: datetime
+    ) -> list[CancelledBooking]:
+        """The same erasure, asked by an instance administrator.
+
+        No password: the administrator does not have it. The address typed back stays, for the
+        same reason as above: it is what makes the step deliberate. Whether the target may be
+        erased at all (not an administrator) is decided by the caller, which knows the list.
+        """
+        user = await self._auth.get_by_id(user_id)
+        if user is None:
+            raise UnknownUser("unknown user")
+        if email_confirmation.strip().casefold() != user.email.casefold():
+            raise ConfirmationMismatch("the typed address does not match this account")
+        return await self._erase(user_id, now=now)
+
+    async def _erase(self, user_id: uuid.UUID, *, now: datetime) -> list[CancelledBooking]:
         standings = await self._repo.org_standings(user_id)
 
         # Check every organization before touching any of them, so a refusal leaves nothing behind.

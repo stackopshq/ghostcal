@@ -51,6 +51,11 @@ class Action:
     ORG_KEY_ROTATED = "org.key.rotated"
 
     ACCOUNT_DELETED = "account.deleted"
+    # Instance administration (GHOSTCAL_ADMIN_EMAILS). An erasure from the view is recorded as
+    # ACCOUNT_DELETED with no target: the log keeps that an account went, not which one.
+    ACCOUNT_SUSPENDED = "admin.account.suspended"
+    ACCOUNT_REACTIVATED = "admin.account.reactivated"
+    REGISTRATION_CHANGED = "admin.registration.changed"
     RETENTION_PURGED = "retention.purged"
 
 

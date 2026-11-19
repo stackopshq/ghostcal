@@ -245,6 +245,39 @@ class UserOut(BaseModel):
     # False for an SSO-only account. Account deletion asks such an account to confirm with its email
     # address alone — there is no password to re-enter, and offering the field would be nonsense.
     has_password: bool
+    # Listed in GHOSTCAL_ADMIN_EMAILS: the client shows the Administration entry. Only that; every
+    # /v1/admin route checks again.
+    is_instance_admin: bool = False
+
+
+class AdminAccountOut(BaseModel):
+    """One account in the administration view. Metadata only: nothing sealed, no secret."""
+
+    id: uuid.UUID
+    email: str
+    name: str
+    created_at: datetime
+    email_verified: bool
+    last_login_at: datetime | None
+    two_factor_enabled: bool
+    suspended_at: datetime | None
+    is_admin: bool
+
+
+class RegistrationOut(BaseModel):
+    open: bool
+    # Pinned by GHOSTCAL_REGISTRATION: the view shows the state without a button.
+    fixed: bool
+
+
+class RegistrationIn(BaseModel):
+    open: bool
+
+
+class AdminAccountDeleteIn(BaseModel):
+    """The account's address, typed back. The administrator has no password to give."""
+
+    email_confirmation: str = Field(min_length=1, max_length=320)
 
 
 class ProfileOut(BaseModel):
