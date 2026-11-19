@@ -136,6 +136,26 @@ class User(TimestampMixin, Base):
     zk_public_key: Mapped[str | None] = mapped_column(Text)
     zk_wrapped_private_key: Mapped[str | None] = mapped_column(Text)
     zk_wrap_salt: Mapped[str | None] = mapped_column(Text)
+    # Set by an instance administrator: the account keeps its data and cannot sign in. NULL means
+    # active. Every way in reads it (password, SSO, bearer, refresh).
+    suspended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # A password or SSO sign-in, not a token refresh: what the administration view calls
+    # "last sign-in".
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class InstanceSetting(Base):
+    """A choice an instance administrator made from the view, such as closing sign-up.
+
+    Key/value rather than one column per setting: the table belongs to no organization, holds a
+    handful of rows, and a new setting should not need a migration to exist.
+    """
+
+    __tablename__ = "instance_settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class UserCredential(Base):

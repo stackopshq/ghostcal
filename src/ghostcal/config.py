@@ -220,9 +220,46 @@ class Settings(BaseSettings):
     resend_api_key: SecretStr | None = None
     email_from: str = "GhostCal <onboarding@resend.dev>"
 
+    # Instance administrators: addresses separated by commas or spaces, compared case-insensitively.
+    # Empty, nobody administers the instance and the administration view does not exist. Read at
+    # startup, like every setting here: after editing `.env`, `podman compose up -d` again (a
+    # plain restart keeps the old environment).
+    admin_emails: str = ""
+
+    # Sign-up. `open` or `closed` pins it, and the administration view then shows it without a
+    # button. Empty (the default) leaves the choice to the view, stored in `instance_settings`;
+    # with no choice made, sign-up stays open, as it always was. Anything else stops the server
+    # at startup: guessing a security setting from a typo (`close`, `false`) is worse than not
+    # starting.
+    registration: str = ""
+
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
+
+    @property
+    def instance_admin_emails(self) -> frozenset[str]:
+        return frozenset(
+            part.strip().lower() for part in self.admin_emails.replace(",", " ").split() if part
+        )
+
+    @property
+    def registration_fixed(self) -> Literal["open", "closed"] | None:
+        value = self.registration.strip().lower()
+        if value == "open":
+            return "open"
+        if value == "closed":
+            return "closed"
+        return None
+
+    @model_validator(mode="after")
+    def _reject_unknown_registration(self) -> Settings:
+        if self.registration.strip().lower() not in {"", "open", "closed"}:
+            raise ValueError(
+                f"registration: {self.registration!r} is neither 'open' nor 'closed' "
+                "(leave it empty to decide from the administration view)"
+            )
+        return self
 
     @model_validator(mode="after")
     def _reject_placeholder_secrets(self) -> Settings:

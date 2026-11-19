@@ -11,8 +11,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from ghostcal.application.administration import StoredRegistrationGate
 from ghostcal.application.audit import Action, AuditLog
 from ghostcal.application.auth import (
+    AccountSuspended,
     AuthConfig,
     AuthenticatedUser,
     AuthService,
@@ -21,6 +23,7 @@ from ghostcal.application.auth import (
     InvalidCredentials,
     InvalidToken,
     OidcIdentityRefused,
+    RegistrationClosed,
     TokenPair,
     ZkKeyMaterial,
     ZkKeysAlreadySet,
@@ -38,6 +41,7 @@ from ghostcal.application.two_factor import (
     TwoFactorService,
 )
 from ghostcal.config import get_settings
+from ghostcal.infrastructure.db.administration_repository import SqlAdministrationRepository
 from ghostcal.infrastructure.db.audit_repository import SqlAuditSink
 from ghostcal.infrastructure.db.auth_repository import SqlAuthRepository
 from ghostcal.infrastructure.db.session import db_session
@@ -130,6 +134,28 @@ def _service(session: object, mailer: EmailSender | None = None) -> AuthService:
     )
 
 
+def _registration(session: object) -> StoredRegistrationGate:
+    return StoredRegistrationGate(
+        SqlAdministrationRepository(session),  # type: ignore[arg-type]
+        _settings.registration_fixed,
+    )
+
+
+# A machine-readable `code` next to the message, in the dict shape the second-factor answers
+# already use: clients branch on the code and may show the message.
+def _suspended() -> HTTPException:
+    return HTTPException(
+        status_code=403, detail={"detail": "account suspended", "code": "account_suspended"}
+    )
+
+
+def _registration_closed() -> HTTPException:
+    return HTTPException(
+        status_code=403,
+        detail={"detail": "registration is closed", "code": "registration_closed"},
+    )
+
+
 def _audit(session: object) -> AuditLog:
     """Le journal de compte : `organization_id` reste nul, le second facteur n'appartient
     à aucune organisation."""
@@ -154,6 +180,8 @@ async def current_user(
             return await _service(session).current_user(access_token=credentials.credentials)
         except InvalidToken as exc:
             raise HTTPException(status_code=401, detail="invalid token") from exc
+        except AccountSuspended as exc:
+            raise _suspended() from exc
 
 
 CurrentUser = Annotated[AuthenticatedUser, Depends(current_user)]
@@ -180,6 +208,18 @@ async def auth_config() -> dict[str, bool | str | None]:
     }
 
 
+@router.get("/registration")
+async def registration_state() -> dict[str, bool]:
+    """Whether sign-up is open, so a client can hide its sign-up link.
+
+    Only that: the server refuses a sign-up on a closed instance whatever the client shows. Kept
+    apart from `/config` on purpose, which answers from settings alone: this one reads the
+    database, and a database hiccup should cost the sign-up link, not the whole login page.
+    """
+    async with db_session() as session:
+        return {"open": await _registration(session).is_open()}
+
+
 @router.post("/register", response_model=RegisteredOut, status_code=201, dependencies=_AUTH_RL)
 async def register(payload: RegisterIn) -> RegisteredOut:
     zk_keys = ZkKeyMaterial(
@@ -200,7 +240,10 @@ async def register(payload: RegisterIn) -> RegisteredOut:
                 name=payload.name,
                 password=payload.password,
                 zk_keys=zk_keys,
+                registration=_registration(session),
             )
+        except RegistrationClosed as exc:
+            raise _registration_closed() from exc
         except PasswordRejected as exc:
             # 422, not 400: this is the request body failing a rule, same class as the Pydantic
             # length check that runs just before it. The message is written to be shown as-is.
@@ -434,7 +477,18 @@ async def oidc_callback(request: Request) -> RedirectResponse:
                 email=str(email),
                 name=str(userinfo.get("name") or ""),
                 email_verified=email_verified,
+                registration=_registration(session),
             )
+    except RegistrationClosed:
+        # Same redirect shape as the refusals below, with its own reason: the SSO page cannot
+        # return a 403 to a browser mid-redirect, and "closed" is not a secret.
+        return RedirectResponse(
+            f"{_settings.frontend_base_url}/login?sso_error=registration_closed"
+        )
+    except AccountSuspended:
+        # Reached only once the provider vouched for the identity: saying "suspended" here tells
+        # the account holder, not a stranger.
+        return RedirectResponse(f"{_settings.frontend_base_url}/login?sso_error=account_suspended")
     except OidcIdentityRefused:
         # Unverified address, or an unverified local account already holds it. Both are refusals
         # to link, and the redirect says no more than that: distinguishing them here would tell a
@@ -480,6 +534,8 @@ async def login(payload: LoginIn) -> TokenOut:
             raise HTTPException(status_code=401, detail="invalid email or password") from exc
         except EmailNotVerified as exc:
             raise HTTPException(status_code=403, detail="email not verified") from exc
+        except AccountSuspended as exc:
+            raise _suspended() from exc
         except TwoFactorLocked as exc:
             # 429 et non 401 : ce n'est pas « mauvais code », c'est « trop
             # d'essais ». Les confondre ferait tourner un client légitime en
@@ -524,6 +580,8 @@ async def refresh(payload: RefreshIn) -> TokenOut:
             tokens = await _service(session).refresh(refresh_token=payload.refresh_token)
         except InvalidToken as exc:
             raise HTTPException(status_code=401, detail="invalid refresh token") from exc
+        except AccountSuspended as exc:
+            raise _suspended() from exc
     return _token_out(tokens)
 
 
@@ -548,6 +606,8 @@ async def me(user: CurrentUser) -> UserOut:
         name=record.name,
         email_verified=record.email_verified,
         has_password=record.password_hash is not None,
+        is_instance_admin=record.email_verified
+        and record.email.strip().lower() in _settings.instance_admin_emails,
     )
 
 

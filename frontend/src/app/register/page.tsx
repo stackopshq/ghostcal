@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import AuthCard, { Champ, inputClass, lienDePied, primaryButtonClass } from "@/components/AuthCard";
 import { ApiError } from "@/lib/api";
-import { register } from "@/lib/auth";
+import { getRegistrationOpen, register } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 import { MIN_PASSWORD_LENGTH } from "@/lib/passwords";
 import {
@@ -24,6 +24,11 @@ export default function RegisterPage() {
   // on to the sign-in link so the detour does not drop them on the dashboard. Read after mount:
   // the server has no URL to read, and a different href on first paint is a hydration mismatch.
   const [loginHref, setLoginHref] = useState("/login");
+  // Closed instance: say so instead of offering a form the server will refuse.
+  const [closed, setClosed] = useState(false);
+  useEffect(() => {
+    getRegistrationOpen().then((open) => setClosed(!open));
+  }, []);
   useEffect(() => {
     const next = new URLSearchParams(window.location.search).get("next");
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -39,6 +44,11 @@ export default function RegisterPage() {
       setRecoveryPhrase(recovery_phrase);
       setDone(true);
     } catch (err) {
+      if (err instanceof ApiError && err.code === "registration_closed") {
+        // Closed between loading the page and sending it.
+        setClosed(true);
+        return;
+      }
       setError(
         err instanceof ApiError && err.status === 409
           ? t("register.errTaken")
@@ -83,6 +93,22 @@ export default function RegisterPage() {
           </div>
           <p className="text-sm text-muted">{t("register.expires")}</p>
         </div>
+      </AuthCard>
+    );
+  }
+
+  if (closed) {
+    return (
+      <AuthCard
+        title={t("register.closedTitle")}
+        subtitle={t("register.closedSub")}
+        footer={
+          <Link href={loginHref} className={lienDePied}>
+            {t("register.backToSignIn")}
+          </Link>
+        }
+      >
+        {null}
       </AuthCard>
     );
   }

@@ -30,6 +30,7 @@ from fastapi.responses import PlainTextResponse
 from sqlalchemy import func, select
 
 from ghostcal.infrastructure.db import models
+from ghostcal.infrastructure.db.auth_repository import SqlAuthRepository
 from ghostcal.infrastructure.db.membership import primary_organization
 from ghostcal.infrastructure.db.session import bind_org, db_session
 from ghostcal.infrastructure.security.resource_server import (
@@ -109,6 +110,14 @@ async def require_portal_token(request: Request) -> PortalContext:
                 )
             )
         ).scalar_one_or_none()
+        if user_id is not None:
+            # A suspended account answers nothing here either: the portal is one more way in.
+            record = await SqlAuthRepository(session).get_by_id(user_id)
+            if record is not None and record.suspended_at is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail={"detail": "account suspended", "code": "account_suspended"},
+                )
         organization_id = (
             await primary_organization(session, user_id) if user_id is not None else None
         )
