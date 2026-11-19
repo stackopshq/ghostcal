@@ -296,6 +296,10 @@ release-github:
   variables:
     GITHUB_REPO: stackopshq/ghostcal
   script:
+    # The slim Node image has no curl: the v0.1.0 tag pipeline failed on it, and the Release
+    # was created by hand. Installed here rather than switching image, so `node` stays the one
+    # the frontend job uses.
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends curl ca-certificates >/dev/null
     - |
       set -eu
       notes="docs/releases/${CI_COMMIT_TAG}.md"
