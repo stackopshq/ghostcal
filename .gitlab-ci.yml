@@ -20,8 +20,10 @@ workflow:
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_PIPELINE_SOURCE == "web"
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    # Release tags: only release-github runs, see there.
+    # App release tags: only release-github runs, see there.
     - if: $CI_COMMIT_TAG =~ /^mobile-v/
+    # Server release tags: the whole pipeline, then the versioned image and the Release.
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]/
     # No branch pipeline on top of an MR pipeline for the same commit.
     - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
       when: never
@@ -53,10 +55,11 @@ variables:
   UV_CACHE_DIR: /tmp/uv-cache
   UV_LINK_MODE: copy
 
-# A release tag sits on a main commit whose pipeline already ran these checks.
+# An app release tag sits on a main commit whose pipeline already ran these checks. A server
+# release tag runs them again: its image is the one self-hosters will pin.
 .code:
   rules:
-    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_TAG =~ /^mobile-v/
       when: never
     - if: $CI_PIPELINE_SOURCE == "schedule"
       when: never
@@ -64,7 +67,7 @@ variables:
 
 .security:
   rules:
-    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_TAG =~ /^mobile-v/
       when: never
     - if: $CI_PIPELINE_SOURCE == "schedule" && $CI_PIPELINE_SCHEDULE_DESCRIPTION != "Weekly security"
       when: never
@@ -242,42 +245,53 @@ images:
       done
     - |
       set -eu
-      if [ "${CI_COMMIT_BRANCH:-}" != "$CI_DEFAULT_BRANCH" ]; then
-        echo "not $CI_DEFAULT_BRANCH: built and scanned, not published"
-        exit 0
-      fi
+      # main publishes sha-<short> and main; a server release tag publishes its version.
+      case "${CI_COMMIT_TAG:-}" in
+        v[0-9]*) tags="sha-$SHORT $CI_COMMIT_TAG" ;;
+        *)
+          if [ "${CI_COMMIT_BRANCH:-}" != "$CI_DEFAULT_BRANCH" ]; then
+            echo "not $CI_DEFAULT_BRANCH: built and scanned, not published"
+            exit 0
+          fi
+          tags="sha-$SHORT main" ;;
+      esac
       if [ -z "${GHCR_USERNAME:-}" ] || [ -z "${GHCR_TOKEN:-}" ]; then
         echo "GHCR_USERNAME / GHCR_TOKEN missing: built, NOT published"
         exit 1
       fi
       trap 'buildah logout --all >/dev/null 2>&1 || true' EXIT
       printf '%s' "$GHCR_TOKEN" | buildah login -u "$GHCR_USERNAME" --password-stdin ghcr.io
-      for tag in "sha-$SHORT" main; do
+      for tag in $tags; do
         buildah tag ghostcal:ci "$GHCR_IMAGE:$tag"
         buildah push "$GHCR_IMAGE:$tag"
         echo "published $GHCR_IMAGE:$tag"
       done
 
-# Creates the GitHub Release for every `mobile-vX.Y.Z` tag.
+# Creates the GitHub Release for every release tag, of either kind.
 #
-# The GitLab project is private: GitHub is where the public sees a version,
-# and Sparkle downloads the macOS image from there. Notes come from
-# `docs/releases/<tag>.md`, reviewed in the same MR as the version bump; the
-# job fails without them.
+# The GitLab project is private: GitHub is where the public sees a version.
+# Notes come from `docs/releases/<tag>.md`, reviewed in the same MR as the
+# version bump; the job fails without them.
 #
-# It creates the Release only. The DMG, AAB, APK and SHA256SUMS are built and
-# signed on the Mac, then attached with `gh release upload` (docs/releases/README.md).
-# The appcast entry is signed last, so Sparkle offers nothing until the image
-# is attached.
+# - `mobile-vX.Y.Z`, the apps: the Release only. The DMG, AAB, APK and
+#   SHA256SUMS are built and signed on the Mac, then attached with
+#   `gh release upload` (docs/releases/README.md). Sparkle downloads the
+#   macOS image from there; the appcast entry is signed last, so it offers
+#   nothing until the image is attached.
+# - `vX.Y.Z`, the server: after `images` has published ghcr.io/…:vX.Y.Z,
+#   so the Release never announces an image that is not there.
 #
 # Token: GITHUB_RELEASE_TOKEN, protected and masked, so only protected tags
-# (`mobile-v*`) see it. Missing, the job says so and stops without failing.
+# (`mobile-v*`, `v*`) see it. Missing, the job says so and stops without failing.
 release-github:
   stage: publish
   image: $NODE_IMAGE
-  needs: []
+  needs:
+    - job: images
+      optional: true
   rules:
     - if: $CI_COMMIT_TAG =~ /^mobile-v/
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]/
   interruptible: false
   variables:
     GITHUB_REPO: stackopshq/ghostcal
@@ -289,13 +303,26 @@ release-github:
         echo "missing notes: $notes. Write them in an MR, then tag again."
         exit 1
       fi
-      # The Release is named after pubspec ("GhostCal 1.8.3 (15)"); a tag that
-      # disagrees with it would publish one version under another's name.
-      pubspec="$(sed -n 's/^version: *//p' apps/mobile/pubspec.yaml)"
-      version="${pubspec%%+*}"
-      build="${pubspec#*+}"
-      if [ "mobile-v${version}" != "$CI_COMMIT_TAG" ]; then
-        echo "tag ${CI_COMMIT_TAG} but apps/mobile/pubspec.yaml says ${pubspec}: nothing created."
+      # The Release is named after the version file of what is released; a tag
+      # that disagrees with it would publish one version under another's name.
+      case "$CI_COMMIT_TAG" in
+        mobile-v*)
+          pubspec="$(sed -n 's/^version: *//p' apps/mobile/pubspec.yaml)"
+          version="${pubspec%%+*}"
+          build="${pubspec#*+}"
+          expected="mobile-v${version}"
+          name="GhostCal ${version} (${build})"
+          source_file="apps/mobile/pubspec.yaml (${pubspec})"
+          ;;
+        *)
+          version="$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml | head -1)"
+          expected="v${version}"
+          name="GhostCal v${version}"
+          source_file="pyproject.toml (${version})"
+          ;;
+      esac
+      if [ "$expected" != "$CI_COMMIT_TAG" ]; then
+        echo "tag ${CI_COMMIT_TAG} but ${source_file} says otherwise: nothing created."
         exit 1
       fi
       if [ -z "${GITHUB_RELEASE_TOKEN:-}" ]; then
@@ -330,7 +357,7 @@ release-github:
         exit 1
       fi
 
-      body="$(TAG="$CI_COMMIT_TAG" NAME="GhostCal ${version} (${build})" NOTES="$notes" node -e '
+      body="$(TAG="$CI_COMMIT_TAG" NAME="$name" NOTES="$notes" node -e '
         const fs = require("fs");
         process.stdout.write(JSON.stringify({
           tag_name: process.env.TAG,
@@ -343,7 +370,9 @@ release-github:
         --data "$body" "${api}/releases")"
       if [ "$code" = 201 ]; then
         echo "Release created: https://github.com/${GITHUB_REPO}/releases/tag/${CI_COMMIT_TAG}"
-        echo "Next, from the Mac: gh release upload ${CI_COMMIT_TAG} --repo ${GITHUB_REPO} <files>"
+        case "$CI_COMMIT_TAG" in
+          mobile-v*) echo "Next, from the Mac: gh release upload ${CI_COMMIT_TAG} --repo ${GITHUB_REPO} <files>" ;;
+        esac
       elif [ "$code" = 422 ] && grep -q already_exists response.json; then
         # Retried, or created by hand: never overwritten.
         echo "Release ${CI_COMMIT_TAG} already exists on GitHub: left as it is."
